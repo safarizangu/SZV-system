@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://safarizanguven.com/</loc><priority>1.0</priority><changefreq>weekly</changefreq></url>
+  <url><loc>https://safarizanguven.com/packages.php</loc><priority>0.9</priority><changefreq>weekly</changefreq></url>
+  <url><loc>https://safarizanguven.com/book.php</loc><priority>0.8</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://safarizanguven.com/about.html</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://safarizanguven.com/contact.html</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://safarizanguven.com/sustainability.html</loc><priority>0.6</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://safarizanguven.com/track.php</loc><priority>0.4</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://safarizanguven.com/blog/</loc><priority>0.8</priority><changefreq>weekly</changefreq></url>
+  <url><loc>https://safarizanguven.com/blog/best-time-serengeti.html</loc><priority>0.8</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://safarizanguven.com/blog/tanzania-safari-cost.html</loc><priority>0.8</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://safarizanguven.com/blog/tanzania-safari-packing-list.html</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://safarizanguven.com/blog/ngorongoro-crater-guide.html</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://safarizanguven.com/blog/zanzibar-beaches-guide.html</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://safarizanguven.com/blog/serengeti-vs-masai-mara.html</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+</urlset>

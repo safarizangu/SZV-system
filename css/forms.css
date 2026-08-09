@@ -1,0 +1,282 @@
+/* ═══════════════════════════════════════════════════════════
+   Safari Zangu — Polished Public Forms
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Field wrapper ──────────────────────────────────────────── */
+.sz-field {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+  margin-bottom: 1.1rem;
+}
+
+/* ── Labels ─────────────────────────────────────────────────── */
+.form-label,
+.sz-label {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--black);
+}
+
+.sz-required {
+  color: #dc2626;
+  font-size: .7rem;
+}
+
+.sz-hint {
+  font-size: .68rem;
+  color: #9ca3af;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-left: auto;
+}
+
+/* ── Inputs ─────────────────────────────────────────────────── */
+.form-control-sz,
+.sz-input {
+  width: 100%;
+  padding: .75rem 1rem;
+  border: 1.5px solid var(--gray-2, #e5e7eb);
+  background: #fff;
+  font-family: var(--font-body, 'Jost', sans-serif);
+  font-size: .9rem;
+  color: var(--black);
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 0;
+}
+
+.form-control-sz:focus,
+.sz-input:focus {
+  border-color: var(--black);
+  box-shadow: 0 0 0 3px rgba(10,10,10,.07);
+}
+
+.form-control-sz::placeholder,
+.sz-input::placeholder {
+  color: #adb5bd;
+  font-weight: 400;
+}
+
+/* Valid / Invalid states */
+.form-control-sz.sz-valid,
+.sz-input.sz-valid {
+  border-color: #16a34a;
+  background: #f0fdf4;
+}
+
+.form-control-sz.sz-invalid,
+.sz-input.sz-invalid {
+  border-color: #dc2626;
+  background: #fef2f2;
+  animation: sz-shake .3s ease;
+}
+
+@keyframes sz-shake {
+  0%,100% { transform: translateX(0); }
+  20%      { transform: translateX(-4px); }
+  40%      { transform: translateX(4px); }
+  60%      { transform: translateX(-3px); }
+  80%      { transform: translateX(3px); }
+}
+
+/* ── Selects ─────────────────────────────────────────────────── */
+select.form-control-sz,
+select.sz-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23333' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  padding-right: 2.5rem;
+  cursor: pointer;
+}
+
+/* ── Textarea ────────────────────────────────────────────────── */
+textarea.form-control-sz,
+textarea.sz-input {
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.6;
+}
+
+/* ── Error messages ──────────────────────────────────────────── */
+.sz-error {
+  display: none;
+  font-size: .68rem;
+  font-weight: 600;
+  color: #dc2626;
+  letter-spacing: .02em;
+  margin-top: .25rem;
+}
+.sz-error::before { content: '⚠ '; }
+
+/* ── Character counter ───────────────────────────────────────── */
+.sz-char-count {
+  font-size: .65rem;
+  color: #9ca3af;
+  text-align: right;
+  display: block;
+  margin-top: .2rem;
+}
+
+/* ── Form rows ───────────────────────────────────────────────── */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 0;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+  margin-bottom: 1.1rem;
+}
+
+/* ── Submit button states ────────────────────────────────────── */
+.btn-sz-dark:disabled,
+.btn-sz-outline:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.btn-sz-dark.is-loading {
+  position: relative;
+  color: transparent;
+  pointer-events: none;
+}
+
+.btn-sz-dark.is-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 2px solid rgba(255,255,255,.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: sz-spin .6s linear infinite;
+}
+
+@keyframes sz-spin { to { transform: rotate(360deg); } }
+
+/* ── Form message banner ─────────────────────────────────────── */
+.form-message {
+  font-size: .82rem;
+  font-weight: 500;
+  line-height: 1.5;
+  padding: 0;
+  min-height: 0;
+  transition: all .2s;
+}
+.form-message.success {
+  background: #f0fdf4;
+  border-left: 3px solid #16a34a;
+  color: #166534;
+  padding: .85rem 1rem;
+  margin-top: .75rem;
+}
+.form-message.error {
+  background: #fef2f2;
+  border-left: 3px solid #dc2626;
+  color: #991b1b;
+  padding: .85rem 1rem;
+  margin-top: .75rem;
+}
+
+/* ── Step indicator (booking form) ──────────────────────────── */
+.sz-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 2rem;
+}
+.sz-step {
+  flex: 1;
+  text-align: center;
+  padding: .5rem;
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  border-bottom: 2px solid #e5e7eb;
+  position: relative;
+}
+.sz-step.active {
+  color: var(--black);
+  border-bottom-color: var(--black);
+}
+.sz-step.done {
+  color: #16a34a;
+  border-bottom-color: #16a34a;
+}
+.sz-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  font-size: .65rem;
+  margin-bottom: .2rem;
+}
+
+/* ── Section divider inside form ─────────────────────────────── */
+.sz-form-section {
+  margin-bottom: 1.75rem;
+}
+.sz-form-section-title {
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  border-bottom: 1px solid var(--gray-2, #e5e7eb);
+  padding-bottom: .5rem;
+  margin-bottom: 1.1rem;
+}
+
+/* ── Price preview box ───────────────────────────────────────── */
+.sz-price-preview {
+  background: var(--gray-1, #f7f7f5);
+  border: 1.5px solid var(--black);
+  padding: 1.25rem;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+.sz-price-preview-total {
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 2rem;
+  font-weight: 500;
+  line-height: 1.1;
+}
+.sz-price-breakdown {
+  margin-top: .75rem;
+  font-size: .78rem;
+  line-height: 2;
+  color: var(--black);
+}
+.sz-price-breakdown span {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px dashed var(--gray-2, #e5e7eb);
+  padding: .1rem 0;
+}
+.sz-price-breakdown span:last-child { border-bottom: none; }
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .form-row { grid-template-columns: 1fr; }
+}
