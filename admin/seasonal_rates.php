@@ -37,7 +37,7 @@ try { $rows = $db->query("SELECT * FROM seasonal_rates ORDER BY start_month")->f
 catch(Exception $e){}
 $months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 ?>
-<?php if($msg): ?><div class="admin-alert admin-alert--success"><?= $msg ?></div><?php endif; ?>
+<?php if($msg): ?><div class="admin-alert admin-alert--<?= str_starts_with($msg,'Error')?'error':'success' ?>"><?= $msg ?></div><?php endif; ?>
 <div class="admin-card" style="margin-bottom:2rem">
   <div class="admin-card-header"><h3><?= $edit ? 'Edit Season' : 'Add Season' ?></h3></div>
   <div class="admin-card-body">

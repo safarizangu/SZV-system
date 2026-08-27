@@ -165,7 +165,15 @@ ob_start();
       </form>
       <!-- Convert to Booking -->
       <?php if ($q['status'] === 'accepted'): ?>
-      <a href="../book.php?quote_id=<?= $q['id'] ?>" class="admin-btn admin-btn--success" style="font-size:.65rem;padding:.3rem .6rem">→ Book</a>
+      <button onclick="openConvertModal(<?= $q['id'] ?>, '<?= htmlspecialchars($q['quote_ref']) ?>', '<?= htmlspecialchars($q['client_name']) ?>', <?= (float)$q['grand_total'] ?>, '<?= htmlspecialchars($q['package_name']??'') ?>', '<?= htmlspecialchars($q['start_date']??'') ?>')"
+              class="admin-btn admin-btn--success" style="font-size:.65rem;padding:.3rem .6rem">
+        → Convert to Booking
+      </button>
+      <?php endif; ?>
+      <?php if ($q['status'] === 'converted' && !empty($q['booking_ref'])): ?>
+      <a href="bookings.php?view=<?= urlencode($q['booking_ref']) ?>" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">
+        View Booking ↗
+      </a>
       <?php endif; ?>
       <!-- Delete -->
       <form method="POST" style="display:inline" onsubmit="return confirm('Delete quotation <?= htmlspecialchars($q['quote_ref']) ?>?')">
@@ -180,6 +188,104 @@ ob_start();
 </tbody>
 </table>
 </div>
+
+
+<!-- ── CONVERT TO BOOKING MODAL ─────────────────────────── -->
+<div id="convertModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:#fff;width:100%;max-width:520px;border-radius:2px;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.5rem;border-bottom:1px solid #e5e7eb;background:#0a0a0a;color:#fff">
+      <span style="font-size:.9rem;font-weight:600">Convert Quotation to Booking</span>
+      <button onclick="closeConvertModal()" style="background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:1.5rem">
+      <div id="convert-summary" style="background:#f7f7f5;padding:1rem;margin-bottom:1.25rem;font-size:.85rem;line-height:1.8"></div>
+      <form id="convert-form">
+        <input type="hidden" id="convert-quote-id" name="quotation_id">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+          <div>
+            <label class="admin-label">Travel Date *</label>
+            <input type="date" id="convert-travel-date" name="travel_date" class="admin-input" required
+                   min="<?= date('Y-m-d', strtotime('+1 day')) ?>">
+          </div>
+          <div>
+            <label class="admin-label">Payment Method</label>
+            <select name="payment_method" class="admin-input">
+              <option value="bank_transfer">Bank Transfer</option>
+              <option value="paypal">PayPal</option>
+              <option value="wise">Wise</option>
+              <option value="cash">Cash</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-bottom:1.25rem">
+          <label class="admin-label">Special Requests / Notes</label>
+          <textarea name="special_requests" class="admin-input" rows="2" placeholder="Any notes from the client…"></textarea>
+        </div>
+        <div id="convert-error" style="display:none;background:#fdf2f2;border-left:3px solid #dc2626;color:#7f1d1d;padding:.75rem 1rem;font-size:.82rem;margin-bottom:1rem"></div>
+        <div style="display:flex;gap:.75rem;justify-content:flex-end">
+          <button type="button" onclick="closeConvertModal()" class="admin-btn admin-btn--outline">Cancel</button>
+          <button type="submit" class="admin-btn admin-btn--primary" id="convert-submit">
+            ✓ Create Booking
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer2" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem"></div>
+
+<script>
+function openConvertModal(id, ref, name, total, pkg, startDate) {
+  document.getElementById('convert-quote-id').value = id;
+  document.getElementById('convert-travel-date').value = startDate || '';
+  document.getElementById('convert-summary').innerHTML =
+    '<strong>Quotation:</strong> '+ref+'<br>'
+    +'<strong>Client:</strong> '+name+'<br>'
+    +'<strong>Package:</strong> '+(pkg||'—')+'<br>'
+    +'<strong>Grand Total:</strong> USD $'+Math.round(total).toLocaleString('en-US')+'<br>'
+    +'<strong>Deposit (50%):</strong> USD $'+Math.round(total*0.5).toLocaleString('en-US');
+  document.getElementById('convert-error').style.display='none';
+  document.getElementById('convert-modal-ref') && (document.getElementById('convert-modal-ref').textContent=ref);
+  document.getElementById('convertModal').style.display='flex';
+}
+function closeConvertModal() { document.getElementById('convertModal').style.display='none'; }
+document.getElementById('convertModal').addEventListener('click',function(e){if(e.target===this)closeConvertModal();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeConvertModal();});
+
+document.getElementById('convert-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  var btn = document.getElementById('convert-submit');
+  btn.disabled=true; btn.textContent='Creating…';
+  document.getElementById('convert-error').style.display='none';
+
+  var fd = new FormData(this);
+  try {
+    var r = await fetch('<?= BASE_PATH ?>/php/convert_quotation.php', {method:'POST',body:fd,credentials:'same-origin'});
+    var raw = await r.text();
+    var d;
+    try { d = JSON.parse(raw); } catch(ex) {
+      d = {success:false, message:'Server error: '+raw.substring(0,120)};
+    }
+    if (d.success) {
+      closeConvertModal();
+      // Show success toast
+      var t = document.createElement('div');
+      t.style.cssText='background:#16a34a;color:#fff;padding:.85rem 1.25rem;font-size:.82rem;min-width:240px;box-shadow:0 4px 16px rgba(0,0,0,.2)';
+      t.innerHTML='✓ Booking <strong>'+d.booking_ref+'</strong> created! <a href="'+d.admin_url+'" style="color:#fff;margin-left:.5rem;text-decoration:underline">View →</a>';
+      document.getElementById('toastContainer2').appendChild(t);
+      setTimeout(function(){ t.remove(); window.location.reload(); }, 4000);
+    } else {
+      document.getElementById('convert-error').textContent = d.message || 'Conversion failed.';
+      document.getElementById('convert-error').style.display='block';
+    }
+  } catch(ex) {
+    document.getElementById('convert-error').textContent = 'Network error: '+ex.message;
+    document.getElementById('convert-error').style.display='block';
+  }
+  btn.disabled=false; btn.textContent='✓ Create Booking';
+});
+</script>
 
 <?php
 $content = ob_get_clean();

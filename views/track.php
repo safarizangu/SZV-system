@@ -19,7 +19,7 @@ $_wa = defined('WHATSAPP_NUMBER') ? WHATSAPP_NUMBER : '255663430934';
 </div>
 
 <section class="section">
-  <div class="container-sz" style="max-width:800px">
+  <div class="container-sz track-container">
 
     <!-- Search Form -->
     <div style="border:1.5px solid var(--gray-2);padding:2rem;margin-bottom:2rem;background:var(--off-white)">
@@ -34,7 +34,7 @@ $_wa = defined('WHATSAPP_NUMBER') ? WHATSAPP_NUMBER : '255663430934';
                    required autocomplete="off">
           </div>
           <div class="form-group" style="margin-bottom:0">
-            <label class="form-label">Travel Date *</label>
+            <label class="form-label">Travel Date * <span style="font-weight:400;font-size:.75rem;color:#9ca3af">(use the calendar picker — format is YYYY-MM-DD)</span></label>
             <input type="date" name="date" class="form-control-sz" required>
           </div>
         </div>
@@ -77,6 +77,10 @@ window.WHATSAPP_NUMBER   = "<?= htmlspecialchars($_wa) ?>";
 window.WHATSAPP_BASE_URL = "https://wa.me/<?= htmlspecialchars($_wa) ?>";
 </script>
 <script>
+// ── Rate limiting (item 31) ────────────────────────────────
+var _trackAttempts = parseInt(sessionStorage.getItem('_track_attempts') || '0');
+var _trackLockUntil = parseInt(sessionStorage.getItem('_track_lock_until') || '0');
+
 document.addEventListener('DOMContentLoaded', function () {
   var params = new URLSearchParams(window.location.search);
   var urlRef  = params.get('ref');

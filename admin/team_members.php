@@ -18,15 +18,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     $email  = trim($_POST['email'] ?? '');
     $phone  = trim($_POST['phone'] ?? '');
     $li     = trim($_POST['linkedin_url'] ?? '');
+    $photo  = trim($_POST['photo_url'] ?? '');
     $sort   = (int)($_POST['sort_order'] ?? 0);
     $active = isset($_POST['is_active']) ? 1 : 0;
     try {
         if ($id > 0) {
-            $db->prepare("UPDATE team_members SET name=?,role=?,bio=?,email=?,phone=?,linkedin_url=?,sort_order=?,is_active=? WHERE id=?")
-               ->execute([$name,$role,$bio,$email,$phone,$li,$sort,$active,$id]);
+            $db->prepare("UPDATE team_members SET name=?,role=?,bio=?,email=?,phone=?,linkedin_url=?,photo_url=?,sort_order=?,is_active=? WHERE id=?")
+               ->execute([$name,$role,$bio,$email,$phone,$li,$photo,$sort,$active,$id]);
         } else {
-            $db->prepare("INSERT INTO team_members(name,role,bio,email,phone,linkedin_url,sort_order,is_active) VALUES(?,?,?,?,?,?,?,?)")
-               ->execute([$name,$role,$bio,$email,$phone,$li,$sort,$active]);
+            $db->prepare("INSERT INTO team_members(name,role,bio,email,phone,linkedin_url,photo_url,sort_order,is_active) VALUES(?,?,?,?,?,?,?,?,?)")
+               ->execute([$name,$role,$bio,$email,$phone,$li,$photo,$sort,$active]);
         }
         $msg = 'Saved successfully.';
     } catch(Exception $e){ $msg = 'Error: '.$e->getMessage(); }
@@ -49,7 +50,7 @@ $members = [];
 try { $members = $db->query("SELECT * FROM team_members ORDER BY sort_order ASC, id ASC")->fetchAll(); }
 catch(Exception $e){ error_log($e->getMessage()); }
 ?>
-<?php if($msg): ?><div class="admin-alert admin-alert--success"><?= $msg ?></div><?php endif; ?>
+<?php if($msg): ?><div class="admin-alert admin-alert--<?= str_starts_with($msg,'Error')?'error':'success' ?>"><?= $msg ?></div><?php endif; ?>
 
 <!-- Add/Edit Form -->
 <div class="admin-card" style="margin-bottom:2rem">

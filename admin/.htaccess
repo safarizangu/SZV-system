@@ -1,2 +1,23 @@
-DirectoryIndex gate.php
+# Admin panel protection
 Options -Indexes
+DirectoryIndex login.php
+
+# Block direct access to non-PHP files
+<FilesMatch "\.(html|htm|txt|md|json|xml|log)$">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+
+# Security headers for admin
+<IfModule mod_headers.c>
+  Header always set X-Frame-Options "DENY"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Cache-Control "no-store, no-cache, must-revalidate, private"
+  Header always set Pragma "no-cache"
+  Header always unset X-Powered-By
+</IfModule>
+
+# Prevent caching of admin pages
+<IfModule mod_expires.c>
+  ExpiresActive Off
+</IfModule>

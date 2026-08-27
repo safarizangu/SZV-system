@@ -42,7 +42,7 @@ $rows = [];
 try { $rows = $db->query("SELECT * FROM activities ORDER BY category, name")->fetchAll(); }
 catch(Exception $e){}
 ?>
-<?php if($msg): ?><div class="admin-alert admin-alert--success"><?= $msg ?></div><?php endif; ?>
+<?php if($msg): ?><div class="admin-alert admin-alert--<?= str_starts_with($msg,'Error')?'error':'success' ?>"><?= $msg ?></div><?php endif; ?>
 <div class="admin-card" style="margin-bottom:2rem">
   <div class="admin-card-header"><h3><?= $edit ? 'Edit Activity' : 'Add Activity' ?></h3></div>
   <div class="admin-card-body">

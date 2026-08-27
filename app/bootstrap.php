@@ -25,6 +25,11 @@ spl_autoload_register(function (string $class): void {
 });
 
 // ── Config ────────────────────────────────────────────────────
+// Load .env before config
+if (file_exists(__DIR__.'/../.env')) {
+    require_once __DIR__ . '/Helpers/Env.php';
+    \App\Helpers\Env::load();
+}
 require_once __DIR__ . '/../config/app.php';
 
 // ── Session ───────────────────────────────────────────────────

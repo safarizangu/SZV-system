@@ -85,7 +85,7 @@ ob_start();
 
 <!-- Status filter pills -->
 <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem">
-  <a href="bookings.php" style="padding:.35rem .9rem;font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border:1.5px solid <?= !$status?'#0a0a0a':'#e5e7eb' ?>;background:<?= !$status?'#0a0a0a':'#fff' ?>;color:<?= !$status?'#fff':'#0a0a0a' ?>;text-decoration:none">
+  <a href="bookings.php" class="admin-filter-pill<?= !$status?' active':'' ?>">
     All &nbsp;<span style="opacity:.6"><?= number_format($totalRows) ?></span>
   </a>
   <?php foreach ($statusColors as $sv => $sc): ?>
@@ -101,7 +101,7 @@ ob_start();
   <?php if ($status): ?><input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>"><?php endif; ?>
   <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
          placeholder="Search ref, name, email, phone…"
-         style="border:1.5px solid #e5e7eb;padding:.45rem .85rem;font-size:.82rem;outline:none;min-width:260px;flex:1">
+         class="admin-input" style="min-width:260px;flex:1">
   <button class="admin-btn admin-btn--primary">Search</button>
   <?php if ($search || $status): ?>
   <a href="bookings.php" class="admin-btn admin-btn--outline">Clear</a>

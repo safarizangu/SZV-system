@@ -486,79 +486,186 @@ function loadTrackPayPal(amount, bookingRef, bookingDate) {
 /* ── PACKAGE GALLERY SLIDER (desktop grid / mobile slider) ── */
 document.addEventListener('DOMContentLoaded', function () {
 
-  /* ── pkg-gallery slider — all screen sizes ──────────────── */
+  /* ── pkg-gallery slider ─────────────────────────────────── */
   document.querySelectorAll('.pkg-gallery').forEach(function (gallery) {
     var imgs    = Array.from(gallery.querySelectorAll('img'));
-    var prevBtn = gallery.querySelector('.pkg-prev');
-    var nextBtn = gallery.querySelector('.pkg-next');
-    if (imgs.length < 1 || !prevBtn || !nextBtn) return;
+    var prevBtn = gallery.querySelector('.pkg-prev, .pkg-slider-prev');
+    var nextBtn = gallery.querySelector('.pkg-next, .pkg-slider-next');
+    if (!imgs.length) return;
 
     var current = 0;
 
     function show(i) {
-      imgs.forEach(function (img) { img.style.opacity = '0'; });
+      imgs.forEach(function (img) {
+        img.classList.remove('active');
+        img.style.opacity = '0';
+      });
+      imgs[i].classList.add('active');
       imgs[i].style.opacity = '1';
+      current = i;
     }
 
-    // Show first image immediately on page load
     show(0);
+    if (imgs.length < 2) return;
 
-    prevBtn.addEventListener('click', function (e) {
+    if (prevBtn) prevBtn.addEventListener('click', function (e) {
       e.preventDefault();
-      current = (current - 1 + imgs.length) % imgs.length;
-      show(current);
+      show((current - 1 + imgs.length) % imgs.length);
     });
-    nextBtn.addEventListener('click', function (e) {
+    if (nextBtn) nextBtn.addEventListener('click', function (e) {
       e.preventDefault();
-      current = (current + 1) % imgs.length;
-      show(current);
+      show((current + 1) % imgs.length);
+    });
+
+    // Touch swipe
+    var startX = 0;
+    gallery.addEventListener('touchstart', function (e) { startX = e.touches[0].clientX; }, { passive: true });
+    gallery.addEventListener('touchend', function (e) {
+      var dx = e.changedTouches[0].clientX - startX;
+      if (Math.abs(dx) > 50) show(dx < 0 ? (current+1) % imgs.length : (current-1+imgs.length) % imgs.length);
     });
   });
 
-  /* ── home-slider: manual only ─────────────────────────── */
+  /* ── home-slider: auto-advance + swipe ─────────────────── */
   document.querySelectorAll('.home-slider').forEach(function (slider) {
-    var imgs = Array.from(slider.querySelectorAll('img'));
-    if (imgs.length < 1) return;
+    var imgs    = Array.from(slider.querySelectorAll('img'));
+    var prevBtn = slider.querySelector('.home-prev');
+    var nextBtn = slider.querySelector('.home-next');
+    if (!imgs.length) return;
 
     var current = 0;
 
-    // Set all images correctly via inline styles
-    imgs.forEach(function (img, i) {
-      img.style.position   = 'absolute';
-      img.style.inset      = '0';
-      img.style.width      = '100%';
-      img.style.height     = '100%';
-      img.style.objectFit  = 'cover';
-      img.style.opacity    = i === 0 ? '1' : '0';
-      img.style.transition = 'none';
-      img.style.display    = 'block';
-    });
-    slider.style.position = 'relative';
-    slider.style.overflow = 'hidden';
+    function show(i) {
+      imgs.forEach(function (img) {
+        img.classList.remove('active');
+        img.style.opacity = '0';
+      });
+      imgs[i].classList.add('active');
+      imgs[i].style.opacity = '1';
+      current = i;
+    }
 
-    // Only wire prev/next if multiple images
+    show(0);
     if (imgs.length < 2) return;
 
-    function show(i) {
-      imgs.forEach(function (img) { img.style.opacity = '0'; });
-      imgs[i].style.opacity = '1';
-    }
+    var timer = setInterval(function () { show((current+1) % imgs.length); }, 4000);
+    slider.addEventListener('mouseenter', function () { clearInterval(timer); });
+    slider.addEventListener('mouseleave', function () {
+      timer = setInterval(function () { show((current+1) % imgs.length); }, 4000);
+    });
 
-    var prevBtn = slider.querySelector('.home-prev');
-    var nextBtn = slider.querySelector('.home-next');
+    if (prevBtn) prevBtn.addEventListener('click', function () { show((current-1+imgs.length)%imgs.length); });
+    if (nextBtn) nextBtn.addEventListener('click', function () { show((current+1)%imgs.length); });
 
-    if (prevBtn) {
-      prevBtn.addEventListener('click', function () {
-        current = (current - 1 + imgs.length) % imgs.length;
-        show(current);
-      });
-    }
-    if (nextBtn) {
-      nextBtn.addEventListener('click', function () {
-        current = (current + 1) % imgs.length;
-        show(current);
-      });
-    }
+    var startX = 0;
+    slider.addEventListener('touchstart', function (e) { startX = e.touches[0].clientX; }, {passive:true});
+    slider.addEventListener('touchend', function (e) {
+      var dx = e.changedTouches[0].clientX - startX;
+      if (Math.abs(dx) > 50) show(dx < 0 ? (current+1)%imgs.length : (current-1+imgs.length)%imgs.length);
+    });
   });
 
 });
+
+/* ── Form double-submit prevention ─────────────────────────── */
+(function(){
+  document.addEventListener('submit',function(e){
+    var form=e.target;
+    if(form.id==='booking-form'||form.id==='contact-form'||
+       form.id==='custom-safari-form'||form.id==='check-booking-form')return;
+    if(form.dataset.submitting){e.preventDefault();return;}
+    var btn=form.querySelector('[type="submit"]');
+    if(btn&&!btn.dataset.noLock){
+      form.dataset.submitting='1';
+      var orig=btn.innerHTML;
+      btn.disabled=true;
+      btn.innerHTML='<span style="opacity:.7">Sending\u2026</span>';
+      setTimeout(function(){
+        delete form.dataset.submitting;
+        btn.disabled=false;btn.innerHTML=orig;
+      },15000);
+    }
+  });
+}());
+
+/* ── WhatsApp float button ──────────────────────────────────── */
+(function(){
+  var btn=document.getElementById('wa-float');
+  if(!btn)return;
+  setTimeout(function(){btn.classList.add('wa-float--visible');},3000);
+  window.addEventListener('scroll',function(){
+    if(window.scrollY>300)btn.classList.add('wa-float--visible');
+    else btn.classList.remove('wa-float--visible');
+  },{passive:true});
+}());
+
+
+/* ── Form double-submit prevention ─────────────────────────── */
+(function(){
+  'use strict';
+  document.addEventListener('submit',function(e){
+    var form=e.target;
+    // Skip forms that handle their own async submission
+    if(form.id==='booking-form'||form.id==='contact-form'||
+       form.id==='custom-safari-form'||form.id==='check-booking-form')return;
+    if(form.dataset.submitting){e.preventDefault();return;}
+    var btn=form.querySelector('[type="submit"]');
+    if(btn&&!btn.dataset.noLock){
+      form.dataset.submitting='1';
+      var orig=btn.innerHTML;
+      btn.disabled=true;
+      btn.innerHTML='<span style="opacity:.7">Sending…</span>';
+      setTimeout(function(){
+        delete form.dataset.submitting;
+        btn.disabled=false;
+        btn.innerHTML=orig;
+      },15000);
+    }
+  });
+}());
+/* ── Form double-submit prevention ─────────────────────────── */
+(function(){
+  'use strict';
+  document.addEventListener('submit',function(e){
+    var form=e.target;
+    if(form.id==='booking-form'||form.id==='contact-form'||
+       form.id==='custom-safari-form'||form.id==='check-booking-form')return;
+    if(form.dataset.submitting){e.preventDefault();return;}
+    var btn=form.querySelector('[type="submit"]');
+    if(btn&&!btn.dataset.noLock){
+      form.dataset.submitting='1';
+      var orig=btn.innerHTML;
+      btn.disabled=true;
+      btn.innerHTML='Sending\u2026';
+      setTimeout(function(){
+        delete form.dataset.submitting;
+        btn.disabled=false;
+        btn.innerHTML=orig;
+      },15000);
+    }
+  });
+}());
+
+/* ── Form double-submit prevention ─────────────────────────── */
+(function () {
+  'use strict';
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    // Skip forms with their own async handlers
+    var skipIds = ['booking-form','contact-form','custom-safari-form','check-booking-form'];
+    if (skipIds.indexOf(form.id) !== -1) return;
+    if (form.dataset.submitting) { e.preventDefault(); return; }
+    var btn = form.querySelector('[type="submit"]');
+    if (btn && !btn.dataset.noLock) {
+      form.dataset.submitting = '1';
+      var orig = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = 'Sending…';
+      setTimeout(function () {
+        delete form.dataset.submitting;
+        btn.disabled = false;
+        btn.innerHTML = orig;
+      }, 15000);
+    }
+  });
+}());

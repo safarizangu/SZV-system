@@ -33,6 +33,9 @@ $data = [
     'quotes_pending'   => (int)safeVal($db, "SELECT COUNT(*) FROM quotations WHERE status IN ('draft','sent')"),
     'leads_active'     => (int)safeVal($db, "SELECT COUNT(*) FROM leads WHERE pipeline_stage NOT IN ('completed','lost')"),
     'payments_pending' => (int)safeVal($db, "SELECT COUNT(*) FROM bookings WHERE payment_status='pending'"),
+    'emails_pending'   => (int)safeVal($db,"SELECT COUNT(*) FROM email_queue WHERE status='pending'"),
+    'emails_failed'    => (int)safeVal($db,"SELECT COUNT(*) FROM email_queue WHERE status='failed'"),
+    'reminders_due'    => (int)safeVal($db,"SELECT COUNT(*) FROM booking_reminders WHERE status='pending' AND send_at<=DATE_ADD(NOW(),INTERVAL 24 HOUR)"),
     'timestamp'        => date('H:i:s'),
     'formatted_revenue'=> 'USD ' . number_format((float)safeVal($db, "SELECT COALESCE(SUM(total_amount),0) FROM bookings WHERE payment_status!='cancelled'"), 0),
 ];

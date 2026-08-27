@@ -1,0 +1,208 @@
+<?php
+require_once __DIR__ . '/../app/bootstrap.php';
+use App\Middleware\AuthMiddleware;
+AuthMiddleware::requireAdmin();
+$db = \App\Models\Database::getInstance();
+$pageTitle = 'User Management';
+
+$msg   = htmlspecialchars($_GET['msg'] ?? '');
+$error = '';
+
+// Add/Edit
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_user'])) {
+    $id       = (int)($_POST['id'] ?? 0);
+    $username = trim($_POST['username'] ?? '');
+    $fullName = trim($_POST['full_name'] ?? '');
+    $email    = trim($_POST['email'] ?? '');
+    $role     = $_POST['role'] ?? 'admin';
+    $newPw    = trim($_POST['new_password'] ?? '');
+    $active   = isset($_POST['is_active']) ? 1 : 0;
+
+    // Validate current admin password to authorise changes
+    $authPw   = trim($_POST['auth_password'] ?? '');
+    $myId     = $_SESSION['admin_user_id'] ?? 0;
+    $me       = null;
+    try { $s=$db->prepare("SELECT * FROM admin_users WHERE id=?"); $s->execute([$myId]); $me=$s->fetch(); }
+    catch(Exception $e){}
+
+    if (!$me || !password_verify($authPw, $me['password_hash'])) {
+        $error = 'Your current password is incorrect. Changes not saved.';
+    } elseif (!$username) {
+        $error = 'Username is required.';
+    } elseif ($newPw && strlen($newPw) < 8) {
+        $error = 'Password must be at least 8 characters.';
+    } else {
+        try {
+            if ($id > 0) {
+                // Update — only change password if new one provided
+                if ($newPw) {
+                    $hash = password_hash($newPw, PASSWORD_BCRYPT, ['cost'=>12]);
+                    $db->prepare("UPDATE admin_users SET username=?,full_name=?,email=?,role=?,is_active=?,password_hash=? WHERE id=?")
+                       ->execute([$username,$fullName,$email,$role,$active,$hash,$id]);
+                } else {
+                    $db->prepare("UPDATE admin_users SET username=?,full_name=?,email=?,role=?,is_active=? WHERE id=?")
+                       ->execute([$username,$fullName,$email,$role,$active,$id]);
+                }
+                header('Location: users.php?msg='.urlencode('User updated.')); exit;
+            } else {
+                if (!$newPw) { $error = 'Password is required for new users.'; }
+                else {
+                    $hash = password_hash($newPw, PASSWORD_BCRYPT, ['cost'=>12]);
+                    $db->prepare("INSERT INTO admin_users(username,full_name,email,role,is_active,password_hash,created_at) VALUES(?,?,?,?,?,?,NOW())")
+                       ->execute([$username,$fullName,$email,$role,$active,$hash]);
+                    header('Location: users.php?msg='.urlencode('User created.')); exit;
+                }
+            }
+        } catch(Exception $e) { $error = 'Error: '.$e->getMessage(); }
+    }
+}
+
+// Delete
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
+    $delId = (int)$_POST['delete_id'];
+    $myId  = $_SESSION['admin_user_id'] ?? 0;
+    if ($delId === $myId) { $error = 'You cannot delete your own account.'; }
+    else {
+        try { $db->prepare("DELETE FROM admin_users WHERE id=?")->execute([$delId]); }
+        catch(Exception $e){ $error = $e->getMessage(); }
+        if (!$error) { header('Location: users.php?msg='.urlencode('User deleted.')); exit; }
+    }
+}
+
+$editId = (int)($_GET['edit'] ?? 0);
+$editUser = null;
+if ($editId) {
+    try { $s=$db->prepare("SELECT * FROM admin_users WHERE id=?"); $s->execute([$editId]); $editUser=$s->fetch(); }
+    catch(Exception $e){}
+}
+
+$users = [];
+try { $users = $db->query("SELECT * FROM admin_users ORDER BY id ASC")->fetchAll(); }
+catch(Exception $e){ $error = $e->getMessage(); }
+
+ob_start();
+?>
+<?php if($msg): ?><div class="admin-alert admin-alert--success"><?= $msg ?></div><?php endif; ?>
+<?php if($error): ?><div class="admin-alert admin-alert--error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
+
+<div style="display:grid;grid-template-columns:1fr 380px;gap:1.5rem;align-items:start">
+
+<!-- User table -->
+<div>
+  <div class="admin-card">
+    <div class="admin-card-header"><h3>Admin Users</h3>
+      <a href="users.php" class="admin-btn admin-btn--primary" style="font-size:.68rem">+ New User</a>
+    </div>
+    <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead><tr>
+        <th>User</th><th>Email</th><th>Role</th><th>Last Login</th><th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody>
+      <?php foreach($users as $u): $isMe = ($u['id'] == ($_SESSION['admin_user_id']??0)); ?>
+      <tr style="<?= $isMe?'background:#f0fdf4':'' ?>">
+        <td>
+          <div style="font-weight:700;font-size:.88rem">
+            <?= htmlspecialchars($u['full_name']?:$u['username']) ?>
+            <?php if($isMe): ?><span style="font-size:.6rem;background:#0a0a0a;color:#fff;padding:.1rem .4rem;margin-left:.35rem">YOU</span><?php endif; ?>
+          </div>
+          <div style="font-size:.72rem;color:#9ca3af">@<?= htmlspecialchars($u['username']) ?></div>
+        </td>
+        <td style="font-size:.8rem"><?= htmlspecialchars($u['email']??'—') ?></td>
+        <td>
+          <span style="font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:.15rem .45rem;background:<?= $u['role']==='superadmin'?'#0a0a0a':'#f3f4f6' ?>;color:<?= $u['role']==='superadmin'?'#fff':'#374151' ?>">
+            <?= htmlspecialchars($u['role']??'admin') ?>
+          </span>
+        </td>
+        <td style="font-size:.75rem;color:#9ca3af">
+          <?= $u['last_login'] ? date('d M Y H:i', strtotime($u['last_login'])) : 'Never' ?>
+        </td>
+        <td>
+          <?php if($u['is_active']??1): ?>
+          <span class="status-dot status-dot--green"></span><span style="font-size:.72rem;font-weight:600;color:#16a34a">Active</span>
+          <?php else: ?>
+          <span class="status-dot status-dot--gray"></span><span style="font-size:.72rem;color:#9ca3af">Inactive</span>
+          <?php endif; ?>
+        </td>
+        <td style="white-space:nowrap">
+          <a href="?edit=<?= $u['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.62rem;padding:.25rem .5rem">Edit</a>
+          <?php if(!$isMe): ?>
+          <form method="POST" style="display:inline" onsubmit="return confirm('Delete user <?= htmlspecialchars($u['username']) ?>?')">
+            <input type="hidden" name="delete_id" value="<?= $u['id'] ?>">
+            <button class="admin-btn admin-btn--danger" style="font-size:.62rem;padding:.25rem .5rem">Delete</button>
+          </form>
+          <?php endif; ?>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit form -->
+<div style="position:sticky;top:calc(var(--topbar-h)+1rem)">
+  <div class="admin-card">
+    <div class="admin-card-header">
+      <h3><?= $editUser ? 'Edit User: '.htmlspecialchars($editUser['username']) : 'Add New User' ?></h3>
+      <?php if($editUser): ?><a href="users.php" class="admin-btn admin-btn--muted" style="font-size:.65rem">+ New</a><?php endif; ?>
+    </div>
+    <div class="admin-card-body">
+      <form method="POST">
+        <input type="hidden" name="save_user" value="1">
+        <input type="hidden" name="id" value="<?= $editUser ? $editUser['id'] : 0 ?>">
+        <div class="admin-form-group">
+          <label class="admin-label">Username *</label>
+          <input name="username" class="admin-input" required value="<?= htmlspecialchars($editUser['username']??'') ?>" placeholder="e.g. samson">
+        </div>
+        <div class="admin-form-group">
+          <label class="admin-label">Full Name</label>
+          <input name="full_name" class="admin-input" value="<?= htmlspecialchars($editUser['full_name']??'') ?>" placeholder="e.g. Samson Gabba">
+        </div>
+        <div class="admin-form-group">
+          <label class="admin-label">Email</label>
+          <input name="email" type="email" class="admin-input" value="<?= htmlspecialchars($editUser['email']??'') ?>">
+        </div>
+        <div class="admin-form-group">
+          <label class="admin-label">Role</label>
+          <select name="role" class="admin-input">
+            <?php foreach(['superadmin'=>'Super Admin','admin'=>'Admin','staff'=>'Staff'] as $v=>$l): ?>
+            <option value="<?= $v ?>" <?= ($editUser['role']??'admin')===$v?'selected':'' ?>><?= $l ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="admin-form-group">
+          <label class="admin-label">
+            <?= $editUser ? 'New Password <span style="font-weight:400;opacity:.6">(leave blank to keep current)</span>' : 'Password *' ?>
+          </label>
+          <input name="new_password" type="password" class="admin-input" <?= $editUser?'':'required' ?> minlength="8" placeholder="Min 8 characters">
+        </div>
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-bottom:1rem">
+          <input type="checkbox" name="is_active" value="1" <?= ($editUser['is_active']??1)?'checked':'' ?>>
+          <span class="admin-label" style="margin:0">Active (can log in)</span>
+        </label>
+        <div style="border-top:1.5px solid #f3f4f6;padding-top:1rem">
+          <label class="admin-label" style="color:#dc2626">Your Current Password (to authorise) *</label>
+          <input name="auth_password" type="password" class="admin-input" required placeholder="Your password to confirm changes">
+        </div>
+        <button type="submit" class="admin-btn admin-btn--primary" style="width:100%;justify-content:center;margin-top:1rem">
+          <?= $editUser ? '💾 Update User' : '+ Create User' ?>
+        </button>
+      </form>
+    </div>
+  </div>
+  <div class="admin-card" style="margin-top:1rem">
+    <div class="admin-card-body" style="font-size:.78rem;color:#6b7280;line-height:1.75">
+      <strong style="color:#0a0a0a;display:block;margin-bottom:.25rem">Security Notes</strong>
+      · Your current password required to make any changes<br>
+      · Passwords hashed with bcrypt (cost 12)<br>
+      · You cannot delete your own account<br>
+      · Superadmin has full access; Staff may have limited access
+    </div>
+  </div>
+</div>
+
+</div><!-- /grid -->
+
+<?php $content=ob_get_clean(); require_once __DIR__.'/../layouts/admin.php'; ?>

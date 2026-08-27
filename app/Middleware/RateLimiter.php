@@ -52,9 +52,22 @@ class RateLimiter
 
     private static function getIp(): string
     {
-        return $_SERVER['HTTP_X_FORWARDED_FOR']
-            ?? $_SERVER['HTTP_CLIENT_IP']
-            ?? $_SERVER['REMOTE_ADDR']
-            ?? '0.0.0.0';
+        // Only trust X-Forwarded-For if explicitly configured (e.g. behind Cloudflare)
+        // On Hostinger shared hosting, REMOTE_ADDR is reliable
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+
+        // If behind a trusted proxy, optionally use forwarded IP
+        // Uncomment and set your proxy IP if applicable:
+        // $trustedProxy = '103.21.244.0'; // e.g. Cloudflare
+        // if ($ip === $trustedProxy && isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        //     $forwarded = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
+        //     if (filter_var($forwarded, FILTER_VALIDATE_IP)) $ip = $forwarded;
+        // }
+
+        // Validate and sanitise
+        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+            $ip = '0.0.0.0';
+        }
+        return $ip;
     }
 }

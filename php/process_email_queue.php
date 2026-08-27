@@ -3,7 +3,7 @@
  * Email Queue Processor
  * Run via cron every 2 minutes:
  * crontab -e
- * */2 * * * * /usr/bin/php /var/www/html/safari-zangu/php/process_email_queue.php >> /var/log/szv_email.log 2>&1
+ * Cron schedule: every 2 minutes
  */
 require_once __DIR__ . '/../app/bootstrap.php';
 

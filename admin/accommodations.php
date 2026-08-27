@@ -22,13 +22,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     $mp   = trim($_POST['meal_plan'] ?? 'fb');
     $act  = isset($_POST['is_active']) ? 1 : 0;
     $notes= trim($_POST['notes'] ?? '');
+    $images=trim($_POST['images_json'] ?? '');
     try {
         if ($id > 0) {
-            $db->prepare("UPDATE accommodations SET name=?,level=?,location=?,park_key=?,rate_per_room=?,rate_per_person=?,single_supplement=?,child_rate=?,meal_plan=?,is_active=?,notes=? WHERE id=?")
-               ->execute([$name,$lev,$loc,$park,$rr,$rp,$ss,$cr,$mp,$act,$notes,$id]);
+            $db->prepare("UPDATE accommodations SET name=?,level=?,location=?,park_key=?,rate_per_room=?,rate_per_person=?,single_supplement=?,child_rate=?,meal_plan=?,is_active=?,notes=?,images_json=? WHERE id=?")
+               ->execute([$name,$lev,$loc,$park,$rr,$rp,$ss,$cr,$mp,$act,$notes,$images,$id]);
         } else {
-            $db->prepare("INSERT INTO accommodations(name,level,location,park_key,rate_per_room,rate_per_person,single_supplement,child_rate,meal_plan,is_active,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
-               ->execute([$name,$lev,$loc,$park,$rr,$rp,$ss,$cr,$mp,$act,$notes]);
+            $db->prepare("INSERT INTO accommodations(name,level,location,park_key,rate_per_room,rate_per_person,single_supplement,child_rate,meal_plan,is_active,notes,images_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
+               ->execute([$name,$lev,$loc,$park,$rr,$rp,$ss,$cr,$mp,$act,$notes,$images]);
         }
         $msg = 'Saved.';
     } catch(Exception $e){ $msg = 'Error: '.$e->getMessage(); }
@@ -46,7 +47,7 @@ $rows = [];
 try { $rows = $db->query("SELECT * FROM accommodations ORDER BY level, name")->fetchAll(); }
 catch(Exception $e){}
 ?>
-<?php if($msg): ?><div class="admin-alert admin-alert--success"><?= $msg ?></div><?php endif; ?>
+<?php if($msg): ?><div class="admin-alert admin-alert--<?= str_starts_with($msg,'Error')?'error':'success' ?>"><?= $msg ?></div><?php endif; ?>
 <div class="admin-card" style="margin-bottom:2rem">
   <div class="admin-card-header"><h3><?= $edit ? 'Edit Accommodation' : 'Add Accommodation' ?></h3></div>
   <div class="admin-card-body">

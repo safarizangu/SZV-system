@@ -187,4 +187,13 @@ $levels   = ACCOMMODATION_LEVELS; // ['budget'=>'Budget-Friendly', 'midrange'=>'
   </div>
 </div>
 
+<script>
+function toggleBreakdown(id) {
+  var panel = document.getElementById('bd-panel-'+id);
+  var arrow = document.getElementById('bd-arrow-'+id);
+  var open  = panel.style.display === 'block';
+  panel.style.display = open ? 'none' : 'block';
+  if(arrow) arrow.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+</script>
 <!-- Footer -->

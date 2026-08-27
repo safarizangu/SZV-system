@@ -27,6 +27,13 @@ catch(Exception $e) { error_log('[SZV] '.$e->getMessage()); }
 $convRate = ($totalLeads + $totalBookings) > 0
     ? round(($totalBookings / ($totalLeads + $totalBookings)) * 100, 1) : 0;
 
+$pendingEmails  = 0; $failedEmails = 0;
+$pendingReminders = 0; $dueReminders = 0;
+try { $pendingEmails  = (int)$db->query("SELECT COUNT(*) FROM email_queue WHERE status='pending'")->fetchColumn(); } catch(\Exception $e) {}
+try { $failedEmails   = (int)$db->query("SELECT COUNT(*) FROM email_queue WHERE status='failed'")->fetchColumn(); }  catch(\Exception $e) {}
+try { $pendingReminders=(int)$db->query("SELECT COUNT(*) FROM booking_reminders WHERE status='pending'")->fetchColumn(); } catch(\Exception $e) {}
+try { $dueReminders   = (int)$db->query("SELECT COUNT(*) FROM booking_reminders WHERE status='pending' AND send_at<=DATE_ADD(NOW(),INTERVAL 24 HOUR)")->fetchColumn(); } catch(\Exception $e) {}
+
 try {
     $recentBookings = $db->query(
         "SELECT * FROM bookings ORDER BY created_at DESC LIMIT 8"
@@ -85,6 +92,30 @@ ob_start();
       <span class="metric-value"><?= $convRate ?>%</span>
       <span class="metric-sub">Requests to bookings</span>
     </div>
+  </div>
+
+  <!-- Comms Health Row -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:2rem">
+    <a href="email_queue.php?status=pending" style="text-decoration:none;display:block;padding:1rem 1.25rem;border:1.5px solid <?= $pendingEmails>0?'#92400e':'#e5e7eb' ?>;background:<?= $pendingEmails>0?'#fef3e2':'#fff' ?>">
+      <div style="font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9ca3af">Emails Queued</div>
+      <div style="font-family:Georgia,serif;font-size:1.5rem;font-weight:500;color:<?= $pendingEmails>0?'#92400e':'#0a0a0a' ?>;margin-top:.25rem"><?= $pendingEmails ?></div>
+      <div style="font-size:.68rem;color:#9ca3af;margin-top:.1rem">Pending send</div>
+    </a>
+    <a href="email_queue.php?status=failed" style="text-decoration:none;display:block;padding:1rem 1.25rem;border:1.5px solid <?= $failedEmails>0?'#dc2626':'#e5e7eb' ?>;background:<?= $failedEmails>0?'#fef2f2':'#fff' ?>">
+      <div style="font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9ca3af">Emails Failed</div>
+      <div style="font-family:Georgia,serif;font-size:1.5rem;font-weight:500;color:<?= $failedEmails>0?'#dc2626':'#0a0a0a' ?>;margin-top:.25rem"><?= $failedEmails ?></div>
+      <div style="font-size:.68rem;color:#9ca3af;margin-top:.1rem">Need retry</div>
+    </a>
+    <a href="reminders.php" style="text-decoration:none;display:block;padding:1rem 1.25rem;border:1.5px solid #e5e7eb;background:#fff">
+      <div style="font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9ca3af">Reminders</div>
+      <div style="font-family:Georgia,serif;font-size:1.5rem;font-weight:500;color:#0a0a0a;margin-top:.25rem"><?= $pendingReminders ?></div>
+      <div style="font-size:.68rem;color:#9ca3af;margin-top:.1rem">Scheduled</div>
+    </a>
+    <a href="reminders.php" style="text-decoration:none;display:block;padding:1rem 1.25rem;border:1.5px solid <?= $dueReminders>0?'#1d4ed8':'#e5e7eb' ?>;background:<?= $dueReminders>0?'#eff6ff':'#fff' ?>">
+      <div style="font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9ca3af">Due Next 24h</div>
+      <div style="font-family:Georgia,serif;font-size:1.5rem;font-weight:500;color:<?= $dueReminders>0?'#1d4ed8':'#0a0a0a' ?>;margin-top:.25rem"><?= $dueReminders ?></div>
+      <div style="font-size:.68rem;color:#9ca3af;margin-top:.1rem">Reminders</div>
+    </a>
   </div>
 
   <div class="admin-grid-2">

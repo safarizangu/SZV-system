@@ -19,13 +19,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     $drc  = (float)($_POST['driver_cost_day'] ?? 0);
     $lev  = $_POST['level'] ?? 'standard';
     $act  = isset($_POST['is_active']) ? 1 : 0;
+    $images=trim($_POST['images_json']??'');
     try {
         if ($id > 0) {
-            $db->prepare("UPDATE vehicles SET vehicle_key=?,name=?,capacity=?,daily_rate=?,fuel_cost_day=?,driver_cost_day=?,level=?,is_active=? WHERE id=?")
-               ->execute([$key,$name,$cap,$dr,$fc,$drc,$lev,$act,$id]);
+            $db->prepare("UPDATE vehicles SET vehicle_key=?,name=?,capacity=?,daily_rate=?,fuel_cost_day=?,driver_cost_day=?,level=?,is_active=?,images_json=? WHERE id=?")
+               ->execute([$key,$name,$cap,$dr,$fc,$drc,$lev,$act,$images,$id]);
         } else {
-            $db->prepare("INSERT INTO vehicles(vehicle_key,name,capacity,daily_rate,fuel_cost_day,driver_cost_day,level,is_active) VALUES(?,?,?,?,?,?,?,?)")
-               ->execute([$key,$name,$cap,$dr,$fc,$drc,$lev,$act]);
+            $db->prepare("INSERT INTO vehicles(vehicle_key,name,capacity,daily_rate,fuel_cost_day,driver_cost_day,level,is_active,images_json) VALUES(?,?,?,?,?,?,?,?)")
+               ->execute([$key,$name,$cap,$dr,$fc,$drc,$lev,$act,$images]);
         }
         $msg = 'Saved.';
     } catch(Exception $e){ $msg = 'Error: '.$e->getMessage(); }
@@ -43,7 +44,7 @@ $rows = [];
 try { $rows = $db->query("SELECT * FROM vehicles ORDER BY level, name")->fetchAll(); }
 catch(Exception $e){}
 ?>
-<?php if($msg): ?><div class="admin-alert admin-alert--success"><?= $msg ?></div><?php endif; ?>
+<?php if($msg): ?><div class="admin-alert admin-alert--<?= str_starts_with($msg,'Error')?'error':'success' ?>"><?= $msg ?></div><?php endif; ?>
 <div class="admin-card" style="margin-bottom:2rem">
   <div class="admin-card-header"><h3><?= $edit ? 'Edit Vehicle' : 'Add Vehicle' ?></h3></div>
   <div class="admin-card-body">

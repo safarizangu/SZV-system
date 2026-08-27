@@ -22,12 +22,12 @@ $levels   = ACCOMMODATION_LEVELS;
     </div>
     <div>
       <p style="color:var(--black);font-size:.95rem;line-height:1.8;font-weight:500">
-        Complete your booking below. A unique reference number will be generated
-        and emailed to you immediately. We'll confirm within 24 hours.
+        Complete the form below to reserve your dates. We'll confirm availability
+        within 24 hours and send a secure payment link — card, PayPal, or bank transfer accepted.
       </p>
       <div class="mt-3" style="border:1.5px solid var(--black);padding:1rem 1.25rem;font-size:.82rem;line-height:1.9;color:var(--black);background:#f7f7f5">
         <strong style="font-size:.65rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;display:block;margin-bottom:.3rem">Booking Policy</strong>
-        50% deposit secures your dates · Balance due <?= BALANCE_DAYS ?> days before safari<br>
+        20–30% deposit secures your dates · Full balance due 45 days before departure<br>
         Confirmation email sent within minutes · 24-hour human response
       </div>
     </div>
@@ -224,7 +224,10 @@ $levels   = ACCOMMODATION_LEVELS;
             Request Booking &rarr;
           </button>
           <p style="font-size:.7rem;color:#9ca3af;text-align:center;margin-top:.65rem;line-height:1.6">
-            By submitting you agree to our booking policy · No card required to reserve
+            By submitting you agree to our
+          <a href="<?= BASE_PATH ?>/terms.php" style="color:#9ca3af;text-decoration:underline">Booking Terms &amp; Conditions</a>
+          and <a href="<?= BASE_PATH ?>/privacy-policy.php" style="color:#9ca3af;text-decoration:underline">Privacy Policy</a>
+          · No card required to reserve
           </p>
           <div class="form-message" id="booking-msg"></div>
         </form>
@@ -245,7 +248,7 @@ $levels   = ACCOMMODATION_LEVELS;
           </a>
           <div style="border-top:1px solid var(--gray-2);padding-top:1.25rem">
             <p style="font-size:.62rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#9ca3af;margin-bottom:.75rem">Why Book Direct</p>
-            <?php foreach (['Best price guaranteed','Private vehicle included','24h expert support','Free itinerary changes','Instant confirmation'] as $benefit): ?>
+            <?php foreach (['Direct-booking rates','Private vehicle included','24h expert support','Free itinerary changes','Instant confirmation'] as $benefit): ?>
             <p style="font-size:.78rem;font-weight:500;color:var(--black);margin-bottom:.4rem;display:flex;align-items:center;gap:.4rem">
               <span style="color:#16a34a;font-size:.8rem">✓</span> <?= $benefit ?>
             </p>

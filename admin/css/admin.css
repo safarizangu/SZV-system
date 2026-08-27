@@ -371,7 +371,7 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 
 /* ── TABLET LANDSCAPE (1024px) ──────────────────────────────── */
 @media (max-width: 1024px) {
-  :root { --sidebar-w: 200px; }
+  
   .metrics-grid   { grid-template-columns: repeat(2, 1fr); }
   .admin-grid-2   { grid-template-columns: 1fr; }
   .admin-content  { padding: 1.25rem 1.5rem; }
@@ -462,3 +462,26 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
   .admin-content { padding: .75rem; }
   .admin-topbar  { padding: 0 .75rem; }
 }
+
+.admin-stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+.admin-log-terminal { background:#0a0a0a; color:#a3e635; font-family:monospace; font-size:.73rem; padding:1rem 1.25rem; max-height:300px; overflow-y:auto; line-height:1.75; }
+.cron-pill { display:inline-flex; align-items:center; gap:.3rem; padding:.3rem .75rem; font-size:.62rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; border:1.5px solid; }
+.cron-pill--active { border-color:#86efac; background:#f0fdf4; color:#166534; }
+.cron-pill--inactive { border-color:#fca5a5; background:#fef2f2; color:#991b1b; }
+.admin-two-col { display:grid; grid-template-columns:1fr 320px; gap:1.5rem; align-items:start; }
+/* ── Filter pills ─────────────────────────────────────────── */
+.admin-filter-pills { display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:1.1rem; }
+.admin-filter-pill { display:inline-block; padding:.3rem .85rem; font-size:.62rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; border:1.5px solid var(--gray-200); background:var(--white); color:var(--black); text-decoration:none; cursor:pointer; transition:all .15s; }
+.admin-filter-pill:hover { border-color:var(--black); }
+.admin-filter-pill.active { background:var(--black); color:var(--white); border-color:var(--black); }
+.admin-filter-pill--amber { border-color:var(--amber); color:var(--amber); }
+.admin-filter-pill--green { border-color:var(--green); color:var(--green); }
+.admin-filter-pill--red   { border-color:var(--red);   color:var(--red);   }
+
+/* ── Status dot ───────────────────────────────────────────── */
+.status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:.35rem; flex-shrink:0; vertical-align:middle; }
+.status-dot--green  { background:var(--green); }
+.status-dot--red    { background:var(--red); }
+.status-dot--amber  { background:var(--amber); }
+.status-dot--gray   { background:var(--gray-300); }
+

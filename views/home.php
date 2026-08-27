@@ -146,13 +146,13 @@
 
 
 
-<div class="home-slider" data-package="safari-zanzibar">
+<div class="home-slider" data-package="comfort-safari">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/safari-zanzibar/1.jpg" alt="Safari Zanzibar 1" class="active">
+    <img src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/1.jpg" alt="Comfort Safari 1" class="active">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/safari-zanzibar/2.jpg" alt="Safari Zanzibar 2">
+    <img src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/2.jpg" alt="Comfort Safari 2">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/safari-zanzibar/3.jpg" alt="Safari Zanzibar 3">
+    <img src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/3.jpg" alt="Comfort Safari 3">
 
     <button type="button" class="home-prev">‹</button>
     <button type="button" class="home-next">›</button>
@@ -163,10 +163,10 @@
 
 
 
-<h3 class="pkg-title">Zanzibar Beach Escape</h3>
+<h3 class="pkg-title">Comfort Safari</h3>
 
         <p class="pkg-duration">5 Days · 4 Nights</p>
-        <p class="pkg-desc">Five days of pure island paradise — white sand beaches, Stone Town heritage, spice farms, and the warm Indian Ocean.</p>
+        <p class="pkg-desc">A refined mid-range circuit through Manyara, Serengeti and Ngorongoro — comfortable private lodges, experienced guide, zero compromise on wildlife time.</p>
         <p class="pkg-price"><?php $__p=$pkgMap['comfort-safari'] ?? null; echo $__p ? 'From $'.number_format($__p['price_2pax'],0) : 'From $750'; ?></p>
         <p class="pkg-price-label">per person · 2 travelers</p>
         <a href="packages.php#comfort-safari" class="btn-sz-outline" style="font-size:.65rem;padding:.6rem 1.25rem;min-height:40px">View & Book</a>
@@ -180,13 +180,13 @@
 
 
 
-<div class="home-slider" data-package="safari-zanzibar">
+<div class="home-slider" data-package="comfort-safari">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/safari-zanzibar/1.jpg" alt="Safari Zanzibar 1" class="active">
+    <img src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/1.jpg" alt="Comfort Safari 1" class="active">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/safari-zanzibar/2.jpg" alt="Safari Zanzibar 2">
+    <img src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/2.jpg" alt="Comfort Safari 2">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/safari-zanzibar/3.jpg" alt="Safari Zanzibar 3">
+    <img src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/3.jpg" alt="Comfort Safari 3">
 
     <button type="button" class="home-prev">‹</button>
     <button type="button" class="home-next">›</button>
@@ -307,8 +307,8 @@
             <path d="M5 6V4.5a3 3 0 016 0V6"/>
           </svg>
         </div>
-        <h4 class="why-title">Private Vehicles Only</h4>
-        <p class="why-text">No shared game drives. Your 4WD, your guide, your pace — with the flexibility to stay wherever wildlife demands it.</p>
+        <h4 class="why-title">Private Vehicles</h4>
+        <p class="why-text">All our standard packages use private 4WD vehicles. Your guide, your schedule — with the flexibility to stay wherever wildlife demands it.</p>
       </div>
       <div class="why-item fade-in fade-in-delay-2">
         <div class="why-icon" aria-hidden="true">

@@ -27,10 +27,16 @@
     $cur = basename($_SERVER['PHP_SELF']);
 
     // Count unread messages for badge
-    $unreadCount = 0;
+    $unreadCount  = 0;
+    $queuePending = 0;
+    $remindersDue = 0;
+    $newRequests  = 0;
     try {
-      $db_nav = \App\Models\Database::getInstance();
-      $unreadCount = (int)$db_nav->query("SELECT COUNT(*) FROM contact_messages WHERE is_read=0")->fetchColumn();
+      $db_nav       = \App\Models\Database::getInstance();
+      $unreadCount  = (int)$db_nav->query("SELECT COUNT(*) FROM contact_messages WHERE is_read=0")->fetchColumn();
+      $queuePending = (int)$db_nav->query("SELECT COUNT(*) FROM email_queue WHERE status='pending'")->fetchColumn();
+      $remindersDue = (int)$db_nav->query("SELECT COUNT(*) FROM booking_reminders WHERE status='pending' AND send_at<=DATE_ADD(NOW(),INTERVAL 24 HOUR)")->fetchColumn();
+      $newRequests  = (int)$db_nav->query("SELECT COUNT(*) FROM custom_safari_requests WHERE status='new'")->fetchColumn();
     } catch(Exception $e) {}
 
     $groups = [
@@ -38,12 +44,18 @@
         ['index.php',            'Dashboard',        '◈', ''],
         ['analytics.php',        'Analytics',        '◉', ''],
         ['bookings.php',         'Bookings',         '◉', ''],
-        ['custom_requests.php',  'Safari Requests',  '◎', ''],
+        ['custom_requests.php',  'Requests',         '◎', $newRequests > 0 ? $newRequests : ''],
         ['contact_messages.php', 'Messages',         '✉', $unreadCount > 0 ? $unreadCount : ''],
         ['leads.php',            'Leads',            '◇', ''],
         ['quotations.php',       'Quotations',       '❝', ''],
       ],
+      'Comms' => [
+        ['email_queue.php',      'Email Queue',      '✉', $queuePending > 0 ? $queuePending : ''],
+        ['reminders.php',        'Reminders',        '⏰', $remindersDue > 0 ? $remindersDue : ''],
+      ],
       'Content' => [
+        ['gallery.php',          'Image Gallery',    '🖼', ''],
+        ['itineraries.php',      'Itineraries',      '🗺', ''],
         ['packages.php',         'Packages',         '▣', ''],
         ['package_edit.php',      'New Package',      '+', ''],
         ['team_members.php',     'Team',             '◑', ''],
@@ -54,6 +66,7 @@
       'Settings' => [
         ['park_fees.php',        'Park Fees',        '♦', ''],
         ['seasonal_rates.php',   'Seasons',          '◐', ''],
+        ['users.php',             'Users',            '👤', ''],
       ],
     ];
 
@@ -75,6 +88,7 @@
 
   <div class="admin-sidebar-footer">
     <a href="<?= BASE_PATH ?>/" target="_blank" class="admin-nav-link">← View Site</a>
+    <a href="change_password.php" class="admin-nav-link" style="font-size:.65rem">🔑 Change Password</a>
     <a href="logout.php" class="admin-nav-link admin-nav-link--danger">Sign Out</a>
   </div>
 </aside>
@@ -89,7 +103,10 @@
     </div>
     <div class="admin-topbar-right">
       <span class="admin-env-badge"><?= defined('APP_ENV') && APP_ENV === 'local' ? 'LOCAL' : 'LIVE' ?></span>
-      <a href="logout.php" class="admin-user" style="text-decoration:none;color:inherit">Admin ↗</a>
+      <span class="admin-user">
+        <?= htmlspecialchars($_SESSION['admin_full_name'] ?? $_SESSION['admin_username'] ?? 'Admin') ?>
+      </span>
+      <a href="logout.php" class="admin-btn admin-btn--muted" style="font-size:.62rem;padding:.28rem .65rem">Sign Out</a>
     </div>
   </header>
 
@@ -142,3 +159,4 @@
 </script>
 </body>
 </html>
+

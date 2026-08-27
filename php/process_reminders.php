@@ -17,7 +17,7 @@ try {
     $due = $db->query(
         "SELECT r.*, b.email, b.full_name, b.travel_date, b.total_amount, b.deposit_amount
          FROM booking_reminders r
-         JOIN bookings b ON b.booking_ref = r.booking_ref
+         JOIN bookings b ON b.booking_ref = r.booking_ref COLLATE utf8mb4_unicode_ci
          WHERE r.status = 'pending'
            AND r.send_at <= DATE_ADD(NOW(), INTERVAL 1 HOUR)
          ORDER BY r.send_at ASC LIMIT 30"
