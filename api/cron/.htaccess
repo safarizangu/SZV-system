@@ -1,0 +1,3 @@
+# Cron scripts — only accessible via CLI, not web
+Order allow,deny
+Deny from all

@@ -43,6 +43,6 @@ class Formatter
 
     public static function generateRef(): string
     {
-        return 'SZV' . date('Y') . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 6));
+        return 'SZV' . strtoupper(bin2hex(random_bytes(5))); // cryptographically random
     }
 }

@@ -7,6 +7,7 @@
   <link rel="icon" type="image/jpeg" href="<?= BASE_PATH ?>/assets/images/logo.jpeg">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= BASE_PATH ?>/admin/css/admin.css">
+<script>window.BASE_PATH = "<?= BASE_PATH ?>";</script>
 </head>
 <body class="admin-body">
 
@@ -47,14 +48,17 @@
         ['custom_requests.php',  'Requests',         '◎', $newRequests > 0 ? $newRequests : ''],
         ['contact_messages.php', 'Messages',         '✉', $unreadCount > 0 ? $unreadCount : ''],
         ['leads.php',            'Leads',            '◇', ''],
+        ['commissions.php',    'Commissions',      '$', ''],
         ['quotations.php',       'Quotations',       '❝', ''],
       ],
       'Comms' => [
-        ['email_queue.php',      'Email Queue',      '✉', $queuePending > 0 ? $queuePending : ''],
+        ['email_templates.php', 'Email Templates',   '✉', ''],
+    ['email_queue.php',      'Email Queue',      '✉', $queuePending > 0 ? $queuePending : ''],
         ['reminders.php',        'Reminders',        '⏰', $remindersDue > 0 ? $remindersDue : ''],
       ],
       'Content' => [
-        ['gallery.php',          'Image Gallery',    '🖼', ''],
+        ['poster_maker.php',       'Poster Maker',        '◈', ''],
+    ['gallery.php',          'Image Gallery',    '🖼', ''],
         ['itineraries.php',      'Itineraries',      '🗺', ''],
         ['packages.php',         'Packages',         '▣', ''],
         ['package_edit.php',      'New Package',      '+', ''],

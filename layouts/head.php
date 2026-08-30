@@ -6,6 +6,8 @@ $pageImage = $pageImage ?? (BASE_PATH . '/assets/images/Intro22.webp');
 ?>
 
 <meta charset="UTF-8">
+<link rel="icon" type="image/jpeg" href="<?= BASE_PATH ?>/assets/images/logo.jpeg">
+<meta name="theme-color" content="#0a0a0a">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title><?= htmlspecialchars($pageTitle) ?></title>
@@ -52,5 +54,5 @@ $pageImage = $pageImage ?? (BASE_PATH . '/assets/images/Intro22.webp');
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500&family=Jost:wght@300;400;500;600;700&display=swap"
       rel="stylesheet">
 
-<link rel="stylesheet" href="<?= BASE_PATH ?>/css/main.css">
-  <link rel="stylesheet" href="<?= BASE_PATH ?>/css/forms.css">
+<link rel="stylesheet" href="<?= BASE_PATH ?>/assets/css/main.css">
+  <link rel="stylesheet" href="<?= BASE_PATH ?>/assets/css/forms.css">

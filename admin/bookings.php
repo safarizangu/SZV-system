@@ -150,7 +150,7 @@ ob_start();
         <div style="font-size:.68rem;color:#9ca3af"><?= ucfirst($b['accommodation_level']) ?></div>
         <?php endif; ?>
       </td>
-      <td style="text-align:center;font-weight:600"><?= (int)$b['travelers'] ?></td>
+      <td style="text-align:center;font-weight:600"><?= (int)($b['adults']??$b['travelers']??1)+(int)($b['children']??0) ?></td>
       <td style="white-space:nowrap;font-size:.82rem"><?= date('d M Y', strtotime($b['travel_date'])) ?></td>
       <td style="font-weight:700;white-space:nowrap">
         <?= $b['total_amount'] ? '$'.number_format($b['total_amount'],0) : '—' ?>
@@ -171,7 +171,7 @@ ob_start();
                 class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">View</button>
         <a href="https://wa.me/<?= preg_replace('/[^0-9]/','', $b['phone']??'') ?>?text=<?= urlencode('Hi '.$b['full_name'].', this is Safari Zangu regarding booking '.$b['booking_ref'].'.') ?>"
            target="_blank" class="admin-btn admin-btn--success" style="font-size:.65rem;padding:.3rem .6rem">WA</a>
-        <a href="../php/quotation_pdf.php?booking_ref=<?= urlencode($b['booking_ref']) ?>"
+        <a href="quotation_new.php?search=<?= urlencode($b['booking_ref']) ?>"
            target="_blank" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">PDF</a>
       </td>
     </tr>

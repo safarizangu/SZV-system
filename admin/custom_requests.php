@@ -110,11 +110,8 @@ ob_start();
     <?php if ($statusFilter): ?>
     <input type="hidden" name="status" value="<?= htmlspecialchars($statusFilter) ?>">
     <?php endif; ?>
-    <div class="search-bar">
-      <input type="text" name="search" placeholder="Search name, email, phone…"
-             value="<?= htmlspecialchars($search) ?>">
-      <button type="submit">Search</button>
-    </div>
+    <input type="text" name="search" class="admin-input" style="min-width:220px;flex:1" placeholder="Search name, email, phone…" value="<?= htmlspecialchars($search) ?>">
+    <button type="submit" class="admin-btn admin-btn--primary">Search</button>
     <?php if ($search || $statusFilter): ?>
     <a href="custom_requests.php" class="admin-btn admin-btn--outline">Clear</a>
     <?php endif; ?>
@@ -228,9 +225,9 @@ ob_start();
 
 <!-- ── Pagination ──────────────────────────────────────────── -->
 <?php if ($totalPages > 1): ?>
-<div class="pagination">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 0;flex-wrap:wrap;gap:.5rem">
   <span style="font-size:.78rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?></span>
-  <div class="page-btns">
+  <div style="display:flex;gap:.25rem;flex-wrap:wrap">
     <?php for ($i = 1; $i <= $totalPages; $i++): ?>
     <a href="?page=<?= $i ?>&search=<?= urlencode($search) ?>&status=<?= urlencode($statusFilter) ?>">
       <button class="page-btn <?= $i===$page?'active':'' ?>"><?= $i ?></button>
@@ -238,21 +235,22 @@ ob_start();
     <?php endfor; ?>
   </div>
 </div>
+</div>
 <?php endif; ?>
 
 <!-- ══ DETAIL MODAL ════════════════════════════════════════ -->
-<div class="modal-overlay" id="crModal" onclick="if(event.target===this)closeModal()">
-  <div class="modal-box" style="max-width:640px">
-    <div class="modal-header">
-      <span class="modal-title" id="crModalTitle">Request Detail</span>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+<div style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999;align-items:center;justify-content:center;padding:1rem" id="crModal" onclick="if(event.target===this)closeModal()">
+  <div style="background:#fff;width:100%;max-width:640px;border-radius:2px;overflow:hidden" style="max-width:640px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid #e5e7eb">
+      <span style="font-size:.9rem;font-weight:600" id="crModalTitle">Request Detail</span>
+      <button style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#9ca3af" onclick="closeModal()">✕</button>
     </div>
     <div id="crModalBody" style="overflow-y:auto;max-height:70vh"></div>
     <div style="padding:1rem 1.5rem;border-top:1px solid #e5e7eb;display:flex;gap:.5rem;flex-wrap:wrap" id="crModalActions"></div>
   </div>
 </div>
 
-<div class="toast-container" id="toastContainer"></div>
+<div id="toastContainer" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem;pointer-events:none"></div>
 
 <script>
 /* ── Status update ──────────────────────────────────────── */
@@ -286,7 +284,7 @@ function viewRequest(r) {
 
   function row(label, val) {
     if (!val || val === 'null' || val === '—' || val === '') return '';
-    return '<div class="detail-row"><div class="detail-label">' + label + '</div><div>' + val + '</div></div>';
+    return '<div style="display:grid;grid-template-columns:130px 1fr;gap:.5rem;padding:.55rem 1.5rem;border-bottom:1px solid #f3f4f6;font-size:.85rem"><span style="font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;padding-top:.15rem">' + label + '</span><span>' + val + '</span></div>';
   }
 
   var adults   = parseInt(r.adults)   || 0;
@@ -319,11 +317,11 @@ function viewRequest(r) {
   if (r.phone) actions += ' <a href="https://wa.me/'+r.phone.replace(/[^0-9]/g,'')+'" target="_blank" class="admin-btn" style="background:#25D366;color:#fff;border-color:#25D366">WhatsApp</a>';
   document.getElementById('crModalActions').innerHTML = actions;
 
-  document.getElementById('crModal').classList.add('open');
+  document.getElementById('crModal').style.display='flex';
 }
 
 function closeModal() {
-  document.getElementById('crModal').classList.remove('open');
+  document.getElementById('crModal').style.display='none';
 }
 document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeModal(); });
 
@@ -331,9 +329,9 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeModa
 function toast(msg, ok) {
   ok = ok === undefined ? true : ok;
   var t = document.createElement('div');
-  t.className = 'toast';
+  t.style.cssText='background:#0a0a0a;color:#fff;padding:.65rem 1.1rem;font-size:.78rem;min-width:180px;pointer-events:auto';
   t.textContent = msg;
-  if (!ok) t.style.background = '#dc2626';
+  if (!ok) t.style.background='#dc2626';
   document.getElementById('toastContainer').appendChild(t);
   setTimeout(function(){ t.remove(); }, 3000);
 }

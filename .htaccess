@@ -1,107 +1,95 @@
+# ════════════════════════════════════════════════════════════
 # Safari Zangu Ventures — .htaccess
+# Root: document root for Apache
+# Public pages now live in public/ — rewrite rules map them
+# ════════════════════════════════════════════════════════════
 
+Options -Indexes
+ServerSignature Off
+
+# ── Security headers ─────────────────────────────────────────
 <IfModule mod_headers.c>
-  Header always unset X-Powered-By
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-XSS-Protection "1; mode=block"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
-  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header always set Cross-Origin-Opener-Policy "same-origin"
+  Header always set Cross-Origin-Resource-Policy "same-origin"
+  # HSTS — uncomment on Hostinger after HTTPS confirmed:
+  # Header always set Strict-Transport-Security "max-age=2592000; includeSubDomains"
 </IfModule>
 
-ServerSignature Off
-
-# Block .git directory — prevents source code exposure
+# ── Block sensitive directories and file types ────────────────
 <IfModule mod_rewrite.c>
-  RewriteRule ^\.git - [F,L]
+  RewriteEngine On
+
+  # Block hidden files except .well-known (for SSL certs)
+  RewriteRule ^\.(?!well-known) - [F,L]
+
+  # Block sensitive directories
+  RewriteRule ^(app|config|database|storage|sql|tests|cron)/  - [F,L]
+
+  # Block api/cron from browser access (cron only, not AJAX)
+  RewriteRule ^api/cron/  - [F,L]
+
+  # ── HTTPS redirect (production only) ─────────────────────────
+  RewriteCond %{HTTP_HOST} !^localhost [NC]
+  RewriteCond %{HTTP_HOST} !^127\.0\.0\.1 [NC]
+  RewriteCond %{HTTPS} off
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+  # ── Route public pages from root URL → public/ directory ─────
+  # This lets safarizanguven.com/about.php work even though
+  # the file lives in public/about.php
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_URI} !^/public/
+  RewriteCond %{REQUEST_URI} !^/admin/
+  RewriteCond %{REQUEST_URI} !^/api/
+  RewriteCond %{REQUEST_URI} !^/assets/
+  RewriteRule ^([a-zA-Z0-9_-]+\.php)$ public/$1 [L,QSA]
+
+  # ── Root index → public/index.php ────────────────────────────
+  DirectoryIndex public/index.php index.php
+
 </IfModule>
-<FilesMatch "^\.git">
+
+# ── Block sensitive file types ────────────────────────────────
+<FilesMatch "\.(env|env\.example|py|sh|sql|log|bak|swp|gitignore|md)$">
   Order allow,deny
   Deny from all
 </FilesMatch>
 
-<Files "php/config.php">
+# Block dev/temp scripts at root
+<FilesMatch "^(n\.py|n\.sh|check_cron_status\.sh)$">
   Order allow,deny
   Deny from all
-</Files>
-<Files "*.md">
-  Order allow,deny
-  Deny from all
-</Files>
+</FilesMatch>
 
+# ── Error pages ───────────────────────────────────────────────
+ErrorDocument 404 /public/404.php
+ErrorDocument 500 /public/500.php
+
+# ── HTTPS redirect for Hostinger root deployment ─────────────
+# (already handled above via RewriteRule)
+
+# ── Caching ───────────────────────────────────────────────────
 <IfModule mod_expires.c>
   ExpiresActive On
-  ExpiresByType image/jpeg              "access plus 1 year"
-  ExpiresByType image/png               "access plus 1 year"
-  ExpiresByType image/webp              "access plus 1 year"
-  ExpiresByType text/css                "access plus 1 month"
-  ExpiresByType application/javascript  "access plus 1 month"
+  ExpiresByType image/jpeg             "access plus 1 year"
+  ExpiresByType image/png              "access plus 1 year"
+  ExpiresByType image/webp             "access plus 1 year"
+  ExpiresByType text/css               "access plus 1 month"
+  ExpiresByType application/javascript "access plus 1 month"
 </IfModule>
 
+# ── Compression ───────────────────────────────────────────────
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/css application/javascript text/plain
 </IfModule>
 
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-
-  # Always serve index.php first
-  DirectoryIndex index.php index.html
-
-  # index.html → index.php
-  RewriteCond %{THE_REQUEST} \s/.*index\.html[\s?] [NC]
-  RewriteRule ^(.*/)?index\.html$ /$1index.php [R=301,L]
-
-  # about.html → about.php
-  RewriteCond %{THE_REQUEST} \s/.*about\.html[\s?] [NC]
-  RewriteRule ^(.*/)?about\.html$ /$1about.php [R=301,L]
-
-  # Force HTTPS on production ONLY — never redirect on localhost
-  RewriteCond %{HTTP_HOST} !^localhost [NC]
-  RewriteCond %{HTTP_HOST} !^127\.0\.0\.1 [NC]
-  RewriteCond %{HTTP_HOST} !^::1 [NC]
-  RewriteCond %{HTTPS} off
-  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
-</IfModule>
-
-Options -Indexes
-
-# Block dangerous/development files
-<FilesMatch "\.(py|sh|env|log|sql|txt|bak|swp)$">
-  Order allow,deny
-  Deny from all
-</FilesMatch>
-<Files "n.py">
-  Order allow,deny
-  Deny from all
-</Files>
-<Files "n.sh">
-  Order allow,deny
-  Deny from all
-</Files>
-<Files "n.php">
-  Order allow,deny
-  Deny from all
-</Files>
-<Files "check_cron_status.sh">
-  Order allow,deny
-  Deny from all
-</Files>
-<Files "app.php">
-  Order allow,deny
-  Deny from all
-</Files>
-<Files "home.php">
-  Order allow,deny
-  Deny from all
-</Files>
-
-# Content Security Policy
+# ── Content Security Policy ───────────────────────────────────
 <IfModule mod_headers.c>
-  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.paypal.com https://www.googletagmanager.com https://www.google-analytics.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.paypal.com https://www.google-analytics.com https://analytics.google.com; frame-src https://www.paypal.com;"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.paypal.com https://www.googletagmanager.com https://www.google-analytics.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.paypal.com https://www.google-analytics.com https://analytics.google.com; frame-src https://www.paypal.com https://www.google.com;"
 </IfModule>
-
-# Custom error pages
-# Error pages — update path if deploying to subfolder
-ErrorDocument 404 /404.php
-ErrorDocument 500 /500.php

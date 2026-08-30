@@ -29,8 +29,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_user'])) {
         $error = 'Your current password is incorrect. Changes not saved.';
     } elseif (!$username) {
         $error = 'Username is required.';
-    } elseif ($newPw && strlen($newPw) < 8) {
-        $error = 'Password must be at least 8 characters.';
+    } elseif ($newPw) {
+        if (strlen($newPw) < 10) {
+            $error = 'Password must be at least 10 characters.';
+        } elseif (!preg_match('/[A-Z]/', $newPw)) {
+            $error = 'Password must contain at least one uppercase letter.';
+        } elseif (!preg_match('/[0-9]/', $newPw)) {
+            $error = 'Password must contain at least one number.';
+        }
+    } if ($error) {
     } else {
         try {
             if ($id > 0) {

@@ -5,6 +5,8 @@
 
 /* ── TOKENS ─────────────────────────────────────────────────── */
 :root {
+  --gold: #c8963e;
+  --gold-light: #f5edd9;
   --black:       #0a0a0a;
   --white:       #ffffff;
   --gray-50:     #f9f9f8;
@@ -485,3 +487,74 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 .status-dot--amber  { background:var(--amber); }
 .status-dot--gray   { background:var(--gray-300); }
 
+
+/* ── EMPTY STATE ────────────────────────────────────────────── */
+.admin-empty {
+  text-align: center; padding: 2rem; color: var(--gray-300);
+  font-style: italic; font-size: .85rem;
+}
+
+.admin-stat-card--dark { background: var(--black); color: var(--white); border-color: var(--black); }
+.admin-stat-card--dark .admin-stat-label,
+.admin-stat-card--dark .admin-stat-value,
+.admin-stat-card--dark .admin-stat-sub { color: var(--white); }
+
+/* ── METRICS GRID ───────────────────────────────────────────── */
+.admin-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.metric-card {
+  background: var(--white);
+  border: 1.5px solid var(--gray-200);
+  padding: 1.25rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  transition: border-color .18s;
+  cursor: default;
+}
+.metric-card:hover { border-color: var(--black); }
+.metric-card--dark  { background: var(--black); border-color: var(--black); color: var(--white); }
+.metric-card--dark .metric-label,
+.metric-card--dark .metric-value,
+.metric-card--dark .metric-sub { color: var(--white); }
+.metric-card--amber { border-color: var(--amber-border); background: var(--amber-light); }
+.metric-card--red   { border-color: var(--red-border);   background: var(--red-light);   }
+.metric-card--green { border-color: var(--green-border);  background: var(--green-light);  }
+.metric-card--blue  { border-color: var(--blue-border);   background: var(--blue-light);   }
+.metric-label {
+  font-size: .56rem; font-weight: 700;
+  letter-spacing: .16em; text-transform: uppercase;
+  color: var(--gray-500);
+}
+.metric-value {
+  font-family: var(--font-disp);
+  font-size: 2rem; font-weight: 500;
+  line-height: 1.05; color: var(--black);
+}
+.metric-sub { font-size: .68rem; color: var(--gray-500); margin-top: .1rem; }
+
+/* ── STAT CARDS (smaller) ───────────────────────────────────── */
+.admin-stat-label { font-size: .55rem; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; opacity: .6; }
+.admin-stat-value { font-family: var(--font-disp); font-size: 1.5rem; font-weight: 500; line-height: 1.1; }
+.admin-stat-sub   { font-size: .62rem; opacity: .55; }
+.admin-stat-card  {
+  background: var(--white); border: 1.5px solid var(--gray-200);
+  padding: .9rem 1.1rem; display: flex; flex-direction: column; gap: .15rem;
+}
+.admin-stat-card--amber { border-color: var(--amber-border); background: var(--amber-light); }
+.admin-stat-card--green { border-color: var(--green-border); background: var(--green-light); }
+.admin-stat-card--red   { border-color: var(--red-border);   background: var(--red-light);   }
+.admin-stat-card--blue  { border-color: var(--blue-border);  background: var(--blue-light);  }
+.admin-stat-card--dark  { border-color: var(--black); background: var(--black); color: var(--white); }
+
+@media (max-width: 768px) {
+  .admin-metrics-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .admin-metrics-grid { grid-template-columns: 1fr 1fr; }
+  .metric-value { font-size: 1.5rem; }
+}

@@ -30,10 +30,10 @@ $pageTitle = $pageTitle ?? 'Safari Zangu Ventures';
   <span class="wa-float-label">Chat with us</span>
 </a>
 
-<script src="<?= BASE_PATH ?>/js/country-codes.js"></script>
-<script src="<?= BASE_PATH ?>/js/form-validator.js"></script>
-<script src="<?= BASE_PATH ?>/js/main.js"></script>
-<script src="<?= BASE_PATH ?>/js/analytics.js"></script>
+<script src="<?= BASE_PATH ?>/assets/js/country-codes.js"></script>
+<script src="<?= BASE_PATH ?>/assets/js/form-validator.js"></script>
+<script src="<?= BASE_PATH ?>/assets/js/main.js"></script>
+<script src="<?= BASE_PATH ?>/assets/js/analytics.js"></script>
 
 </body>
 </html>

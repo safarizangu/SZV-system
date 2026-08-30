@@ -34,8 +34,12 @@ $_wa = defined('WHATSAPP_NUMBER') ? WHATSAPP_NUMBER : '255663430934';
                    required autocomplete="off">
           </div>
           <div class="form-group" style="margin-bottom:0">
-            <label class="form-label">Travel Date * <span style="font-weight:400;font-size:.75rem;color:#9ca3af">(use the calendar picker — format is YYYY-MM-DD)</span></label>
-            <input type="date" name="date" class="form-control-sz" required>
+            <label class="form-label">Travel Date <span style="font-weight:400;font-size:.75rem;color:#9ca3af">Enter as DD/MM/YYYY (e.g. 15 Sep 2026 → 15/09/2026)</span></label>
+            <input type="text" name="date" id="track-date" class="form-control-sz" required
+               placeholder="DD/MM/YYYY or YYYY-MM-DD"
+               pattern="^(\d{2}/\d{2}/\d{4}|\d{4}-\d{2}-\d{2})$"
+               autocomplete="off"
+               style="font-family:monospace;letter-spacing:.05em">
           </div>
         </div>
         <button type="submit" class="btn-sz-dark w-100 justify-content-center"
@@ -78,10 +82,65 @@ window.WHATSAPP_BASE_URL = "https://wa.me/<?= htmlspecialchars($_wa) ?>";
 </script>
 <script>
 // ── Rate limiting (item 31) ────────────────────────────────
-var _trackAttempts = parseInt(sessionStorage.getItem('_track_attempts') || '0');
-var _trackLockUntil = parseInt(sessionStorage.getItem('_track_lock_until') || '0');
+// Rate limiting now handled server-side in php/track_lookup.php
+// (3 failed attempts → 15 min lockout per IP — cannot be bypassed by new tab/session)
 
 document.addEventListener('DOMContentLoaded', function () {
+  // ── Track form submit ─────────────────────────────────────
+  var trackForm = document.getElementById('check-booking-form');
+  if (trackForm) {
+    trackForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var btn = document.getElementById('track-submit');
+      var result = document.getElementById('booking-result');
+      btn.disabled = true;
+      btn.textContent = 'Searching…';
+      result.innerHTML = '';
+
+      var fd = new FormData(trackForm);
+
+      try {
+        var resp = await fetch(window.BASE_PATH + '/api/track_lookup.php', {
+          method: 'POST', body: fd, credentials: 'same-origin'
+        });
+        var data = await resp.json();
+
+        if (data.locked) {
+          result.innerHTML = '<div style="background:#fef2f2;border:1.5px solid #fca5a5;padding:1.25rem;color:#991b1b;font-size:.85rem;line-height:1.7">' +
+            '<strong>Account temporarily locked.</strong><br>' + data.message + '</div>';
+        } else if (!data.success) {
+          result.innerHTML = '<div style="background:#fef3e2;border:1.5px solid #fcd34d;padding:1.25rem;color:#92400e;font-size:.85rem;line-height:1.7">' +
+            data.message + '</div>';
+        } else {
+          var d = data;
+          result.innerHTML =
+            '<div style="background:#f0fdf4;border:1.5px solid #86efac;padding:1.75rem;margin-bottom:1rem">' +
+              '<div style="font-size:.6rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#166534;margin-bottom:.75rem">Booking Found</div>' +
+              '<div style="font-family:var(--font-display,Georgia),serif;font-size:1.4rem;margin-bottom:.25rem">' + d.booking_ref + '</div>' +
+              '<div style="font-size:.8rem;color:#166534">Hello, ' + d.client_first + '!</div>' +
+            '</div>' +
+            '<table style="width:100%;border-collapse:collapse;font-size:.85rem;margin-bottom:1rem">' +
+              '<tr style="border-bottom:1px solid #e5e7eb"><td style="padding:.65rem 0;color:#6b7280;width:40%">Package</td><td style="font-weight:600">' + d.package_name + '</td></tr>' +
+              '<tr style="border-bottom:1px solid #e5e7eb"><td style="padding:.65rem 0;color:#6b7280">Accommodation</td><td>' + d.accommodation + '</td></tr>' +
+              '<tr style="border-bottom:1px solid #e5e7eb"><td style="padding:.65rem 0;color:#6b7280">Travel Date</td><td style="font-weight:600">' + d.travel_date + '</td></tr>' +
+              '<tr style="border-bottom:1px solid #e5e7eb"><td style="padding:.65rem 0;color:#6b7280">Travelers</td><td>' + d.travelers + ' guest' + (d.travelers !== 1 ? 's' : '') + (d.children > 0 ? ' (' + d.adults + ' adults, ' + d.children + ' children)' : '') + '</td></tr>' +
+              '<tr style="border-bottom:1px solid #e5e7eb"><td style="padding:.65rem 0;color:#6b7280">Booked On</td><td>' + d.booked_on + '</td></tr>' +
+              '<tr><td style="padding:.65rem 0;color:#6b7280">Payment Status</td><td><span style="background:' + d.status_color + '20;color:' + d.status_color + ';padding:.15rem .5rem;font-weight:700;font-size:.75rem">' + d.status_label + '</span></td></tr>' +
+            '</table>' +
+            (d.payment_note ? '<div style="background:#eff6ff;border:1.5px solid #bfdbfe;padding:1rem;font-size:.82rem;color:#1d4ed8;margin-bottom:1rem">' + d.payment_note + '</div>' : '') +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">' +
+              '<a href="https://wa.me/' + window.WHATSAPP_NUMBER + '?text=' + encodeURIComponent('Hi Safari Zangu, I am following up on booking ' + d.booking_ref + '.') + '" target="_blank" class="btn-sz-dark" style="font-size:.68rem;padding:.75rem;text-align:center;justify-content:center">WhatsApp Us</a>' +
+              '<a href="contact.php" class="btn-sz-outline" style="font-size:.68rem;padding:.75rem;text-align:center;justify-content:center">Send Email</a>' +
+            '</div>';
+        }
+      } catch(err) {
+        result.innerHTML = '<div style="background:#fef2f2;border:1.5px solid #fca5a5;padding:1.25rem;color:#991b1b;font-size:.85rem">Network error. Please try again or contact us on WhatsApp.</div>';
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Search My Booking';
+    });
+  }
   var params = new URLSearchParams(window.location.search);
   var urlRef  = params.get('ref');
   var urlDate = params.get('date');

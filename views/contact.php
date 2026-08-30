@@ -151,11 +151,21 @@ $_csrf = generateCsrfToken();
           </div>
         </div>
 
-        <div class="map-placeholder">
-          <p style="font-size:.62rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#9ca3af">Location</p>
-          <p style="font-family:var(--font-display);font-size:1.1rem;font-style:italic">Arusha, Tanzania</p>
-          <a href="https://maps.google.com/?q=Arusha,Tanzania" target="_blank"
-             class="btn-sz-outline" style="font-size:.65rem;padding:.5rem 1.25rem">
+        <!-- Njiro Road, Arusha — embedded map -->
+        <div style="margin-top:2rem">
+          <p style="font-size:.62rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#9ca3af;margin-bottom:.65rem">Our Office — Njiro Road, Arusha</p>
+          <div style="position:relative;width:100%;padding-bottom:56%;overflow:hidden;border:1px solid var(--gray-2)">
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3986.0!2d36.6800!3d-3.3869!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zM8KwMjMnMTIuOCJTIDM2wrA0MCc0OC4wIkU!5e0!3m2!1sen!2stz!4v1690000000000!5m2!1sen!2stz"
+              style="position:absolute;top:0;left:0;width:100%;height:100%;border:0"
+              allowfullscreen="" loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+              title="Safari Zangu Ventures office — Njiro Road, Arusha, Tanzania">
+            </iframe>
+          </div>
+          <a href="https://maps.google.com/?q=Njiro+Road,+Arusha,+Tanzania"
+             target="_blank" rel="noopener"
+             style="display:inline-block;margin-top:.5rem;font-size:.7rem;color:#6b7280;text-decoration:underline">
             Open in Google Maps ↗
           </a>
         </div>

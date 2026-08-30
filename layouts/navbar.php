@@ -1,6 +1,6 @@
 <nav class="sz-nav" role="navigation" aria-label="Main navigation">
   <div class="nav-inner">
-    <a href="<?= BASE_PATH ?>/" class="sz-logo" aria-label="Safari Zangu Ventures — Home">SZV</a>
+    <a href="<?= BASE_PATH ?>/" class="sz-logo" aria-label="Safari Zangu Ventures — Home"><em>Safari Zangu</em> Ventures</a>
     <ul class="sz-nav-links" role="list">
       <li><a href="<?= BASE_PATH ?>/packages.php">Packages</a></li>
       <li><a href="<?= BASE_PATH ?>/#customize">Customize</a></li>

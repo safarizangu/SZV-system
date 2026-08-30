@@ -19,8 +19,9 @@
           <a href="<?= BASE_PATH ?>/book.php" class="footer-book-btn">Book a Safari →</a>
         </div>
         <!-- Licence numbers -->
-        <div class="footer-licence">
+        <div class="footer-licence" style="margin-bottom:.5rem">
           <span>TALA Licence No. 037129</span>
+          
           <span class="footer-licence-dot">·</span>
           <span>Reg. No. 179228971</span>
         </div>

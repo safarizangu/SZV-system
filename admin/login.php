@@ -15,17 +15,25 @@ if ($reason === 'timeout')  $notice = 'Your session expired. Please sign in agai
 if ($reason === 'logout')   $notice = 'You have been signed out.';
 if ($reason === 'required') $notice = 'Please sign in to access the admin panel.';
 
-// ── Rate limiting ──────────────────────────────────────────
-$ip          = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-$lockKey     = 'login_attempts_' . md5($ip);
-$attempts    = $_SESSION[$lockKey]        ?? 0;
-$lastAttempt = $_SESSION[$lockKey.'_time'] ?? 0;
+// ── Rate limiting (server-side — session bypass proof) ──────
+$ip          = filter_var($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0', FILTER_VALIDATE_IP) ?: '0.0.0.0';
+$lockFile    = '/tmp/szv_ratelimit/login_' . hash('sha256', $ip) . '.json';
 $maxAttempts = 5;
 $lockSeconds = 900; // 15 min
-$isLocked    = ($attempts >= $maxAttempts) && ((time() - $lastAttempt) < $lockSeconds);
+
+$lockData    = ['attempts'=>0,'last_attempt'=>0];
+if (file_exists($lockFile)) {
+    $lockData = json_decode(file_get_contents($lockFile), true) ?? $lockData;
+}
+// Reset if window expired
+if ((time() - $lockData['last_attempt']) >= $lockSeconds) {
+    $lockData = ['attempts'=>0,'last_attempt'=>0];
+}
+$attempts  = (int)$lockData['attempts'];
+$isLocked  = $attempts >= $maxAttempts;
 
 if ($isLocked) {
-    $remaining = $lockSeconds - (time() - $lastAttempt);
+    $remaining = $lockSeconds - (time() - $lockData['last_attempt']);
     $error = 'Too many failed attempts. Try again in ' . ceil($remaining / 60) . ' minutes.';
 }
 
@@ -58,6 +66,7 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Set detailed session
                 $_SESSION['admin_user_id']   = $user['id'];
+                $_SESSION['admin_role']       = $user['role'] ?? 'admin';
                 $_SESSION['admin_username']  = $user['username'];
                 $_SESSION['admin_full_name'] = $user['full_name'];
                 $_SESSION['admin_email']     = $user['email'];
@@ -79,8 +88,8 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($authenticated) {
-            // Clear lockout
-            unset($_SESSION[$lockKey], $_SESSION[$lockKey.'_time']);
+            // Clear server-side lockout file
+            if (file_exists($lockFile)) unlink($lockFile);
 
             // Set auth session
             $_SESSION['admin_authenticated'] = true;
@@ -88,20 +97,26 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['admin_last_active']   = time();
             session_regenerate_id(true);
 
+            // Strict redirect: only allow known admin pages — no open redirect
+            $allowedRedirects = ['index.php','bookings.php','quotations.php','quotation_new.php',
+                'packages.php','leads.php','commissions.php','gallery.php','itineraries.php',
+                'users.php','email_queue.php','reminders.php','analytics.php'];
             $redirect = $_GET['redirect'] ?? 'index.php';
-            // Sanitise redirect — only allow relative admin paths
-            if (!preg_match('/^[a-zA-Z0-9_\-]+\.php(\?.*)?$/', $redirect)) {
+            $redirectBase = strtok($redirect, '?');
+            if (!in_array($redirectBase, $allowedRedirects, true)) {
                 $redirect = 'index.php';
             }
             header('Location: ' . $redirect); exit;
 
         } else {
-            // Failed
-            $_SESSION[$lockKey]          = $attempts + 1;
-            $_SESSION[$lockKey.'_time']  = time();
+            // Failed — increment server-side lockout
+            $lockData['attempts']     = $attempts + 1;
+            $lockData['last_attempt'] = time();
+            if (!is_dir('/tmp/szv_ratelimit/')) mkdir('/tmp/szv_ratelimit/', 0700, true);
+            file_put_contents($lockFile, json_encode($lockData), LOCK_EX);
             $remaining = $maxAttempts - ($attempts + 1);
             $error = $remaining > 0
-                ? 'Incorrect username or password. ' . $remaining . ' attempt' . ($remaining!==1?'s':'') . ' remaining.'
+                ? 'Incorrect credentials. ' . $remaining . ' attempt' . ($remaining!==1?'s':'') . ' remaining.'
                 : 'Too many failed attempts. Locked for 15 minutes.';
         }
     }
@@ -382,7 +397,7 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="form-group">
       <label class="form-label" for="username">Username</label>
       <input class="form-input" type="text" id="username" name="username"
-             value="<?= htmlspecialchars($_POST['username'] ?? '') ?>"
+             value=""
              placeholder="admin"
              autocomplete="username"
              autofocus

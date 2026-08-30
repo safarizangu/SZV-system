@@ -212,7 +212,7 @@ $levels   = ACCOMMODATION_LEVELS;
               <p style="font-size:.62rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#9ca3af;margin-bottom:.35rem">Estimated Total</p>
               <div class="sz-price-preview-total" id="preview-total">—</div>
               <div class="sz-price-breakdown" id="preview-breakdown"></div>
-              <p style="font-size:.7rem;color:#9ca3af;margin-top:.75rem">Final price confirmed after booking. 50% deposit required.</p>
+              <p style="font-size:.7rem;color:#9ca3af;margin-top:.75rem">25–30% deposit confirms your dates. Full balance due 45 days before departure.</p>
             </div>
             <p id="price-placeholder" style="font-size:.85rem;color:#9ca3af;font-style:italic">
               Select a package and enter travelers to see price estimate.
@@ -227,7 +227,7 @@ $levels   = ACCOMMODATION_LEVELS;
             By submitting you agree to our
           <a href="<?= BASE_PATH ?>/terms.php" style="color:#9ca3af;text-decoration:underline">Booking Terms &amp; Conditions</a>
           and <a href="<?= BASE_PATH ?>/privacy-policy.php" style="color:#9ca3af;text-decoration:underline">Privacy Policy</a>
-          · No card required to reserve
+          · No card required to reserve · After confirmation you'll receive a secure payment link (card, PayPal or bank transfer)
           </p>
           <div class="form-message" id="booking-msg"></div>
         </form>

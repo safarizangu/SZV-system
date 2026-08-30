@@ -1,15 +1,38 @@
+# ── Secrets ──────────────────────────────────────────────────
 .env
-storage/cache/*.json
-storage/logs/*.log
+*.env.local
+
+# ── Storage (runtime, not committed) ─────────────────────────
+storage/cache/*
+storage/logs/*
 storage/uploads/*
 !storage/cache/.gitkeep
 !storage/logs/.gitkeep
 !storage/uploads/.gitkeep
+
+# ── Dev scripts (never on production) ────────────────────────
+n.py
+n.sh
+check_cron_status.sh
+*.pyc
+__pycache__/
+
+# ── Vendor / dependencies ─────────────────────────────────────
 vendor/
-node_modules/
-*.swp
-*.bak
-*.orig
-*.tmp
+php/PHPMailer/
+
+# ── OS / IDE ─────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Logs ──────────────────────────────────────────────────────
+*.log
+
+# ── Temp / build ─────────────────────────────────────────────
+*.bak
+*.tmp
+/public/*.bak

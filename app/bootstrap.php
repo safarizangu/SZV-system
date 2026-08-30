@@ -32,6 +32,16 @@ if (file_exists(__DIR__.'/../.env')) {
 }
 require_once __DIR__ . '/../config/app.php';
 
+// Suppress errors in production — never expose paths/variables to browser
+if (defined('APP_ENV') && APP_ENV === 'production') {
+    ini_set('display_errors', '0');
+    ini_set('display_startup_errors', '0');
+    error_reporting(0);
+} else {
+    ini_set('display_errors', '1');
+    error_reporting(E_ALL & ~E_DEPRECATED);
+}
+
 // ── Session ───────────────────────────────────────────────────
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
@@ -39,7 +49,7 @@ if (session_status() === PHP_SESSION_NONE) {
         'path'     => '/',
         'secure'   => (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
         'httponly' => true,
-        'samesite' => 'Lax',
+        'samesite' => 'Strict',  // Strict prevents CSRF via cross-site requests
     ]);
     session_start();
 }

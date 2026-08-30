@@ -43,19 +43,31 @@
 </section> -->
 
 <!-- Trust Strip -->
-<!-- <div class="trust-strip fade-in">
+<div class="trust-strip fade-in">
   <div class="container-sz">
     <div class="trust-strip-inner">
-      <div class="trust-item"><span class="trust-stars">★★★★★</span><span class="trust-label">Rated 5.0 on <strong>Google</strong></span></div>
+      <div class="trust-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+        <span class="trust-label"><strong>TALA Licensed</strong> Tour Operator — No. 037129</span>
+      </div>
       <div class="trust-divider"></div>
-      <div class="trust-item"><span class="trust-stars">★★★★★</span><span class="trust-label">Rated Excellent on <strong>TripAdvisor</strong></span></div>
+      <div class="trust-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span class="trust-label"><strong>100% Private</strong> Vehicles — Never Shared</span>
+      </div>
       <div class="trust-divider"></div>
-      <div class="trust-item"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg><span class="trust-label"><strong>Licensed</strong> Tanzania Tourism Board</span></div>
+      <div class="trust-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <span class="trust-label"><strong>24h</strong> Response Guarantee</span>
+      </div>
       <div class="trust-divider"></div>
-      <div class="trust-item"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span class="trust-label"><strong>100%</strong> Private Vehicles</span></div>
+      <div class="trust-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="trust-label"><strong>Arusha-Based</strong> — Proudly Tanzanian</span>
+      </div>
     </div>
   </div>
-</div> -->
+</div>
 
 <!-- ── PACKAGES ───────────────────────────────────────────── -->
 <section class="section-lg" id="packages">

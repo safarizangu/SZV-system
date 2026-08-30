@@ -1,17 +1,54 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
+use App\Mail\Mailer;
 AuthMiddleware::requireAdmin();
 $db = \App\Models\Database::getInstance();
 
 // Handle status update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     try {
+        $newStatus = $_POST['status'];
+        $qId       = (int)$_POST['id'];
+
         $db->prepare("UPDATE quotations SET status=?, updated_at=NOW() WHERE id=?")
-           ->execute([$_POST['status'], (int)$_POST['id']]);
-        if ($_POST['status'] === 'accepted') {
+           ->execute([$newStatus, $qId]);
+
+        // ── Email: quotation_accepted ─────────────────────────────
+        if ($newStatus === 'accepted') {
             $db->prepare("UPDATE quotations SET accepted_at=NOW() WHERE id=? AND accepted_at IS NULL")
-               ->execute([(int)$_POST['id']]);
+               ->execute([$qId]);
+            try {
+                $q = $db->prepare("SELECT * FROM quotations WHERE id=?");
+                $q->execute([$qId]);
+                $quot = $q->fetch();
+                if ($quot && $quot['client_email']) {
+                    Mailer::queue('quotation_accepted', [
+                        'client_name'    => $quot['client_name'],
+                        'quote_ref'      => $quot['quote_ref'],
+                        'deposit_amount' => (float)($quot['deposit_amount'] ?? round($quot['grand_total'] * 0.25, 2)),
+                        'to_email'       => $quot['client_email'],
+                        'to_name'        => $quot['client_name'],
+                    ]);
+                }
+            } catch(\Exception $e) { error_log('[Quotation Accepted Email] '.$e->getMessage()); }
+        }
+
+        // ── Email: quotation_expired ──────────────────────────────
+        if ($newStatus === 'expired') {
+            try {
+                $q = $db->prepare("SELECT * FROM quotations WHERE id=?");
+                $q->execute([$qId]);
+                $quot = $q->fetch();
+                if ($quot && $quot['client_email']) {
+                    Mailer::queue('quotation_expired', [
+                        'client_name' => $quot['client_name'],
+                        'quote_ref'   => $quot['quote_ref'],
+                        'to_email'    => $quot['client_email'],
+                        'to_name'     => $quot['client_name'],
+                    ]);
+                }
+            } catch(\Exception $e) { error_log('[Quotation Expired Email] '.$e->getMessage()); }
         }
     } catch(Exception $e) { error_log($e->getMessage()); }
     header('Location: quotations.php'); exit;
@@ -47,8 +84,7 @@ $statusColors = [
     'sent'     => ['bg'=>'#eff6ff','color'=>'#1d4ed8','label'=>'Sent'],
     'accepted' => ['bg'=>'#f0fdf4','color'=>'#166534','label'=>'Accepted'],
     'declined' => ['bg'=>'#fef2f2','color'=>'#991b1b','label'=>'Declined'],
-    'expired'  => ['bg'=>'#fef3e2','color'=>'#92400e','label'=>'Expired'],
-    'converted'=> ['bg'=>'#0a0a0a','color'=>'#ffffff','label'=>'Converted → Booking'],
+    
 ];
 
 $pageTitle = 'Quotations';
@@ -56,7 +92,7 @@ ob_start();
 ?>
 
 <!-- Stats row -->
-<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:.75rem;margin-bottom:1.75rem">
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1.75rem">
   <?php foreach ($statusColors as $key => $s): ?>
   <a href="?status=<?= $key ?>" style="text-decoration:none;border:1.5px solid <?= $statusFilter===$key ? '#0a0a0a' : '#e5e7eb' ?>;background:<?= $s['bg'] ?>;padding:.85rem 1rem;display:block">
     <div style="font-family:var(--font-disp);font-size:1.5rem;font-weight:500;color:<?= $s['color'] ?>"><?= $stats[$key]['cnt'] ?? 0 ?></div>
@@ -101,9 +137,7 @@ ob_start();
 <tr <?= $expired ? 'style="opacity:.6"' : '' ?>>
   <td>
     <code style="font-size:.78rem;background:#f3f4f6;padding:.15rem .4rem"><?= htmlspecialchars($q['quote_ref']) ?></code>
-    <?php if ($q['version'] > 1): ?>
-      <span style="font-size:.6rem;color:#9ca3af"> v<?= $q['version'] ?></span>
-    <?php endif; ?>
+    
   </td>
   <td>
     <strong style="font-size:.85rem"><?= htmlspecialchars($q['client_name']) ?></strong><br>
@@ -244,7 +278,7 @@ function openConvertModal(id, ref, name, total, pkg, startDate) {
     +'<strong>Client:</strong> '+name+'<br>'
     +'<strong>Package:</strong> '+(pkg||'—')+'<br>'
     +'<strong>Grand Total:</strong> USD $'+Math.round(total).toLocaleString('en-US')+'<br>'
-    +'<strong>Deposit (50%):</strong> USD $'+Math.round(total*0.5).toLocaleString('en-US');
+    +'<strong>Deposit (30%):</strong> USD $'+Math.round(total*0.3).toLocaleString('en-US');
   document.getElementById('convert-error').style.display='none';
   document.getElementById('convert-modal-ref') && (document.getElementById('convert-modal-ref').textContent=ref);
   document.getElementById('convertModal').style.display='flex';

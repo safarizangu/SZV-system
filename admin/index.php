@@ -1,235 +1,227 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
-use App\Helpers\Formatter;
 AuthMiddleware::requireAdmin();
-
 $db = \App\Models\Database::getInstance();
 
-$totalBookings  = 0;
-$totalRevenue   = 0.0;
-$totalLeads     = 0;
-$recentBookings = [];
-$monthlyRevenue = [];
-$popularPkgs    = [];
-$newLeads       = [];
-$convRate       = 0;
+function sv($db,$sql,$p=[]){try{$s=$db->prepare($sql);$s->execute($p);return $s->fetchColumn();}catch(\Exception $e){return 0;}}
+function sa($db,$sql,$p=[]){try{$s=$db->prepare($sql);$s->execute($p);return $s->fetchAll();}catch(\Exception $e){return[];}}
 
-try { $totalBookings = (int)$db->query("SELECT COUNT(*) FROM bookings")->fetchColumn(); }
-catch(Exception $e) { error_log('[SZV] '.$e->getMessage()); }
+$totalBookings  = (int)sv($db,"SELECT COUNT(*) FROM bookings");
+$totalRevenue   = (float)sv($db,"SELECT COALESCE(SUM(total_amount),0) FROM bookings WHERE payment_status!='cancelled'");
+$totalLeads     = (int)sv($db,"SELECT COUNT(*) FROM custom_safari_requests");
+$totalQuotes    = (int)sv($db,"SELECT COUNT(*) FROM quotations");
+$convRate       = ($totalLeads+$totalBookings)>0 ? round(($totalBookings/($totalLeads+$totalBookings))*100,1) : 0;
+$newRequests    = (int)sv($db,"SELECT COUNT(*) FROM custom_safari_requests WHERE status='new'");
+$unreadMsgs     = (int)sv($db,"SELECT COUNT(*) FROM contact_messages WHERE is_read=0");
+$pendingEmails  = (int)sv($db,"SELECT COUNT(*) FROM email_queue WHERE status='pending'");
+$failedEmails   = (int)sv($db,"SELECT COUNT(*) FROM email_queue WHERE status='failed'");
+$pendingRem     = (int)sv($db,"SELECT COUNT(*) FROM booking_reminders WHERE status='pending'");
+$dueRem         = (int)sv($db,"SELECT COUNT(*) FROM booking_reminders WHERE status='pending' AND send_at<=DATE_ADD(NOW(),INTERVAL 24 HOUR)");
 
-try { $totalRevenue = (float)$db->query("SELECT COALESCE(SUM(total_amount),0) FROM bookings WHERE payment_status != 'cancelled'")->fetchColumn(); }
-catch(Exception $e) { error_log('[SZV] '.$e->getMessage()); }
+$recentBookings = sa($db,"SELECT * FROM bookings ORDER BY created_at DESC LIMIT 8");
+$recentQuotes   = sa($db,"SELECT * FROM quotations ORDER BY created_at DESC LIMIT 5");
+$newLeadRows    = sa($db,"SELECT * FROM custom_safari_requests WHERE status='new' ORDER BY created_at DESC LIMIT 5");
 
-try { $totalLeads = (int)$db->query("SELECT COUNT(*) FROM custom_safari_requests")->fetchColumn(); }
-catch(Exception $e) { error_log('[SZV] '.$e->getMessage()); }
+$statusColors = [
+    'pending'      => ['bg'=>'#fef3e2','color'=>'#92400e','label'=>'Pending'],
+    'deposit_paid' => ['bg'=>'#eff6ff','color'=>'#1d4ed8','label'=>'Deposit Paid'],
+    'fully_paid'   => ['bg'=>'#f0fdf4','color'=>'#166534','label'=>'Fully Paid'],
+    'cancelled'    => ['bg'=>'#fef2f2','color'=>'#991b1b','label'=>'Cancelled'],
+];
 
-$convRate = ($totalLeads + $totalBookings) > 0
-    ? round(($totalBookings / ($totalLeads + $totalBookings)) * 100, 1) : 0;
-
-$pendingEmails  = 0; $failedEmails = 0;
-$pendingReminders = 0; $dueReminders = 0;
-try { $pendingEmails  = (int)$db->query("SELECT COUNT(*) FROM email_queue WHERE status='pending'")->fetchColumn(); } catch(\Exception $e) {}
-try { $failedEmails   = (int)$db->query("SELECT COUNT(*) FROM email_queue WHERE status='failed'")->fetchColumn(); }  catch(\Exception $e) {}
-try { $pendingReminders=(int)$db->query("SELECT COUNT(*) FROM booking_reminders WHERE status='pending'")->fetchColumn(); } catch(\Exception $e) {}
-try { $dueReminders   = (int)$db->query("SELECT COUNT(*) FROM booking_reminders WHERE status='pending' AND send_at<=DATE_ADD(NOW(),INTERVAL 24 HOUR)")->fetchColumn(); } catch(\Exception $e) {}
-
-try {
-    $recentBookings = $db->query(
-        "SELECT * FROM bookings ORDER BY created_at DESC LIMIT 8"
-    )->fetchAll();
-} catch(Exception $e) { error_log('[SZV] '.$e->getMessage()); }
-
-try {
-    $monthlyRevenue = $db->query("
-        SELECT DATE_FORMAT(MIN(created_at),'%b %Y') AS month,
-               SUM(total_amount) AS revenue, COUNT(*) AS cnt
-        FROM bookings
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-        GROUP BY DATE_FORMAT(created_at,'%Y-%m')
-        ORDER BY DATE_FORMAT(created_at,'%Y-%m') ASC
-    ")->fetchAll();
-} catch(Exception $e) { error_log('[SZV] monthly: '.$e->getMessage()); }
-
-try {
-    $popularPkgs = $db->query("
-        SELECT package_name, COUNT(*) AS bookings, SUM(total_amount) AS revenue
-        FROM bookings
-        WHERE package_name IS NOT NULL
-        GROUP BY package_name
-        ORDER BY COUNT(*) DESC LIMIT 6
-    ")->fetchAll();
-} catch(Exception $e) { error_log('[SZV] packages: '.$e->getMessage()); }
-
-try {
-    $newLeads = $db->query(
-        "SELECT * FROM custom_safari_requests WHERE status='new' ORDER BY created_at DESC LIMIT 5"
-    )->fetchAll();
-} catch(Exception $e) { error_log('[SZV] '.$e->getMessage()); }
-
-$pageTitle = 'Dashboard — Safari Zangu Admin';
+$pageTitle = 'Dashboard';
 ob_start();
 ?>
-<div class="admin-page">
-  <div class="metrics-grid">
-    <div class="metric-card">
-      <span class="metric-label">Total Bookings</span>
-      <span class="metric-value"><?= $totalBookings ?></span>
-      <span class="metric-sub">All time</span>
-    </div>
-    <div class="metric-card metric-card--revenue">
-      <span class="metric-label">Total Revenue</span>
-      <span class="metric-value">$<?= number_format($totalRevenue,0) ?></span>
-      <span class="metric-sub">USD confirmed</span>
-    </div>
-    <div class="metric-card">
-      <span class="metric-label">Safari Requests</span>
-      <span class="metric-value"><?= $totalLeads ?></span>
-      <span class="metric-sub">Custom enquiries</span>
-    </div>
-    <div class="metric-card">
-      <span class="metric-label">Conversion Rate</span>
-      <span class="metric-value"><?= $convRate ?>%</span>
-      <span class="metric-sub">Requests to bookings</span>
-    </div>
-  </div>
 
-  <!-- Comms Health Row -->
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:2rem">
-    <a href="email_queue.php?status=pending" style="text-decoration:none;display:block;padding:1rem 1.25rem;border:1.5px solid <?= $pendingEmails>0?'#92400e':'#e5e7eb' ?>;background:<?= $pendingEmails>0?'#fef3e2':'#fff' ?>">
-      <div style="font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9ca3af">Emails Queued</div>
-      <div style="font-family:Georgia,serif;font-size:1.5rem;font-weight:500;color:<?= $pendingEmails>0?'#92400e':'#0a0a0a' ?>;margin-top:.25rem"><?= $pendingEmails ?></div>
-      <div style="font-size:.68rem;color:#9ca3af;margin-top:.1rem">Pending send</div>
-    </a>
-    <a href="email_queue.php?status=failed" style="text-decoration:none;display:block;padding:1rem 1.25rem;border:1.5px solid <?= $failedEmails>0?'#dc2626':'#e5e7eb' ?>;background:<?= $failedEmails>0?'#fef2f2':'#fff' ?>">
-      <div style="font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9ca3af">Emails Failed</div>
-      <div style="font-family:Georgia,serif;font-size:1.5rem;font-weight:500;color:<?= $failedEmails>0?'#dc2626':'#0a0a0a' ?>;margin-top:.25rem"><?= $failedEmails ?></div>
-      <div style="font-size:.68rem;color:#9ca3af;margin-top:.1rem">Need retry</div>
-    </a>
-    <a href="reminders.php" style="text-decoration:none;display:block;padding:1rem 1.25rem;border:1.5px solid #e5e7eb;background:#fff">
-      <div style="font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9ca3af">Reminders</div>
-      <div style="font-family:Georgia,serif;font-size:1.5rem;font-weight:500;color:#0a0a0a;margin-top:.25rem"><?= $pendingReminders ?></div>
-      <div style="font-size:.68rem;color:#9ca3af;margin-top:.1rem">Scheduled</div>
-    </a>
-    <a href="reminders.php" style="text-decoration:none;display:block;padding:1rem 1.25rem;border:1.5px solid <?= $dueReminders>0?'#1d4ed8':'#e5e7eb' ?>;background:<?= $dueReminders>0?'#eff6ff':'#fff' ?>">
-      <div style="font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9ca3af">Due Next 24h</div>
-      <div style="font-family:Georgia,serif;font-size:1.5rem;font-weight:500;color:<?= $dueReminders>0?'#1d4ed8':'#0a0a0a' ?>;margin-top:.25rem"><?= $dueReminders ?></div>
-      <div style="font-size:.68rem;color:#9ca3af;margin-top:.1rem">Reminders</div>
-    </a>
+<!-- METRIC CARDS -->
+<div class="admin-metrics-grid" style="margin-bottom:1.5rem">
+  <div class="metric-card metric-card--dark">
+    <span class="metric-label">Total Revenue</span>
+    <span class="metric-value">$<?= number_format($totalRevenue,0) ?></span>
+    <span class="metric-sub">Confirmed bookings</span>
   </div>
+  <a href="bookings.php" style="text-decoration:none">
+  <div class="metric-card">
+    <span class="metric-label">Bookings</span>
+    <span class="metric-value"><?= $totalBookings ?></span>
+    <span class="metric-sub">All time</span>
+  </div></a>
+  <a href="quotations.php" style="text-decoration:none">
+  <div class="metric-card">
+    <span class="metric-label">Quotations</span>
+    <span class="metric-value"><?= $totalQuotes ?></span>
+    <span class="metric-sub">Created</span>
+  </div></a>
+  <a href="custom_requests.php" style="text-decoration:none">
+  <div class="metric-card <?= $newRequests>0?'metric-card--amber':'' ?>">
+    <span class="metric-label">New Requests</span>
+    <span class="metric-value"><?= $newRequests ?></span>
+    <span class="metric-sub"><?= $totalLeads ?> total leads</span>
+  </div></a>
+  <a href="contact_messages.php" style="text-decoration:none">
+  <div class="metric-card <?= $unreadMsgs>0?'metric-card--amber':'' ?>">
+    <span class="metric-label">Unread Messages</span>
+    <span class="metric-value"><?= $unreadMsgs ?></span>
+    <span class="metric-sub">Awaiting reply</span>
+  </div></a>
+  <div class="metric-card">
+    <span class="metric-label">Conversion</span>
+    <span class="metric-value"><?= $convRate ?>%</span>
+    <span class="metric-sub">Requests → bookings</span>
+  </div>
+</div>
 
-  <div class="admin-grid-2">
-    <div class="admin-card">
-      <div class="admin-card-header">
-        <h2>Recent Bookings</h2>
-        <a href="bookings.php" class="admin-link">View all &rarr;</a>
-      </div>
-      <table class="admin-table">
-        <thead><tr><th>Ref</th><th>Guest</th><th>Package</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
-        <tbody>
-        <?php foreach ($recentBookings as $b): ?>
-          <tr>
-            <td><code><?= htmlspecialchars($b['booking_ref']) ?></code></td>
-            <td><?= htmlspecialchars($b['full_name']) ?></td>
-            <td><?= htmlspecialchars($b['package_name'] ?? '—') ?></td>
-            <td><?= date('d M Y', strtotime($b['travel_date'])) ?></td>
-            <td>$<?= number_format((float)$b['total_amount'],0) ?></td>
-            <td><?= Formatter::bookingStatusBadge($b['payment_status'] ?? 'pending') ?></td>
-          </tr>
-        <?php endforeach; ?>
-        <?php if (empty($recentBookings)): ?>
-          <tr><td colspan="6" class="empty-state">No bookings yet.</td></tr>
+<!-- COMMS HEALTH -->
+<div class="admin-stats-grid" style="margin-bottom:1.5rem">
+  <a href="email_queue.php" style="text-decoration:none">
+  <div class="admin-stat-card <?= $pendingEmails>0?'admin-stat-card--amber':'' ?>">
+    <span class="admin-stat-label">Emails Queued</span>
+    <span class="admin-stat-value"><?= $pendingEmails ?></span>
+    <span class="admin-stat-sub">Pending</span>
+  </div></a>
+  <a href="email_queue.php" style="text-decoration:none">
+  <div class="admin-stat-card <?= $failedEmails>0?'admin-stat-card--red':'' ?>">
+    <span class="admin-stat-label">Emails Failed</span>
+    <span class="admin-stat-value"><?= $failedEmails ?></span>
+    <span class="admin-stat-sub">Need retry</span>
+  </div></a>
+  <a href="reminders.php" style="text-decoration:none">
+  <div class="admin-stat-card">
+    <span class="admin-stat-label">Reminders</span>
+    <span class="admin-stat-value"><?= $pendingRem ?></span>
+    <span class="admin-stat-sub">Scheduled</span>
+  </div></a>
+  <a href="reminders.php" style="text-decoration:none">
+  <div class="admin-stat-card <?= $dueRem>0?'admin-stat-card--blue':'' ?>">
+    <span class="admin-stat-label">Due 24h</span>
+    <span class="admin-stat-value"><?= $dueRem ?></span>
+    <span class="admin-stat-sub">Firing soon</span>
+  </div></a>
+</div>
+
+<!-- MAIN GRID -->
+<div style="display:grid;grid-template-columns:1.3fr 1fr;gap:1.25rem;align-items:start">
+
+<!-- Recent Bookings -->
+<div class="admin-card">
+  <div class="admin-card-header">
+    <h3>Recent Bookings</h3>
+    <a href="bookings.php" class="admin-btn admin-btn--outline" style="font-size:.65rem">View All →</a>
+  </div>
+  <div class="admin-table-wrap">
+  <table class="admin-table">
+    <thead><tr><th>Ref</th><th>Guest</th><th>Package</th><th>Travel</th><th>Amount</th><th>Status</th></tr></thead>
+    <tbody>
+    <?php foreach($recentBookings as $b):
+      $sc = $statusColors[$b['payment_status']??'pending'] ?? $statusColors['pending'];
+      $travelDate = !empty($b['travel_date']) && $b['travel_date'] !== '0000-00-00'
+                    ? date('d M Y',strtotime($b['travel_date'])) : '—';
+    ?>
+    <tr style="cursor:pointer" onclick="window.location='bookings.php?search=<?= urlencode($b['booking_ref']) ?>'">
+      <td><code style="font-size:.72rem;background:#f3f4f6;padding:.1rem .35rem"><?= htmlspecialchars($b['booking_ref']) ?></code></td>
+      <td>
+        <div style="font-weight:600;font-size:.82rem"><?= htmlspecialchars($b['full_name']??'') ?></div>
+        <div style="font-size:.68rem;color:var(--gray-500)"><?= htmlspecialchars($b['email']??'') ?></div>
+      </td>
+      <td style="font-size:.78rem"><?= htmlspecialchars($b['package_name']??'—') ?></td>
+      <td style="font-size:.75rem;white-space:nowrap"><?= $travelDate ?></td>
+      <td style="font-weight:700;font-size:.82rem">$<?= number_format((float)($b['total_amount']??0),0) ?></td>
+      <td>
+        <span style="display:inline-block;padding:.15rem .5rem;font-size:.58rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>">
+          <?= str_replace('_',' ',$b['payment_status']??'pending') ?>
+        </span>
+      </td>
+    </tr>
+    <?php endforeach; ?>
+    <?php if(empty($recentBookings)): ?>
+    <tr><td colspan="6" class="admin-empty">No bookings yet.</td></tr>
+    <?php endif; ?>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<!-- Right column -->
+<div style="display:flex;flex-direction:column;gap:1.25rem">
+
+  <!-- New Requests -->
+  <div class="admin-card">
+    <div class="admin-card-header">
+      <h3>New Requests
+        <?php if($newRequests>0): ?>
+        <span style="background:#dc2626;color:#fff;font-size:.55rem;padding:.1rem .35rem;border-radius:99px;margin-left:.35rem"><?= $newRequests ?></span>
         <?php endif; ?>
-        </tbody>
-      </table>
+      </h3>
+      <a href="custom_requests.php" class="admin-btn admin-btn--outline" style="font-size:.65rem">View All →</a>
     </div>
-
-    <div class="admin-card">
-      <div class="admin-card-header">
-        <h2>New Safari Requests</h2>
-        <a href="custom_requests.php" class="admin-link">View all &rarr;</a>
-      </div>
-      <?php if (!empty($newLeads)): ?>
-        <div class="lead-list">
-        <?php foreach ($newLeads as $l): ?>
-          <div class="lead-item">
-            <div class="lead-name"><?= htmlspecialchars($l['full_name']) ?></div>
-            <div class="lead-meta"><?= htmlspecialchars($l['destinations'] ?? '') ?></div>
-            <div class="lead-date"><?= date('d M, H:i', strtotime($l['created_at'])) ?></div>
-            <span class="badge badge-new">New</span>
-          </div>
-        <?php endforeach; ?>
-        </div>
-      <?php else: ?>
-        <p class="empty-state">No new requests.</p>
-      <?php endif; ?>
-    </div>
-  </div>
-
-  <?php if (!empty($popularPkgs)): ?>
-  <div class="admin-card" style="margin-top:2rem">
-    <div class="admin-card-header"><h2>Package Performance</h2></div>
+    <div class="admin-table-wrap">
     <table class="admin-table">
-      <thead><tr><th>Package</th><th>Bookings</th><th>Revenue</th></tr></thead>
+      <thead><tr><th>Name</th><th>Country</th><th>Submitted</th></tr></thead>
       <tbody>
-      <?php foreach ($popularPkgs as $p): ?>
-        <tr>
-          <td><?= htmlspecialchars($p['package_name']) ?></td>
-          <td><?= $p['bookings'] ?></td>
-          <td>$<?= number_format((float)$p['revenue'],0) ?></td>
-        </tr>
+      <?php foreach($newLeadRows as $l): ?>
+      <tr onclick="window.location='custom_requests.php'" style="cursor:pointer">
+        <td>
+          <div style="font-weight:600;font-size:.82rem"><?= htmlspecialchars($l['full_name']??'') ?></div>
+          <div style="font-size:.68rem;color:var(--gray-500)"><?= htmlspecialchars($l['package_interest']??'') ?></div>
+        </td>
+        <td style="font-size:.78rem"><?= htmlspecialchars($l['country']??'—') ?></td>
+        <td style="font-size:.72rem;color:var(--gray-500)"><?= date('d M H:i',strtotime($l['created_at'])) ?></td>
+      </tr>
       <?php endforeach; ?>
+      <?php if(empty($newLeadRows)): ?><tr><td colspan="3" class="admin-empty">No new requests.</td></tr><?php endif; ?>
       </tbody>
     </table>
+    </div>
   </div>
-  <?php endif; ?>
-</div>
+
+  <!-- Recent Quotes -->
+  <div class="admin-card">
+    <div class="admin-card-header">
+      <h3>Recent Quotations</h3>
+      <div style="display:flex;gap:.4rem">
+        <a href="quotation_new.php" class="admin-btn admin-btn--primary" style="font-size:.65rem">+ New</a>
+        <a href="quotations.php" class="admin-btn admin-btn--outline" style="font-size:.65rem">All →</a>
+      </div>
+    </div>
+    <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead><tr><th>Ref</th><th>Client</th><th>Total</th><th>Status</th></tr></thead>
+      <tbody>
+      <?php
+      $qStatusColors = ['draft'=>'#9ca3af','sent'=>'#1d4ed8','accepted'=>'#16a34a','declined'=>'#dc2626'];
+      foreach($recentQuotes as $q):
+        $qColor = $qStatusColors[$q['status']??'draft'] ?? '#9ca3af';
+      ?>
+      <tr onclick="window.location='quotation_new.php?id=<?= $q['id'] ?>'" style="cursor:pointer">
+        <td><code style="font-size:.72rem;background:#f3f4f6;padding:.1rem .35rem"><?= htmlspecialchars($q['quote_ref']) ?></code></td>
+        <td style="font-size:.82rem;font-weight:600"><?= htmlspecialchars($q['client_name']) ?></td>
+        <td style="font-size:.82rem;font-weight:700">$<?= number_format((float)($q['grand_total']??0),0) ?></td>
+        <td><span style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:<?= $qColor ?>"><?= $q['status']??'draft' ?></span></td>
+      </tr>
+      <?php endforeach; ?>
+      <?php if(empty($recentQuotes)): ?><tr><td colspan="4" class="admin-empty">No quotations.</td></tr><?php endif; ?>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="admin-card">
+    <div class="admin-card-header"><h3>Quick Actions</h3></div>
+    <div class="admin-card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+      <a href="quotation_new.php" class="admin-btn admin-btn--primary" style="justify-content:center">+ Quotation</a>
+      <a href="bookings.php"      class="admin-btn admin-btn--outline" style="justify-content:center">Bookings</a>
+      <a href="gallery.php"       class="admin-btn admin-btn--outline" style="justify-content:center">Gallery</a>
+      <a href="itineraries.php"   class="admin-btn admin-btn--outline" style="justify-content:center">Itineraries</a>
+      <a href="custom_requests.php" class="admin-btn admin-btn--amber" style="justify-content:center">Requests</a>
+      <a href="packages.php"      class="admin-btn admin-btn--muted"   style="justify-content:center">Packages</a>
+    </div>
+  </div>
+
+</div><!-- /right -->
+</div><!-- /grid -->
+
 <?php
-// Inject live-refresh script
-$liveScript = <<<HTML
-<script>
-(function() {
-  var REFRESH_INTERVAL = 60000; // 60 seconds
-  var indicators = {
-    totalBookings: document.querySelector('.metric-value'),
-  };
-
-  function refreshStats() {
-    fetch((window.BASE_PATH||'')+'/php/dashboard_stats.php', { credentials: 'same-origin' })
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        // Update any element with data-stat attribute
-        document.querySelectorAll('[data-stat]').forEach(function(el) {
-          var key = el.dataset.stat;
-          if (d[key] !== undefined) {
-            el.textContent = typeof d[key] === 'number' && key.includes('revenue')
-              ? d.formatted_revenue : d[key];
-          }
-        });
-        // Update last-refreshed indicator
-        var ts = document.getElementById('last-refreshed');
-        if (ts) ts.textContent = 'Updated ' + d.timestamp;
-        // Update sidebar unread badge
-        var badge = document.querySelector('.nav-badge');
-        if (badge && d.messages_unread > 0) badge.textContent = d.messages_unread;
-      })
-      .catch(function() {});
-  }
-
-  // Auto-refresh every 60s
-  setInterval(refreshStats, REFRESH_INTERVAL);
-
-  // Show last-refreshed indicator
-  var topbar = document.querySelector('.admin-topbar-right');
-  if (topbar) {
-    var ts = document.createElement('span');
-    ts.id = 'last-refreshed';
-    ts.style.cssText = 'font-size:.62rem;color:#9ca3af';
-    topbar.prepend(ts);
-  }
-})();
-</script>
-HTML;
 $content = ob_get_clean();
-$content .= $liveScript;
 require_once __DIR__ . '/../layouts/admin.php';
