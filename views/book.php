@@ -1,7 +1,22 @@
 <?php
-require_once __DIR__ . '/../php/config.php';
-$packages = getAllPackages();
-$levels   = ACCOMMODATION_LEVELS;
+try {
+    $db = \App\Models\Database::getInstance();
+    $packages = $db->query(
+        "SELECT * FROM packages WHERE is_active=1 ORDER BY sort_order ASC, id ASC"
+    )->fetchAll();
+    $pkgMap = [];
+    foreach ($packages as &$p) {
+        $p["gallery"]       = json_decode($p["gallery_images"] ?? "[]", true) ?: [];
+        $p["includes_arr"]  = json_decode($p["includes"]       ?? "[]", true) ?: [];
+        $p["excludes_arr"]  = json_decode($p["excludes"]       ?? "[]", true) ?: [];
+        $p["itinerary_arr"] = json_decode($p["itinerary"]      ?? "[]", true) ?: [];
+        $pkgMap[$p["slug"]] = $p;
+    }
+    unset($p);
+} catch (\Exception $e) {
+    $packages = []; $pkgMap = [];
+    error_log("[view] " . $e->getMessage());
+}
 ?>
 
 <?php if (!empty($quoteData)): ?>

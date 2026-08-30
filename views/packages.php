@@ -1,24 +1,22 @@
 <?php
-// ============================================================
-// SAFARI ZANGU VENTURES — Packages Page (v2, database-driven)
-// Replaces the static packages.html. Pulls every package from
-// the `packages` table so admin/database edits reflect here
-// automatically. Includes:
-//   - Accommodation level selector (Budget / Mid-Range / High-End)
-//   - Image gallery section before the itinerary
-//   - "Book Now" passes package_id + accommodation_level to book.php
-// ============================================================
-require_once __DIR__ . '/../php/config.php';
-
-$packages = getAllPackages();
-
-echo '<script>
-document.addEventListener("DOMContentLoaded", function() {
-    trackEvent("packages_page_view");
-});
-</script>';
-
-$levels   = ACCOMMODATION_LEVELS; // ['budget'=>'Budget-Friendly', 'midrange'=>'Mid-Range', 'highend'=>'High-End']
+try {
+    $db = \App\Models\Database::getInstance();
+    $packages = $db->query(
+        "SELECT * FROM packages WHERE is_active=1 ORDER BY sort_order ASC, id ASC"
+    )->fetchAll();
+    $pkgMap = [];
+    foreach ($packages as &$p) {
+        $p["gallery"]       = json_decode($p["gallery_images"] ?? "[]", true) ?: [];
+        $p["includes_arr"]  = json_decode($p["includes"]       ?? "[]", true) ?: [];
+        $p["excludes_arr"]  = json_decode($p["excludes"]       ?? "[]", true) ?: [];
+        $p["itinerary_arr"] = json_decode($p["itinerary"]      ?? "[]", true) ?: [];
+        $pkgMap[$p["slug"]] = $p;
+    }
+    unset($p);
+} catch (\Exception $e) {
+    $packages = []; $pkgMap = [];
+    error_log("[view] " . $e->getMessage());
+}
 ?>
 
 <div class="page-hero">

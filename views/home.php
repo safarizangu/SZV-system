@@ -1,4 +1,23 @@
-<?php require_once __DIR__ . '/../php/config.php'; $packages = getAllPackages(); $pkgMap = []; foreach($packages as $p) { $pkgMap[$p['slug']] = $p; } ?>
+<?php
+// Load packages directly — php/config.php no longer exists after restructure
+try {
+    $db = \App\Models\Database::getInstance();
+    $packages = $db->query(
+        "SELECT * FROM packages WHERE is_active = 1 ORDER BY sort_order ASC, id ASC"
+    )->fetchAll();
+    foreach ($packages as $p) {
+        $p['gallery']      = json_decode($p['gallery_images'] ?? '[]', true) ?: [];
+        $p['includes_arr'] = json_decode($p['includes']       ?? '[]', true) ?: [];
+        $p['excludes_arr'] = json_decode($p['excludes']       ?? '[]', true) ?: [];
+        $p['itinerary_arr']= json_decode($p['itinerary']      ?? '[]', true) ?: [];
+        $pkgMap[$p['slug']] = $p;
+    }
+} catch (\Exception $e) {
+    $packages = [];
+    $pkgMap   = [];
+    error_log('[home.php] DB error: ' . $e->getMessage());
+}
+?>
 <!-- cSpell:disable -->
 
 <!-- ── HERO ───────────────────────────────────────────────── -->
@@ -645,61 +664,25 @@
     <div id="dest-modal-list" style="overflow-y:auto;flex:1;padding:1rem 1.5rem">
       <!-- Populated from PHP/DB below -->
       <?php
-      try {
-        $__pdo  = getAllPackages() ? \App\Models\Database::getInstance() : null;
-        // Fallback: use global $db if available, else try singleton
-        if (!$__pdo) $__pdo = \App\Models\Database::getInstance();
-        $__parks = $__pdo->query(
-          "SELECT park_key, name, country, notes FROM park_fees
-           WHERE is_active=1 ORDER BY country ASC, name ASC"
-        )->fetchAll();
-      } catch (Exception $e) {
-        $__parks = [];
-      }
-
-      // SVG icons keyed by park_key
-      $__icons = [
-        'serengeti'   => '<circle cx="12" cy="10" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M8.5 7.5C7 6 5.5 6.5 5 8M15.5 7.5C17 6 18.5 6.5 19 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M9 13.5c.5 1.5 2 2.5 3 2.5s2.5-1 3-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="9.5" r=".7" fill="currentColor"/><circle cx="14" cy="9.5" r=".7" fill="currentColor"/><path d="M7 18c.8-1.5 2.5-2.5 5-2.5s4.2 1 5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
-        'ngorongoro'  => '<path d="M3 18L8 8l4 6 2-3 7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="12" cy="18" rx="7" ry="2.5" stroke="currentColor" stroke-width="1.5"/>',
-        'tarangire'   => '<path d="M4 18V13c0-2.5 1.5-4 3.5-4h.5C9.5 6 11 5 13 5c3.5 0 7 2.5 7 6v2c0 2-1.5 3-3 3h-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 14v4M11 14v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M18 11c.5 0 1 .5 1 1.5V17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
-        'manyara'     => '<path d="M12 4c0 3-2 4-2 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 11c-1 2-3 3-5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="13.5" cy="5.5" r="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 11c0 3 1 6 1 8M11 19H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4 18c3-1 8-1 13 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
-        'arusha'      => '<rect x="10" y="2" width="3" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 9c-2 1-4 3-4 7v4M13 9c2 1 4 3 4 7v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M6 20h4M14 20h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
-        'kilimanjaro' => '<path d="M12 3L3 21h18L12 3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.5 12l3.5-4 3.5 4" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7 15.5c1.5-1 8-1 10 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
-        'zanzibar'    => '<path d="M4 14c2-3 6-5 8-5s6 2 8 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><ellipse cx="12" cy="14" rx="6" ry="4" stroke="currentColor" stroke-width="1.5"/><path d="M12 10V5M10 7l2-2 2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 19c1.5-1 4-1.5 8-1.5s6.5.5 8 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
-        'selous'      => '<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="7" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="17" cy="7" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="17" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="17" cy="17" r="1.5" stroke="currentColor" stroke-width="1.3"/>',
-        'nyerere'     => '<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="7" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="17" cy="7" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="17" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="17" cy="17" r="1.5" stroke="currentColor" stroke-width="1.3"/>',
-        'ruaha'       => '<path d="M3 18L8 8l4 6 2-3 7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="12" cy="18" rx="7" ry="2.5" stroke="currentColor" stroke-width="1.5"/>',
-        // Generic fallback
-        '__default__' => '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
-      ];
-
-      // Subtitles
-      $__subs = [
-        'serengeti'   => 'Great Migration · Big Five',
-        'ngorongoro'  => 'Big Five · UNESCO Heritage',
-        'tarangire'   => 'Largest Elephant Herds',
-        'manyara'     => 'Tree-Climbing Lions · Flamingos',
-        'arusha'      => 'Day Trips · Colobus Monkeys',
-        'kilimanjaro' => "Africa's Highest Peak · 5,895m",
-        'zanzibar'    => 'White Sand Beaches · Spice Island',
-        'selous'      => 'Wild Dogs · Remote Wilderness',
-        'nyerere'     => 'Boat Safaris · Wild Dogs',
-        'ruaha'       => 'Lion Capital of Tanzania',
-      ];
-
-      // Group by country
-      $__grouped = [];
-      foreach ($__parks as $pk) {
-        $__grouped[$pk['country']][] = $pk;
-      }
-      // Tanzania first
-      $__order = ['Tanzania', 'Kenya', 'Rwanda', 'Uganda'];
-      uksort($__grouped, function($a,$b) use ($__order) {
-        $ai = array_search($a,$__order); $bi = array_search($b,$__order);
-        if ($ai===false) $ai=99; if ($bi===false) $bi=99;
-        return $ai - $bi;
-      });
-      ?>
+try {
+    $db = \App\Models\Database::getInstance();
+    $packages = $db->query(
+        "SELECT * FROM packages WHERE is_active=1 ORDER BY sort_order ASC, id ASC"
+    )->fetchAll();
+    $pkgMap = [];
+    foreach ($packages as &$p) {
+        $p["gallery"]       = json_decode($p["gallery_images"] ?? "[]", true) ?: [];
+        $p["includes_arr"]  = json_decode($p["includes"]       ?? "[]", true) ?: [];
+        $p["excludes_arr"]  = json_decode($p["excludes"]       ?? "[]", true) ?: [];
+        $p["itinerary_arr"] = json_decode($p["itinerary"]      ?? "[]", true) ?: [];
+        $pkgMap[$p["slug"]] = $p;
+    }
+    unset($p);
+} catch (\Exception $e) {
+    $packages = []; $pkgMap = [];
+    error_log("[view] " . $e->getMessage());
+}
+?>
 
       <?php foreach ($__grouped as $__country => $__countryParks): ?>
       <div class="dest-group" style="margin-bottom:1.5rem">

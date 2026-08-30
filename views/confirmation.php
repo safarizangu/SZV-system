@@ -1,7 +1,5 @@
 <?php
 // views/confirmation.php — booking success page with cost breakdown
-require_once __DIR__ . '/../php/config.php';
-
 $ref  = strtoupper(trim($_GET['ref']  ?? ''));
 $date = trim($_GET['date'] ?? '');
 
