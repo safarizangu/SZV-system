@@ -53,4 +53,4 @@ Check ✗ items
 
 Run: sudo systemctl reload apache2
 Documentation available at: /admin/guide.php
-mkombozi@Mkombozi-Latitude-3490:/var/www/html/safari-zangu$ 
+mkombozi@Mkombozi-Latitude-3490:/var/www/html/safari-zangu$ # SZV-system
