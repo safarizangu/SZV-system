@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
-use App\Middleware\AuthMiddleware;
+use App\\Middleware\AuthMiddleware;
 AuthMiddleware::requireAdmin();
 $pageTitle = 'Admin Guide';
 ob_start();
@@ -36,14 +36,14 @@ $md = preg_replace('/^### (.+)$/m', '<h3>$1</h3>', $md);
 $md = preg_replace('/^## (.+)$/m', '<h2>$1</h2>', $md);
 $md = preg_replace('/^# (.+)$/m', '<h1>$1</h1>', $md);
 $md = preg_replace('/`([^`]+)`/', '<code>$1</code>', $md);
-$md = preg_replace('/\*\*([^*]+)\*\*/', '<strong>$1</strong>', $md);
+$md = preg_replace('/\\*\*([^*]+)\*\*/', '<strong>$1</strong>', $md);
 $md = preg_replace('/^```[a-z]*$/m', '<pre><code>', $md);
 $md = preg_replace('/^```$/m', '</code></pre>', $md);
-$md = preg_replace('/^\| (.+)$/m', '<tr><td>$1</td></tr>', $md);
+$md = preg_replace('/^\\| (.+)$/m', '<tr><td>$1</td></tr>', $md);
 $md = nl2br($md);
 echo $md;
 ?>
   </div>
 </div>
 </div>
-<?php \$content=ob_get_clean(); require_once __DIR__.'/../layouts/admin.php'; ?>
+<?php \\$content=ob_get_clean(); require_once __DIR__.'/../layouts/admin.php'; ?>

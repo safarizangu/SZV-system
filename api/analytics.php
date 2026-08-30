@@ -1,6 +1,7 @@
 <?php
+require_once __DIR__ . '/../app/bootstrap.php';
 ob_start();
-require_once __DIR__ . '/config.php';
+// removed
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405); ob_end_clean(); exit;

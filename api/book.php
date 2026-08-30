@@ -7,7 +7,7 @@
 ob_start();                          // capture everything from this point
 header('Content-Type: application/json');
 
-require_once __DIR__ . '/../php/config.php';
+// php/config.php removed — functions now in app/bootstrap.php
 
 /**
  * Auto-schedule all standard reminders for a new booking.

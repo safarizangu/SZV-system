@@ -30,6 +30,15 @@ ServerSignature Off
   # Block sensitive directories
   RewriteRule ^(app|config|database|storage|sql|tests|cron)/  - [F,L]
 
+  # Block sensitive directories from web access
+  RewriteRule ^sql/      - [F,L]
+  RewriteRule ^app/      - [F,L]
+  RewriteRule ^config/   - [F,L]
+  RewriteRule ^storage/  - [F,L]
+  RewriteRule ^database/ - [F,L]
+  RewriteRule ^tests/    - [F,L]
+  RewriteRule ^cron/     - [F,L]
+
   # Block api/cron from browser access (cron only, not AJAX)
   RewriteRule ^api/cron/  - [F,L]
 
