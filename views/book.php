@@ -1,4 +1,11 @@
 <?php
+// Accommodation levels — was in php/config.php, now defined here
+$levels = defined('ACCOMMODATION_LEVELS') ? ACCOMMODATION_LEVELS : [
+    'budget'       => 'Budget-Friendly',
+    'midrange'     => 'Mid-Range',
+    'highend'      => 'High-End / Luxury',
+    'ultra_luxury' => 'Ultra Luxury',
+];
 try {
     $db = \App\Models\Database::getInstance();
     $packages = $db->query(
