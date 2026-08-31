@@ -56,3 +56,24 @@ $pageImage = $pageImage ?? (BASE_PATH . '/assets/images/Intro22.webp');
 
 <link rel="stylesheet" href="<?= BASE_PATH ?>/assets/css/main.css">
   <link rel="stylesheet" href="<?= BASE_PATH ?>/assets/css/forms.css">
+
+<?php
+// Hero image — loaded from settings table, set via Admin → Gallery
+$_heroImg = BASE_PATH . '/assets/images/downloaded/safari_1.jpg';
+try {
+    $_stmt = \App\Models\Database::getInstance()
+        ->prepare("SELECT `value` FROM settings WHERE `key`=? LIMIT 1");
+    $_stmt->execute(['hero_image']);
+    $_row = $_stmt->fetch();
+    if ($_row && !empty($_row['value'])) {
+        $_heroImg = htmlspecialchars($_row['value'], ENT_QUOTES);
+    }
+} catch (\Exception $_e) {}
+?>
+<style>
+.hero-bg {
+  background-image: url('<?= $_heroImg ?>') !important;
+  background-size: cover !important;
+  background-position: center center !important;
+}
+</style>

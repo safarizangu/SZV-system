@@ -144,7 +144,7 @@ ob_start();
     <?php endif; ?>
     <?php foreach ($activeImages as $img): ?>
     <div class="gallery-item" data-url="<?= htmlspecialchars($img['url']) ?>"
-         style="border:1.5px solid #e5e7eb;background:#fff;position:relative;overflow:hidden">
+         data-img-url="<?= htmlspecialchars($imgUrl) ?>" style="border:1.5px solid #e5e7eb;background:#fff;position:relative;overflow:hidden">
       <div style="aspect-ratio:4/3;overflow:hidden;background:#f3f4f6">
         <img src="<?= htmlspecialchars($img['url']) ?>"
              alt="<?= htmlspecialchars($img['filename']) ?>"
@@ -179,6 +179,15 @@ ob_start();
 </div><!-- /grid -->
 
 <!-- Full-size preview modal -->
+<style>
+.hero-indicator {
+  position:absolute;top:6px;left:6px;
+  background:#c8963e;color:#fff;
+  font-size:.55rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;padding:.18rem .45rem;z-index:2;
+}
+</style>
+
 <div id="previewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:999;align-items:center;justify-content:center;padding:2rem"
      onclick="if(event.target===this)this.style.display='none'">
   <div style="max-width:90vw;max-height:90vh;position:relative">
@@ -294,6 +303,65 @@ function toast(msg, type) {
     document.getElementById('toastG').appendChild(t);
     setTimeout(function(){ t.remove(); }, 3000);
 }
+
+// ── Hero image management ─────────────────────────────────
+var currentHeroUrl = '';
+
+// Load current hero on page load
+fetch(BASE + '/api/get_setting.php?key=hero_image', {credentials:'same-origin'})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if (d.success && d.value) {
+      currentHeroUrl = d.value;
+      markCurrentHero(d.value);
+    }
+  }).catch(function(){});
+
+function markCurrentHero(url) {
+  document.querySelectorAll('.hero-indicator').forEach(function(el){
+    el.remove();
+  });
+  document.querySelectorAll('[data-img-url]').forEach(function(card){
+    if (card.dataset.imgUrl === url) {
+      var badge = document.createElement('div');
+      badge.className = 'hero-indicator';
+      badge.style.cssText = 'position:absolute;top:6px;left:6px;background:#c8963e;color:#fff;font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.18rem .45rem;z-index:2';
+      badge.textContent = '⌂ HERO';
+      card.style.position = 'relative';
+      card.appendChild(badge);
+    }
+  });
+}
+
+async function setHeroImage(url, btn) {
+  var orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Setting…';
+
+  var fd = new FormData();
+  fd.append('image_url', url);
+
+  try {
+    var r = await fetch(BASE + '/api/set_hero.php', {
+      method:'POST', body:fd, credentials:'same-origin'
+    });
+    var d = await r.json();
+
+    if (d.success) {
+      currentHeroUrl = url;
+      markCurrentHero(url);
+      toast('✓ Hero image updated — refresh the homepage to see it', 'ok');
+    } else {
+      toast(d.message || 'Failed to set hero', 'err');
+    }
+  } catch(e) {
+    toast('Network error', 'err');
+  }
+
+  btn.disabled = false;
+  btn.textContent = orig;
+}
+
 </script>
 
 <?php $content=ob_get_clean(); require_once __DIR__.'/../layouts/admin.php'; ?>

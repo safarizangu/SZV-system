@@ -287,7 +287,7 @@ h1,h2,h3,h4,h5,h6 {
 .hero-bg {
   position: absolute;
   inset: 0;
-  background-image: url('../assets/images/packages/short-safari/9.jpeg');
+  /* background-image set dynamically via Admin → Gallery → Set as Hero */
   background-size: cover;
   background-position: center 35%;
   transform: scale(1.06);
@@ -602,8 +602,6 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
 }
 
 /* ── Brand column ─────────────────────────────── */
-.footer-brand-col {}
-
 .footer-brand-name {
   font-family: var(--font-display);
   font-size: 1.5rem;
@@ -687,7 +685,6 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
 .footer-licence-dot { opacity: .35; }
 
 /* ── Nav columns ──────────────────────────────── */
-.footer-nav-col {}
 
 .footer-col-title {
   display: block;
@@ -1796,9 +1793,9 @@ body {
    HERO REFINEMENTS
    ═══════════════════════════════════════════════════════════ */
 
-/* Hero tag — gold accent */
+/* Hero tag — white accent */
 .hero-tag {
-  color: var(--gold) !important;
+  color: var(--white) !important;
   letter-spacing: .28em;
   font-size: .72rem;
 }
