@@ -62,7 +62,7 @@
 
 .form-control-sz::placeholder,
 .sz-input::placeholder {
-  color: #adb5bd;
+  color: #6b7280; /* WCAG AA compliant — 4.6:1 ratio on white */
   font-weight: 400;
 }
 

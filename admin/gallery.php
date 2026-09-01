@@ -2,366 +2,601 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
 AuthMiddleware::requireAdmin();
+$pageTitle = 'Gallery Manager';
 
-// Scan all images
-$imgRoot = $_SERVER['DOCUMENT_ROOT'] . BASE_PATH . '/assets/images/';
-$allowed = ['jpg','jpeg','png','webp','gif'];
+// ── Image root ────────────────────────────────────────────────
+$imgRoot  = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . BASE_PATH . '/assets/images/';
+$imgBase  = BASE_PATH . '/assets/images/';
 
-function scanFolder(string $dir, string $relBase): array {
-    global $allowed;
-    $images = [];
-    if (!is_dir($dir)) return $images;
-    $items = scandir($dir);
-    foreach ($items as $item) {
-        if ($item === '.' || $item === '..') continue;
-        $full = $dir . $item;
-        if (is_dir($full)) continue;
-        $ext = strtolower(pathinfo($item, PATHINFO_EXTENSION));
-        if (!in_array($ext, $allowed)) continue;
-        $images[] = [
-            'url'      => $relBase . $item,
-            'filename' => $item,
-            'size'     => filesize($full),
-            'modified' => filemtime($full),
-        ];
-    }
-    usort($images, fn($a,$b) => $b['modified'] - $a['modified']);
-    return $images;
-}
+// ── Get current hero image from settings ──────────────────────
+$currentHero = '';
+try {
+    $hs = \App\Models\Database::getInstance()->prepare("SELECT `value` FROM settings WHERE `key`=? LIMIT 1");
+    $hs->execute(['hero_image']);
+    $hr = $hs->fetch();
+    $currentHero = $hr ? $hr['value'] : '';
+} catch (\Exception $e) {}
 
-// Get all folders
+// ── Scan folders ──────────────────────────────────────────────
 $folders = [];
-$di = new DirectoryIterator($imgRoot);
-foreach ($di as $item) {
-    if ($item->isDot() || !$item->isDir()) continue;
-    $name     = $item->getFilename();
-    $relBase  = BASE_PATH . '/assets/images/' . $name . '/';
-    $subDir   = $imgRoot . $name . '/';
-    $images   = scanFolder($subDir, $relBase);
-
-    // Also scan one level of subdirs (e.g. packages/classic-safari/)
-    if (is_dir($subDir)) {
-        $subDi = new DirectoryIterator($subDir);
-        foreach ($subDi as $sub) {
-            if ($sub->isDot() || !$sub->isDir()) continue;
-            $subName  = $sub->getFilename();
-            $subRel   = BASE_PATH . '/assets/images/' . $name . '/' . $subName . '/';
-            $subImgs  = scanFolder($subDir.$subName.'/', $subRel);
-            if ($subImgs) {
-                $folders[$name.'/'.$subName] = $subImgs;
-            }
+if (is_dir($imgRoot)) {
+    foreach (scandir($imgRoot) as $item) {
+        if ($item === '.' || $item === '..') continue;
+        $full = $imgRoot . $item;
+        if (!is_dir($full)) continue;
+        $imgs = [];
+        foreach (scandir($full) as $img) {
+            if (!preg_match('/\.(jpg|jpeg|png|webp|gif)$/i', $img)) continue;
+            $imgs[] = $img;
         }
+        // Also scan one level of subdirectories
+        foreach (scandir($full) as $sub) {
+            if ($sub === '.' || $sub === '..') continue;
+            $subFull = $full . '/' . $sub;
+            if (!is_dir($subFull)) continue;
+            $subImgs = [];
+            foreach (scandir($subFull) as $img) {
+                if (!preg_match('/\.(jpg|jpeg|png|webp|gif)$/i', $img)) continue;
+                $subImgs[] = $img;
+            }
+            if ($subImgs) $folders[$item . '/' . $sub] = $subImgs;
+        }
+        if ($imgs) $folders[$item] = $imgs;
     }
-
-    // Root images directly in this folder
-    if ($images) $folders[$name] = $images;
 }
-ksort($folders);
 
-// All images flat (for counts)
-$totalImages = array_sum(array_map('count', $folders));
-$activeFolder = $_GET['folder'] ?? array_key_first($folders) ?? '';
+$activeFolder = $_GET['folder'] ?? (array_key_first($folders) ?: 'downloaded');
+$activeFolder = preg_replace('/[^a-zA-Z0-9_\-\/]/', '', $activeFolder);
 
-$pageTitle = 'Image Gallery';
 ob_start();
 ?>
-
-<div style="display:grid;grid-template-columns:220px 1fr;gap:1.5rem;align-items:start">
-
-<!-- LEFT: folder tree -->
-<div style="position:sticky;top:calc(var(--topbar-h) + 1rem)">
-  <div class="admin-card" style="margin-bottom:1rem">
-    <div class="admin-card-header" style="padding:.85rem 1rem">
-      <h3 style="font-size:.82rem">Folders</h3>
-      <span style="font-size:.68rem;color:#9ca3af"><?= $totalImages ?> images</span>
-    </div>
-    <div style="padding:.25rem 0">
-      <?php foreach ($folders as $folder => $imgs): ?>
-      <a href="?folder=<?= urlencode($folder) ?>"
-         style="display:flex;align-items:center;justify-content:space-between;padding:.55rem 1rem;font-size:.75rem;font-weight:600;text-decoration:none;color:<?= $folder===$activeFolder?'#fff':'#374151' ?>;background:<?= $folder===$activeFolder?'#0a0a0a':'transparent' ?>;border-left:2px solid <?= $folder===$activeFolder?'#fff':'transparent' ?>">
-        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📁 <?= htmlspecialchars(str_replace('packages/','',$folder)) ?></span>
-        <span style="font-size:.65rem;opacity:.6;flex-shrink:0;margin-left:.35rem"><?= count($imgs) ?></span>
-      </a>
-      <?php endforeach; ?>
-    </div>
-  </div>
-
-  <!-- Upload form -->
-  <div class="admin-card">
-    <div class="admin-card-header" style="padding:.85rem 1rem"><h3 style="font-size:.82rem">Upload Image</h3></div>
-    <div class="admin-card-body" style="padding:.85rem 1rem">
-      <div style="margin-bottom:.65rem">
-        <label class="admin-label">Upload to folder</label>
-        <select id="upload-folder" class="admin-input" style="font-size:.78rem">
-          <?php foreach (array_keys($folders) as $f): ?>
-          <option value="<?= htmlspecialchars($f) ?>" <?= $f===$activeFolder?'selected':'' ?>><?= htmlspecialchars($f) ?></option>
-          <?php endforeach; ?>
-          <option value="general">general (new)</option>
-        </select>
-      </div>
-      <label id="upload-area"
-             style="display:block;border:2px dashed #e5e7eb;padding:1.5rem;text-align:center;cursor:pointer;transition:border-color .15s;background:#fafafa">
-        <input type="file" id="upload-input" accept="image/*" multiple style="display:none">
-        <div id="upload-icon" style="font-size:1.5rem;margin-bottom:.35rem">📷</div>
-        <div style="font-size:.72rem;color:#9ca3af;line-height:1.5">Click or drag images<br><span style="font-size:.65rem">JPG, PNG, WebP · max 8MB</span></div>
-      </label>
-      <div id="upload-progress" style="display:none;margin-top:.65rem">
-        <div style="background:#f3f4f6;height:4px;border-radius:2px">
-          <div id="upload-bar" style="background:#0a0a0a;height:4px;width:0;border-radius:2px;transition:width .3s"></div>
-        </div>
-        <div id="upload-status" style="font-size:.68rem;color:#9ca3af;margin-top:.3rem;text-align:center"></div>
-      </div>
-    </div>
-  </div>
-</div><!-- /left -->
-
-<!-- RIGHT: image grid -->
-<div>
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
-    <div>
-      <h2 style="font-family:var(--font-disp);font-size:1.05rem;font-weight:500">
-        <?= htmlspecialchars($activeFolder ?: 'All Images') ?>
-      </h2>
-      <p style="font-size:.72rem;color:#9ca3af;margin-top:.1rem">
-        <?= isset($folders[$activeFolder]) ? count($folders[$activeFolder]) : 0 ?> images
-      </p>
-    </div>
-    <div style="display:flex;gap:.5rem">
-      <input type="text" id="img-search" placeholder="Filter images…"
-             style="border:1.5px solid #e5e7eb;padding:.35rem .75rem;font-size:.78rem;outline:none;min-width:180px"
-             oninput="filterImages(this.value)">
-    </div>
-  </div>
-
-  <div id="image-grid"
-       style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.85rem">
-    <?php $activeImages = $folders[$activeFolder] ?? []; ?>
-    <?php if (empty($activeImages)): ?>
-    <div style="grid-column:1/-1;text-align:center;padding:3rem;color:#9ca3af">
-      <div style="font-size:2rem;margin-bottom:.5rem;opacity:.3">🖼</div>
-      <p style="font-size:.82rem">No images in this folder yet. Upload one above.</p>
-    </div>
-    <?php endif; ?>
-    <?php foreach ($activeImages as $img): ?>
-    <div class="gallery-item" data-url="<?= htmlspecialchars($img['url']) ?>"
-         data-img-url="<?= htmlspecialchars($imgUrl) ?>" style="border:1.5px solid #e5e7eb;background:#fff;position:relative;overflow:hidden">
-      <div style="aspect-ratio:4/3;overflow:hidden;background:#f3f4f6">
-        <img src="<?= htmlspecialchars($img['url']) ?>"
-             alt="<?= htmlspecialchars($img['filename']) ?>"
-             style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s"
-             loading="lazy"
-             onmouseover="this.style.transform='scale(1.05)'"
-             onmouseout="this.style.transform='scale(1)'">
-      </div>
-      <div style="padding:.5rem .6rem">
-        <div style="font-size:.65rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#374151"
-             title="<?= htmlspecialchars($img['filename']) ?>">
-          <?= htmlspecialchars($img['filename']) ?>
-        </div>
-        <div style="font-size:.6rem;color:#9ca3af;margin-top:.1rem">
-          <?= round($img['size']/1024) ?>KB · <?= date('d M Y', $img['modified']) ?>
-        </div>
-      </div>
-      <div style="display:flex;gap:.35rem;padding:.4rem .6rem .6rem">
-        <button onclick="copyUrl('<?= htmlspecialchars($img['url']) ?>')"
-                class="admin-btn admin-btn--outline" style="flex:1;font-size:.58rem;padding:.25rem .3rem;justify-content:center">
-          Copy URL
-        </button>
-        <button onclick="deleteImage('<?= htmlspecialchars($img['url']) ?>', this)"
-                class="admin-btn admin-btn--danger" style="font-size:.58rem;padding:.25rem .4rem">
-          ✕
-        </button>
-      </div>
-    </div>
-    <?php endforeach; ?>
-  </div>
-</div><!-- /right -->
-</div><!-- /grid -->
-
-<!-- Full-size preview modal -->
 <style>
-.hero-indicator {
-  position:absolute;top:6px;left:6px;
-  background:#c8963e;color:#fff;
-  font-size:.55rem;font-weight:700;letter-spacing:.1em;
-  text-transform:uppercase;padding:.18rem .45rem;z-index:2;
+.gallery-layout { display:grid; grid-template-columns:220px 1fr; gap:0; min-height:70vh; }
+.gallery-sidebar {
+  border-right:1px solid #e5e7eb;
+  padding:1rem 0;
+  background:#fafafa;
+  overflow-y:auto;
+  max-height:80vh;
+  position:sticky;
+  top:0;
+}
+.gallery-sidebar a {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:.55rem 1.1rem;
+  font-size:.72rem;
+  font-weight:600;
+  text-decoration:none;
+  color:#374151;
+  border-left:3px solid transparent;
+  transition:all .15s;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.gallery-sidebar a:hover { background:#f3f4f6; color:#0a0a0a; }
+.gallery-sidebar a.active {
+  background:#0a0a0a;
+  color:#fff;
+  border-left-color:#c8963e;
+}
+.gallery-sidebar span.count {
+  font-size:.6rem;
+  font-weight:400;
+  opacity:.6;
+  margin-left:.4rem;
+  flex-shrink:0;
+}
+.gallery-main { padding:1.5rem; }
+.gallery-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:1rem;
+}
+.img-card {
+  border:1.5px solid #e5e7eb;
+  background:#fff;
+  position:relative;
+  overflow:hidden;
+  transition:border-color .15s, box-shadow .15s;
+}
+.img-card:hover { border-color:#c8963e; box-shadow:0 4px 16px rgba(0,0,0,.08); }
+.img-card.is-hero { border-color:#c8963e; border-width:2px; }
+.img-thumb {
+  aspect-ratio:4/3;
+  overflow:hidden;
+  background:#f3f4f6;
+  cursor:pointer;
+}
+.img-thumb img {
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+  transition:transform .2s;
+}
+.img-thumb:hover img { transform:scale(1.04); }
+.img-actions {
+  display:grid;
+  grid-template-columns:1fr auto auto;
+  gap:4px;
+  padding:6px;
+  border-top:1px solid #f3f4f6;
+}
+.btn-preview {
+  padding:.35rem .5rem;
+  font-size:.6rem;
+  font-weight:600;
+  letter-spacing:.06em;
+  border:1px solid #e5e7eb;
+  background:#fff;
+  cursor:pointer;
+  text-align:center;
+  transition:all .15s;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.btn-preview:hover { background:#f3f4f6; }
+.btn-hero {
+  padding:.35rem .5rem;
+  font-size:.65rem;
+  font-weight:700;
+  border:1.5px solid #fde68a;
+  background:#fffbeb;
+  color:#92400e;
+  cursor:pointer;
+  transition:all .15s;
+  white-space:nowrap;
+}
+.btn-hero:hover { background:#c8963e; border-color:#c8963e; color:#fff; }
+.btn-hero.active-hero { background:#c8963e; border-color:#c8963e; color:#fff; }
+.btn-delete {
+  padding:.35rem .5rem;
+  font-size:.65rem;
+  border:1.5px solid #fee2e2;
+  background:#fef2f2;
+  color:#dc2626;
+  cursor:pointer;
+  transition:all .15s;
+}
+.btn-delete:hover { background:#dc2626; color:#fff; }
+.hero-badge {
+  position:absolute;
+  top:6px;
+  left:6px;
+  background:#c8963e;
+  color:#fff;
+  font-size:.5rem;
+  font-weight:700;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  padding:.18rem .45rem;
+  z-index:3;
+  pointer-events:none;
+}
+.upload-zone {
+  border:2px dashed #d1d5db;
+  padding:2rem;
+  text-align:center;
+  cursor:pointer;
+  transition:all .2s;
+  background:#fafafa;
+  margin-bottom:1.25rem;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color:#c8963e;
+  background:#fffbeb;
+}
+.upload-progress-bar {
+  background:#f3f4f6;
+  height:4px;
+  border-radius:2px;
+  margin-top:.75rem;
+  overflow:hidden;
+  display:none;
+}
+.upload-progress-fill {
+  background:#c8963e;
+  height:4px;
+  width:0;
+  transition:width .3s;
+}
+#preview-modal {
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.92);
+  z-index:9999;
+  align-items:center;
+  justify-content:center;
+  padding:2rem;
+}
+#preview-modal.open { display:flex; }
+#preview-modal img {
+  max-width:90vw;
+  max-height:85vh;
+  object-fit:contain;
+  box-shadow:0 24px 80px rgba(0,0,0,.5);
+}
+#preview-modal-close {
+  position:absolute;
+  top:1rem;
+  right:1.25rem;
+  background:rgba(255,255,255,.15);
+  border:none;
+  color:#fff;
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  cursor:pointer;
+  font-size:1.1rem;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.toast-container {
+  position:fixed;
+  bottom:1.5rem;
+  right:1.5rem;
+  z-index:10000;
+  display:flex;
+  flex-direction:column;
+  gap:.5rem;
+}
+.toast {
+  padding:.75rem 1.1rem;
+  font-size:.78rem;
+  font-weight:600;
+  color:#fff;
+  border-radius:2px;
+  box-shadow:0 4px 16px rgba(0,0,0,.2);
+  animation:toast-in .2s ease;
+}
+@keyframes toast-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+.toast.ok  { background:#166534; }
+.toast.err { background:#dc2626; }
+.toast.inf { background:#1d4ed8; }
+.gallery-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:1.25rem;
+  gap:1rem;
+  flex-wrap:wrap;
+}
+.gallery-count {
+  font-size:.72rem;
+  color:#6b7280;
+  font-weight:500;
 }
 </style>
 
-<div id="previewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:999;align-items:center;justify-content:center;padding:2rem"
-     onclick="if(event.target===this)this.style.display='none'">
-  <div style="max-width:90vw;max-height:90vh;position:relative">
-    <img id="previewImg" src="" alt="" style="max-width:100%;max-height:85vh;display:block;object-fit:contain">
-    <div id="previewInfo" style="color:#fff;font-size:.78rem;margin-top:.75rem;text-align:center;opacity:.7"></div>
-    <button onclick="document.getElementById('previewModal').style.display='none'"
-            style="position:absolute;top:-1.25rem;right:-1.25rem;background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1rem">✕</button>
+<div class="gallery-layout">
+
+  <!-- Sidebar: folder tree -->
+  <div class="gallery-sidebar">
+    <div style="padding:.5rem 1.1rem;font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;border-bottom:1px solid #e5e7eb;margin-bottom:.5rem;padding-bottom:.75rem">
+      Image Folders
+    </div>
+    <?php foreach ($folders as $folder => $imgs): ?>
+    <a href="?folder=<?= urlencode($folder) ?>"
+       class="<?= $folder === $activeFolder ? 'active' : '' ?>">
+      <span style="overflow:hidden;text-overflow:ellipsis"><?= htmlspecialchars($folder) ?></span>
+      <span class="count"><?= count($imgs) ?></span>
+    </a>
+    <?php endforeach; ?>
+    <?php if (empty($folders)): ?>
+    <p style="padding:1rem;font-size:.72rem;color:#9ca3af">No image folders found</p>
+    <?php endif; ?>
   </div>
+
+  <!-- Main: image grid -->
+  <div class="gallery-main">
+
+    <!-- Upload zone -->
+    <div class="upload-zone" id="upload-zone"
+         onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" multiple accept="image/*"
+             style="display:none" onchange="uploadFiles(this.files)">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" style="margin:0 auto .5rem;display:block">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <p style="font-size:.72rem;color:#6b7280;margin:0">
+        Drop images here or <strong>click to upload</strong> into <em><?= htmlspecialchars($activeFolder) ?>/</em>
+      </p>
+      <div class="upload-progress-bar" id="upload-bar-wrap">
+        <div class="upload-progress-fill" id="upload-bar"></div>
+      </div>
+    </div>
+
+    <!-- Header -->
+    <div class="gallery-header">
+      <div>
+        <div style="font-size:.6rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;margin-bottom:.2rem">
+          Current folder
+        </div>
+        <div style="font-family:var(--font-display,Georgia),serif;font-size:1.1rem">
+          <?= htmlspecialchars($activeFolder) ?>/
+        </div>
+      </div>
+      <span class="gallery-count" id="img-count">
+        <?= count($folders[$activeFolder] ?? []) ?> images
+      </span>
+    </div>
+
+    <!-- Image grid -->
+    <div class="gallery-grid" id="gallery-grid">
+      <?php
+      $activeImgs = $folders[$activeFolder] ?? [];
+      foreach ($activeImgs as $img):
+        $imgUrl  = $imgBase . $activeFolder . '/' . $img;
+        $isHero  = ($imgUrl === $currentHero);
+      ?>
+      <div class="img-card <?= $isHero ? 'is-hero' : '' ?>"
+           data-img-url="<?= htmlspecialchars($imgUrl) ?>">
+
+        <?php if ($isHero): ?>
+        <div class="hero-badge">⌂ HERO</div>
+        <?php endif; ?>
+
+        <div class="img-thumb"
+             onclick="previewImage('<?= htmlspecialchars($imgUrl) ?>')">
+          <img src="<?= htmlspecialchars($imgUrl) ?>"
+               alt="<?= htmlspecialchars($img) ?>"
+               loading="lazy">
+        </div>
+
+        <div style="padding:5px 6px;font-size:.55rem;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid #f3f4f6">
+          <?= htmlspecialchars($img) ?>
+        </div>
+
+        <div class="img-actions">
+          <button class="btn-preview"
+                  onclick="previewImage('<?= htmlspecialchars($imgUrl) ?>')"
+                  title="Preview">
+            Preview
+          </button>
+          <button class="btn-hero <?= $isHero ? 'active-hero' : '' ?>"
+                  onclick="setHeroImage('<?= htmlspecialchars($imgUrl) ?>', this)"
+                  title="Set as homepage hero image">
+            ⌂
+          </button>
+          <button class="btn-delete"
+                  onclick="deleteImage('<?= htmlspecialchars($imgUrl) ?>', this)"
+                  title="Delete image">
+            ✕
+          </button>
+        </div>
+      </div>
+      <?php endforeach; ?>
+
+      <?php if (empty($activeImgs)): ?>
+      <div style="grid-column:1/-1;text-align:center;padding:3rem;color:#9ca3af;font-size:.85rem">
+        No images in this folder. Upload some above.
+      </div>
+      <?php endif; ?>
+    </div>
+
+  </div><!-- /.gallery-main -->
+</div><!-- /.gallery-layout -->
+
+<!-- Preview modal -->
+<div id="preview-modal">
+  <button id="preview-modal-close" onclick="closePreview()">✕</button>
+  <img id="preview-img" src="" alt="Preview">
 </div>
 
-<div id="toastG" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem;pointer-events:none"></div>
+<!-- Toast container -->
+<div class="toast-container" id="toasts"></div>
 
 <script>
-// ── Upload ────────────────────────────────────────────────
-var uploadArea  = document.getElementById('upload-area');
-var uploadInput = document.getElementById('upload-input');
+var BASE       = '<?= BASE_PATH ?>';
+var CURRENT_HERO = '<?= htmlspecialchars($currentHero) ?>';
 
-uploadArea.addEventListener('dragover', function(e){ e.preventDefault(); this.style.borderColor='#0a0a0a'; });
-uploadArea.addEventListener('dragleave', function(){ this.style.borderColor='#e5e7eb'; });
-uploadArea.addEventListener('drop', function(e){
-    e.preventDefault(); this.style.borderColor='#e5e7eb';
-    uploadFiles(e.dataTransfer.files);
-});
-uploadInput.addEventListener('change', function(){ uploadFiles(this.files); });
-
-async function uploadFiles(files) {
-    if (!files.length) return;
-    var folder = document.getElementById('upload-folder').value;
-    var prog   = document.getElementById('upload-progress');
-    var bar    = document.getElementById('upload-bar');
-    var status = document.getElementById('upload-status');
-    prog.style.display = 'block';
-    var done = 0;
-    for (var i = 0; i < files.length; i++) {
-        status.textContent = 'Uploading ' + (i+1) + ' of ' + files.length + '…';
-        bar.style.width = Math.round((i/files.length)*100) + '%';
-        var fd = new FormData();
-        fd.append('image', files[i]);
-        fd.append('folder', folder);
-        try {
-            var r = await fetch('<?= BASE_PATH ?>/php/gallery_upload.php', {method:'POST',body:fd,credentials:'same-origin'});
-            var d = await r.json();
-            if (d.success) { done++; addToGrid(d); toast('Uploaded: '+d.filename, 'ok'); }
-            else           { toast('Failed: '+d.message, 'err'); }
-        } catch(e) { toast('Network error', 'err'); }
-    }
-    bar.style.width = '100%';
-    status.textContent = done + ' of ' + files.length + ' uploaded.';
-    setTimeout(function(){ prog.style.display='none'; bar.style.width='0'; }, 2500);
-}
-
-function addToGrid(d) {
-    var grid = document.getElementById('image-grid');
-    var div  = document.createElement('div');
-    div.className = 'gallery-item';
-    div.dataset.url = d.url;
-    div.style.cssText = 'border:1.5px solid #0a0a0a;background:#fff;position:relative;overflow:hidden';
-    div.innerHTML = '<div style="aspect-ratio:4/3;overflow:hidden;background:#f3f4f6"><img src="'+d.url+'" style="width:100%;height:100%;object-fit:cover;display:block"></div>'
-        +'<div style="padding:.5rem .6rem"><div style="font-size:.65rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+d.filename+'</div></div>'
-        +'<div style="display:flex;gap:.35rem;padding:.4rem .6rem .6rem">'
-        +'<button onclick="copyUrl(\''+d.url+'\')" class="admin-btn admin-btn--outline" style="flex:1;font-size:.58rem;padding:.25rem .3rem;justify-content:center">Copy URL</button>'
-        +'<button onclick="deleteImage(\''+d.url+'\',this)" class="admin-btn admin-btn--danger" style="font-size:.58rem;padding:.25rem .4rem">✕</button>'
-        +'</div>';
-    grid.prepend(div);
-    setTimeout(function(){ div.style.border='1.5px solid #e5e7eb'; }, 1500);
-}
-
-// ── Delete ────────────────────────────────────────────────
-async function deleteImage(url, btn) {
-    if (!confirm('Delete this image? This cannot be undone.')) return;
-    btn.disabled = true; btn.textContent = '…';
-    var fd = new FormData(); fd.append('path', url);
-    try {
-        var r = await fetch('<?= BASE_PATH ?>/php/gallery_delete.php', {method:'POST',body:fd,credentials:'same-origin'});
-        var d = await r.json();
-        if (d.success) { btn.closest('.gallery-item').remove(); toast('Deleted', 'ok'); }
-        else           { toast('Error: '+d.message, 'err'); btn.disabled=false; btn.textContent='✕'; }
-    } catch(e) { toast('Network error', 'err'); }
-}
-
-// ── Copy URL ──────────────────────────────────────────────
-function copyUrl(url) {
-    navigator.clipboard.writeText(url).then(function(){
-        toast('URL copied!', 'ok');
-    }).catch(function(){
-        prompt('Copy this URL:', url);
-    });
-}
-
-// ── Filter ────────────────────────────────────────────────
-function filterImages(q) {
-    q = q.toLowerCase();
-    document.querySelectorAll('.gallery-item').forEach(function(el){
-        var name = el.dataset.url.toLowerCase();
-        el.style.display = name.includes(q) ? '' : 'none';
-    });
-}
-
-// ── Preview on image click ────────────────────────────────
-document.getElementById('image-grid').addEventListener('click', function(e) {
-    var img = e.target.closest('img');
-    if (!img) return;
-    document.getElementById('previewImg').src = img.src;
-    document.getElementById('previewInfo').textContent = img.alt;
-    document.getElementById('previewModal').style.display = 'flex';
-});
-
-// ── Toast ─────────────────────────────────────────────────
+// ── Toast ─────────────────────────────────────────────────────
 function toast(msg, type) {
-    var t = document.createElement('div');
-    t.style.cssText = 'background:'+(type==='ok'?'#16a34a':'#dc2626')+';color:#fff;padding:.65rem 1.1rem;font-size:.78rem;box-shadow:0 4px 16px rgba(0,0,0,.15);pointer-events:auto';
-    t.textContent = msg;
-    document.getElementById('toastG').appendChild(t);
-    setTimeout(function(){ t.remove(); }, 3000);
+  type = type || 'inf';
+  var t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(function(){ t.remove(); }, 4000);
 }
 
-// ── Hero image management ─────────────────────────────────
-var currentHeroUrl = '';
-
-// Load current hero on page load
-fetch(BASE + '/api/get_setting.php?key=hero_image', {credentials:'same-origin'})
-  .then(function(r){return r.json();})
-  .then(function(d){
-    if (d.success && d.value) {
-      currentHeroUrl = d.value;
-      markCurrentHero(d.value);
-    }
-  }).catch(function(){});
-
-function markCurrentHero(url) {
-  document.querySelectorAll('.hero-indicator').forEach(function(el){
-    el.remove();
-  });
-  document.querySelectorAll('[data-img-url]').forEach(function(card){
-    if (card.dataset.imgUrl === url) {
-      var badge = document.createElement('div');
-      badge.className = 'hero-indicator';
-      badge.style.cssText = 'position:absolute;top:6px;left:6px;background:#c8963e;color:#fff;font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.18rem .45rem;z-index:2';
-      badge.textContent = '⌂ HERO';
-      card.style.position = 'relative';
-      card.appendChild(badge);
-    }
-  });
+// ── Preview modal ─────────────────────────────────────────────
+function previewImage(url) {
+  document.getElementById('preview-img').src = url;
+  document.getElementById('preview-modal').classList.add('open');
 }
+function closePreview() {
+  document.getElementById('preview-modal').classList.remove('open');
+  document.getElementById('preview-img').src = '';
+}
+document.getElementById('preview-modal').addEventListener('click', function(e){
+  if (e.target === this) closePreview();
+});
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') closePreview();
+});
 
-async function setHeroImage(url, btn) {
-  var orig = btn.textContent;
+// ── Set hero image ────────────────────────────────────────────
+function setHeroImage(url, btn) {
   btn.disabled = true;
-  btn.textContent = 'Setting…';
+  btn.textContent = '…';
 
   var fd = new FormData();
   fd.append('image_url', url);
 
-  try {
-    var r = await fetch(BASE + '/api/set_hero.php', {
-      method:'POST', body:fd, credentials:'same-origin'
-    });
-    var d = await r.json();
-
+  fetch(BASE + '/api/set_hero.php', {
+    method: 'POST',
+    body: fd,
+    credentials: 'same-origin'
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
     if (d.success) {
-      currentHeroUrl = url;
-      markCurrentHero(url);
-      toast('✓ Hero image updated — refresh the homepage to see it', 'ok');
+      CURRENT_HERO = url;
+      updateHeroBadges(url);
+      toast('✓ Hero image set — reload homepage to see it', 'ok');
     } else {
-      toast(d.message || 'Failed to set hero', 'err');
+      toast('✗ ' + (d.message || 'Failed'), 'err');
     }
-  } catch(e) {
-    toast('Network error', 'err');
-  }
-
-  btn.disabled = false;
-  btn.textContent = orig;
+    btn.disabled = false;
+    btn.textContent = '⌂';
+  })
+  .catch(function(e){
+    toast('Network error: ' + e, 'err');
+    btn.disabled = false;
+    btn.textContent = '⌂';
+  });
 }
 
+function updateHeroBadges(activeUrl) {
+  document.querySelectorAll('.img-card').forEach(function(card){
+    var url      = card.dataset.imgUrl;
+    var badge    = card.querySelector('.hero-badge');
+    var heroBtn  = card.querySelector('.btn-hero');
+    var isHero   = (url === activeUrl);
+
+    // Remove existing badge
+    if (badge) badge.remove();
+    // Add new badge if this is the hero
+    if (isHero) {
+      var b = document.createElement('div');
+      b.className = 'hero-badge';
+      b.textContent = '⌂ HERO';
+      card.appendChild(b);
+      card.classList.add('is-hero');
+    } else {
+      card.classList.remove('is-hero');
+    }
+    // Update button state
+    if (heroBtn) {
+      heroBtn.classList.toggle('active-hero', isHero);
+    }
+  });
+}
+
+// ── Delete image ──────────────────────────────────────────────
+function deleteImage(url, btn) {
+  if (!confirm('Delete this image permanently?')) return;
+  btn.disabled = true;
+
+  var fd = new FormData();
+  fd.append('url', url);
+
+  fetch(BASE + '/api/gallery/delete.php', {
+    method: 'POST',
+    body: fd,
+    credentials: 'same-origin'
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if (d.success) {
+      var card = btn.closest('.img-card');
+      card.style.opacity = '0';
+      card.style.transform = 'scale(.9)';
+      card.style.transition = 'all .2s';
+      setTimeout(function(){ card.remove(); }, 200);
+      toast('Image deleted', 'ok');
+    } else {
+      toast('Delete failed: ' + (d.message || ''), 'err');
+      btn.disabled = false;
+    }
+  })
+  .catch(function(){
+    toast('Network error', 'err');
+    btn.disabled = false;
+  });
+}
+
+// ── Upload ────────────────────────────────────────────────────
+var uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover', function(e){
+  e.preventDefault();
+  this.classList.add('drag-over');
+});
+uploadZone.addEventListener('dragleave', function(){
+  this.classList.remove('drag-over');
+});
+uploadZone.addEventListener('drop', function(e){
+  e.preventDefault();
+  this.classList.remove('drag-over');
+  uploadFiles(e.dataTransfer.files);
+});
+
+function uploadFiles(files) {
+  if (!files || !files.length) return;
+  var bar     = document.getElementById('upload-bar');
+  var barWrap = document.getElementById('upload-bar-wrap');
+  var total   = files.length;
+  var done    = 0;
+  barWrap.style.display = 'block';
+
+  Array.from(files).forEach(function(file){
+    var fd = new FormData();
+    fd.append('image', file);
+    fd.append('folder', '<?= htmlspecialchars($activeFolder) ?>');
+
+    fetch(BASE + '/api/gallery/upload.php', {
+      method: 'POST',
+      body: fd,
+      credentials: 'same-origin'
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      done++;
+      bar.style.width = (done / total * 100) + '%';
+      if (d.success) {
+        // Add new card to grid
+        addImageCard(d.url, d.filename);
+        toast('Uploaded: ' + d.filename, 'ok');
+      } else {
+        toast('Upload failed: ' + (d.message || ''), 'err');
+      }
+      if (done === total) {
+        setTimeout(function(){
+          barWrap.style.display = 'none';
+          bar.style.width = '0';
+        }, 800);
+      }
+    })
+    .catch(function(){
+      done++;
+      toast('Upload error', 'err');
+    });
+  });
+}
+
+function addImageCard(url, filename) {
+  var grid    = document.getElementById('gallery-grid');
+  var isHero  = (url === CURRENT_HERO);
+  var div     = document.createElement('div');
+  div.className = 'img-card' + (isHero ? ' is-hero' : '');
+  div.dataset.imgUrl = url;
+  div.innerHTML =
+    (isHero ? '<div class="hero-badge">⌂ HERO</div>' : '') +
+    '<div class="img-thumb" onclick="previewImage(\''+url+'\')">'+
+      '<img src="'+url+'" alt="'+filename+'" loading="lazy">'+
+    '</div>'+
+    '<div style="padding:5px 6px;font-size:.55rem;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid #f3f4f6">'+filename+'</div>'+
+    '<div class="img-actions">'+
+      '<button class="btn-preview" onclick="previewImage(\''+url+'\')">Preview</button>'+
+      '<button class="btn-hero'+(isHero?' active-hero':'')+'" onclick="setHeroImage(\''+url+'\',this)" title="Set hero">⌂</button>'+
+      '<button class="btn-delete" onclick="deleteImage(\''+url+'\',this)" title="Delete">✕</button>'+
+    '</div>';
+  grid.appendChild(div);
+  // Update count
+  var countEl = document.getElementById('img-count');
+  if (countEl) countEl.textContent = grid.querySelectorAll('.img-card').length + ' images';
+}
 </script>
 
-<?php $content=ob_get_clean(); require_once __DIR__.'/../layouts/admin.php'; ?>
+<?php
+$content = ob_get_clean();
+require_once __DIR__ . '/../layouts/admin.php';
+?>

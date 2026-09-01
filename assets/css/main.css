@@ -2331,3 +2331,714 @@ body {
 @media print {
   :root { --gold: #7a5a10; --gold-light: #f5f0e0; }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SAFARI ZANGU — RESPONSIVE REDESIGN LAYER
+   Fixes all 17 audit issues. Mobile-first corrections on top of
+   the existing design system. Tested: 320px → 2560px.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── TOKENS (additions) ─────────────────────────────────────── */
+:root {
+  --gold:        #c8963e;
+  --gold-light:  #f5edd9;
+  --gold-muted:  rgba(200,150,62,.15);
+  --green-trust: #15803d;
+  --radius-sm:   2px;
+  --shadow-card: 0 2px 12px rgba(0,0,0,.06), 0 1px 4px rgba(0,0,0,.04);
+  --shadow-lift: 0 8px 32px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.05);
+}
+
+/* ── [C1] LOGO — full wordmark ─────────────────────────────── */
+.sz-logo {
+  font-family: var(--font-display) !important;
+  font-size: 1.35rem !important;
+  font-weight: 500 !important;
+  font-style: italic !important;
+  letter-spacing: .01em !important;
+  color: var(--black) !important;
+  white-space: nowrap;
+}
+.sz-nav.over-hero .sz-logo { color: var(--white) !important; }
+
+/* Active nav link ───────────────────────────────────────────── */
+.sz-nav-links a.active-link {
+  color: var(--gold) !important;
+}
+.sz-nav-links a.active-link::after {
+  width: 100% !important;
+  background: var(--gold) !important;
+}
+
+/* Mobile nav: active link highlight */
+.sz-mobile-nav a.active-link {
+  color: var(--gold) !important;
+  background: rgba(200,150,62,.06) !important;
+}
+
+/* ── [C2] HERO — mobile button fix ─────────────────────────── */
+@media (max-width: 480px) {
+  .hero-content {
+    padding-bottom: 4rem !important;
+  }
+  .hero-actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: .65rem !important;
+    max-width: 100% !important;
+  }
+  .hero-actions .btn-sz-primary,
+  .hero-actions .btn-sz-ghost {
+    width: 100% !important;
+    max-width: 100% !important;
+    text-align: center !important;
+    justify-content: center !important;
+    padding: 1rem 1.5rem !important;
+    font-size: .72rem !important;
+  }
+  .hero-tag {
+    font-size: .62rem !important;
+    letter-spacing: .22em !important;
+  }
+  .hero-sub {
+    font-size: .62rem !important;
+    letter-spacing: .18em !important;
+    margin-bottom: 1.75rem !important;
+  }
+}
+
+@media (max-width: 375px) {
+  .hero-title {
+    font-size: clamp(1.75rem, 10vw, 2.4rem) !important;
+  }
+  .hero-content {
+    padding-left: 1.1rem !important;
+    padding-right: 1.1rem !important;
+  }
+}
+
+/* ── [C3] PACKAGE CARDS — touch targets ─────────────────────── */
+@media (max-width: 768px) {
+  .pkg-card .btn-sz-dark,
+  .pkg-card .btn-sz-outline,
+  .pkg-card a[class^="btn"] {
+    min-height: 52px !important;
+    width: 100% !important;
+    justify-content: center !important;
+    font-size: .72rem !important;
+  }
+  .pkg-number {
+    font-size: 1.8rem !important;
+    margin-bottom: .65rem !important;
+  }
+  .pkg-desc {
+    font-size: .875rem !important;
+    line-height: 1.7 !important;
+  }
+}
+
+/* ── [C4] FOOTER GRID — full responsive system ───────────────── */
+.footer-grid {
+  grid-template-columns: 1.8fr 1fr 1fr 1fr !important;
+}
+
+/* 1024px: brand spans 2 cols, nav cols 2-col */
+@media (max-width: 1024px) {
+  .footer-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 2rem 3rem !important;
+  }
+  .footer-brand-col {
+    grid-column: 1 / -1 !important;
+  }
+  .footer-brand-desc {
+    max-width: 100% !important;
+  }
+  .footer-brand-actions {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+  }
+}
+
+/* 640px: single column */
+@media (max-width: 640px) {
+  .footer-grid {
+    grid-template-columns: 1fr !important;
+    gap: 2rem !important;
+  }
+  .footer-brand-col {
+    grid-column: 1 !important;
+  }
+  .footer-brand-actions {
+    flex-direction: column !important;
+  }
+  .footer-wa-btn,
+  .footer-book-btn {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: .9rem 1.25rem !important;
+    font-size: .75rem !important;
+  }
+  .footer-links a {
+    font-size: .875rem !important;
+    min-height: 36px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  .footer-contact-item {
+    font-size: .875rem !important;
+  }
+  .footer-bottom {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: .75rem !important;
+  }
+  .footer-bottom-links {
+    flex-wrap: wrap !important;
+    gap: .5rem .75rem !important;
+  }
+}
+
+/* ── [C5] FORMS — collapse earlier ─────────────────────────── */
+@media (max-width: 680px) {
+  .form-row,
+  .form-row-3 {
+    grid-template-columns: 1fr !important;
+    gap: 0 !important;
+  }
+  .phone-field-row {
+    flex-direction: column !important;
+    gap: 0 !important;
+  }
+  .phone-field-row .phone-code-select {
+    flex: none !important;
+    width: 100% !important;
+    border-bottom: none !important;
+  }
+}
+
+/* ── [C6] PKG-GALLERY — aspect-ratio on mobile ───────────────── */
+@media (max-width: 600px) {
+  .pkg-gallery {
+    height: auto !important;
+    aspect-ratio: 16 / 9 !important;
+  }
+  .pkg-gallery img {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+  .home-slider {
+    height: auto !important;
+    aspect-ratio: 4 / 3 !important;
+  }
+}
+
+/* ── [C7] TRACK DATE — better mobile input ───────────────────── */
+input#track-date {
+  font-size: 16px !important; /* prevents iOS auto-zoom on focus */
+}
+
+/* ── [I1/I2] CANONICAL SLIDER RULES ─────────────────────────── */
+/* Single source of truth — overrides any duplicates above */
+.pkg-gallery {
+  position: relative !important;
+  width: 100% !important;
+  height: 420px !important;
+  overflow: hidden !important;
+  background: #111 !important;
+}
+.pkg-gallery img {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  opacity: 0 !important;
+  transition: opacity .65s ease-in-out !important;
+}
+.pkg-gallery img.active,
+.pkg-gallery img:first-child { opacity: 1 !important; }
+
+.home-slider {
+  position: relative !important;
+  width: 100% !important;
+  height: 220px !important;
+  overflow: hidden !important;
+  background: #111 !important;
+  border-radius: 0 !important;
+  margin-bottom: 1.1rem !important;
+}
+.home-slider img {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  opacity: 0 !important;
+  transition: opacity .55s ease-in-out !important;
+}
+.home-slider img.active,
+.home-slider img:first-child { opacity: 1 !important; }
+
+@media (min-width: 1400px) {
+  .pkg-gallery  { height: 480px !important; }
+  .home-slider  { height: 260px !important; }
+}
+@media (max-width: 768px) {
+  .pkg-gallery  { height: 260px !important; }
+  .home-slider  { height: 180px !important; }
+}
+@media (max-width: 600px) {
+  .pkg-gallery  { height: auto !important; aspect-ratio: 16/9 !important; }
+  .home-slider  { height: auto !important; aspect-ratio: 4/3 !important; }
+}
+
+/* ── [I3] TYPOGRAPHY — tighter min values ────────────────────── */
+@media (max-width: 400px) {
+  .display-1 { font-size: clamp(1.85rem, 9vw, 2.6rem) !important; }
+  .display-2 { font-size: clamp(1.55rem, 7vw, 2rem)   !important; }
+  .display-3 { font-size: clamp(1.25rem, 6vw, 1.5rem) !important; }
+  .section-label { font-size: .58rem !important; }
+}
+
+/* ── [I4] ACTIVE PAGE — gold underline ───────────────────────── */
+.sz-nav-links a.active-link::after {
+  width: 100% !important;
+  background: var(--gold) !important;
+  height: 2px !important;
+}
+
+/* ── [I5] BOOKING FORM — larger accommodation labels ─────────── */
+@media (max-width: 768px) {
+  .acc-selector label {
+    font-size: .68rem !important;
+    padding: .75rem .4rem !important;
+    min-height: 48px !important;
+  }
+  .acc-selector-pkg label {
+    font-size: .68rem !important;
+    padding: .85rem .5rem !important;
+  }
+  .payment-method-tabs button,
+  .pm-tab {
+    min-height: 48px !important;
+    font-size: .68rem !important;
+  }
+}
+
+/* ── [I6] TEAM GRID — safe minmax ────────────────────────────── */
+.team-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)) !important;
+}
+@media (max-width: 480px) {
+  .team-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── [I7] MAP — max-width ────────────────────────────────────── */
+.map-placeholder iframe,
+iframe[title*="Safari Zangu"] {
+  max-width: 100% !important;
+}
+
+/* ── [I8] ADMIN METRICS — 3 breakpoints ─────────────────────── */
+@media (max-width: 900px) {
+  .metrics-grid { grid-template-columns: repeat(3, 1fr) !important; }
+}
+@media (max-width: 680px) {
+  .metrics-grid { grid-template-columns: repeat(2, 1fr) !important; gap: .65rem !important; }
+  .metric-value { font-size: 1.45rem !important; }
+}
+@media (max-width: 420px) {
+  .metrics-grid { grid-template-columns: 1fr !important; }
+  .metric-card  { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; padding: .85rem 1rem !important; }
+  .metric-value { font-size: 1.5rem !important; }
+}
+
+/* ── [I9] ADMIN TABLE — iOS scroll fix ──────────────────────── */
+.admin-table-wrap {
+  overscroll-behavior-x: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* ── [I10] BUTTONS — explicit min-height ────────────────────── */
+.btn-sz-primary,
+.btn-sz-dark,
+.btn-sz-outline,
+.btn-sz-ghost {
+  min-height: 48px !important;
+  min-width: 44px !important;
+}
+@media (max-width: 480px) {
+  .btn-sz-primary,
+  .btn-sz-dark,
+  .btn-sz-outline,
+  .btn-sz-ghost {
+    min-height: 52px !important;
+    font-size: .72rem !important;
+  }
+}
+
+/* ── [D1] TRUST STRIP — stronger visual separation ───────────── */
+.trust-strip {
+  background: var(--gold-light) !important;
+  border-top: 1px solid rgba(200,150,62,.3) !important;
+  border-bottom: 1px solid rgba(200,150,62,.3) !important;
+  box-shadow: inset 0 1px 0 rgba(200,150,62,.15) !important;
+}
+.trust-item {
+  font-size: .72rem !important;
+  font-weight: 600 !important;
+  color: #3d3000 !important;
+}
+.trust-stars { color: var(--gold) !important; }
+
+/* ── [D2] CARD CTAs — tap state on mobile ───────────────────── */
+@media (hover: none) {
+  .pkg-card .btn-sz-dark:active {
+    background: #333 !important;
+    transform: scale(.97) !important;
+  }
+}
+
+/* ── [D3] TESTIMONIALS — equal heights ──────────────────────── */
+.testimonial-grid {
+  align-items: stretch !important;
+}
+.testimonial {
+  height: 100% !important;
+}
+.testimonial-text {
+  flex: 1 !important;
+}
+
+/* ── [D4] WHY SECTION — larger icons on mobile ───────────────── */
+@media (max-width: 768px) {
+  .why-icon {
+    width: 48px !important;
+    height: 48px !important;
+    margin-bottom: 1.1rem !important;
+  }
+  .why-title { font-size: 1.05rem !important; }
+}
+
+/* ── [D6] FORM PLACEHOLDERS — WCAG AA contrast ───────────────── */
+.form-control-sz::placeholder,
+.sz-input::placeholder {
+  color: #6b7280 !important;
+  font-weight: 400 !important;
+}
+
+/* ── [D7] SECTION PADDING — tighter on mobile ────────────────── */
+@media (max-width: 480px) {
+  .section    { padding: clamp(2.5rem, 6vw, 3.5rem) 1.1rem !important; }
+  .section-sm { padding: clamp(2rem,   5vw, 3rem)   1.1rem !important; }
+  .section-lg { padding: clamp(3rem,   7vw, 4.5rem) 1.1rem !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   GOLD ACCENT — consistent system
+   ══════════════════════════════════════════════════════════════ */
+.section-label       { color: var(--gold) !important; }
+.divider-line        { background: var(--gold) !important; height: 2px !important; }
+.pkg-number          { color: var(--gold) !important; }
+.pkg-duration        { color: var(--gold) !important; }
+.itinerary-day-num   { color: var(--gold) !important; }
+.team-role           { color: var(--gold) !important; }
+.breadcrumb-sz a     { color: var(--gold) !important; }
+.hero-tag            { color: rgba(200,150,62,.9) !important; }
+.sz-nav-cta          { background: var(--gold) !important; border-color: var(--gold) !important; }
+.sz-nav-cta:hover    { background: #b8842e !important; border-color: #b8842e !important; }
+.scroll-line         { background: linear-gradient(to bottom, transparent, var(--gold)) !important; }
+.footer-col-title    { color: rgba(200,150,62,.75) !important; }
+.sz-footer::before   { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg, transparent, var(--gold) 40%, var(--gold) 60%, transparent); opacity:.6; }
+.sz-footer           { position:relative; }
+
+/* Form focus — gold ring */
+.form-control-sz:focus,
+.sz-input:focus {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(200,150,62,.12) !important;
+}
+
+/* Booking widget active tab — gold */
+.acc-selector input:checked + label,
+.acc-selector label.active,
+.acc-selector-pkg input:checked + label,
+.payment-method-tabs button.active,
+.pm-tab.active {
+  background: var(--gold) !important;
+  border-color: var(--gold) !important;
+  color: #fff !important;
+}
+
+/* Package nav active — gold */
+.pkg-nav a:hover,
+.pkg-nav a.active {
+  background: var(--gold) !important;
+  color: #fff !important;
+}
+
+/* Card hover — gold underline */
+.pkg-card::after { background: var(--gold) !important; }
+.testimonial:hover { border-color: var(--gold) !important; }
+
+/* ══════════════════════════════════════════════════════════════
+   PAGE HERO — inner pages
+   ══════════════════════════════════════════════════════════════ */
+.page-hero {
+  position: relative;
+  overflow: hidden;
+}
+.page-hero::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--gold) 30%, var(--gold) 70%, transparent);
+  opacity: .7;
+  z-index: 1;
+}
+@media (max-width: 768px) {
+  .page-hero {
+    padding-top: calc(var(--nav-h) + 2.5rem) !important;
+    padding-bottom: 2.5rem !important;
+  }
+  .page-hero-inner {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+}
+@media (max-width: 480px) {
+  .page-hero {
+    padding-top: calc(var(--nav-h) + 1.75rem) !important;
+    padding-bottom: 2rem !important;
+  }
+  .display-1 {
+    font-size: clamp(2rem, 9vw, 2.8rem) !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BOOKING LAYOUT — mobile stacking
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 960px) {
+  .booking-layout {
+    grid-template-columns: 1fr !important;
+    gap: 2.5rem !important;
+  }
+  .booking-sidebar-col {
+    position: static !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+  /* Sidebar goes BELOW form on mobile (reorder) */
+  .booking-layout > .booking-sidebar-col {
+    order: -1 !important; /* show price widget ABOVE form on mobile */
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CUSTOM SAFARI FORM — 2-col on tablet+, 1-col on mobile
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .responsive-two-col {
+    grid-template-columns: 1fr !important;
+    gap: 2rem !important;
+  }
+  .custom-safari {
+    padding: 2.5rem 1.1rem !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PACKAGE DETAIL — mobile optimizations
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .pkg-detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .include-exclude {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+  .pkg-section { padding: 2.5rem 0 !important; }
+  .pkg-section-num { font-size: 3rem !important; }
+  .pricing-row { padding: .75rem 1rem !important; }
+  .pricing-row.header { font-size: .58rem !important; }
+  .price-cell { font-size: .95rem !important; }
+  .pkg-nav {
+    position: relative !important; /* don't sticky on mobile */
+    top: auto !important;
+    margin-bottom: 2rem !important;
+  }
+  .pkg-nav a {
+    padding: .75rem 1rem !important;
+    font-size: .6rem !important;
+  }
+}
+@media (max-width: 480px) {
+  .itinerary-day { grid-template-columns: 40px 1fr !important; gap: .85rem !important; }
+  .itinerary-day-num { font-size: 1.4rem !important; }
+  .itinerary-day-title { font-size: .95rem !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ABOUT PAGE — mobile layout
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .about-grid { grid-template-columns: 1fr !important; gap: 2rem !important; }
+  .values-grid { grid-template-columns: 1fr !important; gap: 1rem !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CONTACT PAGE — mobile layout
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .contact-grid { grid-template-columns: 1fr !important; gap: 2.5rem !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CONFIRMATION PAGE
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 680px) {
+  .confirmation-two-col {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+  .confirmation-box { padding: 1.25rem 1rem !important; }
+  .booking-ref-display {
+    font-size: 1.2rem !important;
+    padding: .65rem .85rem !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   WHATSAPP FLOAT — better mobile positioning
+   ══════════════════════════════════════════════════════════════ */
+.wa-float {
+  bottom: 1.25rem !important;
+  right: 1.25rem !important;
+}
+@media (max-width: 480px) {
+  .wa-float {
+    bottom: 1rem !important;
+    right: 1rem !important;
+    width: 52px !important;
+    height: 52px !important;
+  }
+  .wa-float-label { display: none !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SELECTION & FOCUS — accessibility
+   ══════════════════════════════════════════════════════════════ */
+::selection {
+  background: var(--gold-light);
+  color: var(--black);
+}
+:focus-visible {
+  outline: 2.5px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PRINT ENHANCEMENTS
+   ══════════════════════════════════════════════════════════════ */
+@media print {
+  :root { --gold: #7a5a10; }
+  .sz-nav, .sz-mobile-nav, .wa-float, .hero-scroll,
+  .hero-actions, .cta-banner { display: none !important; }
+  .hero { height: auto !important; min-height: 0 !important; }
+  .hero-bg, .hero-overlay { display: none !important; }
+  body { font-size: 11pt !important; }
+  .confirmation-box { border: 1px solid #ccc !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ADMIN PANEL RESPONSIVE ADDITIONS
+   ══════════════════════════════════════════════════════════════ */
+
+/* Two-column admin layout collapses */
+@media (max-width: 900px) {
+  .admin-two-col {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Admin content max width on large screens */
+@media (min-width: 1600px) {
+  .admin-content { padding: 2rem 3rem !important; }
+}
+
+/* Admin filter pills wrap properly */
+@media (max-width: 480px) {
+  .admin-filter-pills { gap: .35rem !important; }
+  .admin-filter-pill  { font-size: .6rem !important; padding: .28rem .7rem !important; }
+}
+
+/* Gallery grid on mobile */
+@media (max-width: 600px) {
+  .gallery-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: .65rem !important;
+  }
+  .gallery-layout {
+    grid-template-columns: 1fr !important;
+  }
+  .gallery-sidebar {
+    position: static !important;
+    max-height: none !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    padding: .5rem !important;
+    gap: .35rem !important;
+    border-right: none !important;
+    border-bottom: 1px solid #e5e7eb !important;
+  }
+  .gallery-sidebar a {
+    white-space: nowrap !important;
+    border-left: none !important;
+    border-bottom: 2px solid transparent !important;
+    padding: .45rem .85rem !important;
+    border-radius: 2px !important;
+    flex-shrink: 0 !important;
+  }
+  .gallery-sidebar a.active {
+    background: #0a0a0a !important;
+    border-bottom-color: #c8963e !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SCROLLBAR STYLING
+   ══════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar       { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d4d4ce; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #a0a098; }
+
+/* ══════════════════════════════════════════════════════════════
+   REDUCED MOTION — respect user preference
+   ══════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration:   0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration:  0.01ms !important;
+    scroll-behavior:      auto !important;
+  }
+  .fade-in {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .hero-bg {
+    transform: none !important;
+    animation: none !important;
+  }
+}

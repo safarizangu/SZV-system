@@ -229,7 +229,8 @@ html, body { height: 100%; }
 .admin-link:hover    { text-decoration: underline; }
 
 /* ── TABLES ─────────────────────────────────────────────────── */
-.admin-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--gray-200); background: var(--white); }
+.admin-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain; border: 1px solid var(--gray-200); background: var(--white); }
 .admin-table     { width: 100%; border-collapse: collapse; font-size: .8rem; min-width: 500px; }
 .admin-table th  { font-size: .58rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--gray-500); padding: .55rem .75rem; border-bottom: 1px solid var(--gray-200); text-align: left; background: var(--gray-50); white-space: nowrap; }
 .admin-table td  { padding: .7rem .75rem; border-bottom: 1px solid var(--gray-100); vertical-align: middle; }

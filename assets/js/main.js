@@ -64,6 +64,7 @@ if (navToggle && mobileNav) {
   const openNav = () => {
     const isOpen = mobileNav.classList.contains('open');
     mobileNav.classList.toggle('open');
+    mobileNav.setAttribute('aria-hidden', mobileNav.classList.contains('open') ? 'false' : 'true');
     navToggle.classList.toggle('is-open');
     navToggle.setAttribute('aria-expanded', String(!isOpen));
   };
