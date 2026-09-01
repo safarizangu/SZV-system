@@ -13,7 +13,7 @@ function _isActive(string $page, string $hash = ''): string {
 
     <!-- Logo — full wordmark -->
     <a href="<?= BASE_PATH ?>/" class="sz-logo" aria-label="Safari Zangu Ventures — Home">
-      <em>Safari Zangu</em>
+      <b>SZV<b>
     </a>
 
     <!-- Desktop links -->

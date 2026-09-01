@@ -135,7 +135,7 @@ h1,h2,h3,h4,h5,h6 {
 }
 
 .sz-logo {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 1.85rem;
   font-weight: 700;
   color: var(--black);
@@ -1763,7 +1763,7 @@ body {
   font-family: var(--font-body) !important;
   text-transform: uppercase;
 }
-.sz-logo em { font-style: italic; font-family: var(--font-display); font-weight: 400; }
+.sz-logo em { font-style: bold; font-family: var(--font-display); font-weight: 600; }
 .sz-nav.over-hero .sz-logo { color: #fff !important; }
 
 /* Nav link underline — gold on hover */
@@ -2748,7 +2748,7 @@ iframe[title*="Safari Zangu"] {
 .itinerary-day-num   { color: var(--gold) !important; }
 .team-role           { color: var(--gold) !important; }
 .breadcrumb-sz a     { color: var(--gold) !important; }
-.hero-tag            { color: rgba(200,150,62,.9) !important; }
+.hero-tag            { color: rgba(252, 255, 255, 255.255) !important; }
 .sz-nav-cta          { background: var(--gold) !important; border-color: var(--gold) !important; }
 .sz-nav-cta:hover    { background: #b8842e !important; border-color: #b8842e !important; }
 .scroll-line         { background: linear-gradient(to bottom, transparent, var(--gold)) !important; }

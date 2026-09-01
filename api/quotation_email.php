@@ -5,7 +5,7 @@
  * Called from admin/quotations.php (POST form) or admin/quotation_new.php.
  */
 ob_start();
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../app/bootstrap.php';
 
 use App\Middleware\AuthMiddleware;
 AuthMiddleware::requireAdmin();

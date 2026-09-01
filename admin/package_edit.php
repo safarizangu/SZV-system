@@ -927,7 +927,7 @@ async function openGalleryPicker() {
 
 async function loadPickerImages() {
   try {
-    var r = await fetch('<?= BASE_PATH ?>/php/gallery_list.php',{credentials:'same-origin'});
+    var r = await fetch('<?= BASE_PATH ?>/api/gallery/list.php',{credentials:'same-origin'});
     allPickerImages = await r.json();
   } catch(e) { allPickerImages = []; }
 }
@@ -1046,7 +1046,7 @@ async function loadPkgItinerary() {
   if (!id) { alert('Select an itinerary first.'); return; }
 
   try {
-    var r = await fetch((window.BASE_PATH||'')+'/php/itinerary_api.php?action=get&id='+id, {credentials:'same-origin'});
+    var r = await fetch((window.BASE_PATH||'')+'/api/itinerary.php?action=get&id='+id, {credentials:'same-origin'});
     var d = await r.json();
     if (!d.success) { alert('Error: '+d.message); return; }
 

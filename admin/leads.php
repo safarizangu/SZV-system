@@ -419,7 +419,7 @@ async function moveStage(id, stage) {
   var fd=new FormData();
   fd.append('action','update_stage'); fd.append('id',id); fd.append('stage',stage);
   try {
-    var r=await fetch(BASE+'/php/leads_api.php',{method:'POST',body:fd,credentials:'same-origin'});
+    var r=await fetch(BASE+'/api/leads.php',{method:'POST',body:fd,credentials:'same-origin'});
     var d=await r.json();
     if(d.success){ toast('Moved to '+stage); setTimeout(function(){window.location.reload();},800); }
     else toast(d.message||'Failed',false);
@@ -440,7 +440,7 @@ function openAddLead() {
 async function openEditLead(id) {
   document.getElementById('lead-error').style.display='none';
   try {
-    var r=await fetch(BASE+'/php/leads_api.php?action=get_lead&id='+id,{credentials:'same-origin'});
+    var r=await fetch(BASE+'/api/leads.php?action=get_lead&id='+id,{credentials:'same-origin'});
     var d=await r.json();
     if(!d.success){toast(d.message||'Error',false);return;}
     var l=d.data;
@@ -499,7 +499,7 @@ document.getElementById('leadForm').addEventListener('submit', async function(e)
   if(isAdmin && document.getElementById('f_agent')) fd.append('agent_id',document.getElementById('f_agent').value);
 
   try {
-    var r=await fetch(BASE+'/php/leads_api.php',{method:'POST',body:fd,credentials:'same-origin'});
+    var r=await fetch(BASE+'/api/leads.php',{method:'POST',body:fd,credentials:'same-origin'});
     var d=await r.json();
     if(d.success){ closeLeadModal(); toast(d.message); setTimeout(function(){window.location.reload();},800); }
     else { errEl.textContent=d.message||'Save failed'; errEl.style.display='block'; }
@@ -512,7 +512,7 @@ async function deleteLead() {
   if(!confirm('Delete this lead? This cannot be undone.')) return;
   var id=document.getElementById('lead_id').value;
   var fd=new FormData(); fd.append('action','delete_lead'); fd.append('id',id);
-  var r=await fetch(BASE+'/php/leads_api.php',{method:'POST',body:fd,credentials:'same-origin'});
+  var r=await fetch(BASE+'/api/leads.php',{method:'POST',body:fd,credentials:'same-origin'});
   var d=await r.json();
   if(d.success){ closeLeadModal(); toast('Lead deleted'); setTimeout(function(){window.location.reload();},800); }
   else toast(d.message||'Delete failed',false);
@@ -542,7 +542,7 @@ async function saveBookingValue() {
   fd.append('id',document.getElementById('value_lead_id').value);
   fd.append('value',document.getElementById('value_amount').value);
   fd.append('booking_ref',document.getElementById('value_ref').value);
-  var r=await fetch(BASE+'/php/leads_api.php',{method:'POST',body:fd,credentials:'same-origin'});
+  var r=await fetch(BASE+'/api/leads.php',{method:'POST',body:fd,credentials:'same-origin'});
   var d=await r.json();
   if(d.success){
     document.getElementById('valueModal').style.display='none';

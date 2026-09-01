@@ -83,7 +83,14 @@ ob_start();
       <div style="font-size:.8rem;font-weight:600;color:#374151;margin-bottom:.5rem">Re: <?= htmlspecialchars($m['subject']) ?></div>
       <?php endif; ?>
       <!-- Full message -->
-      <div style="font-size:.85rem;line-height:1.75;color:#0a0a0a;white-space:pre-wrap;background:#f9f9f8;padding:.85rem 1rem;border-left:3px solid <?= !$m['is_read']?'#fbbf24':'#e5e7eb' ?>"><?= htmlspecialchars($m['message']) ?></div>
+      <div class="msg-body" style="font-size:.85rem;line-height:1.8;color:#0a0a0a;white-space:pre-wrap;background:#f9f9f8;padding:1rem 1.25rem;border-left:3px solid <?= !$m['is_read']?'#c8963e':'#e5e7eb' ?>;max-height:200px;overflow:hidden;transition:max-height .3s ease;position:relative">
+        <?= nl2br(htmlspecialchars($m['message'])) ?>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,#f9f9f8);pointer-events:none;transition:opacity .3s" class="msg-fade"></div>
+      </div>
+      <button onclick="var b=this.previousElementSibling;var f=b.querySelector('.msg-fade');if(b.style.maxHeight==='none'){b.style.maxHeight='200px';f.style.opacity='1';this.textContent='▼ Read more';}else{b.style.maxHeight='none';f.style.opacity='0';this.textContent='▲ Show less';}"
+              style="font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:none;border:none;color:#c8963e;cursor:pointer;padding:.25rem 0;margin-bottom:.5rem">
+        ▼ Read more
+      </button>
     </div>
     <!-- Actions -->
     <div style="display:flex;flex-direction:column;gap:.4rem;flex-shrink:0">

@@ -248,12 +248,12 @@ ob_start();
     <div class="admin-card-body" style="padding:.75rem 1rem">
       <div style="margin-bottom:1rem">
         <div style="font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:.4rem">Email Queue</div>
-        <code style="font-size:.68rem;display:block;background:#f3f4f6;padding:.5rem .65rem;word-break:break-all">*/2 * * * * /usr/bin/php8.3 <?= BASE_PATH ?>/php/process_email_queue.php</code>
+        <code style="font-size:.68rem;display:block;background:#f3f4f6;padding:.5rem .65rem;word-break:break-all">*/2 * * * * /usr/bin/php8.3 <?= BASE_PATH ?>/api/cron/process_email_queue.php</code>
         <div style="font-size:.68rem;color:#9ca3af;margin-top:.2rem">Runs every 2 minutes</div>
       </div>
       <div>
         <div style="font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:.4rem">Reminders</div>
-        <code style="font-size:.68rem;display:block;background:#f3f4f6;padding:.5rem .65rem;word-break:break-all">0 * * * * /usr/bin/php8.3 <?= BASE_PATH ?>/php/process_reminders.php</code>
+        <code style="font-size:.68rem;display:block;background:#f3f4f6;padding:.5rem .65rem;word-break:break-all">0 * * * * /usr/bin/php8.3 <?= BASE_PATH ?>/api/cron/process_reminders.php</code>
         <div style="font-size:.68rem;color:#9ca3af;margin-top:.2rem">Runs every hour</div>
       </div>
       <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #f3f4f6">

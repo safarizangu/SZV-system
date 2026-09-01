@@ -165,10 +165,10 @@ ob_start();
     <div class="admin-card-body" style="padding:.75rem;font-size:.65rem;color:#9ca3af">
       <div style="margin-bottom:.4rem">Use in quotation or package:</div>
       <code style="display:block;background:#f3f4f6;padding:.4rem .5rem;font-size:.62rem;word-break:break-all">
-        /php/itinerary_api.php?action=get&id=<?= $editId ?>
+        /api/itinerary.php?action=get&id=<?= $editId ?>
       </code>
       <code style="display:block;background:#f3f4f6;padding:.4rem .5rem;font-size:.62rem;margin-top:.35rem;word-break:break-all">
-        /php/itinerary_api.php?action=quote_items&id=<?= $editId ?>&adults=2
+        /api/itinerary.php?action=quote_items&id=<?= $editId ?>&adults=2
       </code>
     </div>
   </div>

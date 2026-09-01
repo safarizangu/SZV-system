@@ -180,9 +180,9 @@ ob_start();
       <!-- Edit -->
       <a href="quotation_new.php?id=<?= $q['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">Edit</a>
       <!-- PDF -->
-      <a href="../php/quotation_pdf.php?id=<?= $q['id'] ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">PDF</a>
+      <a href="../api/quotation_pdf.php?id=<?= $q['id'] ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">PDF</a>
       <!-- Email -->
-      <form method="POST" action="../php/quotation_email.php" style="display:inline" target="_blank">
+      <form method="POST" action="../api/quotation_email.php" style="display:inline" target="_blank">
         <input type="hidden" name="id" value="<?= $q['id'] ?>">
         <button class="admin-btn admin-btn--primary" style="font-size:.65rem;padding:.3rem .6rem">Email</button>
       </form>

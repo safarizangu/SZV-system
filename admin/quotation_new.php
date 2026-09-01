@@ -157,17 +157,17 @@ ob_start();
     &nbsp;·&nbsp;
     <a href="quotations.php" style="font-weight:700">← All Quotations</a>
     &nbsp;·&nbsp;
-    <a href="../php/quotation_email.php?id=<?= $id ?>" style="font-weight:700">Send Email ✉</a>
+    <a href="../api/quotation_email.php?id=<?= $id ?>" style="font-weight:700">Send Email ✉</a>
     &nbsp;·&nbsp;
-    <a href="../php/quotation_pdf.php?id=<?= $id ?>" target="_blank" style="font-weight:700">PDF ↗</a>
+    <a href="../api/quotation_pdf.php?id=<?= $id ?>" target="_blank" style="font-weight:700">PDF ↗</a>
     <?php endif; ?>
 </div>
 <?php endif; ?>
 
 <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-bottom:1.25rem;flex-wrap:wrap">
     <?php if($id): ?>
-    <a href="../php/quotation_pdf.php?id=<?= $id ?>" target="_blank" class="admin-btn admin-btn--outline">PDF ↗</a>
-    <a href="../php/quotation_email.php?id=<?= $id ?>" class="admin-btn admin-btn--primary">✉ Send Email</a>
+    <a href="../api/quotation_pdf.php?id=<?= $id ?>" target="_blank" class="admin-btn admin-btn--outline">PDF ↗</a>
+    <a href="../api/quotation_email.php?id=<?= $id ?>" class="admin-btn admin-btn--primary">✉ Send Email</a>
     <?php endif; ?>
     <a href="quotations.php" class="admin-btn admin-btn--muted">← All Quotations</a>
 </div>
@@ -507,11 +507,11 @@ ob_start();
                 💾 Save Quotation
             </button>
             <?php if($id): ?>
-            <a href="../php/quotation_pdf.php?id=<?= $id ?>" target="_blank"
+            <a href="../api/quotation_pdf.php?id=<?= $id ?>" target="_blank"
                class="admin-btn admin-btn--outline" style="width:100%;justify-content:center;margin-bottom:.5rem">
                 PDF Preview ↗
             </a>
-            <a href="../php/quotation_email.php?id=<?= $id ?>"
+            <a href="../api/quotation_email.php?id=<?= $id ?>"
                class="admin-btn admin-btn--success" style="width:100%;justify-content:center">
                 ✉ Send to Client
             </a>
@@ -698,7 +698,7 @@ async function loadItinerary() {
   btn.disabled = true; btn.textContent = 'Loading…';
 
   try {
-    var url = (window.BASE_PATH||'')+'/php/itinerary_api.php?action=quote_items&id='+id+'&adults='+adults;
+    var url = (window.BASE_PATH||'')+'/api/itinerary.php?action=quote_items&id='+id+'&adults='+adults;
     var r   = await fetch(url, {credentials:'same-origin'});
     var d   = await r.json();
 
