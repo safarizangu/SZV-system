@@ -169,6 +169,18 @@ ob_start();
       <td style="white-space:nowrap">
         <button onclick="viewBooking('<?= htmlspecialchars($b['booking_ref']) ?>')"
                 class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">View</button>
+        <?php if ($b['quotation_id']): ?>
+        <a href="quotation_new.php?quote_id=<?= $b['quotation_id'] ?>"
+           class="admin-btn" style="font-size:.6rem;padding:.3rem .6rem;background:#f0fdf4;border-color:#86efac;color:#166534">
+          ✓ Quote
+        </a>
+        <?php else: ?>
+        <a href="quotation_new.php?from_booking=<?= urlencode($b['booking_ref']) ?>"
+           class="admin-btn" style="font-size:.6rem;padding:.3rem .6rem;background:#eff6ff;border-color:#93c5fd;color:#1d4ed8">
+          + Quote
+        </a>
+        <?php endif; ?>
+        <a href="../api/booking_pdf.php?ref=<?= urlencode($b['booking_ref']) ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">PDF</a>
         <a href="https://wa.me/<?= preg_replace('/[^0-9]/','', $b['phone']??'') ?>?text=<?= urlencode('Hi '.$b['full_name'].', this is Safari Zangu regarding booking '.$b['booking_ref'].'.') ?>"
            target="_blank" class="admin-btn admin-btn--success" style="font-size:.65rem;padding:.3rem .6rem">WA</a>
         <a href="quotation_new.php?search=<?= urlencode($b['booking_ref']) ?>"
@@ -249,7 +261,8 @@ async function viewBooking(ref) {
     ['Reference',       '<code style="font-family:monospace;font-size:.9rem">'+b.booking_ref+'</code>'],
     ['Guest',           '<strong>'+b.full_name+'</strong>'],
     ['Email',           '<a href="mailto:'+b.email+'" style="color:inherit">'+b.email+'</a>'],
-    ['Phone / WhatsApp','<a href="https://wa.me/'+(b.phone||'').replace(/[^0-9]/g,'')+'?text=Hi+'+encodeURIComponent(b.full_name)+'" target="_blank" style="color:inherit">'+b.phone+'</a>'],
+    ['Phone / WhatsApp','<a href="../api/booking_pdf.php?ref=<?= urlencode($b['booking_ref']) ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">PDF</a>
+        <a href="https://wa.me/'+(b.phone||'').replace(/[^0-9]/g,'')+'?text=Hi+'+encodeURIComponent(b.full_name)+'" target="_blank" style="color:inherit">'+b.phone+'</a>'],
     ['Package',         b.package_name||'—'],
     ['Accommodation',   b.accommodation_level ? (b.accommodation_level.charAt(0).toUpperCase()+b.accommodation_level.slice(1)) : '—'],
     ['Travelers',       b.travelers+' person'+(b.travelers>1?'s':'')],
@@ -264,7 +277,8 @@ async function viewBooking(ref) {
     return '<div style="display:grid;grid-template-columns:130px 1fr;gap:.5rem;padding:.6rem 1.5rem;border-bottom:1px solid #f3f4f6;font-size:.85rem"><span style="font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;padding-top:.15rem">'+r[0]+'</span><span>'+r[1]+'</span></div>';
   }).join('');
   html += '<div style="padding:1.25rem 1.5rem;display:flex;gap:.5rem;flex-wrap:wrap">'
-    +'<a href="https://wa.me/'+(b.phone||'').replace(/[^0-9]/g,'')+'?text='+encodeURIComponent('Hi '+b.full_name+', your booking '+b.booking_ref+' with Safari Zangu Ventures.')+'" target="_blank" class="admin-btn admin-btn--success">WhatsApp Client</a>'
+    +'<a href="../api/booking_pdf.php?ref=<?= urlencode($b['booking_ref']) ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">PDF</a>
+        <a href="https://wa.me/'+(b.phone||'').replace(/[^0-9]/g,'')+'?text='+encodeURIComponent('Hi '+b.full_name+', your booking '+b.booking_ref+' with Safari Zangu Ventures.')+'" target="_blank" class="admin-btn admin-btn--success">WhatsApp Client</a>'
     +'<a href="mailto:'+b.email+'" class="admin-btn admin-btn--outline">Email Client</a>'
     +'<a href="../track.php?ref='+b.booking_ref+'&date='+b.travel_date+'" target="_blank" class="admin-btn admin-btn--outline">View Track Page</a>'
     +'</div>';

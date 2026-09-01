@@ -14,9 +14,19 @@ if (!$isCli && !$hasKey) {
     http_response_code(403); exit('Forbidden');
 }
 
-require_once __DIR__ . '/../../php/PHPMailer/src/Exception.php';
-require_once __DIR__ . '/../../php/PHPMailer/src/PHPMailer.php';
-require_once __DIR__ . '/../../php/PHPMailer/src/SMTP.php';
+// PHPMailer — try vendor/autoload first (Hostinger), then local path
+$_vendorPath = __DIR__ . '/../../vendor/autoload.php';
+$_localPath  = __DIR__ . '/../../php/PHPMailer/src/';
+if (file_exists($_vendorPath)) {
+    require_once $_vendorPath;
+} elseif (file_exists($_localPath . 'PHPMailer.php')) {
+    require_once $_localPath . 'Exception.php';
+    require_once $_localPath . 'PHPMailer.php';
+    require_once $_localPath . 'SMTP.php';
+} else {
+    error_log('[Email Queue] PHPMailer not found');
+    exit(1);
+}
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception as MailerException;

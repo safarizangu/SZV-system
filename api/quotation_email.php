@@ -152,9 +152,22 @@ $sent  = false;
 $error = '';
 
 try {
-    require_once __DIR__ . '/PHPMailer/src/Exception.php';
-    require_once __DIR__ . '/PHPMailer/src/PHPMailer.php';
-    require_once __DIR__ . '/PHPMailer/src/SMTP.php';
+    // PHPMailer — try vendor/autoload first (Hostinger), then local path
+    $phpmailerLoaded = false;
+    $vendorPath = __DIR__ . '/../vendor/autoload.php';
+    $localPath  = __DIR__ . '/../php/PHPMailer/src/';
+    if (file_exists($vendorPath)) {
+        require_once $vendorPath;
+        $phpmailerLoaded = true;
+    } elseif (file_exists($localPath . 'PHPMailer.php')) {
+        require_once $localPath . 'Exception.php';
+        require_once $localPath . 'PHPMailer.php';
+        require_once $localPath . 'SMTP.php';
+        $phpmailerLoaded = true;
+    }
+    if (!$phpmailerLoaded) {
+        throw new \Exception('PHPMailer not found. Run: composer require phpmailer/phpmailer');
+    }
 
     $mail = new PHPMailer\PHPMailer\PHPMailer(true);
     $mail->isSMTP();
