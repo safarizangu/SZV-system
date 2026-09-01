@@ -246,53 +246,6 @@ ob_start();
 </section>
 
 <!-- GUIDES — the section UK buyers read most carefully -->
-<section class="section bg-off-white" style="border-top:1px solid var(--gray-2);border-bottom:1px solid var(--gray-2)" id="guides">
-  <div class="container-sz">
-    <div class="section-header fade-in">
-      <span class="section-label">In the Field</span>
-      <h2 class="display-2">Our Guides</h2>
-      <div class="divider-line"></div>
-      <p style="color:var(--black);font-size:.9rem;font-weight:400;line-height:1.8;max-width:640px">
-        Your guide is the most important person on your safari. Every SZV guide is Tanzania Tourist Board certified, carries a first-aid qualification, and drives a maintained 4WD with pop-up roof. We do not use freelancers.
-      </p>
-    </div>
-
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2rem" class="values-grid">
-      <?php foreach ($guides as $guide):
-        $gPhotoSrc = $guide['photo'] ?? '';
-        $gHasPhoto = $gPhotoSrc && file_exists(__DIR__ . '/' . ltrim($gPhotoSrc, '/'));
-      ?>
-      <div class="fade-in" style="background:var(--white);border:1px solid var(--gray-2);overflow:hidden">
-
-        <?php if ($gHasPhoto): ?>
-        <img src="<?= htmlspecialchars($gPhotoSrc) ?>"
-             alt="<?= htmlspecialchars($guide['name']) ?> — SZV safari guide"
-             style="width:100%;aspect-ratio:4/3;object-fit:cover;object-position:top;display:block">
-        <?php else: ?>
-        <div style="width:100%;aspect-ratio:4/3;background:var(--black);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:2.5rem;font-style:italic;color:rgba(255,255,255,.4)">
-          <?= mb_strtoupper(mb_substr($guide['name'], 0, 1)) ?>
-        </div>
-        <?php endif; ?>
-
-        <div style="padding:1.5rem">
-          <h4 style="font-family:var(--font-display);font-size:1.05rem;margin-bottom:.2rem"><?= htmlspecialchars($guide['name']) ?></h4>
-          <p style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;margin-bottom:.85rem"><?= $guide['role'] ?></p>
-          <p style="font-size:.85rem;color:var(--black);line-height:1.75;margin-bottom:1rem;font-weight:400"><?= htmlspecialchars($guide['bio']) ?></p>
-          <div style="display:flex;flex-direction:column;gap:.35rem;border-top:1px solid var(--gray-2);padding-top:.85rem">
-            <p style="font-size:.72rem;font-weight:600;color:var(--black);margin:0">🗓  <?= htmlspecialchars($guide['years']) ?></p>
-            <p style="font-size:.72rem;font-weight:600;color:var(--black);margin:0">🌍  <?= htmlspecialchars($guide['languages']) ?></p>
-            <p style="font-size:.72rem;font-weight:600;color:var(--black);margin:0">⭐  <?= $guide['specialty'] ?></p>
-          </div>
-        </div>
-
-      </div>
-      <?php endforeach; ?>
-    </div>
-    <p style="font-size:.78rem;color:#9ca3af;margin-top:1.5rem;text-align:center">
-      All guides hold Tanzania Tourist Board certification and a current first-aid qualification.
-    </p>
-  </div>
-</section>
 
 <!-- LICENSING — sitewide anchor -->
 <section class="section" style="border-bottom:1px solid var(--gray-2)" id="licensing">

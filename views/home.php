@@ -62,7 +62,7 @@ try {
 </section> -->
 
 <!-- Trust Strip -->
-<div class="trust-strip fade-in">
+<!-- <div class="trust-strip fade-in">
   <div class="container-sz">
     <div class="trust-strip-inner">
       <div class="trust-item">
@@ -86,7 +86,7 @@ try {
       </div>
     </div>
   </div>
-</div>
+</div> -->
 
 <!-- ── PACKAGES ───────────────────────────────────────────── -->
 <section class="section-lg" id="packages">
