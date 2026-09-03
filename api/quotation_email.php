@@ -37,115 +37,199 @@ $validStr     = $q['valid_until']
     ? date('d F Y', strtotime($q['valid_until']))
     : date('d F Y', strtotime('+14 days'));
 
-// ── Build line items HTML ─────────────────────────────────────
-$lineItemsHtml = '';
+// ── Build line items HTML — grouped by category ────────────────
+// NOTE: the previous version read $item['desc'] / $item['qty'], but the
+// data actually stored (see api/itinerary.php's quote_items action) uses
+// 'description' / 'quantity_str' — those fields were always empty before
+// this fix; only the dollar amount was ever rendering.
+$categoryLabels = [
+    'accommodation' => 'Accommodation',
+    'transport'     => 'Transport',
+    'park_fee'      => 'Park Fees',
+    'activity'      => 'Activities & Meals',
+    'other'         => 'Other Items',
+    'service_fee'   => 'Service & Guide Fees',
+];
+
+$grouped = [];
 foreach ($lineItems as $item) {
-    $lineItemsHtml .= '<tr>
+    $cat = $item['category'] ?? 'other';
+    $grouped[$cat][] = $item;
+}
+
+$renderItemRow = function (array $item): string {
+    return '<tr>
         <td style="padding:.5rem .75rem;border-bottom:1px solid #f3f4f6;font-size:.85rem">'
-            . htmlspecialchars($item['desc'] ?? '') . '</td>
-        <td style="padding:.5rem .75rem;border-bottom:1px solid #f3f4f6;text-align:center;font-size:.82rem">'
-            . htmlspecialchars((string)($item['qty'] ?? '')) . '</td>
+            . htmlspecialchars($item['description'] ?? '') . '</td>
+        <td style="padding:.5rem .75rem;border-bottom:1px solid #f3f4f6;text-align:center;font-size:.82rem;color:#6b7280">'
+            . htmlspecialchars((string)($item['quantity_str'] ?? '')) . '</td>
         <td style="padding:.5rem .75rem;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600;font-size:.85rem">$'
             . number_format((float)($item['amount'] ?? 0), 0) . '</td>
     </tr>';
+};
+
+$lineItemsHtml = '';
+foreach ($categoryLabels as $catKey => $catLabel) {
+    if (empty($grouped[$catKey])) continue;
+    $lineItemsHtml .= '<tr><td colspan="3" style="padding:.6rem .75rem .3rem;font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af">' . $catLabel . '</td></tr>';
+    foreach ($grouped[$catKey] as $item) {
+        $lineItemsHtml .= $renderItemRow($item);
+    }
+    unset($grouped[$catKey]);
+}
+// Safety net: any category not in the known list above still renders,
+// ungrouped, rather than silently disappearing from the email.
+foreach ($grouped as $items) {
+    foreach ($items as $item) {
+        $lineItemsHtml .= $renderItemRow($item);
+    }
+}
+
+// ── Day-by-day itinerary breakdown (if built from a template) ──
+// TRADE-OFF: computed LIVE from itineraries.days, not snapshotted like
+// line_items is. Editing an itinerary template after a quotation was
+// sent will change what a re-send shows. See this script's header.
+$dayByDayHtml = '';
+if (!empty($q['itinerary_id'])) {
+    try {
+        $is = $db->prepare("SELECT days FROM itineraries WHERE id=?");
+        $is->execute([(int)$q['itinerary_id']]);
+        $itinRow = $is->fetch();
+        $days = $itinRow ? (json_decode($itinRow['days'] ?? '[]', true) ?: []) : [];
+    } catch (Exception $e) {
+        $days = [];
+    }
+
+    $adultsQ   = (int)($q['adults']   ?? 0);
+    $childrenQ = (int)($q['children'] ?? 0);
+    $paxQ      = max(1, $adultsQ + $childrenQ);
+
+    foreach ($days as $day) {
+        $dayNum   = $day['day']      ?? '?';
+        $title    = $day['title']    ?? '';
+        $location = $day['location'] ?? '';
+        $rows     = '';
+        $dayTotal = 0;
+
+        $accName = trim($day['accommodation_name'] ?? '');
+        $accRate = (float)($day['accommodation_rate'] ?? 0);
+        $accRooms= (int)($day['accommodation_rooms'] ?? 1) ?: 1;
+        if ($accName && $accRate > 0) {
+            $amt = $accRate * $accRooms;
+            $rows .= '<tr><td style="padding:.3rem .6rem;font-size:.78rem;color:#374151">Accommodation – ' . htmlspecialchars($accName) . '</td><td style="padding:.3rem .6rem;font-size:.78rem;text-align:right">$' . number_format($amt, 0) . '</td></tr>';
+            $dayTotal += $amt;
+        }
+
+        $vehName = trim($day['vehicle_name'] ?? '');
+        $vehRate = (float)($day['vehicle_rate'] ?? 0);
+        if ($vehName && $vehRate > 0) {
+            $rows .= '<tr><td style="padding:.3rem .6rem;font-size:.78rem;color:#374151">' . htmlspecialchars($vehName) . '</td><td style="padding:.3rem .6rem;font-size:.78rem;text-align:right">$' . number_format($vehRate, 0) . '</td></tr>';
+            $dayTotal += $vehRate;
+        }
+
+        $parkName = trim($day['park_fee_name'] ?? '');
+        $parkFee  = (float)($day['park_adult_fee'] ?? 0);
+        if ($parkName && $parkFee > 0) {
+            $amt = $parkFee * max(1, $adultsQ);
+            $rows .= '<tr><td style="padding:.3rem .6rem;font-size:.78rem;color:#374151">' . htmlspecialchars($parkName) . ' Entry Fees</td><td style="padding:.3rem .6rem;font-size:.78rem;text-align:right">$' . number_format($amt, 0) . '</td></tr>';
+            $dayTotal += $amt;
+        }
+
+        foreach ($day['activities'] ?? [] as $act) {
+            $actName = trim($act['name'] ?? '');
+            $price   = (float)($act['price_pp'] ?? 0);
+            $type    = $act['type'] ?? 'included';
+            if (!$actName || $type === 'optional' || $price <= 0) continue;
+            $amt = $price * $paxQ;
+            $rows .= '<tr><td style="padding:.3rem .6rem;font-size:.78rem;color:#374151">' . htmlspecialchars($actName) . '</td><td style="padding:.3rem .6rem;font-size:.78rem;text-align:right">$' . number_format($amt, 0) . '</td></tr>';
+            $dayTotal += $amt;
+        }
+
+        $meals = (float)($day['meals_cost_pp'] ?? 0);
+        if ($meals > 0) {
+            $amt = $meals * $paxQ;
+            $rows .= '<tr><td style="padding:.3rem .6rem;font-size:.78rem;color:#374151">Meals</td><td style="padding:.3rem .6rem;font-size:.78rem;text-align:right">$' . number_format($amt, 0) . '</td></tr>';
+            $dayTotal += $amt;
+        }
+
+        foreach ($day['other_items'] ?? [] as $ot) {
+            $otName = trim($ot['name']   ?? '');
+            $otAmt  = (float)($ot['amount'] ?? 0);
+            if (!$otName || $otAmt <= 0) continue;
+            $isPerPax = stripos($otName, 'transfer') !== false
+                     || stripos($otName, 'water') !== false
+                     || stripos($otName, 'contribution') !== false;
+            $amt = $isPerPax ? $otAmt * $paxQ : $otAmt;
+            $rows .= '<tr><td style="padding:.3rem .6rem;font-size:.78rem;color:#374151">' . htmlspecialchars($otName) . '</td><td style="padding:.3rem .6rem;font-size:.78rem;text-align:right">$' . number_format($amt, 0) . '</td></tr>';
+            $dayTotal += $amt;
+        }
+
+        if ($rows === '') continue;
+
+        $dayByDayHtml .= '
+        <div style="border:1px solid #e5e7eb;margin-bottom:.75rem">
+          <div style="background:#f7f7f5;padding:.5rem .75rem;display:flex;justify-content:space-between;align-items:center">
+            <div><strong style="font-size:.82rem">Day ' . htmlspecialchars((string)$dayNum) . '</strong><span style="font-size:.78rem;color:#6b7280;margin-left:.5rem">' . htmlspecialchars($title) . ($location ? ' · ' . htmlspecialchars($location) : '') . '</span></div>
+            <div style="font-weight:700;font-size:.82rem">$' . number_format($dayTotal, 0) . '</div>
+          </div>
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">' . $rows . '</table>
+        </div>';
+    }
 }
 
 // ── Email body ────────────────────────────────────────────────
 $wa      = defined('WHATSAPP_NUMBER') ? WHATSAPP_NUMBER : '255663430934';
 $waLink  = 'https://wa.me/' . $wa . '?text=' . urlencode('Hi, I would like to accept quotation ' . $q['quote_ref'] . '.');
 $replyTo = defined('SITE_EMAIL') ? SITE_EMAIL : 'info@safarizanguven.com';
+$logoUrl = (defined('APP_URL') ? APP_URL : 'https://www.safarizanguven.com') . '/assets/images/logo.jpeg';
 
-$emailBody = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head>
-<body style="font-family:Arial,Helvetica,sans-serif;color:#0a0a0a;margin:0;padding:0;background:#f3f3f1">
-<div style="max-width:620px;margin:2rem auto;background:#fff">
+$destStr2 = $destStr;
+$mealPlanLabels = ['fb' => 'Full Board (B+L+D)', 'hb' => 'Half Board (B+D)', 'bb' => 'Bed & Breakfast', 'ai' => 'All Inclusive'];
+$mealPlanStr = $mealPlanLabels[$q['meal_plan'] ?? 'fb'] ?? strtoupper($q['meal_plan'] ?? 'FB');
+$travelersStr = (int)$q['adults'] . ' adult' . ((int)$q['adults'] !== 1 ? 's' : '')
+              . ((int)$q['children'] > 0 ? ', ' . (int)$q['children'] . ' child' . ((int)$q['children'] !== 1 ? 'ren' : '') : '');
+$startDateStr = $q['start_date'] ? date('d F Y', strtotime($q['start_date'])) : 'Flexible';
 
-  <!-- Header -->
-  <div style="background:#0a0a0a;padding:2rem 2.5rem">
-    <div style="font-family:Georgia,serif;font-size:1.4rem;font-weight:400;color:#fff;letter-spacing:.04em">SAFARI ZANGU VENTURES</div>
-    <div style="font-size:.65rem;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-top:.3rem">Private Tanzania Safari Specialists · Arusha</div>
-  </div>
+// Same config constants paymentBox() reads, kept in sync manually since
+// this is plain text (can't call the HTML-returning method here).
+$bankName    = defined('BANK_NAME')         ? BANK_NAME         : 'Your Bank';
+$bankAcc     = defined('BANK_ACCOUNT_NAME') ? BANK_ACCOUNT_NAME : 'Safari Zangu Ventures';
+$bankNo      = defined('BANK_ACCOUNT_NO')   ? BANK_ACCOUNT_NO   : 'Contact us for details';
+$bankSwift   = defined('BANK_SWIFT')        ? BANK_SWIFT        : '';
+$paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
 
-  <!-- Body -->
-  <div style="padding:2rem 2.5rem">
-
-    <p style="font-size:1rem;margin:0 0 1rem">Dear ' . htmlspecialchars($q['client_name']) . ',</p>
-    <p style="line-height:1.75;color:#333;margin:0 0 1.75rem">
-      Thank you for considering Safari Zangu Ventures for your Tanzania safari.
-      Please find your personalised quotation below. We have carefully crafted
-      this proposal based on your requirements.
-    </p>
-
-    <!-- Reference box -->
-    <div style="background:#f7f7f5;border-left:4px solid #0a0a0a;padding:1rem 1.25rem;margin-bottom:1.75rem">
-      <div style="font-size:.58rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#9ca3af;margin-bottom:.35rem">Quotation Reference</div>
-      <div style="font-family:Georgia,serif;font-size:1.5rem;font-weight:500">' . htmlspecialchars($q['quote_ref']) . '</div>
-      <div style="font-size:.78rem;color:#6b7280;margin-top:.3rem">Valid until: <strong>' . $validStr . '</strong></div>
-    </div>
-
-    <!-- Safari summary -->
-    <div style="font-size:.6rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#6b7280;border-bottom:1px solid #e5e7eb;padding-bottom:.5rem;margin-bottom:.85rem">Safari Summary</div>
-    <table style="width:100%;border-collapse:collapse;font-size:.85rem;margin-bottom:1.75rem">
-      <tr><td style="padding:.4rem 0;color:#6b7280;width:38%">Destination</td><td style="font-weight:600">' . htmlspecialchars($destStr) . '</td></tr>
-      <tr><td style="padding:.4rem 0;color:#6b7280">Duration</td><td style="font-weight:600">' . (int)$q['duration_days'] . ' nights</td></tr>
-      <tr><td style="padding:.4rem 0;color:#6b7280">Travelers</td><td style="font-weight:600">' . (int)$q['adults'] . ' adult' . ((int)$q['adults'] !== 1 ? 's' : '') . ((int)$q['children'] > 0 ? ', ' . (int)$q['children'] . ' child' . ((int)$q['children'] !== 1 ? 'ren' : '') : '') . '</td></tr>
-      <tr><td style="padding:.4rem 0;color:#6b7280">Start Date</td><td style="font-weight:600">' . ($q['start_date'] ? date('d F Y', strtotime($q['start_date'])) : 'Flexible') . '</td></tr>
-      <tr><td style="padding:.4rem 0;color:#6b7280">Accommodation</td><td style="font-weight:600">' . ucfirst(str_replace('_', ' ', $q['accommodation_level'] ?? 'Mid-Range')) . '</td></tr>
-      <tr><td style="padding:.4rem 0;color:#6b7280">Meal Plan</td><td style="font-weight:600">' . (['fb'=>'Full Board (B+L+D)','hb'=>'Half Board (B+D)','bb'=>'Bed & Breakfast','ai'=>'All Inclusive'][$q['meal_plan'] ?? 'fb'] ?? strtoupper($q['meal_plan'] ?? 'FB')) . '</td></tr>
-      ' . (!empty($q['vehicle_name']) ? '<tr><td style="padding:.4rem 0;color:#6b7280">Vehicle</td><td style="font-weight:600">' . htmlspecialchars($q['vehicle_name']) . '</td></tr>' : '') . '
-    </table>
-
-    <!-- Line items -->
-    ' . (!empty($lineItemsHtml) ? '
-    <div style="font-size:.6rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#6b7280;border-bottom:1px solid #e5e7eb;padding-bottom:.5rem;margin-bottom:.85rem">Cost Breakdown</div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:1.75rem">
-      <thead>
-        <tr style="border-bottom:2px solid #0a0a0a">
-          <th style="padding:.5rem .75rem;text-align:left;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:#6b7280">Description</th>
-          <th style="padding:.5rem .75rem;text-align:center;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:#6b7280">Qty</th>
-          <th style="padding:.5rem .75rem;text-align:right;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:#6b7280">Amount</th>
-        </tr>
-      </thead>
-      <tbody>' . $lineItemsHtml . '</tbody>
-    </table>' : '') . '
-
-    <!-- Totals -->
-    <div style="margin-left:auto;max-width:320px;margin-bottom:1.75rem">
-      ' . ((float)($q['discount_pct'] ?? 0) > 0 ? '<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid #f3f4f6;font-size:.82rem"><span>Discount (' . $q['discount_pct'] . '%)</span><span style="color:#16a34a">-$' . number_format((float)$q['subtotal'] * ((float)$q['discount_pct'] / 100), 0) . '</span></div>' : '') . '
-      <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid #f3f4f6;font-size:.82rem"><span>Subtotal</span><span>$' . number_format((float)$q['subtotal'], 0) . '</span></div>
-      <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid #f3f4f6;font-size:.82rem"><span>Service Charge (5%) + VAT (18%)</span><span>$' . number_format((float)$q['service_charge'] + (float)$q['vat'], 0) . '</span></div>
-      <div style="background:#0a0a0a;color:#fff;padding:.85rem 1rem;display:flex;justify-content:space-between;align-items:center;margin-top:.35rem">
-        <span style="font-size:.95rem;font-weight:600">Grand Total</span>
-        <span style="font-family:Georgia,serif;font-size:1.25rem">USD $' . number_format((float)$q['grand_total'], 0) . '</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;padding:.35rem 0;font-size:.78rem;color:#6b7280"><span>Per Person</span><span>$' . number_format((float)$q['per_person'], 0) . '/pp</span></div>
-    </div>
-
-    <!-- Deposit -->
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:1rem 1.25rem;margin-bottom:1.75rem">
-      <div style="font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#166534;margin-bottom:.35rem">To Confirm Your Booking</div>
-      <div style="font-size:1rem;font-weight:700;color:#166534">Pay deposit of $' . number_format((float)$q['deposit_amount'], 0) . ' within 48 hours</div>
-      <div style="font-size:.78rem;color:#166534;margin-top:.2rem">Balance of $' . number_format((float)$q['balance_due'], 0) . ' due 14 days before your safari</div>
-    </div>
-
-    ' . (!empty($q['notes']) ? '<div style="border:1px solid #e5e7eb;padding:1rem;background:#f9f9f8;font-size:.82rem;line-height:1.75;margin-bottom:1.75rem;white-space:pre-wrap">' . htmlspecialchars($q['notes']) . '</div>' : '') . '
-
-    <!-- CTA buttons -->
-    <div style="text-align:center;margin:2rem 0">
-      <a href="' . $waLink . '" style="display:inline-block;background:#25D366;color:#fff;padding:.85rem 2rem;font-weight:700;text-decoration:none;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;margin:.25rem">Accept on WhatsApp</a>
-      <a href="mailto:' . $replyTo . '?subject=' . rawurlencode('Re: Quotation ' . $q['quote_ref']) . '" style="display:inline-block;background:#0a0a0a;color:#fff;padding:.85rem 2rem;font-weight:700;text-decoration:none;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;margin:.25rem">Reply by Email</a>
-    </div>
-
-  </div>
-
-  <!-- Footer -->
-  <div style="background:#f7f7f5;border-top:1px solid #e5e7eb;padding:1.25rem 2.5rem;text-align:center;font-size:.72rem;color:#9ca3af;line-height:1.8">
-    Safari Zangu Ventures · Njiro Road, Arusha, Tanzania<br>
-    +255 663 430 934 · ' . $replyTo . ' · www.safarizanguven.com<br>
-    Quotation valid until ' . $validStr . '. All prices in USD and subject to availability.
-  </div>
-
-</div>
-</body></html>';
+$emailBody = "Dear {$q['client_name']},\n\n"
+    . "Thank you for considering Safari Zangu Ventures for your Tanzania safari. "
+    . "Please find your personalised quotation below.\n\n"
+    . "QUOTATION REFERENCE: {$q['quote_ref']}\n"
+    . "Valid until: {$validStr}\n\n"
+    . "SAFARI SUMMARY\n"
+    . "Destination: {$destStr2}\n"
+    . "Duration: " . (int)$q['duration_days'] . " nights\n"
+    . "Travelers: {$travelersStr}\n"
+    . "Start Date: {$startDateStr}\n"
+    . "Accommodation: " . ucfirst(str_replace('_', ' ', $q['accommodation_level'] ?? 'Mid-Range')) . "\n"
+    . "Meal Plan: {$mealPlanStr}\n"
+    . (!empty($q['vehicle_name']) ? "Vehicle: {$q['vehicle_name']}\n" : '')
+    . "\n"
+    . "TOTAL: USD $" . number_format((float)$q['grand_total'], 0) . "\n"
+    . "Deposit (due within 48 hours): USD $" . number_format((float)$q['deposit_amount'], 0) . "\n"
+    . "Balance (due 14 days before your safari): USD $" . number_format((float)$q['balance_due'], 0) . "\n\n"
+    . "PAYMENT DETAILS\n"
+    . "Bank: {$bankName}\n"
+    . "Account Name: {$bankAcc}\n"
+    . "Account Number: {$bankNo}\n"
+    . ($bankSwift ? "SWIFT: {$bankSwift}\n" : '')
+    . "PayPal: {$paypalEmail}\n"
+    . "Please include your reference number ({$q['quote_ref']}) in the payment description.\n\n"
+    . (!empty($q['notes']) ? "NOTES\n{$q['notes']}\n\n" : '')
+    . "To accept this quotation:\n"
+    . "WhatsApp us: {$waLink}\n"
+    . "Or reply to this email: {$replyTo}\n\n"
+    . "This quotation is valid until {$validStr} and subject to availability.\n\n"
+    . "Safari Zangu Ventures\n"
+    . "Njiro Road, Arusha, Tanzania\n"
+    . "+255 663 430 934 · {$replyTo} · www.safarizanguven.com";
 
 // ── Send via PHPMailer ────────────────────────────────────────
 $sent  = false;
@@ -189,11 +273,8 @@ try {
     $mail->addCC($adminEmail, 'Safari Zangu Admin');
 
     $mail->Subject = 'Your Safari Quotation ' . $q['quote_ref'] . ' — Safari Zangu Ventures';
-    $mail->isHTML(true);
+    $mail->isHTML(false);
     $mail->Body    = $emailBody;
-    $mail->AltBody = "Dear {$q['client_name']},\n\nYour quotation {$q['quote_ref']} is ready.\n\nGrand Total: USD \$"
-                   . number_format((float)$q['grand_total'], 0)
-                   . "\nValid Until: {$validStr}\n\nWhatsApp us to confirm: +255 663 430 934\n\nSafari Zangu Ventures · Arusha, Tanzania";
     $mail->send();
     $sent = true;
 

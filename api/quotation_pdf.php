@@ -27,6 +27,34 @@ try {
 
 $lineItems    = json_decode($q['line_items']    ?? '[]', true) ?: [];
 $destinations = json_decode($q['destinations']  ?? '[]', true) ?: [];
+
+// Load the FULL itinerary (days + overview + includes/excludes) so the
+// Quotation PDF is one combined document, not split across two files.
+$itinDays     = [];
+$itinOverview = '';
+$itinIncludes = [];
+$itinExcludes = [];
+try {
+    $itinRow = null;
+    if (!empty($q['package_name'])) {
+        $ps = $db->prepare("SELECT i.* FROM packages p
+                            JOIN itineraries i ON i.id = p.itinerary_id
+                            WHERE p.name = ? AND p.is_active = 1 LIMIT 1");
+        $ps->execute([$q['package_name']]);
+        $itinRow = $ps->fetch() ?: null;
+    }
+    if (!$itinRow && !empty($q['itinerary_id'])) {
+        $is = $db->prepare("SELECT * FROM itineraries WHERE id=? LIMIT 1");
+        $is->execute([$q['itinerary_id']]);
+        $itinRow = $is->fetch() ?: null;
+    }
+    if ($itinRow) {
+        $itinDays     = json_decode($itinRow['days']     ?? '[]', true) ?: [];
+        $itinOverview = $itinRow['overview'] ?? '';
+        $itinIncludes = json_decode($itinRow['includes'] ?? '[]', true) ?: [];
+        $itinExcludes = json_decode($itinRow['excludes'] ?? '[]', true) ?: [];
+    }
+} catch(Exception $e) { $itinDays = []; $itinOverview = ''; $itinIncludes = []; $itinExcludes = []; }
 $isDownload   = isset($_GET['download']);
 
 // Recalculate from line items (server authoritative)
@@ -42,6 +70,12 @@ $deposit   = round($grand * 0.30, 2);
 $balance   = round($grand - $deposit, 2);
 $validStr  = $q['valid_until'] ? date('d F Y', strtotime($q['valid_until'])) : date('d F Y', strtotime('+14 days'));
 $destStr   = !empty($destinations) ? implode(' → ', $destinations) : ($q['package_name'] ?? 'Tanzania Safari');
+$logoUrl = (defined('APP_URL') ? APP_URL : 'https://www.safarizanguven.com') . '/assets/images/logo.jpeg';
+$bankName    = defined('BANK_NAME')         ? BANK_NAME         : 'Your Bank';
+$bankAcc     = defined('BANK_ACCOUNT_NAME') ? BANK_ACCOUNT_NAME : 'Safari Zangu Ventures';
+$bankNo      = defined('BANK_ACCOUNT_NO')   ? BANK_ACCOUNT_NO   : 'Contact us for details';
+$bankSwift   = defined('BANK_SWIFT')        ? BANK_SWIFT        : '';
+$paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
 ?><!DOCTYPE html>
 <html lang="en">
 <head>
@@ -57,6 +91,7 @@ $destStr   = !empty($destinations) ? implode(' → ', $destinations) : ($q['pack
   .hdr{display:grid;grid-template-columns:1fr auto;gap:2rem;align-items:start;
         padding-bottom:1.5rem;border-bottom:2px solid #0a0a0a;margin-bottom:2rem}
   .logo{font-family:'Playfair Display',Georgia,serif;font-size:1.8rem;font-weight:500;letter-spacing:.04em}
+  .logo-img{width:64px;height:64px;border-radius:50%;object-fit:cover;margin-bottom:.4rem;display:block}
   .logo-sub{font-size:.58rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#9ca3af;margin-top:.3rem}
   .qref{text-align:right}
   .qref-num{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:500}
@@ -89,6 +124,28 @@ $destStr   = !empty($destinations) ? implode(' → ', $destinations) : ($q['pack
   .cost-tbl .cat-badge{font-size:.56rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
                         padding:.12rem .35rem;margin-right:.4rem;opacity:.7}
 
+  /* Itinerary day cards + includes/excludes (merged into this document) */
+  .overview{font-size:.88rem;line-height:1.8;color:#374151}
+  .day-card{border:1px solid #e5e7eb;margin-bottom:1rem;page-break-inside:avoid}
+  .day-hdr{background:#0a0a0a;color:#fff;padding:.6rem .9rem;display:flex;
+           justify-content:space-between;align-items:center}
+  .day-num{font-family:'Playfair Display',serif;font-size:1.1rem}
+  .day-title{font-size:.85rem;font-weight:600}
+  .day-body{padding:.85rem .9rem}
+  .day-desc{font-size:.82rem;color:#374151;line-height:1.75;margin-bottom:.65rem}
+  .day-meta{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;font-size:.78rem}
+  .day-meta .lbl{font-size:.56rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+                 color:#9ca3af;margin-bottom:.15rem}
+  .day-activities{margin-top:.5rem;font-size:.78rem;color:#374151}
+  .two-col-list{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+  .list-title{font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+              margin-bottom:.5rem}
+  .list-title.inc{color:#166534}
+  .list-title.exc{color:#991b1b}
+  .list-items{list-style:none;font-size:.82rem;line-height:1.9;color:#374151}
+  .list-items li::before{content:'\2713 ';color:#16a34a;font-weight:700;margin-right:.2rem}
+  .list-items.exc li::before{content:'\2717 ';color:#dc2626}
+
   /* Totals */
   .totals{margin-left:auto;width:340px}
   .tot-row{display:flex;justify-content:space-between;padding:.45rem 0;
@@ -108,6 +165,10 @@ $destStr   = !empty($destinations) ? implode(' → ', $destinations) : ($q['pack
                        text-transform:uppercase;color:#166534;margin-bottom:.4rem}
   .dep-row{display:flex;justify-content:space-between;font-size:.82rem;color:#166534;margin-bottom:.2rem}
   .dep-row .val{font-weight:700}
+  .payment-box{border:1px solid #e5e7eb;padding:.85rem 1rem;margin-top:.75rem;background:#f9f9f8}
+  .payment-box .title{font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b7280;margin-bottom:.5rem}
+  .payment-row{font-size:.82rem;color:#374151;line-height:1.8}
+  .payment-row strong{color:#0a0a0a}
 
   /* Notes */
   .notes-box{border:1px solid #e5e7eb;padding:1rem;background:#f9f9f8;
@@ -132,7 +193,7 @@ $destStr   = !empty($destinations) ? implode(' → ', $destinations) : ($q['pack
 <!-- ── HEADER ─────────────────────────────────────────────── -->
 <div class="hdr">
   <div>
-    <div class="logo">Safari Zangu Ventures</div>
+    <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Safari Zangu Ventures" class="logo-img">
     <div class="logo-sub">Private Tanzania Safari Specialists · Arusha</div>
     <div style="margin-top:.5rem;font-size:.72rem;color:#9ca3af">TALA Licence No. 037129 · Reg. No. 179228971</div>
   </div>
@@ -182,6 +243,83 @@ $destStr   = !empty($destinations) ? implode(' → ', $destinations) : ($q['pack
 <!-- ── COST BREAKDOWN TABLE — matches PDF exactly ────────── -->
 <div class="sec">
   <div class="sec-title">Cost Breakdown</div>
+  <!-- ── Itinerary Overview, Day-by-Day, Includes/Excludes ── -->
+  <?php if (!empty($itinOverview) || !empty($itinDays)): ?>
+  <div class="sec">
+    <?php if (!empty($itinOverview)): ?>
+    <div class="sec-title">Itinerary Overview</div>
+    <div class="overview" style="margin-bottom:1rem"><?= nl2br(htmlspecialchars($itinOverview)) ?></div>
+    <?php endif; ?>
+
+    <?php if (!empty($itinDays)): ?>
+    <div class="sec-title">Day-by-Day Itinerary</div>
+    <?php foreach ($itinDays as $day):
+        $dayNum   = $day['day']         ?? '?';
+        $dayTitle = $day['title']       ?? '';
+        $dayDesc  = $day['description'] ?? '';
+        $location = $day['location']    ?? '';
+        $accName  = $day['accommodation_name'] ?? '';
+        $vehName  = $day['vehicle_name']       ?? '';
+        $parkName = $day['park_fee_name']      ?? '';
+        $acts     = $day['activities'] ?? [];
+        $actNames = array_filter(array_column($acts, 'name'));
+    ?>
+    <div class="day-card">
+      <div class="day-hdr">
+        <span class="day-num">Day <?= htmlspecialchars((string)$dayNum) ?></span>
+        <span class="day-title"><?= htmlspecialchars($dayTitle) ?><?= $location ? ' · ' . htmlspecialchars($location) : '' ?></span>
+      </div>
+      <div class="day-body">
+        <?php if ($dayDesc): ?>
+        <div class="day-desc"><?= nl2br(htmlspecialchars($dayDesc)) ?></div>
+        <?php endif; ?>
+        <div class="day-meta">
+          <?php if ($accName): ?>
+          <div><div class="lbl">Accommodation</div><?= htmlspecialchars($accName) ?></div>
+          <?php endif; ?>
+          <?php if ($vehName): ?>
+          <div><div class="lbl">Transport</div><?= htmlspecialchars($vehName) ?></div>
+          <?php endif; ?>
+          <?php if ($parkName): ?>
+          <div><div class="lbl">Park</div><?= htmlspecialchars($parkName) ?></div>
+          <?php endif; ?>
+        </div>
+        <?php if ($actNames): ?>
+        <div class="day-activities">✦ <?= htmlspecialchars(implode(' · ', $actNames)) ?></div>
+        <?php endif; ?>
+      </div>
+    </div>
+    <?php endforeach; ?>
+    <?php endif; ?>
+
+    <?php if (!empty($itinIncludes) || !empty($itinExcludes)): ?>
+    <div class="two-col-list" style="margin-top:1.25rem">
+      <?php if (!empty($itinIncludes)): ?>
+      <div>
+        <div class="list-title inc">What's Included</div>
+        <ul class="list-items">
+          <?php foreach ($itinIncludes as $inc): ?>
+          <li><?= htmlspecialchars($inc) ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+      <?php endif; ?>
+      <?php if (!empty($itinExcludes)): ?>
+      <div>
+        <div class="list-title exc">What's Not Included</div>
+        <ul class="list-items exc">
+          <?php foreach ($itinExcludes as $exc): ?>
+          <li><?= htmlspecialchars($exc) ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+      <?php endif; ?>
+    </div>
+    <?php endif; ?>
+  </div>
+  <?php endif; ?>
+
+  <!-- ── Cost Breakdown ──────────────────────────────────────── -->
   <table class="cost-tbl">
     <thead>
       <tr>
@@ -256,6 +394,14 @@ $destStr   = !empty($destinations) ? implode(' → ', $destinations) : ($q['pack
       <div class="dep-row"><span>Deposit (30%) — due within 48 hours</span><span class="val">USD <?= number_format($deposit,2) ?></span></div>
       <div class="dep-row"><span>Balance (70%) — due 45 days before safari</span><span class="val">USD <?= number_format($balance,2) ?></span></div>
     </div>
+    <div class="payment-box">
+      <div class="title">Payment Details</div>
+      <div class="payment-row">Bank: <strong><?= htmlspecialchars($bankName) ?></strong></div>
+      <div class="payment-row">Account Name: <strong><?= htmlspecialchars($bankAcc) ?></strong></div>
+      <div class="payment-row">Account Number: <strong><?= htmlspecialchars($bankNo) ?></strong></div>
+      <?php if ($bankSwift): ?><div class="payment-row">SWIFT: <strong><?= htmlspecialchars($bankSwift) ?></strong></div><?php endif; ?>
+      <div class="payment-row">PayPal: <strong><?= htmlspecialchars($paypalEmail) ?></strong></div>
+    </div>
   </div>
 </div>
 
@@ -283,8 +429,7 @@ $destStr   = !empty($destinations) ? implode(' → ', $destinations) : ($q['pack
   </div>
   <div>
     <strong>Payment</strong>
-    Bank transfer or PayPal<br>
-    Details provided on confirmation.<br>
+    Bank transfer or PayPal — see Payment Details above.<br>
     This quotation is valid until <?= $validStr ?>
   </div>
 </div>

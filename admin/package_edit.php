@@ -109,6 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
         'is_active'           => isset($_POST['is_active'])?1:0,
         'sort_order'          => (int)($_POST['sort_order']??0),
         'itinerary'           => json_encode($itinerary),
+        'itinerary_id'        => !empty($_POST['itinerary_id']) ? (int)$_POST['itinerary_id'] : null,
         'includes'            => json_encode($includes),
         'excludes'            => json_encode($excludes),
         'cost_breakdown'      => json_encode($bd),
@@ -171,6 +172,7 @@ ob_start();
 
 <form method="POST" id="pkg-form">
 <input type="hidden" name="save_pkg" value="1">
+    <input type="hidden" name="itinerary_id" id="selected_itinerary_id" value="<?= (int)($pkg['itinerary_id'] ?? 0) ?>">
 <div style="display:grid;grid-template-columns:1fr 300px;gap:1.5rem;align-items:start">
 
 <!-- ════ LEFT ════ -->
@@ -1043,6 +1045,9 @@ calcTotals();
 // ── Load itinerary template into package editor ────────────
 async function loadPkgItinerary() {
   var id = document.getElementById('pkg_itin_select').value;
+  // Save itinerary_id to hidden field so it gets submitted with the form
+  var hiddenField = document.getElementById('selected_itinerary_id');
+  if (hiddenField) hiddenField.value = id;
   if (!id) { alert('Select an itinerary first.'); return; }
 
   try {

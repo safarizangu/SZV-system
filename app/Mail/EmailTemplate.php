@@ -45,6 +45,38 @@ class EmailTemplate
      */
     public static function render(string $template, array $vars = []): array
     {
+        // ── Check DB for custom override first ────────────────
+        // If admin saved a custom template in email_templates table, use it.
+        // Placeholders like {client_name} are replaced with $vars values.
+        try {
+            $db   = \App\Models\Database::getInstance();
+            $stmt = $db->prepare(
+                "SELECT subject, body_html FROM email_templates WHERE template_key=? AND is_custom=1 LIMIT 1"
+            );
+            $stmt->execute([$template]);
+            $row = $stmt->fetch();
+            if ($row && !empty($row['body_html'])) {
+                $subject = $row['subject'];
+                $body    = $row['body_html'];
+                // Replace {placeholder} with $vars values
+                foreach ($vars as $k => $v) {
+                    if (is_scalar($v)) {
+                        $body    = str_replace('{' . $k . '}', (string)$v, $body);
+                        $subject = str_replace('{' . $k . '}', (string)$v, $subject);
+                    }
+                }
+                return [
+                    'html'    => self::wrap(ucwords(str_replace('_',' ',$template)), $body, ''),
+                    'text'    => strip_tags($body),
+                    'subject' => $subject,
+                ];
+            }
+        } catch (\Exception $e) {
+            // DB unavailable or table missing — fall through to PHP template
+            error_log('[EmailTemplate] DB check failed: ' . $e->getMessage());
+        }
+
+        // ── Fall back to PHP class template ───────────────────
         $method = 'tpl_' . $template;
         if (!method_exists(self::class, $method)) {
             throw new \InvalidArgumentException("Unknown email template: {$template}");
@@ -185,7 +217,7 @@ HTML;
         return '<hr style="border:none;border-top:1px solid #f3f4f6;margin:28px 0">';
     }
 
-    private static function paymentBox(): string {
+    public static function paymentBox(): string {
         $bank = defined('BANK_NAME') ? BANK_NAME : 'Your Bank';
         $acc  = defined('BANK_ACCOUNT_NAME') ? BANK_ACCOUNT_NAME : 'Safari Zangu Ventures';
         $no   = defined('BANK_ACCOUNT_NO')   ? BANK_ACCOUNT_NO   : 'Contact us for details';

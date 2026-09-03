@@ -99,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_quote'])) {
         'flight_cost'         => $flightCost,
         'service_charge'      => $svcFee,
         'discount_pct'        => (float)($_POST['discount_pct'] ?? 0),
+        'itinerary_id'        => (int)($_POST['itinerary_id'] ?? 0) ?: null,
         'discount_amount'     => 0,
         'subtotal'            => $subtotal,
         'vat'                 => $vat,
@@ -175,6 +176,7 @@ ob_start();
 <form method="POST" id="quote-form">
 <input type="hidden" name="save_quote" value="1">
 <input type="hidden" name="line_items_json" id="line_items_json" value="<?= htmlspecialchars(json_encode($defaultItems)) ?>">
+<input type="hidden" name="itinerary_id" id="itinerary_id" value="<?= (int)($q['itinerary_id'] ?? 0) ?>">
 
 <div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem;align-items:start">
 
@@ -242,7 +244,7 @@ ob_start();
     <span style="font-size:.72rem;opacity:.6">Auto-fills all line items, prices, includes/excludes</span>
   </div>
   <div class="admin-card-body">
-    <div style="display:grid;grid-template-columns:1fr auto auto;gap:.75rem;align-items:end">
+    <div style="display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:end">
       <div>
         <label class="admin-label">Select Itinerary</label>
         <select id="itin_select" class="admin-input" onchange="previewItinerary()">
@@ -261,10 +263,6 @@ ob_start();
           </option>
           <?php endforeach; ?>
         </select>
-      </div>
-      <div>
-        <label class="admin-label">Adults</label>
-        <input type="number" id="itin_adults" min="1" value="2" class="admin-input" style="width:70px">
       </div>
       <button type="button" onclick="loadItinerary()" class="admin-btn admin-btn--primary" id="load-itin-btn" style="padding:.75rem 1.5rem">
         ↓ Load Itinerary
@@ -691,7 +689,8 @@ function previewItinerary() {
 // ── Load itinerary → populate all line items ──────────────────
 async function loadItinerary() {
   var id     = document.getElementById('itin_select').value;
-  var adults = parseInt(document.getElementById('itin_adults').value)||2;
+  var adults = parseInt(document.getElementById('inp_adults').value)||2;
+  document.getElementById('itinerary_id').value = id;
   if (!id) { alert('Please select an itinerary first.'); return; }
 
   var btn = document.getElementById('load-itin-btn');
