@@ -6,6 +6,24 @@ $pageImage = $pageImage ?? (BASE_PATH . '/assets/images/Intro22.webp');
 ?>
 
 <meta charset="UTF-8">
+<meta name="robots" content="index, follow">
+<meta name="author" content="Safari Zangu Ventures">
+<meta name="keywords" content="Tanzania safari, Serengeti, Ngorongoro, Tarangire, Zanzibar, Africa safari, private safari, Arusha">
+<meta name="geo.region" content="TZ">
+<meta name="geo.placename" content="Arusha, Tanzania">
+
+<!-- Canonical URL -->
+<?php
+$_canonical = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']==='on'?'https':'http')
+    .'://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'];
+$_canonical = strtok($_canonical,'?'); // remove query string
+?>
+<link rel="canonical" href="<?= htmlspecialchars($_canonical) ?>">
+
+<!-- Open Graph — complete set -->
+<meta property="og:site_name" content="Safari Zangu Ventures">
+<meta property="og:locale" content="en_GB">
+
 <link rel="icon" type="image/jpeg" href="<?= BASE_PATH ?>/assets/images/logo.jpeg">
 <meta name="theme-color" content="#0a0a0a">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,10 +33,7 @@ $pageImage = $pageImage ?? (BASE_PATH . '/assets/images/Intro22.webp');
 <meta name="description"
       content="<?= htmlspecialchars($pageDescription) ?>">
 
-<?php if (!empty($pageCanonical)): ?>
-<meta property="og:url"
-      content="<?= htmlspecialchars($pageCanonical) ?>">
-<?php endif; ?>
+<meta property="og:url" content="<?= htmlspecialchars(!empty($pageCanonical)?$pageCanonical:((isset($_SERVER['HTTPS'])&&$_SERVER['HTTPS']='on'?'https':'http').' ://'.$_SERVER['HTTP_HOST'].strtok($_SERVER['REQUEST_URI'],'?'))) ?>">
 
 <meta property="og:type" content="website">
 

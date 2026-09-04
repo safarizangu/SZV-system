@@ -275,6 +275,71 @@ try {
     $mail->Subject = 'Your Safari Quotation ' . $q['quote_ref'] . ' — Safari Zangu Ventures';
     $mail->isHTML(false);
     $mail->Body    = $emailBody;
+
+    // ── PDF attachments (Quotation + Itinerary, if linked) ─────────
+    // Reuses the exact HTML api/quotation_pdf.php and api/itinerary_pdf.php
+    // already render for the browser-print view — captured via an
+    // isolated-scope include (wrapped in a closure) so their local
+    // variables ($q, $id, etc.) can't collide with this script's own.
+    // REQUIRES dompdf: composer require dompdf/dompdf
+    $pdfAttachNote = '';
+    if (class_exists('\Dompdf\Dompdf')) {
+        $captureHtml = function (string $file, array $getParams): string {
+            $prevGet = $_GET;
+            $_GET = $getParams;
+            ob_start();
+            (function () use ($file) { include $file; })();
+            $html = ob_get_clean();
+            $_GET = $prevGet;
+            return $html;
+        };
+
+        $dompdfOptions = new \Dompdf\Options();
+        $dompdfOptions->set('isRemoteEnabled', true); // needed to fetch the logo image URL
+        // Point dompdf's cache/temp dirs at somewhere guaranteed writable by
+        // the web server user, rather than trusting vendor/ (often owned by
+        // whoever ran `composer require`, not the web server user).
+        $dompdfCacheDir = sys_get_temp_dir() . '/szv_dompdf_cache';
+        if (!is_dir($dompdfCacheDir)) { @mkdir($dompdfCacheDir, 0775, true); }
+        $dompdfOptions->set('fontCache', $dompdfCacheDir);
+        $dompdfOptions->set('tempDir', sys_get_temp_dir());
+
+        // Strips the Google Fonts @import from captured HTML before handing
+        // it to dompdf. dompdf tries to fetch AND CACHE that font locally,
+        // and a common failure (fwrite(): $stream must be of type resource,
+        // false given) happens when its font-cache directory isn't
+        // writable — the pages' own CSS already falls back to
+        // Georgia/Arial if the web font is unavailable, so dropping this
+        // is a safe, low-risk fix rather than chasing directory permissions.
+        $stripGoogleFonts = function (string $html): string {
+            return preg_replace('/@import\s+url\([^)]*fonts\.googleapis\.com[^)]*\)\s*;?/i', '', $html);
+        };
+
+        try {
+            $quotationHtml = $stripGoogleFonts($captureHtml(__DIR__ . '/quotation_pdf.php', ['id' => $id]));
+            $qPdf = new \Dompdf\Dompdf($dompdfOptions);
+            $qPdf->loadHtml($quotationHtml);
+            $qPdf->setPaper('A4', 'portrait');
+            $qPdf->render();
+            $mail->addStringAttachment($qPdf->output(), 'Quotation-' . $q['quote_ref'] . '.pdf', 'base64', 'application/pdf');
+
+            if (!empty($q['itinerary_id'])) {
+                $itineraryHtml = $stripGoogleFonts($captureHtml(__DIR__ . '/itinerary_pdf.php', ['id' => $q['itinerary_id']]));
+                $iPdf = new \Dompdf\Dompdf($dompdfOptions);
+                $iPdf->loadHtml($itineraryHtml);
+                $iPdf->setPaper('A4', 'portrait');
+                $iPdf->render();
+                $mail->addStringAttachment($iPdf->output(), 'Itinerary.pdf', 'base64', 'application/pdf');
+            }
+        } catch (\Throwable $pdfErr) {
+            $pdfAttachNote = ' (PDF attachment failed: ' . $pdfErr->getMessage() . ')';
+            error_log('[SZV QuoteEmail] PDF attachment failed: ' . $pdfErr->getMessage());
+        }
+    } else {
+        $pdfAttachNote = ' (PDF attachments skipped — dompdf not installed. Run: composer require dompdf/dompdf)';
+        error_log('[SZV QuoteEmail] dompdf not installed — PDF attachments skipped. Run: composer require dompdf/dompdf');
+    }
+
     $mail->send();
     $sent = true;
 
@@ -290,7 +355,7 @@ try {
 ob_end_clean();
 
 $msg = $sent
-    ? "Quotation {$q['quote_ref']} emailed successfully to {$q['client_email']}."
+    ? "Quotation {$q['quote_ref']} emailed successfully to {$q['client_email']}.{$pdfAttachNote}"
     : "Email failed: {$error} — check SMTP settings in config/app.php.";
 
 header('Location: ' . BASE_PATH . '/admin/quotations.php?msg=' . urlencode($msg));

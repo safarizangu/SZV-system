@@ -62,7 +62,7 @@ try {
 
       <!-- ── BOOKING FORM ───────────────────────────────── -->
       <div>
-        <form id="booking-form" data-action="php/book.php" data-validate-form novalidate>
+        <form id="booking-form" data-action="api/book.php" data-validate-form novalidate>
           <input type="hidden" name="_csrf" value="<?= generateCsrfToken() ?>">
           <input type="hidden" name="travelers" id="travelers-hidden" value="">
           <input type="hidden" name="package_name" id="package-name-hidden">

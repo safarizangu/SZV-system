@@ -23,7 +23,7 @@ $_csrf = generateCsrfToken();
       <!-- ── FORM ───────────────────────────────────────── -->
       <div class="fade-in">
         <h3 class="font-display mb-4" style="font-size:1.3rem">Send a Message</h3>
-        <form id="contact-form" data-validate-form novalidate>
+        <form id="contact-form" data-action="api/contact.php" data-validate-form novalidate>
           <input type="hidden" name="_csrf" value="<?= htmlspecialchars($_csrf) ?>">
 
           <div class="form-row">

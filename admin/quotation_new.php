@@ -22,6 +22,36 @@ if ($crId > 0) {
     catch(Exception $e){}
 }
 
+// ── Pre-fill from existing booking ────────────────────────────
+$fromBookingRef = trim($_GET['from_booking'] ?? '');
+$bkPrefill = null;
+if ($fromBookingRef) {
+    try {
+        $bks = $db->prepare("
+            SELECT b.*,
+                   i.id as itin_id, i.name as itin_name, i.days as itin_days,
+                   p.itinerary_id as pkg_itin_id
+            FROM bookings b
+            LEFT JOIN packages p ON p.name = b.package_name AND p.is_active=1
+            LEFT JOIN itineraries i ON i.id = p.itinerary_id
+            WHERE b.booking_ref = ? LIMIT 1
+        ");
+        $bks->execute([$fromBookingRef]);
+        $bkPrefill = $bks->fetch() ?: null;
+    } catch(Exception $e) { error_log('[quotation_new] from_booking: '.$e->getMessage()); }
+}
+
+// Pre-fill from existing booking
+$fromBookingRef = trim($_GET['from_booking'] ?? '');
+$bkPrefill = null;
+if ($fromBookingRef) {
+    try {
+        $bks = $db->prepare("SELECT * FROM bookings WHERE booking_ref=? LIMIT 1");
+        $bks->execute([$fromBookingRef]);
+        $bkPrefill = $bks->fetch() ?: null;
+    } catch(Exception $e) { error_log($e->getMessage()); }
+}
+
 // Reference data
 function fetchAll($db,$sql){try{return $db->query($sql)->fetchAll();}catch(Exception $e){return[];}}
 $packages      = fetchAll($db,"SELECT id,name,slug FROM packages WHERE is_active=1 ORDER BY sort_order");
@@ -173,6 +203,17 @@ ob_start();
     <a href="quotations.php" class="admin-btn admin-btn--muted">← All Quotations</a>
 </div>
 
+<?php if ($bkPrefill): ?>
+<div id="booking-prefill-banner" style="background:#eff6ff;border:1.5px solid #93c5fd;padding:.85rem 1.25rem;margin-bottom:1.25rem;font-size:.82rem;color:#1d4ed8;display:flex;justify-content:space-between;align-items:center;border-radius:2px">
+  <span>
+    <b>Pre-filling from Booking <?= htmlspecialchars($bkPrefill['booking_ref']) ?></b>
+    &nbsp;·&nbsp; <?= htmlspecialchars($bkPrefill['package_name'] ?? '') ?>
+    &nbsp;·&nbsp; <?= (int)($bkPrefill['adults'] ?? 2) ?> adults
+    &nbsp;·&nbsp; <?= $bkPrefill['travel_date'] ? date('d M Y', strtotime($bkPrefill['travel_date'])) : '' ?>
+  </span>
+  <button onclick="document.getElementById('booking-prefill-banner').remove()" style="background:none;border:none;cursor:pointer;color:#93c5fd;font-size:1rem">✕</button>
+</div>
+<?php endif; ?>
 <form method="POST" id="quote-form">
 <input type="hidden" name="save_quote" value="1">
 <input type="hidden" name="line_items_json" id="line_items_json" value="<?= htmlspecialchars(json_encode($defaultItems)) ?>">
@@ -804,6 +845,63 @@ async function loadItinerary() {
 }
 
 function hE(s) { var d=document.createElement('div'); d.textContent=String(s||''); return d.innerHTML; }
+
+
+// ── Auto-load from booking pre-fill ─────────────────────────
+<?php if (!empty($bkPrefill) && !empty($bkPrefill['pkg_itin_id'])): ?>
+document.addEventListener('DOMContentLoaded', function() {
+    // Fill client fields from booking
+    var fields = {
+        'client_name'         : <?= json_encode($bkPrefill['full_name'] ?? '') ?>,
+        'client_email'        : <?= json_encode($bkPrefill['email'] ?? '') ?>,
+        'client_phone'        : <?= json_encode($bkPrefill['phone'] ?? '') ?>,
+        'client_country'      : <?= json_encode($bkPrefill['country'] ?? '') ?>,
+        'adults'              : '<?= (int)($bkPrefill['adults'] ?? 2) ?>',
+        'children'            : '<?= (int)($bkPrefill['children'] ?? 0) ?>',
+        'start_date'          : <?= json_encode($bkPrefill['travel_date'] ?? '') ?>,
+        'package_name'        : <?= json_encode($bkPrefill['package_name'] ?? '') ?>,
+        'accommodation_level' : <?= json_encode($bkPrefill['accommodation_level'] ?? 'midrange') ?>,
+    };
+    Object.entries(fields).forEach(function([name, val]) {
+        var el = document.querySelector('[name="' + name + '"]');
+        if (el) el.value = val;
+    });
+
+    // Auto-select itinerary linked to this package
+    var itinId = '<?= (int)($bkPrefill['pkg_itin_id'] ?? 0) ?>';
+    if (itinId && itinId !== '0') {
+        var sel = document.getElementById('itin_select');
+        if (sel) {
+            sel.value = itinId;
+            previewItinerary();
+            // Auto-load line items after short delay
+            setTimeout(function() {
+                document.getElementById('inp_adults').value = '<?= (int)($bkPrefill['adults'] ?? 2) ?>';
+                loadItinerary();
+            }, 800);
+        }
+    }
+});
+<?php elseif (!empty($bkPrefill)): ?>
+document.addEventListener('DOMContentLoaded', function() {
+    // No linked itinerary — just fill client fields
+    var fields = {
+        'client_name'         : <?= json_encode($bkPrefill['full_name'] ?? '') ?>,
+        'client_email'        : <?= json_encode($bkPrefill['email'] ?? '') ?>,
+        'client_phone'        : <?= json_encode($bkPrefill['phone'] ?? '') ?>,
+        'client_country'      : <?= json_encode($bkPrefill['country'] ?? '') ?>,
+        'adults'              : '<?= (int)($bkPrefill['adults'] ?? 2) ?>',
+        'children'            : '<?= (int)($bkPrefill['children'] ?? 0) ?>',
+        'start_date'          : <?= json_encode($bkPrefill['travel_date'] ?? '') ?>,
+        'package_name'        : <?= json_encode($bkPrefill['package_name'] ?? '') ?>,
+        'accommodation_level' : <?= json_encode($bkPrefill['accommodation_level'] ?? 'midrange') ?>,
+    };
+    Object.entries(fields).forEach(function([name, val]) {
+        var el = document.querySelector('[name="' + name + '"]');
+        if (el) el.value = val;
+    });
+});
+<?php endif; ?>
 
 </script>
 

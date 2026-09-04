@@ -80,7 +80,7 @@ try {
         "SELECT booking_ref, full_name, package_name, accommodation_level,
                 travel_date, travelers, adults, children,
                 payment_status, total_amount, deposit_amount,
-                created_at, status
+                created_at
          FROM bookings
          WHERE booking_ref = ? AND travel_date = ?
          LIMIT 1"

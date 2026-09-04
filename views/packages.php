@@ -48,6 +48,7 @@ try {
     <?php foreach ($packages as $i => $pkg):
         $num         = sprintf('%02d', $i + 1);
         $itinerary   = decodeJsonField($pkg['itinerary']);
+        $itinPreview = array_slice($itinerary, 0, 3); // Show first 3 days
         $includes    = decodeJsonField($pkg['includes']);
         $excludes    = decodeJsonField($pkg['excludes']);
         $gallery     = []; // using local image files instead of DB
@@ -59,13 +60,13 @@ try {
         // using a neutral placeholder service so nothing 404s)
         $placeholderSeed = urlencode($pkg['slug']);
     ?>
-    <div class="pkg-section" id="<?= htmlspecialchars($pkg['slug']) ?>">
+    <div class="pkg-section" pkg-card" data-pkg-card="true id="<?= htmlspecialchars($pkg['slug']) ?>">
       <span class="pkg-section-num"><?= $num ?></span>
       <div class="pkg-detail-grid">
         <div>
-          <div class="pkg-section-header">
+          <div class="pkg-section-header" pkg-card" data-pkg-card="true>
             <h2 class="display-2"><?= htmlspecialchars($pkg['name']) ?></h2>
-            <p class="eyebrow mt-2"><?= (int)$pkg['duration_days'] ?> Days · <?= (int)$pkg['duration_days'] - 1 ?> Nights</p>
+            <p class="eyebrow mt-2"><?= (int)$pkg['duration_days'] ?> Days · <?= (int)$pkg['duration_days'] - 1 ?> Nights · duration: <?= (int)$pkg['duration_days'] - 1 ?> nights</p>
             <div class="divider-line"></div>
             <p style="color:var(--black);font-weight:500;line-height:1.8;max-width:580px"><?= htmlspecialchars($pkg['overview'] ?? $pkg['description'] ?? '') ?></p>
           </div>

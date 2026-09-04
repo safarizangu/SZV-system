@@ -10,13 +10,43 @@ $pageTitle = $pageTitle ?? 'Safari Zangu Ventures';
 
 <?php include __DIR__ . '/head.php'; ?>
 
+
+<!-- Structured Data — Local Business -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TouristInformationCenter",
+  "name": "Safari Zangu Ventures",
+  "description": "Private Tanzania safari operator based in Arusha",
+  "url": "https://safarizanguven.com",
+  "telephone": "+255663430934",
+  "email": "info@safarizanguven.com",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Njiro Road",
+    "addressLocality": "Arusha",
+    "addressCountry": "TZ"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": -3.3869,
+    "longitude": 36.6828
+  },
+  "openingHours": "Mo-Su 07:00-21:00",
+  "currenciesAccepted": "USD",
+  "priceRange": "$$$$",
+  "areaServed": "Tanzania"
+}
+</script>
+
 </head>
 
 <body>
+<a href="#main-content" class="skip-nav" style="position:absolute;top:-100px;left:0;background:#c8963e;color:#fff;padding:.5rem 1rem;font-size:.8rem;font-weight:700;z-index:9999;text-decoration:none;border-radius:0 0 4px 0;transition:top .2s" onfocus="this.style.top=\'0\'" onblur="this.style.top=\'-100px\'">Skip to main content</a>
 
 <?php include __DIR__ . '/navbar.php'; ?>
 
-<main>
+<main id="main-content">
 <?= $content ?? '' ?>
 </main>
 

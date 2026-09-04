@@ -25,7 +25,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
 
     $itinerary = [];
     foreach ($_POST['day_title']??[] as $i=>$title) {
-        $itinerary[] = ['day'=>$i+1,'title'=>trim($title),'description'=>trim(($_POST['day_desc']??[])[$i]??'')];
+        $itinerary[] = [
+            'day'                => $i+1,
+            'title'              => trim($title),
+            'description'        => trim(($_POST['day_desc']??[])[$i]??''),
+            'location'           => trim(($_POST['day_location']??[])[$i]??''),
+            'accommodation_name' => trim(($_POST['accommodation_name']??[])[$i]??''),
+            'accommodation_rate' => (float)(($_POST['accommodation_rate']??[])[$i]??0),
+            'vehicle_name'       => trim(($_POST['vehicle_name']??[])[$i]??''),
+            'vehicle_rate'       => (float)(($_POST['vehicle_rate']??[])[$i]??0),
+            'meals_cost_pp'      => (float)(($_POST['meals_cost']??[])[$i]??0),
+        ];
     }
     // Trim to duration
     $itinerary = array_slice($itinerary, 0, $durationDays);
@@ -512,15 +522,57 @@ ob_start();
   </div>
   <div class="admin-card-body" id="itinerary-rows">
     <?php foreach($itinerary as $i=>$day): ?>
-    <div class="itinerary-day" style="display:grid;grid-template-columns:130px 1fr;gap:.75rem;margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid #f3f4f6">
-      <div>
-        <label class="admin-label">Day <?= $i+1 ?> Title</label>
-        <input name="day_title[]" class="admin-input" placeholder="e.g. Serengeti Arrival"
-               value="<?= htmlspecialchars($day['title']??'') ?>">
+    <div class="itinerary-day" style="margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid #f3f4f6">
+      <!-- Row 1: Title + Description -->
+      <div style="display:grid;grid-template-columns:180px 1fr;gap:.75rem;margin-bottom:.65rem">
+        <div>
+          <label class="admin-label">Day <?= $i+1 ?> Title</label>
+          <input name="day_title[]" class="admin-input" placeholder="e.g. Serengeti Arrival"
+                 value="<?= htmlspecialchars($day['title']??'') ?>">
+        </div>
+        <div>
+          <label class="admin-label">Description</label>
+          <textarea name="day_desc[]" class="admin-input" rows="2"><?= htmlspecialchars($day['description']??'') ?></textarea>
+        </div>
       </div>
-      <div>
-        <label class="admin-label">Description</label>
-        <textarea name="day_desc[]" class="admin-input" rows="2"><?= htmlspecialchars($day['description']??'') ?></textarea>
+      <!-- Row 2: Daily costs -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.65rem;background:#f9f9f8;padding:.75rem;border:1px solid #f3f4f6">
+        <div>
+          <label class="admin-label" style="font-size:.58rem">Accommodation / night (USD)</label>
+          <input name="accommodation_rate[]" type="number" step="0.01" min="0" class="admin-input"
+                 placeholder="0.00" style="font-size:.82rem"
+                 value="<?= (float)($day['accommodation_rate']??0) ?>"
+                 oninput="calcTotals()">
+          <input name="accommodation_name[]" class="admin-input" style="font-size:.72rem;margin-top:.3rem"
+                 placeholder="Lodge name e.g. Serena Lodge"
+                 value="<?= htmlspecialchars($day['accommodation_name']??'') ?>">
+        </div>
+        <div>
+          <label class="admin-label" style="font-size:.58rem">Vehicle / day (USD)</label>
+          <input name="vehicle_rate[]" type="number" step="0.01" min="0" class="admin-input"
+                 placeholder="0.00" style="font-size:.82rem"
+                 value="<?= (float)($day['vehicle_rate']??0) ?>"
+                 oninput="calcTotals()">
+          <input name="vehicle_name[]" class="admin-input" style="font-size:.72rem;margin-top:.3rem"
+                 placeholder="e.g. Toyota Land Cruiser"
+                 value="<?= htmlspecialchars($day['vehicle_name']??'') ?>">
+        </div>
+        <div>
+          <label class="admin-label" style="font-size:.58rem">Meals / person / day (USD)</label>
+          <input name="meals_cost[]" type="number" step="0.01" min="0" class="admin-input"
+                 placeholder="0.00" style="font-size:.82rem"
+                 value="<?= (float)($day['meals_cost_pp']??0) ?>"
+                 oninput="calcTotals()">
+          <label class="admin-label" style="font-size:.58rem;margin-top:.3rem">Location / Park</label>
+          <input name="day_location[]" class="admin-input" style="font-size:.72rem"
+                 placeholder="e.g. Serengeti NP"
+                 value="<?= htmlspecialchars($day['location']??'') ?>">
+        </div>
+        <div>
+          <label class="admin-label" style="font-size:.58rem;color:#c8963e">Day Total (auto)</label>
+          <div class="day-total" style="background:#fff;border:1.5px solid #c8963e;padding:.5rem .65rem;font-weight:700;font-size:.85rem;color:#c8963e;min-height:36px">$0</div>
+          <div style="font-size:.6rem;color:#9ca3af;margin-top:.3rem">acc + vehicle + meals×2pax</div>
+        </div>
       </div>
     </div>
     <?php endforeach; ?>
@@ -1077,6 +1129,28 @@ async function loadPkgItinerary() {
     alert('Itinerary "'+itin.name+'" loaded — '+itin.duration_days+' days filled. Review and save.');
   } catch(e) { alert('Error: '+e.message); }
 }
+
+
+// ── Day row totals ────────────────────────────────────────────
+function calcDayTotals() {
+    var dayRows = document.querySelectorAll('.itinerary-day');
+    dayRows.forEach(function(row) {
+        var acc    = parseFloat(row.querySelector('[name="accommodation_rate[]"]')?.value) || 0;
+        var veh    = parseFloat(row.querySelector('[name="vehicle_rate[]"]')?.value) || 0;
+        var meals  = parseFloat(row.querySelector('[name="meals_cost[]"]')?.value) || 0;
+        var adults = parseInt(document.getElementById('inp_duration')?.dataset?.adults || '2');
+        var dayTotal = acc + veh + (meals * 2); // 2pax default
+        var dispEl  = row.querySelector('.day-total');
+        if (dispEl) dispEl.textContent = '$' + dayTotal.toFixed(0);
+    });
+}
+// Run on input changes
+document.addEventListener('input', function(e){
+    if (e.target.matches('[name="accommodation_rate[]"],[name="vehicle_rate[]"],[name="meals_cost[]"]')) {
+        calcDayTotals();
+    }
+});
+document.addEventListener('DOMContentLoaded', calcDayTotals);
 
 </script>
 
