@@ -8,7 +8,7 @@
       <h1 class="display-1">Who Are<br><em>We?</em></h1>
     </div>
     <div>
-      <img src="assets/images/logo.jpeg" alt="Safari Zangu guide showing a lion to guests in the Serengeti" class="page-hero-img" width="350" height="350">
+      <img loading="lazy" src="assets/images/logo.jpeg" alt="Safari Zangu guide showing a lion to guests in the Serengeti" class="page-hero-img" width="350" height="350">
     </div>
     </div>
   </div>

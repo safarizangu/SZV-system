@@ -111,11 +111,11 @@ try {
 
 <div class="home-slider" data-package="classic-safari">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/classic-safari/1.jpg" alt="Classic Safari 1" class="active">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/classic-safari/1.jpg" alt="Classic Safari 1" class="active">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/classic-safari/2.jpg" alt="Classic Safari 2">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/classic-safari/2.jpg" alt="Classic Safari 2">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/classic-safari/3.jpg" alt="Classic Safari 3">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/classic-safari/3.jpg" alt="Classic Safari 3">
 
     <button type="button" class="home-prev">‹</button>
     <button type="button" class="home-next">›</button>
@@ -145,11 +145,11 @@ try {
 
 <div class="home-slider" data-package="luxury-safari">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/luxury-safari/1.jpg" alt="Luxury Safari 1" class="active">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/luxury-safari/1.jpg" alt="Luxury Safari 1" class="active">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/luxury-safari/2.jpg" alt="Luxury Safari 2">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/luxury-safari/2.jpg" alt="Luxury Safari 2">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/luxury-safari/3.jpg" alt="Luxury Safari 3">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/luxury-safari/3.jpg" alt="Luxury Safari 3">
 
     <button type="button" class="home-prev">‹</button>
     <button type="button" class="home-next">›</button>
@@ -179,11 +179,11 @@ try {
 
 <div class="home-slider" data-package="comfort-safari">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/1.jpg" alt="Comfort Safari 1" class="active">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/1.jpg" alt="Comfort Safari 1" class="active">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/2.jpg" alt="Comfort Safari 2">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/2.jpg" alt="Comfort Safari 2">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/3.jpg" alt="Comfort Safari 3">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/3.jpg" alt="Comfort Safari 3">
 
     <button type="button" class="home-prev">‹</button>
     <button type="button" class="home-next">›</button>
@@ -213,11 +213,11 @@ try {
 
 <div class="home-slider" data-package="comfort-safari">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/1.jpg" alt="Comfort Safari 1" class="active">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/1.jpg" alt="Comfort Safari 1" class="active">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/2.jpg" alt="Comfort Safari 2">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/2.jpg" alt="Comfort Safari 2">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/3.jpg" alt="Comfort Safari 3">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/3.jpg" alt="Comfort Safari 3">
 
     <button type="button" class="home-prev">‹</button>
     <button type="button" class="home-next">›</button>
@@ -247,11 +247,11 @@ try {
 
 <div class="home-slider" data-package="cultural-safari">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/cultural-safari/1.jpg" alt="Cultural Safari 1" class="active">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/cultural-safari/1.jpg" alt="Cultural Safari 1" class="active">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/cultural-safari/2.jpg" alt="Cultural Safari 2">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/cultural-safari/2.jpg" alt="Cultural Safari 2">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/cultural-safari/3.jpg" alt="Cultural Safari 3">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/cultural-safari/3.jpg" alt="Cultural Safari 3">
 
     <button type="button" class="home-prev">‹</button>
     <button type="button" class="home-next">›</button>
@@ -281,11 +281,11 @@ try {
 
 <div class="home-slider" data-package="short-safari">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/short-safari/1.jpg" alt="Short Safari 1" class="active">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/short-safari/1.jpg" alt="Short Safari 1" class="active">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/short-safari/2.jpg" alt="Short Safari 2">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/short-safari/2.jpg" alt="Short Safari 2">
 
-    <img src="<?= BASE_PATH ?>/assets/images/packages/short-safari/3.jpg" alt="Short Safari 3">
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/short-safari/3.jpg" alt="Short Safari 3">
 
     <button type="button" class="home-prev">‹</button>
     <button type="button" class="home-next">›</button>

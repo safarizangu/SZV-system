@@ -39,6 +39,20 @@ $pageTitle = $pageTitle ?? 'Safari Zangu Ventures';
 }
 </script>
 
+<?php
+// Preload the hero image for LCP performance
+$_heroImg = '';
+try {
+    $_db = \App\Models\Database::getInstance();
+    $_hs = $_db->prepare("SELECT value FROM settings WHERE `key`='hero_image' LIMIT 1");
+    $_hs->execute();
+    $_heroImg = $_hs->fetchColumn() ?: '';
+} catch(\Exception $_e) {}
+if ($_heroImg): ?>
+<link rel="preload" as="image"
+      href="<?= htmlspecialchars($_heroImg) ?>"
+      fetchpriority="high">
+<?php endif; ?>
 </head>
 
 <body>

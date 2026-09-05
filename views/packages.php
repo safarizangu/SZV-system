@@ -76,13 +76,13 @@ try {
             $imgBase = BASE_PATH . '/assets/images/packages/' . $pkg['slug'];
           ?>
           <div class="pkg-gallery" >
-            <img src="<?= $imgBase ?>/1.jpg" alt="<?= htmlspecialchars($pkg['name']) ?>"
+            <img loading="lazy" src="<?= $imgBase ?>/1.jpg" alt="<?= htmlspecialchars($pkg['name']) ?>"
                  loading="lazy" onerror="this.style.display='none'"
                  style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;">
-            <img src="<?= $imgBase ?>/2.jpg" alt="<?= htmlspecialchars($pkg['name']) ?> 2"
+            <img loading="lazy" src="<?= $imgBase ?>/2.jpg" alt="<?= htmlspecialchars($pkg['name']) ?> 2"
                  loading="lazy" onerror="this.style.display='none'"
                  style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;">
-            <img src="<?= $imgBase ?>/3.jpg" alt="<?= htmlspecialchars($pkg['name']) ?> 3"
+            <img loading="lazy" src="<?= $imgBase ?>/3.jpg" alt="<?= htmlspecialchars($pkg['name']) ?> 3"
                  loading="lazy" onerror="this.style.display='none'"
                  style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;">
             <button type="button" class="pkg-slider-btn pkg-slider-prev pkg-prev" aria-label="Previous"
