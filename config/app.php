@@ -32,7 +32,9 @@ $_host    = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $_isLocal = str_contains($_host, 'localhost') || str_contains($_host, '127.0.0.1');
 
 if (!defined('BASE_PATH')) {
-    define('BASE_PATH', $_isLocal ? '/safari-zangu' : '');
+    // BASE_PATH is always '' — Apache handles /safari-zangu alias on local
+    // Production serves from public_html root
+    define('BASE_PATH', '');
 }
 
 // ── App environment ───────────────────────────────────────────

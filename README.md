@@ -682,7 +682,7 @@ Key constants:
 
 ```php
 APP_ENV          // 'local' or 'production'
-BASE_PATH        // '' on production, '/safari-zangu' on local
+BASE_PATH        // '' on production, '' on local
 DB_HOST/USER/PASS/NAME
 SMTP_HOST/PORT/SECURE/USERNAME/PASSWORD
 PAYPAL_MODE      // 'sandbox' or 'live'

@@ -39,7 +39,7 @@ $docRoot   = $_SERVER['DOCUMENT_ROOT'];
 $diskPath  = $docRoot . $imageUrl;
 // Also try without the /safari-zangu prefix
 if (!file_exists($diskPath)) {
-    $diskPath2 = $docRoot . str_replace('/safari-zangu', '', $imageUrl);
+    $diskPath2 = $docRoot . str_replace('', '', $imageUrl);
     if (file_exists($diskPath2)) {
         $diskPath = $diskPath2;
     } else {

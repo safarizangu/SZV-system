@@ -22,4 +22,4 @@ ob_start();
     </p>
   </div>
 </div>
-<?php $content=ob_get_clean(); include __DIR__.'/layouts/app.php'; ?>
+<?php $content=ob_get_clean(); include __DIR__.'/../layouts/app.php'; ?>

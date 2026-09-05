@@ -82,7 +82,7 @@ $referrers = aq($db, "
             WHEN referrer LIKE '%twitter%' OR referrer LIKE '%t.co%' THEN 'Twitter/X'
             WHEN referrer LIKE '%tiktok%' THEN 'TikTok'
             WHEN referrer LIKE '%whatsapp%' THEN 'WhatsApp'
-            WHEN referrer LIKE '%safari-zangu%' OR referrer LIKE '%safarizanguven%' THEN 'Internal'
+            WHEN referrer LIKE '%safarizanguven%' OR referrer LIKE '%safari-zangu%' OR referrer LIKE '%localhost%' THEN 'Internal'
             ELSE 'Other'
         END as source,
         COUNT(*) as visits,

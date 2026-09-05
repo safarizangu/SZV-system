@@ -23,6 +23,7 @@ ServerSignature Off
 # ── Block sensitive directories and file types ────────────────
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  RewriteBase /
 
   # Block hidden files except .well-known (for SSL certs)
   RewriteRule ^\.(?!well-known) - [F,L]
