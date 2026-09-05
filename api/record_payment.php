@@ -2,8 +2,8 @@
 /**
  * Record PayPal payment against an existing booking.
  * Called from confirmation.php and track.php PayPal buttons.
- * IMPORTANT: In production, verify the PayPal order server-side
- * before updating payment status. See comment below.
+ * The PayPal order is verified server-side (status + amount + currency)
+ * before any payment status is trusted — see App\Services\PayPalClient.
  */
 ob_start();
 header('Content-Type: application/json');
@@ -19,6 +19,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
 
 use App\Middleware\RateLimiter;
 use App\Helpers\Formatter;
+use App\Services\PayPalClient;
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     pay_respond(['success' => false, 'message' => 'Invalid request.']);
@@ -34,26 +35,16 @@ try {
 $ref        = strtoupper(Formatter::sanitize($_POST['ref']              ?? ''));
 $travelDate = Formatter::sanitize($_POST['travel_date']                  ?? '');
 $orderId    = Formatter::sanitize($_POST['paypal_order_id']              ?? '');
-$amountPaid = (float)($_POST['amount_paid']                              ?? 0);
 
 if (!$ref || !$travelDate || !$orderId) {
     pay_respond(['success' => false, 'message' => 'Missing booking reference, date, or PayPal order ID.']);
 }
 
-/*
- * ── PRODUCTION TODO ────────────────────────────────────────────
- * Verify the PayPal order server-side before trusting client data:
- *
- * $ch = curl_init("https://api-m.paypal.com/v2/checkout/orders/{$orderId}");
- * curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . getPaypalToken()]);
- * curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
- * $response = json_decode(curl_exec($ch), true);
- * if ($response['status'] !== 'COMPLETED') {
- *     pay_respond(['success' => false, 'message' => 'Payment not completed.']);
- * }
- * $amountPaid = (float)$response['purchase_units'][0]['amount']['value'];
- * ──────────────────────────────────────────────────────────────
- */
+// Verify the order directly with PayPal — never trust client-submitted amounts/status.
+$amountPaid = PayPalClient::verifyCompletedOrder($orderId);
+if ($amountPaid === null) {
+    pay_respond(['success' => false, 'message' => 'Payment could not be verified. Please contact us.']);
+}
 
 try {
     $pdo  = \App\Models\Database::getInstance();
@@ -68,6 +59,12 @@ try {
     // Don't double-process a completed payment
     if ($booking['payment_status'] === 'fully_paid') {
         pay_respond(['success' => true, 'status' => 'fully_paid', 'message' => 'Already fully paid.']);
+    }
+
+    // This exact PayPal order was already applied to this booking — idempotent replay, not a new payment.
+    if (!empty($booking['paypal_order_id']) && $booking['paypal_order_id'] === $orderId) {
+        pay_respond(['success' => true, 'status' => $booking['payment_status'],
+                     'message' => 'Payment already recorded.']);
     }
 
     // Calculate new status

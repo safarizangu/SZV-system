@@ -946,7 +946,7 @@ async function saveNewVehicle() {
   fd.append('driver_cost_day',driver); fd.append('level',level);
 
   try {
-    var r = await fetch('<?= BASE_PATH ?>/php/vehicle_manage.php',{method:'POST',body:fd,credentials:'same-origin'});
+    var r = await fetch('<?= BASE_PATH ?>/api/vehicle_manage.php',{method:'POST',body:fd,credentials:'same-origin'});
     var d = await r.json();
     if (d.success) {
       // Add to datalist

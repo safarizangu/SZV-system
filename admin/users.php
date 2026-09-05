@@ -174,7 +174,7 @@ ob_start();
         <div class="admin-form-group">
           <label class="admin-label">Role</label>
           <select name="role" class="admin-input">
-            <?php foreach(['superadmin'=>'Super Admin','admin'=>'Admin','staff'=>'Staff'] as $v=>$l): ?>
+            <?php foreach(['superadmin'=>'Super Admin','admin'=>'Admin','agent'=>'Agent','staff'=>'Staff'] as $v=>$l): ?>
             <option value="<?= $v ?>" <?= ($editUser['role']??'admin')===$v?'selected':'' ?>><?= $l ?></option>
             <?php endforeach; ?>
           </select>

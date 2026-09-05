@@ -87,6 +87,6 @@ class Booking
 
     private function generateRef(): string
     {
-        return 'SZV' . date('Y') . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 6));
+        return \App\Helpers\Formatter::generateRef();
     }
 }

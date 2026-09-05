@@ -34,11 +34,23 @@ if ($action === 'save_lead') {
     $id      = (int)($_POST['id'] ?? 0);
     $agentId = isAdmin($myRole) ? (int)($_POST['agent_id'] ?? $myId) : $myId;
 
+    $leadName  = trim($_POST['full_name'] ?? '');
+    $leadEmail = trim($_POST['email'] ?? '');
+    $leadPhone = trim($_POST['phone'] ?? '');
+    $leadCountry = trim($_POST['country'] ?? '');
+    $customerId = null;
+    if ($leadName && $leadEmail) {
+        try {
+            $customerId = (new \App\Models\Customer())->findOrCreateByEmail($leadEmail, $leadName, $leadPhone, $leadCountry);
+        } catch (\Exception $e) { error_log('[leads Customer] '.$e->getMessage()); }
+    }
+
     $data = [
-        'full_name'      => trim($_POST['full_name'] ?? ''),
-        'email'          => trim($_POST['email'] ?? ''),
-        'phone'          => trim($_POST['phone'] ?? ''),
-        'country'        => trim($_POST['country'] ?? ''),
+        'customer_id'    => $customerId,
+        'full_name'      => $leadName,
+        'email'          => $leadEmail,
+        'phone'          => $leadPhone,
+        'country'        => $leadCountry,
         'package_name'   => trim($_POST['package_name'] ?? ''),
         'budget_range'   => trim($_POST['budget_range'] ?? ''),
         'travel_month'   => trim($_POST['travel_month'] ?? ''),

@@ -103,11 +103,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_quote'])) {
     $validUntil = !empty($_POST['valid_until']) ? $_POST['valid_until'] : date('Y-m-d', strtotime('+14 days'));
     $destinations= json_encode(array_values(array_filter(array_map('trim', explode(',', $_POST['destinations']??'')))));
 
+    // Resolve package_id from the typed package name so downstream conversion
+    // to a booking doesn't have to re-guess it by name matching.
+    $postedPkgName = trim($_POST['package_name'] ?? '');
+    $pkgId = null;
+    if ($postedPkgName !== '') {
+        try {
+            $pkgLookup = $db->prepare("SELECT id FROM packages WHERE name=? LIMIT 1");
+            $pkgLookup->execute([$postedPkgName]);
+            $pkgRow = $pkgLookup->fetch();
+            if ($pkgRow) $pkgId = (int)$pkgRow['id'];
+        } catch(Exception $e) {}
+    }
+
+    // Resolve (or create) the unified customer record for this client.
+    $clientName    = trim($_POST['client_name']);
+    $clientEmail   = trim($_POST['client_email']);
+    $clientPhone   = trim($_POST['client_phone'] ?? '');
+    $clientCountry = trim($_POST['client_country'] ?? '');
+    $customerId = null;
+    try {
+        $customerId = (new \App\Models\Customer())->findOrCreateByEmail($clientEmail, $clientName, $clientPhone, $clientCountry);
+    } catch (Exception $e) { error_log('[quotation_new Customer] '.$e->getMessage()); }
+
     $data = [
-        'client_name'         => trim($_POST['client_name']),
-        'client_email'        => trim($_POST['client_email']),
-        'client_phone'        => trim($_POST['client_phone'] ?? ''),
-        'client_country'      => trim($_POST['client_country'] ?? ''),
+        'customer_id'         => $customerId,
+        'client_name'         => $clientName,
+        'client_email'        => $clientEmail,
+        'client_phone'        => $clientPhone,
+        'client_country'      => $clientCountry,
         'adults'              => $adults,
         'children'            => $children,
         'infants'             => max(0,(int)($_POST['infants']??0)),
@@ -117,7 +141,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_quote'])) {
         'accommodation_level' => $_POST['accommodation_level'] ?? 'midrange',
         'meal_plan'           => $_POST['meal_plan']           ?? 'fb',
         'guide_language'      => $_POST['guide_language']      ?? 'english',
-        'package_name'        => trim($_POST['package_name']   ?? ''),
+        'package_id'          => $pkgId,
+        'package_name'        => $postedPkgName,
         'notes'               => trim($_POST['notes']          ?? ''),
         'valid_until'         => $validUntil,
         'status'              => $_POST['status']              ?? 'draft',

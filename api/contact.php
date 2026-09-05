@@ -25,6 +25,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\RateLimiter;
 use App\Helpers\Formatter;
+use App\Mail\Mailer;
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     ob_end_clean();
@@ -83,40 +84,30 @@ try {
     exit;
 }
 
-// ── SUCCESS: send response to browser NOW ──────────────────────
-// Browser gets the response immediately. Email sends after.
-contact_respond(['success' => true, 'message' => "Thank you, {$name}! We\u2019ll respond within 24 hours."]);
-
-// ── Email: runs AFTER browser has already received the response ──
-// If this times out or fails, the user never sees it
-ignore_user_abort(true);
-set_time_limit(30);
-
+// ── Queue guest auto-reply + admin notification ─────────────
+// Queuing is a fast DB insert (unlike a live SMTP send), so this can
+// happen before responding — the cron sends both within 2 minutes,
+// with retries, and a visible record in admin/email_queue.php.
 try {
-    $headers  = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n";
-    $headers .= "From: Safari Zangu Ventures <admin@safarizanguven.com>\r\n";
-
-    $autoReply = "<p>Dear " . htmlspecialchars($name) . ",</p>"
-               . "<p>Thank you for contacting <strong>Safari Zangu Ventures</strong>. "
-               . "We have received your message and will respond within 24 hours.</p>"
-               . "<p>For faster response, WhatsApp us: <strong>+255 663 430 934</strong></p>"
-               . "<p>Best regards,<br>Safari Zangu Ventures &middot; Arusha, Tanzania</p>";
-
-    @mail($email, "We received your message — Safari Zangu Ventures", $autoReply, $headers);
-
-    // Strip newlines from all header values to prevent injection
-    $safeEmail   = str_replace(["
-","
-","%0a","%0d"], '', $email);
-    $safeName    = str_replace(["
-","
-","%0a","%0d"], '', $name);
-    $safeSubject = str_replace(["
-","
-","%0a","%0d"], '', $subject);
-    $adminBody   = "Name: {$safeName}\nEmail: {$safeEmail}\nPhone: {$phone}\nSubject: {$safeSubject}\n\n{$message}";
-    @mail(ADMIN_EMAIL, "New Contact Message: {$safeSubject}", $adminBody, "From: noreply@safarizanguven.com");
-
+    Mailer::queueBoth(
+        'contact_acknowledgement', [
+            'to_email'    => $email,
+            'to_name'     => $name,
+            'client_name' => $name,
+            'subject'     => $subject,
+        ],
+        'contact_admin_notification', [
+            'client_name'  => $name,
+            'client_email' => $email,
+            'phone'        => $phone,
+            'subject'      => $subject,
+            'message'      => $message,
+        ]
+    );
 } catch (\Exception $e) {
     error_log('[SZV Contact Mail] ' . $e->getMessage());
+    // Non-fatal — the message itself is already saved above
 }
+
+// ── SUCCESS ────────────────────────────────────────
+contact_respond(['success' => true, 'message' => "Thank you, {$name}! We\u2019ll respond within 24 hours."]);

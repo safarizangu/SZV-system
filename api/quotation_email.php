@@ -231,119 +231,98 @@ $emailBody = "Dear {$q['client_name']},\n\n"
     . "Njiro Road, Arusha, Tanzania\n"
     . "+255 663 430 934 · {$replyTo} · www.safarizanguven.com";
 
-// ── Send via PHPMailer ────────────────────────────────────────
-$sent  = false;
-$error = '';
+// ── Render the quotation PDF and queue the email ────────────────
+// Previously this sent synchronously via PHPMailer inside the request —
+// no retry on failure, no record in admin/email_queue.php, and the
+// admin's browser blocked on however long SMTP took. It now renders
+// the PDF once (reusing the exact same capture-and-strip approach that
+// already worked), saves it to storage/uploads/, and queues the email
+// like every other email in the system — the cron sends it within 2
+// minutes with 3 retries.
+//
+// The itinerary is deliberately NOT attached as a second PDF here:
+// api/quotation_pdf.php already merges the linked itinerary's days
+// into the same document when itinerary_id is set, so a separate
+// Itinerary.pdf attachment was duplicate content in every email sent.
+$queued        = false;
+$error         = '';
+$pdfAttachNote = '';
+$attachments   = [];
+
+if (class_exists('\Dompdf\Dompdf')) {
+    $captureHtml = function (string $file, array $getParams): string {
+        $prevGet = $_GET;
+        $_GET = $getParams;
+        ob_start();
+        (function () use ($file) { include $file; })();
+        $html = ob_get_clean();
+        $_GET = $prevGet;
+        return $html;
+    };
+
+    $dompdfOptions = new \Dompdf\Options();
+    $dompdfOptions->set('isRemoteEnabled', true); // needed to fetch the logo image URL
+    // Point dompdf's cache/temp dirs at somewhere guaranteed writable by
+    // the web server user, rather than trusting vendor/ (often owned by
+    // whoever ran `composer require`, not the web server user).
+    $dompdfCacheDir = sys_get_temp_dir() . '/szv_dompdf_cache';
+    if (!is_dir($dompdfCacheDir)) { @mkdir($dompdfCacheDir, 0775, true); }
+    $dompdfOptions->set('fontCache', $dompdfCacheDir);
+    $dompdfOptions->set('tempDir', sys_get_temp_dir());
+
+    // Strips the Google Fonts @import from captured HTML before handing
+    // it to dompdf. dompdf tries to fetch AND CACHE that font locally,
+    // and a common failure (fwrite(): $stream must be of type resource,
+    // false given) happens when its font-cache directory isn't
+    // writable — the pages' own CSS already falls back to
+    // Georgia/Arial if the web font is unavailable, so dropping this
+    // is a safe, low-risk fix rather than chasing directory permissions.
+    $stripGoogleFonts = function (string $html): string {
+        return preg_replace('/@import\s+url\([^)]*fonts\.googleapis\.com[^)]*\)\s*;?/i', '', $html);
+    };
+
+    try {
+        $quotationHtml = $stripGoogleFonts($captureHtml(__DIR__ . '/quotation_pdf.php', ['id' => $id]));
+        $qPdf = new \Dompdf\Dompdf($dompdfOptions);
+        $qPdf->loadHtml($quotationHtml);
+        $qPdf->setPaper('A4', 'portrait');
+        $qPdf->render();
+
+        $uploadsDir = __DIR__ . '/../storage/uploads/quotations';
+        if (!is_dir($uploadsDir)) { @mkdir($uploadsDir, 0775, true); }
+        $fileName = 'Quotation-' . preg_replace('/[^A-Za-z0-9_-]/', '', $q['quote_ref']) . '.pdf';
+        $filePath = $uploadsDir . '/' . $fileName;
+        file_put_contents($filePath, $qPdf->output());
+
+        $attachments[] = ['path' => $filePath, 'name' => $fileName];
+    } catch (\Throwable $pdfErr) {
+        $pdfAttachNote = ' (PDF attachment failed: ' . $pdfErr->getMessage() . ')';
+        error_log('[SZV QuoteEmail] PDF attachment failed: ' . $pdfErr->getMessage());
+    }
+} else {
+    $pdfAttachNote = ' (PDF attachment skipped — dompdf not installed. Run: composer require dompdf/dompdf)';
+    error_log('[SZV QuoteEmail] dompdf not installed — PDF attachment skipped. Run: composer require dompdf/dompdf');
+}
 
 try {
-    // PHPMailer — try vendor/autoload first (Hostinger), then local path
-    $phpmailerLoaded = false;
-    $vendorPath = __DIR__ . '/../vendor/autoload.php';
-    $localPath  = __DIR__ . '/../php/PHPMailer/src/';
-    if (file_exists($vendorPath)) {
-        require_once $vendorPath;
-        $phpmailerLoaded = true;
-    } elseif (file_exists($localPath . 'PHPMailer.php')) {
-        require_once $localPath . 'Exception.php';
-        require_once $localPath . 'PHPMailer.php';
-        require_once $localPath . 'SMTP.php';
-        $phpmailerLoaded = true;
-    }
-    if (!$phpmailerLoaded) {
-        throw new \Exception('PHPMailer not found. Run: composer require phpmailer/phpmailer');
-    }
+    $fromName = defined('MAIL_FROM_NAME') ? MAIL_FROM_NAME : 'Safari Zangu Ventures';
+    $db->prepare("
+        INSERT INTO email_queue (to_email, to_name, subject, template, body, is_plain_text, attachments, status, created_at)
+        VALUES (?, ?, ?, 'quotation_sent', ?, 1, ?, 'pending', NOW())
+    ")->execute([
+        $q['client_email'],
+        $q['client_name'],
+        'Your Safari Quotation ' . $q['quote_ref'] . ' — Safari Zangu Ventures',
+        $emailBody,
+        $attachments ? json_encode($attachments) : null,
+    ]);
 
-    $mail = new PHPMailer\PHPMailer\PHPMailer(true);
-    $mail->isSMTP();
-    $mail->Host       = defined('SMTP_HOST')     ? SMTP_HOST     : 'smtp.hostinger.com';
-    $mail->SMTPAuth   = true;
-    $mail->Username   = defined('SMTP_USERNAME') ? SMTP_USERNAME : 'admin@safarizanguven.com';
-    $mail->Password   = defined('SMTP_PASSWORD') ? SMTP_PASSWORD : '';
-    $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
-    $mail->Port       = defined('SMTP_PORT')     ? (int)SMTP_PORT : 465;
-    $mail->CharSet    = 'UTF-8';
+    // No separate admin-copy row needed — api/cron/process_email_queue.php
+    // already CCs ADMIN_EMAIL on every queued send.
+    $queued = true;
 
-    $fromEmail = defined('MAIL_FROM_EMAIL') ? MAIL_FROM_EMAIL : 'admin@safarizanguven.com';
-    $fromName  = defined('MAIL_FROM_NAME')  ? MAIL_FROM_NAME  : 'Safari Zangu Ventures';
-    $mail->setFrom($fromEmail, $fromName);
-    $mail->addAddress($q['client_email'], $q['client_name']);
-    $mail->addReplyTo($replyTo, $fromName);
-
-    $adminEmail = defined('ADMIN_EMAIL') ? ADMIN_EMAIL : $fromEmail;
-    $mail->addCC($adminEmail, 'Safari Zangu Admin');
-
-    $mail->Subject = 'Your Safari Quotation ' . $q['quote_ref'] . ' — Safari Zangu Ventures';
-    $mail->isHTML(false);
-    $mail->Body    = $emailBody;
-
-    // ── PDF attachments (Quotation + Itinerary, if linked) ─────────
-    // Reuses the exact HTML api/quotation_pdf.php and api/itinerary_pdf.php
-    // already render for the browser-print view — captured via an
-    // isolated-scope include (wrapped in a closure) so their local
-    // variables ($q, $id, etc.) can't collide with this script's own.
-    // REQUIRES dompdf: composer require dompdf/dompdf
-    $pdfAttachNote = '';
-    if (class_exists('\Dompdf\Dompdf')) {
-        $captureHtml = function (string $file, array $getParams): string {
-            $prevGet = $_GET;
-            $_GET = $getParams;
-            ob_start();
-            (function () use ($file) { include $file; })();
-            $html = ob_get_clean();
-            $_GET = $prevGet;
-            return $html;
-        };
-
-        $dompdfOptions = new \Dompdf\Options();
-        $dompdfOptions->set('isRemoteEnabled', true); // needed to fetch the logo image URL
-        // Point dompdf's cache/temp dirs at somewhere guaranteed writable by
-        // the web server user, rather than trusting vendor/ (often owned by
-        // whoever ran `composer require`, not the web server user).
-        $dompdfCacheDir = sys_get_temp_dir() . '/szv_dompdf_cache';
-        if (!is_dir($dompdfCacheDir)) { @mkdir($dompdfCacheDir, 0775, true); }
-        $dompdfOptions->set('fontCache', $dompdfCacheDir);
-        $dompdfOptions->set('tempDir', sys_get_temp_dir());
-
-        // Strips the Google Fonts @import from captured HTML before handing
-        // it to dompdf. dompdf tries to fetch AND CACHE that font locally,
-        // and a common failure (fwrite(): $stream must be of type resource,
-        // false given) happens when its font-cache directory isn't
-        // writable — the pages' own CSS already falls back to
-        // Georgia/Arial if the web font is unavailable, so dropping this
-        // is a safe, low-risk fix rather than chasing directory permissions.
-        $stripGoogleFonts = function (string $html): string {
-            return preg_replace('/@import\s+url\([^)]*fonts\.googleapis\.com[^)]*\)\s*;?/i', '', $html);
-        };
-
-        try {
-            $quotationHtml = $stripGoogleFonts($captureHtml(__DIR__ . '/quotation_pdf.php', ['id' => $id]));
-            $qPdf = new \Dompdf\Dompdf($dompdfOptions);
-            $qPdf->loadHtml($quotationHtml);
-            $qPdf->setPaper('A4', 'portrait');
-            $qPdf->render();
-            $mail->addStringAttachment($qPdf->output(), 'Quotation-' . $q['quote_ref'] . '.pdf', 'base64', 'application/pdf');
-
-            if (!empty($q['itinerary_id'])) {
-                $itineraryHtml = $stripGoogleFonts($captureHtml(__DIR__ . '/itinerary_pdf.php', ['id' => $q['itinerary_id']]));
-                $iPdf = new \Dompdf\Dompdf($dompdfOptions);
-                $iPdf->loadHtml($itineraryHtml);
-                $iPdf->setPaper('A4', 'portrait');
-                $iPdf->render();
-                $mail->addStringAttachment($iPdf->output(), 'Itinerary.pdf', 'base64', 'application/pdf');
-            }
-        } catch (\Throwable $pdfErr) {
-            $pdfAttachNote = ' (PDF attachment failed: ' . $pdfErr->getMessage() . ')';
-            error_log('[SZV QuoteEmail] PDF attachment failed: ' . $pdfErr->getMessage());
-        }
-    } else {
-        $pdfAttachNote = ' (PDF attachments skipped — dompdf not installed. Run: composer require dompdf/dompdf)';
-        error_log('[SZV QuoteEmail] dompdf not installed — PDF attachments skipped. Run: composer require dompdf/dompdf');
-    }
-
-    $mail->send();
-    $sent = true;
-
-    // Mark as sent in DB
+    // Mark as sent — queuing is the point past which the admin considers
+    // it dispatched; the cron's retry logic covers actual delivery.
     $db->prepare("UPDATE quotations SET status='sent', sent_at=NOW(), updated_at=NOW() WHERE id=? AND status='draft'")
        ->execute([$id]);
 
@@ -354,9 +333,9 @@ try {
 
 ob_end_clean();
 
-$msg = $sent
-    ? "Quotation {$q['quote_ref']} emailed successfully to {$q['client_email']}.{$pdfAttachNote}"
-    : "Email failed: {$error} — check SMTP settings in config/app.php.";
+$msg = $queued
+    ? "Quotation {$q['quote_ref']} queued for sending to {$q['client_email']} — it will go out within 2 minutes.{$pdfAttachNote}"
+    : "Could not queue the email: {$error}";
 
 header('Location: ' . BASE_PATH . '/admin/quotations.php?msg=' . urlencode($msg));
 exit;

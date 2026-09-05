@@ -72,10 +72,14 @@ if (!defined('MAIL_FROM_NAME'))  define('MAIL_FROM_NAME',  'Safari Zangu Venture
 if (!defined('MAIL_FROM_EMAIL')) define('MAIL_FROM_EMAIL', env('SMTP_USERNAME', 'admin@safarizanguven.com'));
 
 // ── PayPal ────────────────────────────────────────────────────
-// Set PAYPAL_MODE=live and real PAYPAL_CLIENT_ID in .env before go-live
-if (!defined('PAYPAL_MODE'))      define('PAYPAL_MODE',      env('PAYPAL_MODE',      'sandbox'));
-if (!defined('PAYPAL_CLIENT_ID')) define('PAYPAL_CLIENT_ID', env('PAYPAL_CLIENT_ID', 'sb-your-sandbox-client-id'));
-if (!defined('PAYPAL_CURRENCY'))  define('PAYPAL_CURRENCY',  'USD');
+// Set PAYPAL_MODE=live and real PAYPAL_CLIENT_ID/PAYPAL_CLIENT_SECRET in .env before go-live
+if (!defined('PAYPAL_MODE'))        define('PAYPAL_MODE',        env('PAYPAL_MODE',        'sandbox'));
+if (!defined('PAYPAL_CLIENT_ID'))   define('PAYPAL_CLIENT_ID',   env('PAYPAL_CLIENT_ID',   'sb-your-sandbox-client-id'));
+if (!defined('PAYPAL_CLIENT_SECRET')) define('PAYPAL_CLIENT_SECRET', env('PAYPAL_CLIENT_SECRET', ''));
+if (!defined('PAYPAL_CURRENCY'))    define('PAYPAL_CURRENCY',    'USD');
+if (!defined('PAYPAL_API_BASE'))    define('PAYPAL_API_BASE',    PAYPAL_MODE === 'live'
+    ? 'https://api-m.paypal.com'
+    : 'https://api-m.sandbox.paypal.com');
 
 // ── Bank details ──────────────────────────────────────────────
 // Set real account details in .env — never hardcode live banking here

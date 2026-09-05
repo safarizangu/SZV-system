@@ -75,9 +75,30 @@ foreach ($rows as $row) {
         }
         $mail->addCC(ADMIN_EMAIL, 'Safari Zangu Admin');
         $mail->Subject = $row['subject'];
-        $mail->isHTML(true);
-        $mail->Body    = $row['body'];
-        $mail->AltBody = strip_tags($row['body']);
+
+        if (!empty($row['is_plain_text'])) {
+            $mail->isHTML(false);
+            $mail->Body = $row['body'];
+        } else {
+            $mail->isHTML(true);
+            $mail->Body    = $row['body'];
+            $mail->AltBody = strip_tags($row['body']);
+        }
+
+        // Attach any files queued alongside this email (e.g. a quotation PDF).
+        // A missing file logs a warning but never blocks the send — the
+        // client still gets the email itself.
+        if (!empty($row['attachments'])) {
+            $files = json_decode($row['attachments'], true) ?: [];
+            foreach ($files as $file) {
+                if (!empty($file['path']) && is_file($file['path'])) {
+                    $mail->addAttachment($file['path'], $file['name'] ?? basename($file['path']));
+                } else {
+                    error_log('[Email Queue] Missing attachment for email_queue id ' . $row['id'] . ': ' . ($file['path'] ?? '?'));
+                }
+            }
+        }
+
         $mail->send();
 
         $db->prepare("UPDATE email_queue SET status='sent', sent_at=NOW() WHERE id=?")

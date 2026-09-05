@@ -12,21 +12,31 @@ class CustomSafariRequest
 
     public function create(array $data): int
     {
+        $customerId = null;
+        if (!empty($data['full_name']) && !empty($data['email'])) {
+            try {
+                $customerId = (new Customer())->findOrCreateByEmail(
+                    $data['email'], $data['full_name'], $data['phone'] ?? null, $data['country'] ?? null
+                );
+            } catch (\Exception $e) { error_log('[CustomSafariRequest Customer] ' . $e->getMessage()); }
+        }
+
         $stmt = $this->db->prepare("
             INSERT INTO custom_safari_requests
-                (full_name, email, phone, country, travelers, adults, children, infants,
+                (customer_id, full_name, email, phone, country, travelers, adults, children, infants,
                  start_date, duration_days, destinations, message, flexible_dates,
                  guide_language, mainland_accommodation, beach_accommodation,
                  meal_plan, room_layout, accommodation_standard, total_budget,
                  experiences, status, created_at)
             VALUES
-                (:full_name, :email, :phone, :country, :travelers, :adults, :children, :infants,
+                (:customer_id, :full_name, :email, :phone, :country, :travelers, :adults, :children, :infants,
                  :start_date, :duration_days, :destinations, :message, :flexible_dates,
                  :guide_language, :mainland_accommodation, :beach_accommodation,
                  :meal_plan, :room_layout, :accommodation_standard, :total_budget,
                  :experiences, 'new', NOW())
         ");
         $stmt->execute([
+            'customer_id'             => $customerId,
             'full_name'               => $data['full_name']               ?? '',
             'email'                   => $data['email']                   ?? '',
             'phone'                   => $data['phone']                   ?? '',

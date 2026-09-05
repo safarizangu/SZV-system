@@ -295,7 +295,7 @@ document.getElementById('convert-form').addEventListener('submit', async functio
 
   var fd = new FormData(this);
   try {
-    var r = await fetch('<?= BASE_PATH ?>/php/convert_quotation.php', {method:'POST',body:fd,credentials:'same-origin'});
+    var r = await fetch('<?= BASE_PATH ?>/api/convert_quotation.php', {method:'POST',body:fd,credentials:'same-origin'});
     var raw = await r.text();
     var d;
     try { d = JSON.parse(raw); } catch(ex) {

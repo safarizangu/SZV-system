@@ -9,72 +9,13 @@ header('Content-Type: application/json');
 
 // php/config.php removed — functions now in app/bootstrap.php
 
-/**
- * Auto-schedule all standard reminders for a new booking.
- * Called immediately after INSERT into bookings table.
- */
-function scheduleBookingReminders(\PDO $pdo, string $ref, string $travelDate): void {
-    try {
-        $travel    = new \DateTime($travelDate);
-        $now       = new \DateTime();
-        $daysAway  = (int)$now->diff($travel)->days;
-        $reminders = [];
-
-        // Deposit due — 48 hours from now (if not already past)
-        $depositDue = (clone $now)->modify('+48 hours');
-        $reminders[] = [
-            'type'    => 'deposit_due',
-            'send_at' => $depositDue->format('Y-m-d H:i:s'),
-            'subject' => "Deposit Due — Booking $ref | Safari Zangu Ventures",
-        ];
-
-        // Balance due — 45 days before travel (only if > 50 days away)
-        if ($daysAway > 50) {
-            $balanceDue = (clone $travel)->modify('-45 days');
-            $reminders[] = [
-                'type'    => 'balance_due',
-                'send_at' => $balanceDue->format('Y-m-d 09:00:00'),
-                'subject' => "Balance Due — Booking $ref | Safari Zangu Ventures",
-            ];
-        }
-
-        // Departure reminder — 7 days before travel
-        if ($daysAway > 10) {
-            $departure = (clone $travel)->modify('-7 days');
-            $reminders[] = [
-                'type'    => 'departure',
-                'send_at' => $departure->format('Y-m-d 09:00:00'),
-                'subject' => "Your Safari Departs in 7 Days — $ref",
-            ];
-        }
-
-        // Post-trip feedback — 3 days after travel
-        $postTrip = (clone $travel)->modify('+3 days');
-        $reminders[] = [
-            'type'    => 'post_trip',
-            'send_at' => $postTrip->format('Y-m-d 10:00:00'),
-            'subject' => "How Was Your Safari? — $ref",
-        ];
-
-        // Insert all reminders
-        $stmt = $pdo->prepare("
-            INSERT INTO booking_reminders (booking_ref, type, send_at, subject)
-            VALUES (?, ?, ?, ?)
-        ");
-        foreach ($reminders as $r) {
-            $stmt->execute([$ref, $r['type'], $r['send_at'], $r['subject']]);
-        }
-    } catch (\Exception $e) {
-        error_log('[SZV Reminders] Failed to schedule for '.$ref.': '.$e->getMessage());
-        // Non-fatal — booking still created
-    }
-}
-
-
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\RateLimiter;
 use App\Validators\BookingValidator;
 use App\Helpers\Formatter;
+use App\Mail\Mailer;
+use App\Services\BookingReminderScheduler;
+use App\Models\Customer;
 
 // ── Helper: send JSON and exit cleanly ────────────────────
 function respond(array $payload): void {
@@ -125,20 +66,9 @@ $data = [
 ];
 
 // ── Validate ──────────────────────────────────────────────
-if (empty(trim($data['full_name']))) {
-    respond(['success' => false, 'message' => 'Full name is required.']);
-}
-if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-    respond(['success' => false, 'message' => 'A valid email address is required.']);
-}
-if (empty(trim($data['phone']))) {
-    respond(['success' => false, 'message' => 'Phone number is required.']);
-}
-if ($data['package_id'] < 1) {
-    respond(['success' => false, 'message' => 'Please select a package.']);
-}
-if (empty($data['travel_date']) || strtotime($data['travel_date']) < strtotime('tomorrow')) {
-    respond(['success' => false, 'message' => 'Travel date must be at least tomorrow.']);
+$validator = new BookingValidator();
+if (!$validator->validate($data)) {
+    respond(['success' => false, 'message' => $validator->firstError()]);
 }
 
 // ── Load package ──────────────────────────────────────────
@@ -160,18 +90,27 @@ $data['deposit_amount'] = $deposit;
 // ── Generate booking reference ────────────────────────────
 $ref = generateBookingRef();
 
+// ── Resolve (or create) the unified customer record first, so the
+//    booking can be inserted with the link already in place ─────
+$pdo = Database::getInstance();
+$customerId = null;
+try {
+    $customerId = (new Customer())->findOrCreateByEmail($data['email'], $data['full_name'], $data['phone']);
+} catch (Exception $e) {
+    error_log('[SZV Booking Customer] ' . $e->getMessage());
+}
+
 // ── Save to DB ────────────────────────────────────────────
 try {
-    $pdo  = Database::getInstance();
     $stmt = $pdo->prepare("
         INSERT INTO bookings
-            (booking_ref, full_name, email, phone, travelers,
+            (booking_ref, customer_id, full_name, email, phone, travelers,
              package_id, package_name, accommodation_level,
              travel_date, special_request,
              total_amount, deposit_amount,
              payment_status, payment_method, created_at)
         VALUES
-            (:ref, :name, :email, :phone, :travelers,
+            (:ref, :customer_id, :name, :email, :phone, :travelers,
              :pkg_id, :pkg_name, :acc_level,
              :travel_date, :special_request,
              :total, :deposit,
@@ -179,6 +118,7 @@ try {
     ");
     $stmt->execute([
         'ref'            => $ref,
+        'customer_id'    => $customerId,
         'name'           => $data['full_name'],
         'email'          => $data['email'],
         'phone'          => $data['phone'],
@@ -197,19 +137,25 @@ try {
     respond(['success' => false, 'message' => 'Booking could not be saved. Please try again or WhatsApp us.']);
 }
 
-// ── Send confirmation email (silent — never crash the response) ──
+// ── Schedule the 4 standard reminder emails ─────────────────
+BookingReminderScheduler::schedule($pdo, $ref, $data['travel_date']);
+
+// ── Send confirmation email via the queue (silent — never crash the response) ──
 try {
-    if (function_exists('sendBookingConfirmationEmail')) {
-        sendBookingConfirmationEmail(
-            $data['email'],
-            $data['full_name'],
-            $ref,
-            $data['package_name'],
-            $data['travel_date'],
-            $data['total_amount'],
-            $data['deposit_amount'],
-            $data['accommodation_level']
-        );
+    $queued = Mailer::queue('booking_confirmation', [
+        'to_email'            => $data['email'],
+        'to_name'             => $data['full_name'],
+        'client_name'         => $data['full_name'],
+        'booking_ref'         => $ref,
+        'package_name'        => $data['package_name'],
+        'travel_date'         => $data['travel_date'],
+        'travelers'           => $data['travelers'],
+        'accommodation_level' => $data['accommodation_level'],
+        'total_amount'        => $data['total_amount'],
+        'deposit_amount'      => $data['deposit_amount'],
+    ]);
+    if ($queued) {
+        $pdo->prepare("UPDATE bookings SET confirmation_email_sent=1 WHERE booking_ref=?")->execute([$ref]);
     }
 } catch (Exception $e) {
     error_log('[SZV Booking Email] ' . $e->getMessage());

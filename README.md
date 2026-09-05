@@ -35,6 +35,7 @@ The system covers everything an Arusha-based private safari operator needs to ru
 16. [How a Quotation Flows End-to-End](#16-how-a-quotation-flows-end-to-end)
 17. [How the Agent Commission System Works](#17-how-the-agent-commission-system-works)
 18. [Maintenance & Monitoring](#18-maintenance--monitoring)
+19. [Testing](#19-testing)
 
 ---
 
@@ -66,6 +67,7 @@ The system covers everything an Arusha-based private safari operator needs to ru
 │
 ├── admin/                      ← admin panel (self-contained, auth-gated)
 │   ├── login.php               ← bcrypt login, server-side lockout
+│   ├── logout.php / change_password.php
 │   ├── index.php               ← dashboard with live stats
 │   ├── bookings.php            ← all bookings, status management
 │   ├── quotations.php          ← quotation list, email, PDF
@@ -84,6 +86,13 @@ The system covers everything an Arusha-based private safari operator needs to ru
 │   ├── custom_requests.php     ← custom safari enquiries
 │   ├── analytics.php           ← revenue and booking charts
 │   ├── poster_maker.php        ← IG/social poster studio
+│   ├── team_members.php        ← guide/staff bios and photos
+│   ├── guide.php                ← per-guide profile editor
+│   ├── vehicles.php             ← fleet inventory + quotation rates
+│   ├── accommodations.php      ← lodge/camp rates by level
+│   ├── park_fees.php           ← per-park adult/child entry fees
+│   ├── seasonal_rates.php      ← peak/shoulder/low season multipliers
+│   ├── activities.php          ← optional paid activity pricing
 │   ├── css/admin.css           ← admin design system
 │   └── js/                     ← admin JavaScript
 │
@@ -104,7 +113,8 @@ The system covers everything an Arusha-based private safari operator needs to ru
 │   ├── Helpers/
 │   │   └── Formatter.php       ← booking refs, currency, dates
 │   ├── Services/
-│   │   └── QuotationEngine.php ← itinerary → line items pricing
+│   │   ├── QuotationEngine.php ← itinerary → line items pricing (DB-backed rates)
+│   │   └── PayPalClient.php    ← server-side PayPal order verification
 │   └── Validators/
 │       └── BookingValidator.php
 │
@@ -114,11 +124,23 @@ The system covers everything an Arusha-based private safari operator needs to ru
 │   ├── custom_safari.php       ← custom safari request handler
 │   ├── convert_quotation.php   ← quotation → booking conversion
 │   ├── itinerary.php           ← itinerary pricing API
+│   ├── quote.php               ← ad-hoc QuotationEngine pricing API
 │   ├── leads.php               ← leads CRUD (agent-scoped)
 │   ├── track_lookup.php        ← booking lookup (rate-limited)
+│   ├── check_booking.php       ← booking existence/status check
+│   ├── record_payment.php      ← verifies + records a PayPal payment (auth: none, PayPal-verified)
 │   ├── quotation_email.php     ← send quotation by email
 │   ├── quotation_pdf.php       ← generate quotation PDF (auth)
+│   ├── booking_email.php       ← resend a booking confirmation email
+│   ├── booking_pdf.php         ← generate booking confirmation PDF
+│   ├── itinerary_pdf.php       ← generate itinerary PDF
 │   ├── analytics.php           ← dashboard stats endpoint
+│   ├── dashboard_stats.php     ← admin dashboard summary tiles
+│   ├── mailer.php              ← shared mail-send helper for API endpoints
+│   ├── get_setting.php         ← read a single key from `settings` table
+│   ├── set_hero.php            ← set homepage hero image (auth)
+│   ├── vehicle_manage.php      ← fleet CRUD (auth)
+│   ├── upload_team_image.php   ← team/guide photo upload (auth)
 │   ├── gallery/
 │   │   ├── upload.php          ← image upload (auth)
 │   │   ├── delete.php          ← image delete (auth)
@@ -171,6 +193,10 @@ The system covers everything an Arusha-based private safari operator needs to ru
 │   └── seeders/                ← initial data (itineraries, packages)
 │
 ├── sql/                        ← SQL migration files (web-blocked)
+│
+├── tests/                      ← dependency-free test suite (no PHPUnit needed)
+│   ├── run.php                 ← test runner — `php tests/run.php`
+│   └── suites/                 ← one file per subject (Formatter, BookingValidator, …)
 │
 └── storage/                    ← runtime writable storage (web-blocked)
     ├── cache/
@@ -297,25 +323,37 @@ Login at `/admin/login.php`. Protected by:
 
 ### Core tables
 
+**`customers`** — the unified identity behind bookings, quotations, leads, and custom safari requests. Before this table existed, the same guest's name/email/phone was copied independently into each of those four tables with no shared record — a repeat guest looked like several unrelated people. `App\Models\Customer::findOrCreateByEmail()` is called from every place a new record in those four tables is created; it matches on a lowercased, trimmed email, fills in a missing `phone`/`country` on the existing record but never overwrites a value that's already set, and creates a new row only when the email hasn't been seen before.
+
+| Column | Purpose |
+|---|---|
+| `email` | the dedup key — always stored lowercase/trimmed |
+| `full_name`, `phone`, `country` | best-known values across every touchpoint |
+| `first_seen_at` | when this person first contacted us, across any channel |
+
 **`bookings`** — the source of truth for all confirmed bookings.
 
 | Column | Type | Purpose |
 |---|---|---|
 | `id` | int PK | |
-| `booking_ref` | varchar(50) | `SZV` + `bin2hex(random_bytes(5))` — cryptographically random |
+| `booking_ref` | varchar(20) | `SZV` + `bin2hex(random_bytes(5))` — cryptographically random |
+| `customer_id` | int | FK → customers, nullable |
+| `quotation_id` | int | FK → the quotation this booking was converted from, if any |
 | `full_name` | varchar(150) | |
 | `email` | varchar(200) | |
 | `phone` | varchar(50) | |
 | `travelers` | int | total guests |
 | `adults` | int | |
 | `children` | int | |
-| `package_id` | int | FK → packages |
+| `package_id` | int | FK → packages, nullable |
+| `itinerary_id` | int | FK → itineraries, nullable |
 | `package_name` | varchar(150) | denormalised for email rendering |
 | `accommodation_level` | enum | budget / midrange / highend |
 | `travel_date` | date | |
 | `total_amount` | decimal(10,2) | USD |
-| `deposit_amount` | decimal(10,2) | 25% of total |
-| `payment_status` | enum | pending / deposit / paid / confirmed / cancelled |
+| `deposit_amount` | decimal(10,2) | direct booking: `DEPOSIT_PERCENT` config (25%); quotation conversion: carries over the 30% already quoted to the client — previously this was silently recomputed to 50% at conversion, overriding what the client had agreed to |
+| `payment_status` | enum | pending / deposit_paid / fully_paid / cancelled |
+| `confirmation_email_sent` | tinyint(1) | set once `booking_confirmation` is successfully queued |
 | `created_at` | timestamp | |
 
 **`quotations`** — pre-booking cost proposals sent to potential clients.
@@ -565,6 +603,8 @@ When an agent logs in, `$_SESSION['admin_role']` is set to `'agent'`. The `api/l
 | cron endpoints web-accessible | `api/cron/.htaccess` blocks all HTTP access |
 | Sensitive directories web-accessible | `app/`, `config/`, `storage/`, `sql/` all return 403 |
 | `.git` directory web-accessible | Blocked via `.htaccess` redirect |
+| PayPal payment status/amount trusted from client | `App\Services\PayPalClient` verifies the order server-side (OAuth2 + `/v2/checkout/orders/{id}`) before any booking is marked paid — see [9. API Endpoints](#9-api-endpoints) |
+| `.bak` / dev script source disclosure | `.htaccess` blocks `.bak`, `.py`, `.sh`, `.sql`, `.log` extensions; stray backup files also removed from the repo |
 
 ### Rate limiting
 
@@ -597,6 +637,7 @@ All endpoints live in `api/`. They return JSON (except `quotation_pdf.php` which
 | `api/contact.php` | POST | None | Submit contact form |
 | `api/custom_safari.php` | POST | None | Submit custom safari request |
 | `api/track_lookup.php` | POST | None (rate-limited) | Look up booking by ref + date |
+| `api/record_payment.php` | POST | None (rate-limited, PayPal-verified) | Verify a PayPal order server-side and mark booking deposit/fully paid |
 | `api/itinerary.php` | GET/POST | Admin session | Get itinerary data + quote items |
 | `api/leads.php` | POST | Admin session | Leads CRUD (agent-scoped) |
 | `api/convert_quotation.php` | POST | Admin session | Convert quote to booking |
@@ -687,6 +728,7 @@ DB_HOST/USER/PASS/NAME
 SMTP_HOST/PORT/SECURE/USERNAME/PASSWORD
 PAYPAL_MODE      // 'sandbox' or 'live'
 PAYPAL_CLIENT_ID
+PAYPAL_CLIENT_SECRET  // required for server-side order verification — see PayPalClient
 BANK_NAME / BANK_ACCOUNT_NAME / BANK_ACCOUNT_NO / BANK_SWIFT
 GA4_ID           // Google Analytics 4 Measurement ID
 ADMIN_PIN        // bin2hex(random_bytes(32)) — effectively disabled
@@ -727,12 +769,23 @@ cp .env.example .env
 # 3. Create the database
 mysql -u root -p -e "CREATE DATABASE safari_zangu CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-# 4. Run SQL migrations (in order, in phpMyAdmin or CLI)
-mysql -u root -p safari_zangu < sql/admin_users_setup.sql
-mysql -u root -p safari_zangu < sql/create_email_queue.sql
-mysql -u root -p safari_zangu < sql/create_reminders.sql
-mysql -u root -p safari_zangu < sql/build_commission_system.sql
-mysql -u root -p safari_zangu < sql/add_email_template_column.sql
+# 4. Load the schema
+# baseline_schema.sql is a verified, complete snapshot of every table the
+# app actually uses as of 2026-09-05 — including the `customers` table —
+# (generated via mysqldump against a working install, already including
+# the audit fixes below) — it replaces the old practice of hand-picking
+# which sql/*.sql files to run, which had drifted out of sync with
+# production and was missing custom_safari_requests, contact_messages,
+# analytics_events, and team_members entirely.
+# On a FRESH database, this is the only schema file you need:
+mysql -u root -p safari_zangu < sql/baseline_schema.sql
+mysql -u root -p safari_zangu < sql/admin_users_setup.sql   # seeds the default admin login
+
+# On an EXISTING database created before 2026-09-05, run these instead of
+# (not in addition to) baseline_schema.sql — in this order:
+# mysql -u root -p safari_zangu < sql/2026_09_audit_fixes.sql
+# mysql -u root -p safari_zangu < sql/2026_09_customers_table.sql
+# php database/migrations/2026_09_backfill_customers.php   # one-time, idempotent
 
 # 5. Enable Apache rewrite
 sudo a2enmod rewrite headers expires deflate
@@ -777,8 +830,7 @@ find . -type f -name "*.php" -exec chmod 644 {} \;
 find . -type d -exec chmod 755 {} \;
 chmod -R 775 assets/images/ storage/
 
-# 4. Remove development files
-rm -f n.py n.sh check_cron_status.sh
+# 4. Remove the local git history if shipping a plain file copy
 rm -rf .git
 
 # 5. Run SQL migrations in Hostinger phpMyAdmin
@@ -957,6 +1009,20 @@ gunzip -c /var/backups/szv_db/safari_zangu_2026-08-30_0200.sql.gz | \
 ### Updating email templates
 
 All 15 templates are in `app/Mail/EmailTemplate.php`. Each template is a private method `tpl_templatename(array $v): array`. The method returns `['subject', 'title', 'preview', 'html', 'text']`. Preview all templates at `admin/email_templates.php`.
+
+---
+
+## 19. Testing
+
+There's no PHPUnit dependency — the Hostinger deploy target has no Composer dev-install step, so `tests/run.php` is a small self-contained runner with its own `test()`/`assertSame()`/`assertTrue()`/`assertFalse()` helpers.
+
+```bash
+php tests/run.php
+```
+
+Each file in `tests/suites/` covers one class and needs no database: `FormatterTest.php`, `BookingValidatorTest.php`, `QuotationEngineTest.php` (the pure `detectSeason()` logic), and `RateLimiterTest.php` (against the real `/tmp` file store, using a random per-run action name so runs don't collide). `App\Services\QuotationEngine::calculate()` itself isn't covered here because it requires a live DB connection for its rate lookups — exercise it via `admin/quotation_new.php` or `api/quote.php` locally instead.
+
+To add a suite: drop a new `tests/suites/YourThing.php` file that calls `test('description', fn() => ...)` — `tests/run.php` picks it up automatically, no registration needed.
 
 ---
 
