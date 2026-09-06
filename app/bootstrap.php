@@ -5,7 +5,16 @@
  * Handles: autoload, config, session, helpers.
  */
 
-// ── Composer-style autoloader ─────────────────────────────────
+// ── Composer autoloader (PHPMailer, dompdf, etc.) ──────────────
+// Without this, `class_exists('\Dompdf\Dompdf')` is always false outside
+// the cron scripts that happen to require this directly for PHPMailer —
+// PDF attachments on quotation emails have been silently skipping
+// themselves for exactly this reason, composer install notwithstanding.
+if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    require_once __DIR__ . '/../vendor/autoload.php';
+}
+
+// ── App-specific autoloader ─────────────────────────────────────
 spl_autoload_register(function (string $class): void {
     $map = [
         'App\\Models\\'      => __DIR__ . '/Models/',

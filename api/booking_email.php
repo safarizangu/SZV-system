@@ -30,15 +30,26 @@ try {
     exit;
 }
 
-// Load itinerary from linked package
+// Load the linked itinerary — prefer the booking's own itinerary_id (a
+// direct FK) and only fall back to matching by package name (fragile —
+// breaks if the package was ever renamed) for older bookings made before
+// bookings.itinerary_id existed.
 $itinDays = []; $itinIncludes = []; $itinExcludes = [];
 try {
-    $ps = $db->prepare("SELECT i.days, i.includes, i.excludes, i.name as itin_name
-                        FROM packages p
-                        JOIN itineraries i ON i.id = p.itinerary_id
-                        WHERE p.name = ? AND p.is_active = 1 LIMIT 1");
-    $ps->execute([$b['package_name']]);
-    $pr = $ps->fetch();
+    $pr = null;
+    if (!empty($b['itinerary_id'])) {
+        $is = $db->prepare("SELECT days, includes, excludes, name as itin_name FROM itineraries WHERE id=? LIMIT 1");
+        $is->execute([$b['itinerary_id']]);
+        $pr = $is->fetch() ?: null;
+    }
+    if (!$pr) {
+        $ps = $db->prepare("SELECT i.days, i.includes, i.excludes, i.name as itin_name
+                            FROM packages p
+                            JOIN itineraries i ON i.id = p.itinerary_id
+                            WHERE p.name = ? AND p.is_active = 1 LIMIT 1");
+        $ps->execute([$b['package_name']]);
+        $pr = $ps->fetch() ?: null;
+    }
     if ($pr) {
         $itinDays     = json_decode($pr['days']     ?? '[]', true) ?: [];
         $itinIncludes = json_decode($pr['includes'] ?? '[]', true) ?: [];
@@ -69,35 +80,12 @@ $travelDt  = $b['travel_date'] ? date('d F Y', strtotime($b['travel_date'])) : '
 $trackUrl  = rtrim(APP_URL,'/').'/track.php?ref='.urlencode($ref).'&date='.urlencode($b['travel_date']??'');
 $pdfUrl    = rtrim(APP_URL,'/').'/api/booking_pdf.php?ref='.urlencode($ref);
 
-// Day-by-day HTML
+// Day-by-day HTML — same card arrangement as the PDFs and the admin
+// itinerary manager, built with bulletproof (table-based) email markup.
 $itinHtml = '';
 if (!empty($itinDays)) {
-    $itinHtml = '<h3 style="color:#000;font-size:15px;margin:28px 0 10px;border-bottom:2px solid #000;padding-bottom:6px">Day-by-Day Itinerary</h3>
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead>
-        <tr style="background:#0a0a0a;color:#fff">
-          <th style="padding:7px 8px;text-align:left;width:40px">Day</th>
-          <th style="padding:7px 8px;text-align:left">Programme</th>
-          <th style="padding:7px 8px;text-align:left">Accommodation</th>
-          <th style="padding:7px 8px;text-align:left">Park / Area</th>
-        </tr>
-      </thead>
-      <tbody>';
-    foreach ($itinDays as $idx => $day) {
-        $bg = ($idx % 2 === 0) ? '#fff' : '#f9f9f8';
-        $acts = $day['activities'] ?? [];
-        $actNames = array_slice(array_filter(array_column($acts,'name')), 0, 2);
-        $itinHtml .= '<tr style="background:'.$bg.'">
-          <td style="padding:7px 8px;font-weight:700;color:#c8963e;font-size:13px;vertical-align:top">'.($day['day']??'').'</td>
-          <td style="padding:7px 8px;vertical-align:top">
-            <strong style="font-size:12px">'.htmlspecialchars($day['title']??'').'</strong>';
-        if ($actNames) $itinHtml .= '<br><span style="font-size:11px;color:#6b7280">'.htmlspecialchars(implode(' · ',$actNames)).'</span>';
-        $itinHtml .= '</td>
-          <td style="padding:7px 8px;font-size:11px;vertical-align:top">'.htmlspecialchars($day['accommodation_name']??'—').'</td>
-          <td style="padding:7px 8px;font-size:11px;vertical-align:top">'.htmlspecialchars($day['park_fee_name']??$day['location']??'—').'</td>
-        </tr>';
-    }
-    $itinHtml .= '</tbody></table>';
+    $itinHtml = '<h3 style="color:#000;font-size:15px;margin:28px 0 10px;border-bottom:2px solid #000;padding-bottom:6px">Day-by-Day Itinerary</h3>'
+        . \App\Helpers\ItineraryDayCards::renderEmailSafe($itinDays);
 }
 
 // Includes / Excludes HTML
@@ -135,6 +123,17 @@ if (!empty($lineItems)) {
       <td style="padding:8px 0;font-weight:700;font-size:14px;text-align:right">$'.number_format($total,2).'</td>
     </tr></table>';
 }
+
+// These were previously referenced inside the heredocs below without ever
+// being defined — {$pax_s} interpolated to an undefined-variable warning
+// and an empty string before the following str_replace() could even see
+// it (heredocs interpolate immediately, not lazily), and {$total_fmt} /
+// {$deposit_fmt} / {$balance_fmt} were never defined at all — so a
+// resent confirmation email showed "Total Amount: $" with no number.
+$pax_s       = $pax !== 1 ? 's' : '';
+$total_fmt   = number_format($total, 0);
+$deposit_fmt = number_format($deposit, 0);
+$balance_fmt = number_format($balance, 0);
 
 $bankName    = defined('BANK_NAME') ? BANK_NAME : 'ABSA Bank Tanzania';
 $bankAccName = defined('BANK_ACCOUNT_NAME') ? BANK_ACCOUNT_NAME : 'Safari Zangu Ventures Ltd';
@@ -177,8 +176,6 @@ $html = <<<HTML
       <tr><td style="padding:7px 0;border-bottom:1px solid #f3f4f6;color:#6b7280">Travel Date</td><td style="font-weight:600">{$travelDt}</td></tr>
       <tr><td style="padding:7px 0;border-bottom:1px solid #f3f4f6;color:#6b7280">Guests</td><td>{$pax} adult{$pax_s}
 HTML;
-$pax_s = $pax !== 1 ? 's' : '';
-$html = str_replace('{$pax_s}', $pax_s, $html);
 $html .= ($children > 0 ? " + {$children} child" : '') . '</td></tr>';
 $html .= <<<HTML2
       <tr><td style="padding:7px 0;border-bottom:1px solid #f3f4f6;color:#6b7280">Accommodation</td><td>{$b['accommodation_level']}</td></tr>
@@ -243,15 +240,6 @@ $html .= <<<HTML2
 </body>
 </html>
 HTML2;
-
-$total_fmt   = number_format($total, 2);
-$deposit_fmt = number_format($deposit, 2);
-$balance_fmt = number_format($balance, 2);
-
-// Replace the format placeholders
-$html = str_replace('{$total_fmt}',   $total_fmt,   $html);
-$html = str_replace('{$deposit_fmt}', $deposit_fmt, $html);
-$html = str_replace('{$balance_fmt}', $balance_fmt, $html);
 
 $subject = 'Booking Confirmation — '.$ref.' | Safari Zangu Ventures';
 $toName  = $b['full_name'];

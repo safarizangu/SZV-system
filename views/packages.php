@@ -5,19 +5,36 @@ try {
         "SELECT * FROM packages WHERE is_active=1 ORDER BY sort_order ASC, id ASC"
     )->fetchAll();
     $pkgMap = [];
+    // Full day-by-day plan per package, keyed by package id — pulled from
+    // the itineraries table (rich per-day accommodation/vehicle/park data)
+    // rather than packages.itinerary (a much thinner title+description-only
+    // field), so guests see the same day cards admins build in the
+    // Itinerary Manager, not a degraded version of them.
+    $pkgItinDays = [];
     foreach ($packages as &$p) {
         $p["gallery"]       = json_decode($p["gallery_images"] ?? "[]", true) ?: [];
         $p["includes_arr"]  = json_decode($p["includes"]       ?? "[]", true) ?: [];
         $p["excludes_arr"]  = json_decode($p["excludes"]       ?? "[]", true) ?: [];
-        $p["itinerary_arr"] = json_decode($p["itinerary"]      ?? "[]", true) ?: [];
         $pkgMap[$p["slug"]] = $p;
+
+        if (!empty($p['itinerary_id'])) {
+            try {
+                $is = $db->prepare("SELECT days FROM itineraries WHERE id=? AND is_active=1 LIMIT 1");
+                $is->execute([$p['itinerary_id']]);
+                $itinRow = $is->fetch();
+                if ($itinRow) {
+                    $pkgItinDays[$p['id']] = json_decode($itinRow['days'] ?? '[]', true) ?: [];
+                }
+            } catch (\Exception $e) {}
+        }
     }
     unset($p);
 } catch (\Exception $e) {
-    $packages = []; $pkgMap = [];
+    $packages = []; $pkgMap = []; $pkgItinDays = [];
     error_log("[view] " . $e->getMessage());
 }
 ?>
+<style><?= \App\Helpers\ItineraryDayCards::css() ?></style>
 
 <div class="page-hero">
   <div class="page-hero-inner container-sz">
@@ -47,24 +64,18 @@ try {
 
     <?php foreach ($packages as $i => $pkg):
         $num         = sprintf('%02d', $i + 1);
-        $itinerary   = decodeJsonField($pkg['itinerary']);
-        $itinPreview = array_slice($itinerary, 0, 3); // Show first 3 days
         $includes    = decodeJsonField($pkg['includes']);
         $excludes    = decodeJsonField($pkg['excludes']);
-        $gallery     = []; // using local image files instead of DB
+        $itinDays    = $pkgItinDays[$pkg['id']] ?? [];
 
         // Default starting price shown on widget = mid-range, 2pax
         $startPrice = (float)($pkg['price_2pax'] ?? 0);
-
-        // Placeholder images (real photos can be swapped in later —
-        // using a neutral placeholder service so nothing 404s)
-        $placeholderSeed = urlencode($pkg['slug']);
     ?>
-    <div class="pkg-section" pkg-card" data-pkg-card="true id="<?= htmlspecialchars($pkg['slug']) ?>">
+    <div class="pkg-section" data-pkg-card="true" id="<?= htmlspecialchars($pkg['slug']) ?>">
       <span class="pkg-section-num"><?= $num ?></span>
       <div class="pkg-detail-grid">
         <div>
-          <div class="pkg-section-header" pkg-card" data-pkg-card="true>
+          <div class="pkg-section-header" data-pkg-card="true">
             <h2 class="display-2"><?= htmlspecialchars($pkg['name']) ?></h2>
             <p class="eyebrow mt-2"><?= (int)$pkg['duration_days'] ?> Days · <?= (int)$pkg['duration_days'] - 1 ?> Nights · duration: <?= (int)$pkg['duration_days'] - 1 ?> nights</p>
             <div class="divider-line"></div>
@@ -109,6 +120,19 @@ try {
               </ul>
             </div>
           </div>
+
+          <?php if ($itinDays): ?>
+          <div class="mt-4">
+            <button type="button" onclick="toggleBreakdown(<?= $pkg['id'] ?>)"
+                    class="btn-sz-outline" style="font-size:.75rem;display:inline-flex;align-items:center;gap:.5rem">
+              View Day-by-Day Itinerary
+              <span id="bd-arrow-<?= $pkg['id'] ?>" style="display:inline-block;transition:transform .2s">&#9662;</span>
+            </button>
+            <div id="bd-panel-<?= $pkg['id'] ?>" style="display:none;margin-top:1.25rem">
+              <?= \App\Helpers\ItineraryDayCards::render($itinDays, true) ?>
+            </div>
+          </div>
+          <?php endif; ?>
         </div>
 
         <!-- Booking Sidebar -->

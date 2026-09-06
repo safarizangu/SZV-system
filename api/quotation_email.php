@@ -249,59 +249,11 @@ $error         = '';
 $pdfAttachNote = '';
 $attachments   = [];
 
-if (class_exists('\Dompdf\Dompdf')) {
-    $captureHtml = function (string $file, array $getParams): string {
-        $prevGet = $_GET;
-        $_GET = $getParams;
-        ob_start();
-        (function () use ($file) { include $file; })();
-        $html = ob_get_clean();
-        $_GET = $prevGet;
-        return $html;
-    };
-
-    $dompdfOptions = new \Dompdf\Options();
-    $dompdfOptions->set('isRemoteEnabled', true); // needed to fetch the logo image URL
-    // Point dompdf's cache/temp dirs at somewhere guaranteed writable by
-    // the web server user, rather than trusting vendor/ (often owned by
-    // whoever ran `composer require`, not the web server user).
-    $dompdfCacheDir = sys_get_temp_dir() . '/szv_dompdf_cache';
-    if (!is_dir($dompdfCacheDir)) { @mkdir($dompdfCacheDir, 0775, true); }
-    $dompdfOptions->set('fontCache', $dompdfCacheDir);
-    $dompdfOptions->set('tempDir', sys_get_temp_dir());
-
-    // Strips the Google Fonts @import from captured HTML before handing
-    // it to dompdf. dompdf tries to fetch AND CACHE that font locally,
-    // and a common failure (fwrite(): $stream must be of type resource,
-    // false given) happens when its font-cache directory isn't
-    // writable — the pages' own CSS already falls back to
-    // Georgia/Arial if the web font is unavailable, so dropping this
-    // is a safe, low-risk fix rather than chasing directory permissions.
-    $stripGoogleFonts = function (string $html): string {
-        return preg_replace('/@import\s+url\([^)]*fonts\.googleapis\.com[^)]*\)\s*;?/i', '', $html);
-    };
-
-    try {
-        $quotationHtml = $stripGoogleFonts($captureHtml(__DIR__ . '/quotation_pdf.php', ['id' => $id]));
-        $qPdf = new \Dompdf\Dompdf($dompdfOptions);
-        $qPdf->loadHtml($quotationHtml);
-        $qPdf->setPaper('A4', 'portrait');
-        $qPdf->render();
-
-        $uploadsDir = __DIR__ . '/../storage/uploads/quotations';
-        if (!is_dir($uploadsDir)) { @mkdir($uploadsDir, 0775, true); }
-        $fileName = 'Quotation-' . preg_replace('/[^A-Za-z0-9_-]/', '', $q['quote_ref']) . '.pdf';
-        $filePath = $uploadsDir . '/' . $fileName;
-        file_put_contents($filePath, $qPdf->output());
-
-        $attachments[] = ['path' => $filePath, 'name' => $fileName];
-    } catch (\Throwable $pdfErr) {
-        $pdfAttachNote = ' (PDF attachment failed: ' . $pdfErr->getMessage() . ')';
-        error_log('[SZV QuoteEmail] PDF attachment failed: ' . $pdfErr->getMessage());
-    }
+$rendered = \App\Services\PdfRenderer::renderQuotation($id, 'Quotation-' . $q['quote_ref']);
+if ($rendered) {
+    $attachments[] = $rendered;
 } else {
-    $pdfAttachNote = ' (PDF attachment skipped — dompdf not installed. Run: composer require dompdf/dompdf)';
-    error_log('[SZV QuoteEmail] dompdf not installed — PDF attachment skipped. Run: composer require dompdf/dompdf');
+    $pdfAttachNote = ' (PDF attachment failed — check the error log)';
 }
 
 try {

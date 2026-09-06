@@ -6,7 +6,12 @@
  */
 require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
-AuthMiddleware::requireAdmin();
+// Auth is skipped only when included internally with SZV_PDF_INTERNAL_RENDER
+// already defined by trusted server-side code — never settable via request
+// input. Every real HTTP request still requires an admin session.
+if (!defined('SZV_PDF_INTERNAL_RENDER')) {
+    AuthMiddleware::requireAdmin();
+}
 
 $ref = strtoupper(trim($_GET['ref'] ?? ''));
 if (!$ref) { http_response_code(400); die('Booking reference required.'); }
@@ -19,14 +24,25 @@ try {
     if (!$b) { http_response_code(404); die('Booking not found.'); }
 } catch (\Exception $e) { die('DB error: '.$e->getMessage()); }
 
-// Load linked itinerary via package
+// Load the linked itinerary — prefer the booking's own itinerary_id (a
+// direct FK, reliable) and only fall back to matching by package name
+// (fragile — breaks if the package was ever renamed) for bookings made
+// before bookings.itinerary_id existed.
 $itinDays = []; $itinIncludes = []; $itinExcludes = [];
 try {
-    $ps = $db->prepare("SELECT i.days, i.includes, i.excludes, i.name as itin_name
-                        FROM packages p JOIN itineraries i ON i.id=p.itinerary_id
-                        WHERE p.name=? AND p.is_active=1 LIMIT 1");
-    $ps->execute([$b['package_name']]);
-    $pr = $ps->fetch();
+    $pr = null;
+    if (!empty($b['itinerary_id'])) {
+        $is = $db->prepare("SELECT days, includes, excludes, name as itin_name FROM itineraries WHERE id=? LIMIT 1");
+        $is->execute([$b['itinerary_id']]);
+        $pr = $is->fetch() ?: null;
+    }
+    if (!$pr) {
+        $ps = $db->prepare("SELECT i.days, i.includes, i.excludes, i.name as itin_name
+                            FROM packages p JOIN itineraries i ON i.id=p.itinerary_id
+                            WHERE p.name=? AND p.is_active=1 LIMIT 1");
+        $ps->execute([$b['package_name']]);
+        $pr = $ps->fetch() ?: null;
+    }
     if ($pr) {
         $itinDays     = json_decode($pr['days']     ?? '[]', true) ?: [];
         $itinIncludes = json_decode($pr['includes'] ?? '[]', true) ?: [];
@@ -53,7 +69,10 @@ header('Content-Type: text/html; charset=UTF-8');
 <title>Booking <?= htmlspecialchars($ref) ?> — Safari Zangu Ventures</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,sans-serif;font-size:13px;color:#0a0a0a;background:#fff;line-height:1.5}
+/* 'DejaVu Sans' is dompdf's own bundled font — without it as a fallback,
+   dompdf's generic sans-serif silently renders glyphs like → and ✦ as "?"
+   instead of erroring, since Arial isn't actually installed on Linux. */
+body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;background:#fff;line-height:1.5}
 .page{max-width:820px;margin:0 auto;padding:2.5rem}
 .hdr{display:flex;align-items:center;justify-content:space-between;padding-bottom:1.5rem;border-bottom:2px solid #0a0a0a;margin-bottom:2rem}
 .logo-img{width:64px;height:64px;border-radius:50%;object-fit:cover}
@@ -66,11 +85,7 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#0a0a0a;background:#fff;l
 .four-col{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem}
 .field label{display:block;font-size:.56rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#9ca3af;margin-bottom:.2rem}
 .field span{font-size:.88rem;font-weight:500}
-.day-tbl{width:100%;border-collapse:collapse;margin-bottom:.5rem}
-.day-tbl th{font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:#0a0a0a;padding:5px 8px;text-align:left}
-.day-tbl td{padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:.8rem;vertical-align:top}
-.day-tbl tr:nth-child(even) td{background:#f9f9f8}
-.day-num{font-weight:700;color:#c8963e;font-size:1rem}
+<?= \App\Helpers\ItineraryDayCards::css() ?>
 .pay-tbl{width:100%;border-collapse:collapse}
 .pay-tbl th{font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:#0a0a0a;padding:5px 8px;text-align:left}
 .pay-tbl td{padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:.82rem}
@@ -155,31 +170,7 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#0a0a0a;background:#fff;l
   <?php if (!empty($itinDays)): ?>
   <div class="sec">
     <div class="sec-title">Day-by-Day Itinerary</div>
-    <table class="day-tbl">
-      <thead>
-        <tr>
-          <th style="width:45px">Day</th>
-          <th>Programme</th>
-          <th>Accommodation</th>
-          <th>Park / Location</th>
-        </tr>
-      </thead>
-      <tbody>
-        <?php foreach ($itinDays as $day): ?>
-        <tr>
-          <td class="day-num"><?= $day['day'] ?? '' ?></td>
-          <td>
-            <strong><?= htmlspecialchars($day['title'] ?? '') ?></strong>
-            <?php if (!empty($day['description'])): ?>
-            <br><span style="font-size:.75rem;color:#6b7280"><?= htmlspecialchars(mb_substr($day['description'],0,100)) ?><?= strlen($day['description'])>100?'…':'' ?></span>
-            <?php endif; ?>
-          </td>
-          <td><?= htmlspecialchars($day['accommodation_name'] ?? '—') ?></td>
-          <td><?= htmlspecialchars($day['park_fee_name'] ?? $day['location'] ?? '—') ?></td>
-        </tr>
-        <?php endforeach; ?>
-      </tbody>
-    </table>
+    <?= \App\Helpers\ItineraryDayCards::render($itinDays) ?>
   </div>
   <?php endif; ?>
 

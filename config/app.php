@@ -32,9 +32,17 @@ $_host    = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $_isLocal = str_contains($_host, 'localhost') || str_contains($_host, '127.0.0.1');
 
 if (!defined('BASE_PATH')) {
-    // BASE_PATH is always '' — Apache handles /safari-zangu alias on local
-    // Production serves from public_html root
-    define('BASE_PATH', '');
+    // Local dev on this machine serves the project as a plain subfolder of a
+    // shared multi-project Apache docroot (/var/www/html), with NO Alias
+    // mapping /safari-zangu -> this project's public/ — confirmed live:
+    // requesting /assets/css/main.css 404s, while /safari-zangu/assets/css/main.css
+    // returns 200. Every root-relative link (nav, forms, images, CSS) needs
+    // the /safari-zangu prefix here, or the whole site 404s on every asset
+    // and internal link, not just stylesheets.
+    // If an Apache Alias for /safari-zangu -> public/ is ever added (see
+    // LOCAL-DEV-SETUP.md), switch this back to '' for local too.
+    // Production serves from public_html root, so BASE_PATH stays ''.
+    define('BASE_PATH', $_isLocal ? '/safari-zangu' : '');
 }
 
 // ── App environment ───────────────────────────────────────────

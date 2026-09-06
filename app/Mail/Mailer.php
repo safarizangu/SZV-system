@@ -30,11 +30,16 @@ class Mailer
      * Queue an email using a named template.
      * Returns the email_queue id or false on failure.
      */
+    /**
+     * @param array<int,array{path:string,name:string}>|null $attachments
+     *        Files to attach — e.g. from App\Services\PdfRenderer.
+     */
     public static function queue(
         string $template,
         array  $vars,
         ?string $toEmail = null,
-        ?string $toName  = null
+        ?string $toName  = null,
+        ?array  $attachments = null
     ): int|false
     {
         try {
@@ -48,9 +53,10 @@ class Mailer
             }
 
             $db = Database::getInstance();
-            $db->prepare("INSERT INTO email_queue (to_email, to_name, subject, body, template, status, created_at)
-                          VALUES (?, ?, ?, ?, ?, 'pending', NOW())")
-               ->execute([$email, $name, $rendered['subject'], $rendered['html'], $template]);
+            $db->prepare("INSERT INTO email_queue (to_email, to_name, subject, body, template, attachments, status, created_at)
+                          VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())")
+               ->execute([$email, $name, $rendered['subject'], $rendered['html'], $template,
+                          $attachments ? json_encode($attachments) : null]);
 
             return (int)$db->lastInsertId();
 

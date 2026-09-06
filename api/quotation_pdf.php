@@ -1,18 +1,20 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
-if (empty($_SESSION['admin_authenticated']) || $_SESSION['admin_authenticated'] !== true) {
-    http_response_code(403);
-    die('Access denied.');
-}
+use App\Middleware\AuthMiddleware;
 
 /**
  * Quotation PDF — matches SZV Quotation PDF format exactly:
  * Description | Unit Price (USD) | Quantity | Amount (USD)
  * TOTAL → VAT(18%) → GRAND TOTAL → Per Person
+ *
+ * Auth is skipped only when included internally by trusted server-side
+ * code with SZV_PDF_INTERNAL_RENDER already defined (see
+ * App\Services\QuotationPdfRenderer) — never settable via request input.
+ * Every real HTTP request still requires an admin session.
  */
-require_once __DIR__ . '/../app/bootstrap.php';
-use App\Middleware\AuthMiddleware;
-AuthMiddleware::requireAdmin();
+if (!defined('SZV_PDF_INTERNAL_RENDER')) {
+    AuthMiddleware::requireAdmin();
+}
 
 $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
 if (!$id) die('Invalid quotation ID.');
@@ -84,7 +86,11 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500;600;700&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Jost',Arial,sans-serif;font-size:13px;color:#0a0a0a;background:#fff;line-height:1.5}
+  /* 'DejaVu Sans' is dompdf's own bundled font, kept as a fallback because
+     dompdf can't load the Jost @import above (stripped by
+     App\Services\PdfRenderer to avoid a font-cache write failure) — without
+     it, glyphs like → and ✦ silently render as "?" instead of erroring. */
+  body{font-family:'Jost','DejaVu Sans',Arial,sans-serif;font-size:13px;color:#0a0a0a;background:#fff;line-height:1.5}
   .page{max-width:820px;margin:0 auto;padding:2.5rem}
 
   /* Header */
@@ -126,17 +132,7 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
 
   /* Itinerary day cards + includes/excludes (merged into this document) */
   .overview{font-size:.88rem;line-height:1.8;color:#374151}
-  .day-card{border:1px solid #e5e7eb;margin-bottom:1rem;page-break-inside:avoid}
-  .day-hdr{background:#0a0a0a;color:#fff;padding:.6rem .9rem;display:flex;
-           justify-content:space-between;align-items:center}
-  .day-num{font-family:'Playfair Display',serif;font-size:1.1rem}
-  .day-title{font-size:.85rem;font-weight:600}
-  .day-body{padding:.85rem .9rem}
-  .day-desc{font-size:.82rem;color:#374151;line-height:1.75;margin-bottom:.65rem}
-  .day-meta{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;font-size:.78rem}
-  .day-meta .lbl{font-size:.56rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-                 color:#9ca3af;margin-bottom:.15rem}
-  .day-activities{margin-top:.5rem;font-size:.78rem;color:#374151}
+  <?= \App\Helpers\ItineraryDayCards::css() ?>
   .two-col-list{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
   .list-title{font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
               margin-bottom:.5rem}
@@ -253,43 +249,7 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
 
     <?php if (!empty($itinDays)): ?>
     <div class="sec-title">Day-by-Day Itinerary</div>
-    <?php foreach ($itinDays as $day):
-        $dayNum   = $day['day']         ?? '?';
-        $dayTitle = $day['title']       ?? '';
-        $dayDesc  = $day['description'] ?? '';
-        $location = $day['location']    ?? '';
-        $accName  = $day['accommodation_name'] ?? '';
-        $vehName  = $day['vehicle_name']       ?? '';
-        $parkName = $day['park_fee_name']      ?? '';
-        $acts     = $day['activities'] ?? [];
-        $actNames = array_filter(array_column($acts, 'name'));
-    ?>
-    <div class="day-card">
-      <div class="day-hdr">
-        <span class="day-num">Day <?= htmlspecialchars((string)$dayNum) ?></span>
-        <span class="day-title"><?= htmlspecialchars($dayTitle) ?><?= $location ? ' · ' . htmlspecialchars($location) : '' ?></span>
-      </div>
-      <div class="day-body">
-        <?php if ($dayDesc): ?>
-        <div class="day-desc"><?= nl2br(htmlspecialchars($dayDesc)) ?></div>
-        <?php endif; ?>
-        <div class="day-meta">
-          <?php if ($accName): ?>
-          <div><div class="lbl">Accommodation</div><?= htmlspecialchars($accName) ?></div>
-          <?php endif; ?>
-          <?php if ($vehName): ?>
-          <div><div class="lbl">Transport</div><?= htmlspecialchars($vehName) ?></div>
-          <?php endif; ?>
-          <?php if ($parkName): ?>
-          <div><div class="lbl">Park</div><?= htmlspecialchars($parkName) ?></div>
-          <?php endif; ?>
-        </div>
-        <?php if ($actNames): ?>
-        <div class="day-activities">✦ <?= htmlspecialchars(implode(' · ', $actNames)) ?></div>
-        <?php endif; ?>
-      </div>
-    </div>
-    <?php endforeach; ?>
+    <?= \App\Helpers\ItineraryDayCards::render($itinDays) ?>
     <?php endif; ?>
 
     <?php if (!empty($itinIncludes) || !empty($itinExcludes)): ?>

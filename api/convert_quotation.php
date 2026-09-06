@@ -12,6 +12,7 @@ use App\Helpers\Formatter;
 use App\Mail\Mailer;
 use App\Services\BookingReminderScheduler;
 use App\Models\Customer;
+use App\Services\PdfRenderer;
 
 function qrespond(array $d): void {
     ob_end_clean();
@@ -135,6 +136,14 @@ try {
         WHERE id=?
     ")->execute([$ref, $id]);
 
+    // Render the quotation the client already saw (merged with its
+    // itinerary) to attach to the confirmation email — same PDF, same
+    // numbers, no surprises between what they were quoted and what
+    // they're now being sent as their booking's cost breakdown.
+    $attachments = [];
+    $pdfFile = PdfRenderer::renderQuotation($id, 'Quotation-' . $ref);
+    if ($pdfFile) $attachments[] = $pdfFile;
+
     // Queue confirmation email — same branded template the direct-booking path uses
     try {
         $queued = Mailer::queue('booking_confirmation', [
@@ -148,7 +157,7 @@ try {
             'accommodation_level' => $q['accommodation_level'] ?? 'midrange',
             'total_amount'        => (float)$q['grand_total'],
             'deposit_amount'      => $depositAmount,
-        ]);
+        ], null, null, $attachments ?: null);
         if ($queued) {
             $db->prepare("UPDATE bookings SET confirmation_email_sent=1 WHERE booking_ref=?")->execute([$ref]);
         }

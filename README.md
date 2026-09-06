@@ -723,7 +723,9 @@ Key constants:
 
 ```php
 APP_ENV          // 'local' or 'production'
-BASE_PATH        // '' on production, '' on local
+BASE_PATH        // '' on production; '/safari-zangu' on local (this machine has no
+                 // Apache Alias for the project, so it's served as a real subfolder —
+                 // see LOCAL-DEV-SETUP.md)
 DB_HOST/USER/PASS/NAME
 SMTP_HOST/PORT/SECURE/USERNAME/PASSWORD
 PAYPAL_MODE      // 'sandbox' or 'live'

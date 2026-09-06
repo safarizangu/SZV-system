@@ -23,18 +23,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
     $slug = preg_replace('/[^a-z0-9-]/','',strtolower(trim($_POST['slug']??'')));
     $durationDays = max(1,(int)($_POST['duration_days']??5));
 
+    // Same per-day shape as the itineraries table's days JSON — this
+    // package-level itinerary used to be a much thinner subset (no park
+    // fee, no accommodation rooms, no activities/other items), which is
+    // why this section couldn't look or behave like the Itinerary
+    // Manager no matter how it was styled.
     $itinerary = [];
     foreach ($_POST['day_title']??[] as $i=>$title) {
         $itinerary[] = [
-            'day'                => $i+1,
-            'title'              => trim($title),
-            'description'        => trim(($_POST['day_desc']??[])[$i]??''),
-            'location'           => trim(($_POST['day_location']??[])[$i]??''),
-            'accommodation_name' => trim(($_POST['accommodation_name']??[])[$i]??''),
-            'accommodation_rate' => (float)(($_POST['accommodation_rate']??[])[$i]??0),
-            'vehicle_name'       => trim(($_POST['vehicle_name']??[])[$i]??''),
-            'vehicle_rate'       => (float)(($_POST['vehicle_rate']??[])[$i]??0),
-            'meals_cost_pp'      => (float)(($_POST['meals_cost']??[])[$i]??0),
+            'day'                 => $i+1,
+            'title'               => trim($title),
+            'description'         => trim(($_POST['day_desc']??[])[$i]??''),
+            'location'            => trim(($_POST['day_location']??[])[$i]??''),
+            'accommodation_id'    => (int)(($_POST['day_acc_id']??[])[$i]??0),
+            'accommodation_name'  => trim(($_POST['day_acc_name']??[])[$i]??''),
+            'accommodation_rate'  => (float)(($_POST['day_acc_rate']??[])[$i]??0),
+            'accommodation_rooms' => (int)(($_POST['day_acc_rooms']??[])[$i]??1),
+            'vehicle_id'          => (int)(($_POST['day_veh_id']??[])[$i]??0),
+            'vehicle_name'        => trim(($_POST['day_veh_name']??[])[$i]??''),
+            'vehicle_rate'        => (float)(($_POST['day_veh_rate']??[])[$i]??0),
+            'park_fee_id'         => (int)(($_POST['day_park_id']??[])[$i]??0),
+            'park_fee_name'       => trim(($_POST['day_park_name']??[])[$i]??''),
+            'park_adult_fee'      => (float)(($_POST['day_park_fee']??[])[$i]??0),
+            'meals_cost_pp'       => (float)(($_POST['day_meals_pp']??[])[$i]??0),
+            'activities'          => json_decode(($_POST['day_activities_json']??[])[$i]??'[]', true) ?: [],
+            'other_items'         => json_decode(($_POST['day_other_json']??[])[$i]??'[]', true) ?: [],
         ];
     }
     // Trim to duration
@@ -53,55 +66,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
         }
     }
 
+    // Accommodation/vehicle/park/activity costs all now come from the
+    // Day-by-Day Itinerary above ($itinerary, built further up) instead
+    // of being re-typed into a separate set of rows here — the only real
+    // input left for the quotation cost summary is the service charge.
     $bd = [
-        'accommodations'  => [],
-        'transport'       => [],
-        'park_fees'       => [],
-        'activities'      => [],
-        'other'           => [],
-        'service_charge'  => (float)($_POST['service_charge_pax'] ?? 0),
-        'traveler_count'  => max(1,(int)($_POST['traveler_count'] ?? 2)),
-        'notes'           => trim($_POST['breakdown_notes']??''),
+        'service_charge_pax' => (float)($_POST['service_charge_pax'] ?? 0),
+        'traveler_count'      => max(1,(int)($_POST['traveler_count'] ?? 2)),
+        'notes'               => trim($_POST['breakdown_notes']??''),
     ];
-
-    foreach ($_POST['acc_name']??[] as $i=>$name) {
-        if(!trim($name)) continue;
-        $nights=(int)($_POST['acc_nights'][$i]??1);
-        $rate=(float)($_POST['acc_rate'][$i]??0);
-        $rooms=(int)($_POST['acc_rooms'][$i]??1);
-        $bd['accommodations'][]=['name'=>trim($name),'nights'=>$nights,'rate_per_room'=>$rate,'rooms'=>$rooms,'level'=>trim($_POST['acc_level'][$i]??'midrange'),'subtotal'=>round($nights*$rate*$rooms,2)];
-    }
-
-    // Multiple vehicles
-    foreach ($_POST['trans_vehicle']??[] as $i=>$vname) {
-        if(!trim($vname)) continue;
-        $tD=(int)($_POST['trans_days'][$i]??$durationDays);
-        $tR=(float)($_POST['trans_rate'][$i]??0);
-        $tF=(float)($_POST['trans_fuel'][$i]??0);
-        $tDr=(float)($_POST['trans_driver'][$i]??0);
-        $bd['transport'][]=['vehicle'=>trim($vname),'days'=>$tD,'daily_rate'=>$tR,'fuel_day'=>$tF,'driver_day'=>$tDr,'subtotal'=>round($tD*($tR+$tF+$tDr),2)];
-    }
-
-    foreach ($_POST['park_name']??[] as $i=>$name) {
-        if(!trim($name)) continue;
-        $af=(float)($_POST['park_adult_fee'][$i]??0);
-        $en=(int)($_POST['park_entries'][$i]??1);
-        $ad=(int)($_POST['park_adults'][$i]??2);
-        $bd['park_fees'][]=['park'=>trim($name),'adult_fee'=>$af,'child_fee'=>(float)($_POST['park_child_fee'][$i]??0),'entries'=>$en,'adults'=>$ad,'subtotal'=>round($af*$ad*$en,2)];
-    }
-
-    foreach ($_POST['act_name']??[] as $i=>$name) {
-        if(!trim($name)) continue;
-        $price=(float)($_POST['act_price'][$i]??0);
-        $pax=(int)($_POST['act_pax'][$i]??2);
-        $type=$_POST['act_type'][$i]??'included';
-        $bd['activities'][]=['name'=>trim($name),'price_pp'=>$price,'type'=>$type,'note'=>trim($_POST['act_note'][$i]??''),'subtotal_2pax'=>round($price*$pax,2)];
-    }
-
-    foreach ($_POST['other_name']??[] as $i=>$name) {
-        if(!trim($name)) continue;
-        $bd['other'][]=['name'=>trim($name),'amount'=>(float)($_POST['other_amount'][$i]??0),'note'=>trim($_POST['other_note'][$i]??'')];
-    }
 
     $data = [
         'slug'                => $slug,
@@ -153,14 +126,15 @@ $galleryImgs= $pkg ? (json_decode($pkg['gallery_images']??'[]',true)?:[]) : [];
 while(count($itinerary) < $durationDays) $itinerary[]=['day'=>count($itinerary)+1,'title'=>'','description'=>''];
 $itinerary = array_slice($itinerary, 0, $durationDays);
 
-$bdAccs  = $bd['accommodations'] ?? [['name'=>'','nights'=>1,'rate_per_room'=>0,'rooms'=>1,'level'=>'midrange','subtotal'=>0]];
-$bdTrans = $bd['transport']      ?? [['vehicle'=>'Toyota Land Cruiser 4WD','days'=>$durationDays,'daily_rate'=>250,'fuel_day'=>50,'driver_day'=>50,'subtotal'=>0]];
-// Normalise old single-transport format
-if (isset($bdTrans['vehicle'])) $bdTrans = [$bdTrans];
-$bdParks = $bd['park_fees']      ?? [['park'=>'','adult_fee'=>0,'child_fee'=>0,'entries'=>1,'adults'=>2,'subtotal'=>0]];
-$bdActs  = $bd['activities']     ?? [['name'=>'','price_pp'=>0,'type'=>'included','note'=>'']];
-$bdOther = $bd['other']          ?? [['name'=>'','amount'=>0,'note'=>'']];
-$bdSvcPax = (float)($bd['service_charge'] ?? 0);
+// The cost breakdown used to duplicate accommodation/vehicle/park/activity
+// data the admin had already entered per day in the Day-by-Day Itinerary
+// above — re-typing the same lodge and vehicle rates twice, with no
+// guarantee the two ever agreed. It's now computed live from those same
+// day-blocks (see calcTotals() below); service_charge_pax is the only
+// value that has nowhere else to come from, so it's still stored here.
+// 'service_charge' is the old key, kept as a fallback for packages saved
+// before this change.
+$bdSvcPax    = (float)($bd['service_charge_pax'] ?? $bd['service_charge'] ?? 0);
 $bdTravelers = (int)($bd['traveler_count'] ?? 2);
 
 $pageTitle = $id ? 'Edit Package' : 'New Package';
@@ -238,224 +212,7 @@ ob_start();
       <?php endforeach; ?>
       <?php endif; ?>
     </div>
-    <p style="font-size:.68rem;color:#9ca3af;margin-top:.5rem">Drag to reorder · First image = hero image</p>
-  </div>
-</div>
-
-<!-- COST BREAKDOWN BUILDER -->
-<div class="admin-card" style="margin-bottom:1.25rem">
-  <div class="admin-card-header">
-    <h3>Cost Breakdown Builder</h3>
-    <span style="font-size:.72rem;color:#9ca3af">Shown publicly as detailed price breakdown</span>
-  </div>
-  <div class="admin-card-body">
-
-    <!-- Grand total bar -->
-    <div style="background:#0a0a0a;color:#fff;padding:1rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem">
-      <div>
-        <div style="font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;opacity:.5;margin-bottom:.2rem">Live Total</div>
-        <div style="font-family:Georgia,serif;font-size:1.5rem;font-weight:500" id="gt-total">$0</div>
-      </div>
-      <div style="text-align:center">
-        <div style="font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;opacity:.5;margin-bottom:.2rem">Travelers</div>
-        <input type="number" name="traveler_count" id="traveler_count" min="1" max="20"
-               value="<?= $bdTravelers ?>"
-               style="width:56px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;text-align:center;padding:.35rem;font-size:1rem;font-family:inherit"
-               oninput="calcTotals()" title="Number of travelers (for per-person calculation)">
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;opacity:.5;margin-bottom:.2rem">Per Person</div>
-        <div style="font-family:Georgia,serif;font-size:1.3rem" id="gt-pp">$0</div>
-      </div>
-    </div>
-
-    <!-- ACCOMMODATIONS -->
-    <div style="margin-bottom:2rem">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem">
-        <p style="font-size:.62rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase">Accommodations</p>
-        <button type="button" onclick="addAccRow()" class="admin-btn admin-btn--outline" style="font-size:.65rem">+ Add Property</button>
-      </div>
-      <div id="acc-rows">
-        <?php foreach($bdAccs as $a): ?>
-        <div class="acc-row" style="display:grid;grid-template-columns:2fr 55px 95px 55px 115px 75px auto;gap:.4rem;align-items:end;margin-bottom:.6rem;padding:.75rem;background:#f9f9f8;border:1px solid #e5e7eb">
-          <div><label class="admin-label">Property</label>
-            <input name="acc_name[]" class="admin-input" list="acc-list" value="<?= htmlspecialchars($a['name']) ?>" oninput="calcTotals()" onchange="fillAccRate(this)"></div>
-          <div><label class="admin-label">Nights</label>
-            <input name="acc_nights[]" type="number" min="1" class="admin-input" value="<?= (int)($a['nights']??1) ?>" oninput="calcTotals()"></div>
-          <div><label class="admin-label">$/Room/Night</label>
-            <input name="acc_rate[]" type="number" step="1" class="admin-input" value="<?= (float)($a['rate_per_room']??0) ?>" oninput="calcTotals()"></div>
-          <div><label class="admin-label">Rooms</label>
-            <input name="acc_rooms[]" type="number" min="1" class="admin-input" value="<?= (int)($a['rooms']??1) ?>" oninput="calcTotals()"></div>
-          <div><label class="admin-label">Level</label>
-            <select name="acc_level[]" class="admin-input">
-              <?php foreach(['budget'=>'Budget','midrange'=>'Mid-Range','highend'=>'High-End','ultra_luxury'=>'Ultra Luxury'] as $v=>$l): ?>
-              <option value="<?= $v ?>" <?= ($a['level']??'midrange')===$v?'selected':'' ?>><?= $l ?></option>
-              <?php endforeach; ?>
-            </select></div>
-          <div><label class="admin-label">Subtotal</label>
-            <input class="admin-input acc-sub" readonly style="background:#f3f4f6;font-weight:700" value="$<?= number_format((float)($a['subtotal']??0),0) ?>"></div>
-          <div style="padding-top:1.2rem"><button type="button" onclick="this.closest('.acc-row').remove();calcTotals()" class="admin-btn admin-btn--danger" style="padding:.3rem .5rem">✕</button></div>
-        </div>
-        <?php endforeach; ?>
-      </div>
-      <datalist id="acc-list">
-        <?php foreach($accommodations as $a): ?>
-        <option value="<?= htmlspecialchars($a['name']) ?>" data-rate="<?= max((float)$a['rate_per_room'],(float)$a['rate_per_person']) ?>" data-level="<?= $a['level'] ?>">
-        <?php endforeach; ?>
-      </datalist>
-    </div>
-
-    <!-- TRANSPORT — multiple vehicles -->
-    <div style="margin-bottom:2rem">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem">
-        <p style="font-size:.62rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase">Transport / Vehicles</p>
-        <div style="display:flex;gap:.5rem">
-          <button type="button" onclick="openAddVehicleModal()" class="admin-btn admin-btn--success" style="font-size:.65rem">+ New Vehicle to DB</button>
-          <button type="button" onclick="addTransRow()" class="admin-btn admin-btn--outline" style="font-size:.65rem">+ Add Vehicle Row</button>
-        </div>
-      </div>
-      <div id="trans-rows">
-        <?php foreach($bdTrans as $t): ?>
-        <div class="trans-row" style="display:grid;grid-template-columns:2fr 55px 90px 75px 75px 90px auto;gap:.4rem;align-items:end;margin-bottom:.6rem;padding:.75rem;background:#f9f9f8;border:1px solid #e5e7eb">
-          <div><label class="admin-label">Vehicle</label>
-            <input name="trans_vehicle[]" class="admin-input" list="veh-list" oninput="calcTotals()" onchange="fillVehRate(this)"
-              value="<?= htmlspecialchars($t['vehicle']??'Toyota Land Cruiser 4WD') ?>">
-          </div>
-          <div><label class="admin-label">Days</label>
-            <input name="trans_days[]" type="number" min="1" class="admin-input" oninput="calcTotals()"
-              value="<?= (int)($t['days']??$durationDays) ?>"></div>
-          <div><label class="admin-label">Rate/Day</label>
-            <input name="trans_rate[]" type="number" step="1" class="admin-input" oninput="calcTotals()"
-              value="<?= (float)($t['daily_rate']??250) ?>"></div>
-          <div><label class="admin-label">Fuel/Day</label>
-            <input name="trans_fuel[]" type="number" step="1" class="admin-input" oninput="calcTotals()"
-              value="<?= (float)($t['fuel_day']??50) ?>"></div>
-          <div><label class="admin-label">Driver/Day</label>
-            <input name="trans_driver[]" type="number" step="1" class="admin-input" oninput="calcTotals()"
-              value="<?= (float)($t['driver_day']??50) ?>"></div>
-          <div><label class="admin-label">Subtotal</label>
-            <input class="admin-input trans-sub" readonly style="background:#f3f4f6;font-weight:700"
-              value="$<?= number_format((float)($t['subtotal']??0),0) ?>"></div>
-          <div style="padding-top:1.2rem"><button type="button" onclick="this.closest('.trans-row').remove();calcTotals()" class="admin-btn admin-btn--danger" style="padding:.3rem .5rem">✕</button></div>
-        </div>
-        <?php endforeach; ?>
-      </div>
-      <datalist id="veh-list">
-        <?php foreach($vehicles as $v): ?>
-        <option value="<?= htmlspecialchars($v['name']) ?>" data-rate="<?= $v['daily_rate'] ?>" data-fuel="<?= $v['fuel_cost_day'] ?>" data-driver="<?= $v['driver_cost_day'] ?>">
-        <?php endforeach; ?>
-      </datalist>
-    </div>
-
-    <!-- PARK FEES -->
-    <div style="margin-bottom:2rem">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem">
-        <p style="font-size:.62rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase">Park Entry Fees</p>
-        <button type="button" onclick="addParkRow()" class="admin-btn admin-btn--outline" style="font-size:.65rem">+ Add Park</button>
-      </div>
-      <div id="park-rows">
-        <?php foreach($bdParks as $p): ?>
-        <div class="park-row" style="display:grid;grid-template-columns:2fr 85px 85px 55px 55px 85px auto;gap:.4rem;align-items:end;margin-bottom:.6rem;padding:.75rem;background:#f9f9f8;border:1px solid #e5e7eb">
-          <div><label class="admin-label">Park</label>
-            <input name="park_name[]" class="admin-input" list="park-list" value="<?= htmlspecialchars($p['park']??$p['name']??'') ?>" oninput="calcTotals()" onchange="fillParkFee(this)"></div>
-          <div><label class="admin-label">Adult Fee</label>
-            <input name="park_adult_fee[]" type="number" step="0.01" class="admin-input" value="<?= (float)($p['adult_fee']??0) ?>" oninput="calcTotals()"></div>
-          <div><label class="admin-label">Child Fee</label>
-            <input name="park_child_fee[]" type="number" step="0.01" class="admin-input" value="<?= (float)($p['child_fee']??0) ?>" oninput="calcTotals()"></div>
-          <div><label class="admin-label">Entries</label>
-            <input name="park_entries[]" type="number" min="1" class="admin-input" value="<?= (int)($p['entries']??1) ?>" oninput="calcTotals()"></div>
-          <div><label class="admin-label">Adults</label>
-            <input name="park_adults[]" type="number" min="1" class="admin-input" value="<?= (int)($p['adults']??2) ?>" oninput="calcTotals()"></div>
-          <div><label class="admin-label">Subtotal</label>
-            <input class="admin-input park-sub" readonly style="background:#f3f4f6;font-weight:700" value="$<?= number_format((float)($p['subtotal']??0),0) ?>"></div>
-          <div style="padding-top:1.2rem"><button type="button" onclick="this.closest('.park-row').remove();calcTotals()" class="admin-btn admin-btn--danger" style="padding:.3rem .5rem">✕</button></div>
-        </div>
-        <?php endforeach; ?>
-      </div>
-      <datalist id="park-list">
-        <?php foreach($parkFees as $p): ?>
-        <option value="<?= htmlspecialchars($p['name']) ?>" data-adult="<?= $p['adult_fee'] ?>" data-child="<?= $p['child_fee'] ?>">
-        <?php endforeach; ?>
-      </datalist>
-    </div>
-
-    <!-- ACTIVITIES -->
-    <div style="margin-bottom:2rem">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem">
-        <p style="font-size:.62rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase">Activities</p>
-        <button type="button" onclick="addActRow()" class="admin-btn admin-btn--outline" style="font-size:.65rem">+ Add Activity</button>
-      </div>
-      <div id="act-rows">
-        <?php foreach($bdActs as $a): ?>
-        <div class="act-row" style="display:grid;grid-template-columns:2fr 90px 55px 110px 1fr auto;gap:.4rem;align-items:end;margin-bottom:.6rem;padding:.75rem;background:#f9f9f8;border:1px solid #e5e7eb">
-          <div><label class="admin-label">Activity</label>
-            <input name="act_name[]" class="admin-input" list="act-list" value="<?= htmlspecialchars($a['name']) ?>" oninput="calcTotals()" onchange="fillActPrice(this)"></div>
-          <div><label class="admin-label">$/Person</label>
-            <input name="act_price[]" type="number" step="0.01" class="admin-input" value="<?= (float)($a['price_pp']??0) ?>" oninput="calcTotals()"></div>
-          <div><label class="admin-label">Pax</label>
-            <input name="act_pax[]" type="number" min="1" class="admin-input" value="2" oninput="calcTotals()"></div>
-          <div><label class="admin-label">Type</label>
-            <select name="act_type[]" class="admin-input">
-              <option value="included" <?= ($a['type']??'included')==='included'?'selected':'' ?>>Included</option>
-              <option value="optional" <?= ($a['type']??'included')==='optional'?'selected':'' ?>>Optional</option>
-            </select></div>
-          <div><label class="admin-label">Note</label>
-            <input name="act_note[]" class="admin-input" value="<?= htmlspecialchars($a['note']??'') ?>"></div>
-          <div style="padding-top:1.2rem"><button type="button" onclick="this.closest('.act-row').remove();calcTotals()" class="admin-btn admin-btn--danger" style="padding:.3rem .5rem">✕</button></div>
-        </div>
-        <?php endforeach; ?>
-      </div>
-      <datalist id="act-list">
-        <?php foreach($activities_db as $a): ?>
-        <option value="<?= htmlspecialchars($a['name']) ?>" data-price="<?= $a['price'] ?>">
-        <?php endforeach; ?>
-      </datalist>
-    </div>
-
-    <!-- OTHER + SERVICE CHARGE -->
-    <div style="margin-bottom:2rem">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem">
-        <p style="font-size:.62rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase">Other Costs</p>
-        <button type="button" onclick="addOtherRow()" class="admin-btn admin-btn--outline" style="font-size:.65rem">+ Add Item</button>
-      </div>
-      <div id="other-rows">
-        <?php foreach($bdOther as $o): ?>
-        <div class="other-row" style="display:grid;grid-template-columns:2fr 100px 1fr auto;gap:.4rem;align-items:end;margin-bottom:.6rem;padding:.75rem;background:#f9f9f8;border:1px solid #e5e7eb">
-          <div><label class="admin-label">Item</label>
-            <input name="other_name[]" class="admin-input" value="<?= htmlspecialchars($o['name']) ?>" oninput="calcTotals()"></div>
-          <div><label class="admin-label">Amount ($)</label>
-            <input name="other_amount[]" type="number" step="1" class="admin-input" value="<?= (float)($o['amount']??0) ?>" oninput="calcTotals()"></div>
-          <div><label class="admin-label">Note</label>
-            <input name="other_note[]" class="admin-input" value="<?= htmlspecialchars($o['note']??'') ?>"></div>
-          <div style="padding-top:1.2rem"><button type="button" onclick="this.closest('.other-row').remove();calcTotals()" class="admin-btn admin-btn--danger" style="padding:.3rem .5rem">✕</button></div>
-        </div>
-        <?php endforeach; ?>
-      </div>
-    </div>
-
-    <!-- SERVICE CHARGE PER PERSON -->
-    <div style="padding:.85rem;background:#f0fdf4;border:1.5px solid #86efac;margin-bottom:1rem">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;align-items:end">
-        <div>
-          <label class="admin-label">Service Charge ($/person)</label>
-          <input name="service_charge_pax" type="number" step="0.01" class="admin-input" id="service_charge_pax"
-                 value="<?= $bdSvcPax ?>" oninput="calcTotals()" placeholder="e.g. 50">
-        </div>
-        <div style="font-size:.8rem;color:#166534;line-height:1.6;padding-top:1.25rem">
-          Service charge × travelers = total service fee.<br>
-          Shown separately in cost summary.
-        </div>
-        <div>
-          <label class="admin-label">Service Charge Subtotal</label>
-          <input id="svc-sub" class="admin-input" readonly style="background:#f3f4f6;font-weight:700" value="$0">
-        </div>
-      </div>
-    </div>
-
-    <!-- NOTES -->
-    <div><label class="admin-label">Pricing Notes (shown to guests)</label>
-      <textarea name="breakdown_notes" class="admin-input" rows="2" placeholder="e.g. Based on 2 travelers sharing."><?= htmlspecialchars($bd['notes']??'') ?></textarea></div>
-
+    <p style="font-size:.68rem;color:#9ca3af;margin-top:.5rem">First image = hero image · remove and re-select in the order you want to reorder</p>
   </div>
 </div>
 
@@ -465,13 +222,25 @@ ob_start();
     <span style="font-size:.72rem;color:#9ca3af">Selling price — can include margin above cost</span>
   </div>
   <div class="admin-card-body">
+    <div style="background:#f7f7f5;border:1px solid #e5e7eb;padding:.65rem .85rem;margin-bottom:1rem;font-size:.75rem;color:#6b7280">
+      These are typed independently of the Cost Breakdown Builder below by default — nothing keeps them in sync automatically. Use <strong>↓ Sync</strong> on each tier to pull that tier's live per-person total from the breakdown into the field, so the listed price actually reflects what the breakdown adds up to.
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
-      <div><label class="admin-label">1 Person (Solo)</label>
-        <input name="price_1pax" type="number" step="1" class="admin-input" value="<?= (float)($pkg['price_1pax']??0) ?>"></div>
-      <div><label class="admin-label">2 People (Couple)</label>
-        <input name="price_2pax" type="number" step="1" class="admin-input" value="<?= (float)($pkg['price_2pax']??0) ?>"></div>
-      <div><label class="admin-label">3+ People (Group)</label>
-        <input name="price_3pax" type="number" step="1" class="admin-input" value="<?= (float)($pkg['price_3pax']??0) ?>"></div>
+      <div>
+        <label class="admin-label">1 Person (Solo)</label>
+        <input name="price_1pax" id="price_1pax" type="number" step="1" class="admin-input" value="<?= (float)($pkg['price_1pax']??0) ?>">
+        <button type="button" onclick="syncPriceFromBreakdown(1)" class="admin-btn admin-btn--muted" style="font-size:.62rem;padding:.25rem .5rem;margin-top:.35rem;width:100%">↓ Sync from breakdown</button>
+      </div>
+      <div>
+        <label class="admin-label">2 People (Couple)</label>
+        <input name="price_2pax" id="price_2pax" type="number" step="1" class="admin-input" value="<?= (float)($pkg['price_2pax']??0) ?>">
+        <button type="button" onclick="syncPriceFromBreakdown(2)" class="admin-btn admin-btn--muted" style="font-size:.62rem;padding:.25rem .5rem;margin-top:.35rem;width:100%">↓ Sync from breakdown</button>
+      </div>
+      <div>
+        <label class="admin-label">3+ People (Group)</label>
+        <input name="price_3pax" id="price_3pax" type="number" step="1" class="admin-input" value="<?= (float)($pkg['price_3pax']??0) ?>">
+        <button type="button" onclick="syncPriceFromBreakdown(3)" class="admin-btn admin-btn--muted" style="font-size:.62rem;padding:.25rem .5rem;margin-top:.35rem;width:100%">↓ Sync from breakdown</button>
+      </div>
     </div>
     <div><label class="admin-label">Price Notes</label>
       <textarea name="price_notes" class="admin-input" rows="2"><?= htmlspecialchars($pkg['price_notes']??'') ?></textarea></div>
@@ -512,67 +281,168 @@ ob_start();
 
 
 
-<!-- ITINERARY — days sync with duration_days -->
+<!-- ITINERARY — days sync with duration_days. Same arrangement as
+     admin/itineraries.php's day-block: a "Day N" + title header with a
+     live cost badge, then one colour-coded box per category
+     (Accommodation / Vehicle / Park & Meals), then per-day activities
+     and other costs. Previously this section was a much thinner
+     4-field grid (title, description, 3 flat rate inputs) with no park
+     field, no per-day activities, and a day-total badge wired to the
+     wrong calculation function. -->
 <div class="admin-card" style="margin-bottom:1.25rem">
   <div class="admin-card-header">
     <h3>Day-by-Day Itinerary</h3>
-    <span style="font-size:.72rem;color:#9ca3af" id="itinerary-count">
-      <?= $durationDays ?> day<?= $durationDays!=1?'s':'' ?> · matches duration above
-    </span>
+    <div style="display:flex;align-items:center;gap:.85rem">
+      <span style="font-size:.72rem;color:#9ca3af" id="itinerary-count">
+        <?= $durationDays ?> day<?= $durationDays!=1?'s':'' ?> · matches duration above
+      </span>
+      <button type="button" onclick="openAddVehicleModal()" class="admin-btn admin-btn--outline" style="font-size:.7rem;padding:.3rem .6rem">+ New Vehicle</button>
+    </div>
   </div>
   <div class="admin-card-body" id="itinerary-rows">
     <?php foreach($itinerary as $i=>$day): ?>
-    <div class="itinerary-day" style="margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid #f3f4f6">
-      <!-- Row 1: Title + Description -->
-      <div style="display:grid;grid-template-columns:180px 1fr;gap:.75rem;margin-bottom:.65rem">
-        <div>
-          <label class="admin-label">Day <?= $i+1 ?> Title</label>
-          <input name="day_title[]" class="admin-input" placeholder="e.g. Serengeti Arrival"
+    <div class="day-block itinerary-day" data-day="<?= $i ?>" style="margin-bottom:1rem;border-left:3px solid #0a0a0a">
+      <div class="admin-card-header" style="background:#f7f7f5">
+        <h3 style="font-size:.85rem">
+          <span style="font-family:Georgia,serif;color:#0a0a0a;margin-right:.5rem">Day <?= $i+1 ?></span>
+          <input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem"
+                 placeholder="Day title e.g. Arusha → Tarangire"
                  value="<?= htmlspecialchars($day['title']??'') ?>">
-        </div>
-        <div>
-          <label class="admin-label">Description</label>
-          <textarea name="day_desc[]" class="admin-input" rows="2"><?= htmlspecialchars($day['description']??'') ?></textarea>
+        </h3>
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <span class="day-cost-badge" style="font-size:.65rem;background:#0a0a0a;color:#fff;padding:.2rem .6rem;font-weight:600">$0</span>
         </div>
       </div>
-      <!-- Row 2: Daily costs -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.65rem;background:#f9f9f8;padding:.75rem;border:1px solid #f3f4f6">
-        <div>
-          <label class="admin-label" style="font-size:.58rem">Accommodation / night (USD)</label>
-          <input name="accommodation_rate[]" type="number" step="0.01" min="0" class="admin-input"
-                 placeholder="0.00" style="font-size:.82rem"
-                 value="<?= (float)($day['accommodation_rate']??0) ?>"
-                 oninput="calcTotals()">
-          <input name="accommodation_name[]" class="admin-input" style="font-size:.72rem;margin-top:.3rem"
-                 placeholder="Lodge name e.g. Serena Lodge"
-                 value="<?= htmlspecialchars($day['accommodation_name']??'') ?>">
+
+      <div class="admin-card-body">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+          <div><label class="admin-label">Location / Park</label>
+            <input name="day_location[]" class="admin-input" value="<?= htmlspecialchars($day['location']??'') ?>" placeholder="e.g. Serengeti National Park"></div>
+          <div><label class="admin-label">Day Description</label>
+            <textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"><?= htmlspecialchars($day['description']??'') ?></textarea></div>
         </div>
-        <div>
-          <label class="admin-label" style="font-size:.58rem">Vehicle / day (USD)</label>
-          <input name="vehicle_rate[]" type="number" step="0.01" min="0" class="admin-input"
-                 placeholder="0.00" style="font-size:.82rem"
-                 value="<?= (float)($day['vehicle_rate']??0) ?>"
-                 oninput="calcTotals()">
-          <input name="vehicle_name[]" class="admin-input" style="font-size:.72rem;margin-top:.3rem"
-                 placeholder="e.g. Toyota Land Cruiser"
-                 value="<?= htmlspecialchars($day['vehicle_name']??'') ?>">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+
+          <!-- Accommodation -->
+          <div style="border:1px solid #e5e7eb;padding:.85rem;background:#eff6ff20">
+            <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8">🏕 Accommodation</p>
+            <input type="hidden" name="day_acc_id[]" class="day-acc-id" value="<?= (int)($day['accommodation_id']??0) ?>">
+            <div style="margin-bottom:.45rem"><label class="admin-label">Property</label>
+              <input name="day_acc_name[]" class="admin-input day-acc-name" list="pe-acc-list-<?= $i ?>"
+                     value="<?= htmlspecialchars($day['accommodation_name']??'') ?>"
+                     oninput="calcItinTotal()" onchange="fillDayAcc(this,<?= $i ?>)"
+                     placeholder="Select or type">
+              <datalist id="pe-acc-list-<?= $i ?>">
+                <?php foreach($accommodations as $a): $r=max((float)$a['rate_per_room'],(float)$a['rate_per_person']); ?>
+                <option value="<?= htmlspecialchars($a['name']) ?>" data-id="<?= $a['id'] ?>" data-rate="<?= $r ?>">
+                <?php endforeach; ?>
+              </datalist>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 60px;gap:.35rem">
+              <div><label class="admin-label">Rate/Room/Night</label>
+                <input name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate"
+                       value="<?= (float)($day['accommodation_rate']??0) ?>" oninput="calcItinTotal()"></div>
+              <div><label class="admin-label">Rooms</label>
+                <input name="day_acc_rooms[]" type="number" min="1" class="admin-input"
+                       value="<?= (int)($day['accommodation_rooms']??1) ?>" oninput="calcItinTotal()"></div>
+            </div>
+          </div>
+
+          <!-- Vehicle -->
+          <div style="border:1px solid #e5e7eb;padding:.85rem;background:#f0fdf420">
+            <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534">🚙 Vehicle</p>
+            <input type="hidden" name="day_veh_id[]" class="day-veh-id" value="<?= (int)($day['vehicle_id']??0) ?>">
+            <div style="margin-bottom:.45rem"><label class="admin-label">Vehicle</label>
+              <input name="day_veh_name[]" class="admin-input day-veh-name" list="pe-veh-list-<?= $i ?>"
+                     value="<?= htmlspecialchars($day['vehicle_name']??'') ?>"
+                     oninput="calcItinTotal()" onchange="fillDayVeh(this,<?= $i ?>)"
+                     placeholder="Select or type">
+              <datalist id="pe-veh-list-<?= $i ?>">
+                <?php foreach($vehicles as $v): $total=(float)$v['daily_rate']+(float)$v['fuel_cost_day']+(float)$v['driver_cost_day']; ?>
+                <option value="<?= htmlspecialchars($v['name']) ?>" data-id="<?= $v['id'] ?>" data-rate="<?= $total ?>">
+                <?php endforeach; ?>
+              </datalist>
+            </div>
+            <div><label class="admin-label">Daily Rate (incl. fuel+driver)</label>
+              <input name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate"
+                     value="<?= (float)($day['vehicle_rate']??0) ?>" oninput="calcItinTotal()"></div>
+          </div>
+
+          <!-- Park + Meals -->
+          <div style="border:1px solid #e5e7eb;padding:.85rem;background:#fef3e220">
+            <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e">🏞 Park &amp; Meals</p>
+            <input type="hidden" name="day_park_id[]" value="<?= (int)($day['park_fee_id']??0) ?>">
+            <div style="margin-bottom:.45rem"><label class="admin-label">Park / Area</label>
+              <input name="day_park_name[]" class="admin-input" list="pe-park-list-<?= $i ?>"
+                     value="<?= htmlspecialchars($day['park_fee_name']??'') ?>"
+                     oninput="calcItinTotal()" onchange="fillDayPark(this,<?= $i ?>)"
+                     placeholder="Select or leave blank">
+              <datalist id="pe-park-list-<?= $i ?>">
+                <?php foreach($parkFees as $p): ?>
+                <option value="<?= htmlspecialchars($p['name']) ?>" data-id="<?= $p['id'] ?>" data-fee="<?= $p['adult_fee'] ?>">
+                <?php endforeach; ?>
+              </datalist>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem">
+              <div><label class="admin-label">Adult Fee</label>
+                <input name="day_park_fee[]" type="number" step="0.01" class="admin-input day-park-fee"
+                       value="<?= (float)($day['park_adult_fee']??0) ?>" oninput="calcItinTotal()"></div>
+              <div><label class="admin-label">Meals/pp</label>
+                <input name="day_meals_pp[]" type="number" step="0.01" class="admin-input"
+                       value="<?= (float)($day['meals_cost_pp']??20) ?>" oninput="calcItinTotal()"></div>
+            </div>
+          </div>
+
         </div>
-        <div>
-          <label class="admin-label" style="font-size:.58rem">Meals / person / day (USD)</label>
-          <input name="meals_cost[]" type="number" step="0.01" min="0" class="admin-input"
-                 placeholder="0.00" style="font-size:.82rem"
-                 value="<?= (float)($day['meals_cost_pp']??0) ?>"
-                 oninput="calcTotals()">
-          <label class="admin-label" style="font-size:.58rem;margin-top:.3rem">Location / Park</label>
-          <input name="day_location[]" class="admin-input" style="font-size:.72rem"
-                 placeholder="e.g. Serengeti NP"
-                 value="<?= htmlspecialchars($day['location']??'') ?>">
+
+        <!-- Activities for this day -->
+        <div style="margin-bottom:1rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+            <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b7280">Activities (Day <?= $i+1 ?>)</p>
+            <button type="button" onclick="addDayActivity(<?= $i ?>)" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>
+          </div>
+          <div id="day-acts-<?= $i ?>">
+            <?php foreach(($day['activities']??[]) as $ai=>$act): ?>
+            <div class="act-item" style="display:grid;grid-template-columns:2fr 80px 90px auto;gap:.35rem;align-items:end;margin-bottom:.4rem">
+              <input name="act_name_<?= $i ?>_<?= $ai ?>" class="admin-input day-act-name" list="act-list"
+                     value="<?= htmlspecialchars($act['name']??'') ?>" placeholder="Activity name" style="font-size:.78rem" oninput="saveDayActs(<?= $i ?>)">
+              <input name="act_price_<?= $i ?>_<?= $ai ?>" type="number" step="0.01" class="admin-input day-act-price"
+                     value="<?= (float)($act['price_pp']??0) ?>" placeholder="$/pp" style="font-size:.78rem" oninput="saveDayActs(<?= $i ?>)">
+              <select name="act_type_<?= $i ?>_<?= $ai ?>" class="admin-input day-act-type" style="font-size:.72rem" onchange="saveDayActs(<?= $i ?>)">
+                <option value="included" <?= ($act['type']??'included')==='included'?'selected':'' ?>>Included</option>
+                <option value="optional" <?= ($act['type']??'included')==='optional'?'selected':'' ?>>Optional</option>
+              </select>
+              <button type="button" onclick="this.closest('.act-item').remove();saveDayActs(<?= $i ?>)"
+                      style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;padding:.2rem">✕</button>
+            </div>
+            <?php endforeach; ?>
+          </div>
+          <input type="hidden" name="day_activities_json[]" id="acts-json-<?= $i ?>"
+                 value="<?= htmlspecialchars(json_encode($day['activities']??[])) ?>">
         </div>
+
+        <!-- Other items for this day -->
         <div>
-          <label class="admin-label" style="font-size:.58rem;color:#c8963e">Day Total (auto)</label>
-          <div class="day-total" style="background:#fff;border:1.5px solid #c8963e;padding:.5rem .65rem;font-weight:700;font-size:.85rem;color:#c8963e;min-height:36px">$0</div>
-          <div style="font-size:.6rem;color:#9ca3af;margin-top:.3rem">acc + vehicle + meals×2pax</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+            <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b7280">Other Costs (Day <?= $i+1 ?>)</p>
+            <button type="button" onclick="addDayOther(<?= $i ?>)" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>
+          </div>
+          <div id="day-other-<?= $i ?>">
+            <?php foreach(($day['other_items']??[]) as $oi=>$ot): ?>
+            <div class="other-item" style="display:grid;grid-template-columns:2fr 100px auto;gap:.35rem;align-items:end;margin-bottom:.4rem">
+              <input class="admin-input day-other-name" value="<?= htmlspecialchars($ot['name']??'') ?>" placeholder="Item name" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
+              <input type="number" step="0.01" class="admin-input day-other-amount" value="<?= (float)($ot['amount']??0) ?>" placeholder="$" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
+              <button type="button" onclick="this.closest('.other-item').remove();saveDayOther(<?= $i ?>)"
+                      style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;padding:.2rem">✕</button>
+            </div>
+            <?php endforeach; ?>
+          </div>
+          <input type="hidden" name="day_other_json[]" id="other-json-<?= $i ?>"
+                 value="<?= htmlspecialchars(json_encode($day['other_items']??[])) ?>">
         </div>
+
       </div>
     </div>
     <?php endforeach; ?>
@@ -593,6 +463,66 @@ ob_start();
     </div>
   </div>
 </div>
+
+<!-- QUOTATION LIVE COST SUMMARY — auto-calculated from the Day-by-Day
+     Itinerary above instead of a separate set of rows that duplicated
+     the same accommodation/vehicle/park/activity data entry. Service
+     charge is the one figure with nowhere else to come from, so it's
+     the only thing still entered here — set aside from the read-only
+     summary, in its own box, rather than mixed in as another row. -->
+<div class="admin-card" style="margin-bottom:1.25rem">
+  <div class="admin-card-header">
+    <h3>Quotation Live Cost Summary</h3>
+    <span style="font-size:.72rem;color:#9ca3af">Pulled from the itinerary above · same VAT and deposit math as a real quotation</span>
+  </div>
+  <div class="admin-card-body">
+    <div style="display:grid;grid-template-columns:1fr 260px;gap:1.5rem;align-items:start">
+
+      <!-- Read-only summary -->
+      <div>
+        <table style="width:100%;font-size:.85rem;border-collapse:collapse">
+          <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:.5rem 0;color:#6b7280">Accommodation</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-acc">$0</td></tr>
+          <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:.5rem 0;color:#6b7280">Vehicle</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-veh">$0</td></tr>
+          <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:.5rem 0;color:#6b7280">Park Fees</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-park">$0</td></tr>
+          <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:.5rem 0;color:#6b7280">Meals</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-meals">$0</td></tr>
+          <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:.5rem 0;color:#6b7280">Activities (included)</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-act">$0</td></tr>
+          <tr style="border-bottom:1px solid #e5e7eb;background:#f0fdf4"><td style="padding:.5rem 0 .5rem .5rem;color:#166534">Service Charge</td><td style="padding:.5rem .5rem .5rem 0;text-align:right;font-weight:600;color:#166534" id="qs-svc">$0</td></tr>
+          <tr style="border-top:1px solid #e5e7eb"><td style="padding:.6rem 0;font-weight:600">Subtotal</td><td style="padding:.6rem 0;text-align:right;font-weight:600" id="qs-subtotal">$0</td></tr>
+          <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:.4rem 0;color:#6b7280;font-size:.78rem">VAT (18%)</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-vat">$0</td></tr>
+          <tr style="background:#0a0a0a;color:#fff"><td style="padding:.75rem;font-weight:700">TOTAL</td><td style="padding:.75rem;text-align:right;font-family:Georgia,serif;font-size:1.1rem" id="qs-total">$0</td></tr>
+          <tr><td style="padding:.5rem 0;font-size:.75rem;color:#9ca3af" id="qs-pp-label">Per Person (÷2)</td><td style="padding:.5rem 0;text-align:right;font-size:.9rem;font-weight:700" id="qs-pp">$0</td></tr>
+        </table>
+      </div>
+
+      <!-- Aside: the only editable inputs — travelers (shared with the
+           itinerary day badges above) and service charge -->
+      <div style="background:#f7f7f5;border:1px solid #e5e7eb;padding:1rem">
+        <label class="admin-label">Travelers</label>
+        <input type="number" name="traveler_count" id="traveler_count" min="1" max="20"
+               value="<?= $bdTravelers ?>" class="admin-input" style="margin-bottom:1rem"
+               oninput="calcTotals()" title="Used for both the itinerary day badges above and this summary">
+
+        <label class="admin-label">Service Charge ($ / person)</label>
+        <input name="service_charge_pax" type="number" step="0.01" class="admin-input" id="service_charge_pax"
+               value="<?= $bdSvcPax ?>" oninput="calcTotals()" placeholder="e.g. 50">
+        <p style="font-size:.68rem;color:#9ca3af;margin-top:.5rem;line-height:1.5">The only cost entered directly here — everything else above comes from the Day-by-Day Itinerary.</p>
+      </div>
+
+    </div>
+
+    <!-- NOTES -->
+    <div style="margin-top:1.25rem"><label class="admin-label">Pricing Notes (shown to guests)</label>
+      <textarea name="breakdown_notes" class="admin-input" rows="2" placeholder="e.g. Based on 2 travelers sharing."><?= htmlspecialchars($bd['notes']??'') ?></textarea></div>
+
+  </div>
+</div>
+
+<!-- Shared by the Day-by-Day Itinerary's per-day activity rows above -->
+<datalist id="act-list">
+  <?php foreach($activities_db as $a): ?>
+  <option value="<?= htmlspecialchars($a['name']) ?>" data-price="<?= $a['price'] ?>">
+  <?php endforeach; ?>
+</datalist>
 
 <!-- ACCOMMODATION DESC -->
 <div class="admin-card">
@@ -626,47 +556,6 @@ ob_start();
         <input type="checkbox" name="is_featured" value="1" <?= ($pkg['is_featured']??1)?'checked':'' ?>>
         <span class="admin-label" style="margin:0">Featured (homepage)</span>
       </label>
-    </div>
-  </div>
-
-  <!-- Live Cost Summary -->
-  <div class="admin-card" style="margin-bottom:1rem">
-    <div class="admin-card-header"><h3>Live Cost Summary</h3></div>
-    <div class="admin-card-body" style="padding:0">
-      <table style="width:100%;font-size:.8rem;border-collapse:collapse">
-        <tr style="border-bottom:1px solid #f3f4f6">
-          <td style="padding:.5rem 1rem">Accommodation</td>
-          <td style="padding:.5rem 1rem;text-align:right;font-weight:600" id="s-acc">$0</td>
-        </tr>
-        <tr style="border-bottom:1px solid #f3f4f6">
-          <td style="padding:.5rem 1rem">Transport</td>
-          <td style="padding:.5rem 1rem;text-align:right;font-weight:600" id="s-trans">$0</td>
-        </tr>
-        <tr style="border-bottom:1px solid #f3f4f6">
-          <td style="padding:.5rem 1rem">Park Fees</td>
-          <td style="padding:.5rem 1rem;text-align:right;font-weight:600" id="s-park">$0</td>
-        </tr>
-        <tr style="border-bottom:1px solid #f3f4f6">
-          <td style="padding:.5rem 1rem">Activities</td>
-          <td style="padding:.5rem 1rem;text-align:right;font-weight:600" id="s-act">$0</td>
-        </tr>
-        <tr style="border-bottom:1px solid #f3f4f6">
-          <td style="padding:.5rem 1rem">Other</td>
-          <td style="padding:.5rem 1rem;text-align:right;font-weight:600" id="s-other">$0</td>
-        </tr>
-        <tr style="border-bottom:1px solid #f3f4f6;background:#f0fdf4">
-          <td style="padding:.5rem 1rem;color:#166534">Service Charge</td>
-          <td style="padding:.5rem 1rem;text-align:right;font-weight:600;color:#166534" id="s-svc">$0</td>
-        </tr>
-        <tr style="background:#0a0a0a;color:#fff">
-          <td style="padding:.75rem 1rem;font-weight:600">Grand Total</td>
-          <td style="padding:.75rem 1rem;text-align:right;font-family:Georgia,serif;font-size:1rem" id="s-total">$0</td>
-        </tr>
-        <tr style="border-bottom:1px solid #f3f4f6">
-          <td style="padding:.5rem 1rem;font-size:.75rem;color:#9ca3af" id="s-pp-label">Per Person (÷2)</td>
-          <td style="padding:.5rem 1rem;text-align:right;font-size:.85rem;font-weight:700" id="s-pp">$0</td>
-        </tr>
-      </table>
     </div>
   </div>
 
@@ -753,65 +642,174 @@ ob_start();
 <script>
 var fmt = function(n){ return '$'+Math.round(n).toLocaleString('en-US'); };
 
-// ── Totals ──────────────────────────────────────────────────
+// ── Quotation Live Cost Summary ──────────────────────────────
+// Aggregates straight from the Day-by-Day Itinerary's day-blocks —
+// same category grouping calcItinTotal() uses for the per-day badges
+// (each accommodation/vehicle counted once per unique property across
+// all nights/days, not once per day) — then adds VAT, matching how a
+// real quotation is actually priced (see App\Services\ItineraryQuoteBuilder::totals()
+// and api/quotation_pdf.php). Previously this read a separate set of
+// manually-typed rows instead of the itinerary, so the two could
+// silently disagree.
 function calcTotals() {
-  var accT=0, transT=0, parkT=0, actT=0, otherT=0;
-  var travelers = +(document.getElementById('traveler_count').value)||1;
+  var travelers = +((document.getElementById('traveler_count')||{}).value)||1;
+  var accT=0, vehT=0, parkT=0, mealsT=0, actT=0;
+  var accSeen = {}, vehSeen = {};
 
-  document.querySelectorAll('.acc-row').forEach(function(r){
-    var n=+(r.querySelector('[name="acc_nights[]"]').value)||0;
-    var rate=+(r.querySelector('[name="acc_rate[]"]').value)||0;
-    var rooms=+(r.querySelector('[name="acc_rooms[]"]').value)||1;
-    var s=n*rate*rooms; r.querySelector('.acc-sub').value=fmt(s); accT+=s;
+  document.querySelectorAll('.day-block').forEach(function(block){
+    var accName = (block.querySelector('.day-acc-name')||{}).value||'';
+    var accRate = parseFloat((block.querySelector('.day-acc-rate')||{}).value)||0;
+    var accRooms= parseInt((block.querySelector('[name="day_acc_rooms[]"]')||{}).value)||1;
+    var vehName = (block.querySelector('.day-veh-name')||{}).value||'';
+    var vehRate = parseFloat((block.querySelector('.day-veh-rate')||{}).value)||0;
+    var parkFee = parseFloat((block.querySelector('.day-park-fee')||{}).value)||0;
+    var meals   = parseFloat((block.querySelector('[name="day_meals_pp[]"]')||{}).value)||0;
+
+    if (accName && !accSeen[accName]) accSeen[accName] = {rate:accRate,rooms:accRooms,nights:0};
+    if (accName) accSeen[accName].nights++;
+
+    if (vehName && !vehSeen[vehName]) vehSeen[vehName] = {rate:vehRate,days:0};
+    if (vehName) vehSeen[vehName].days++;
+
+    parkT  += parkFee * travelers;
+    mealsT += meals * travelers;
+
+    block.querySelectorAll('.act-item').forEach(function(row){
+      var price = parseFloat((row.querySelector('.day-act-price')||{}).value)||0;
+      var type  = (row.querySelector('.day-act-type')||{}).value||'included';
+      if (type==='included') actT += price * travelers;
+    });
   });
 
-  document.querySelectorAll('.trans-row').forEach(function(r){
-    var d=+(r.querySelector('[name="trans_days[]"]').value)||0;
-    var rate=+(r.querySelector('[name="trans_rate[]"]').value)||0;
-    var fuel=+(r.querySelector('[name="trans_fuel[]"]').value)||0;
-    var driver=+(r.querySelector('[name="trans_driver[]"]').value)||0;
-    var s=d*(rate+fuel+driver); r.querySelector('.trans-sub').value=fmt(s); transT+=s;
-  });
+  Object.values(accSeen).forEach(function(a){ accT += a.rate * a.nights * a.rooms; });
+  Object.values(vehSeen).forEach(function(v){ vehT += v.rate * v.days; });
 
-  document.querySelectorAll('.park-row').forEach(function(r){
-    var af=+(r.querySelector('[name="park_adult_fee[]"]').value)||0;
-    var en=+(r.querySelector('[name="park_entries[]"]').value)||1;
-    var ad=+(r.querySelector('[name="park_adults[]"]').value)||2;
-    var s=af*ad*en; r.querySelector('.park-sub').value=fmt(s); parkT+=s;
-  });
-
-  document.querySelectorAll('.act-row').forEach(function(r){
-    var price=+(r.querySelector('[name="act_price[]"]').value)||0;
-    var pax=+(r.querySelector('[name="act_pax[]"]').value)||2;
-    if(r.querySelector('[name="act_type[]"]').value==='included') actT+=price*pax;
-  });
-
-  document.querySelectorAll('.other-row').forEach(function(r){
-    otherT+=+(r.querySelector('[name="other_amount[]"]').value)||0;
-  });
-
-  // Service charge
-  var svcPax = +(document.getElementById('service_charge_pax').value)||0;
+  var svcPax   = +((document.getElementById('service_charge_pax')||{}).value)||0;
   var svcTotal = svcPax * travelers;
-  document.getElementById('svc-sub').value = fmt(svcTotal);
 
-  var total = accT+transT+parkT+actT+otherT+svcTotal;
-  var pp    = travelers > 0 ? total/travelers : total;
+  var subtotal = accT + vehT + parkT + mealsT + actT + svcTotal;
+  var vat      = subtotal * 0.18;
+  var total    = subtotal + vat;
+  var pp       = travelers > 0 ? total/travelers : total;
 
-  document.getElementById('s-acc').textContent   = fmt(accT);
-  document.getElementById('s-trans').textContent  = fmt(transT);
-  document.getElementById('s-park').textContent   = fmt(parkT);
-  document.getElementById('s-act').textContent    = fmt(actT);
-  document.getElementById('s-other').textContent  = fmt(otherT);
-  document.getElementById('s-svc').textContent    = fmt(svcTotal);
-  document.getElementById('s-total').textContent  = fmt(total);
-  document.getElementById('s-pp').textContent     = fmt(pp);
-  document.getElementById('s-pp-label').textContent = 'Per Person (÷'+travelers+')';
-  document.getElementById('gt-total').textContent = fmt(total);
-  document.getElementById('gt-pp').textContent    = fmt(pp)+'/pp';
+  document.getElementById('qs-acc').textContent      = fmt(accT);
+  document.getElementById('qs-veh').textContent      = fmt(vehT);
+  document.getElementById('qs-park').textContent     = fmt(parkT);
+  document.getElementById('qs-meals').textContent    = fmt(mealsT);
+  document.getElementById('qs-act').textContent      = fmt(actT);
+  document.getElementById('qs-svc').textContent      = fmt(svcTotal);
+  document.getElementById('qs-subtotal').textContent = fmt(subtotal);
+  document.getElementById('qs-vat').textContent      = fmt(vat);
+  document.getElementById('qs-total').textContent    = fmt(total);
+  document.getElementById('qs-pp').textContent       = fmt(pp);
+  document.getElementById('qs-pp-label').textContent = 'Per Person (÷'+travelers+')';
+
+  // Exposed so syncPriceFromBreakdown() (Listed Prices card, above) can
+  // read the current per-person total without re-parsing formatted text
+  // back out of the DOM.
+  window.__breakdownPerPerson = pp;
+  window.__breakdownTravelers = travelers;
+}
+
+// ── Keep Listed Prices honest against the Cost Breakdown Builder ──
+// The two were previously fully independent: an admin could build a
+// $2,000/pp breakdown and still have a stale $1,200 typed into Listed
+// Prices from months ago, and packages.php would happily publish the
+// stale number. This doesn't force them to always match (margin above
+// cost is often deliberate) — it just makes copying the current
+// breakdown total into a tier one click instead of a manual retype
+// (and a manual retype is exactly where staleness creeps in).
+function syncPriceFromBreakdown(tier) {
+  var pp = window.__breakdownPerPerson;
+  if (typeof pp !== 'number') { calcTotals(); pp = window.__breakdownPerPerson; }
+  var rounded = Math.round(pp || 0);
+  document.getElementById('price_' + tier + 'pax').value = rounded;
+  toast('Synced ' + tier + '-pax listed price to $' + rounded.toLocaleString('en-US')
+      + ' (breakdown at ' + window.__breakdownTravelers + ' traveler'
+      + (window.__breakdownTravelers !== 1 ? 's' : '') + ') — set Travelers above to match this tier before syncing each one.');
 }
 
 // ── Itinerary sync with duration_days ──────────────────────
+// Reference data for building a new day-block's datalists dynamically —
+// same accommodations/vehicles/park fees the PHP-rendered day-blocks
+// already use, output once here so a freshly-added day (when Nights is
+// increased) gets the exact same autocomplete options.
+var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person'])], $accommodations)) ?>;
+var PE_VEHS  = <?= json_encode(array_map(fn($v) => ['name'=>$v['name'],'id'=>(int)$v['id'],'rate'=>(float)$v['daily_rate']+(float)$v['fuel_cost_day']+(float)$v['driver_cost_day']], $vehicles)) ?>;
+var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee']], $parkFees)) ?>;
+
+function peDayBlockHtml(i) {
+  var accOpts  = PE_ACCS.map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-rate="'+a.rate+'">'; }).join('');
+  var vehOpts  = PE_VEHS.map(function(v){ return '<option value="'+v.name+'" data-id="'+v.id+'" data-rate="'+v.rate+'">'; }).join('');
+  var parkOpts = PE_PARKS.map(function(p){ return '<option value="'+p.name+'" data-id="'+p.id+'" data-fee="'+p.fee+'">'; }).join('');
+
+  return ''
+    +'<div class="admin-card-header" style="background:#f7f7f5">'
+      +'<h3 style="font-size:.85rem">'
+        +'<span style="font-family:Georgia,serif;color:#0a0a0a;margin-right:.5rem">Day '+(i+1)+'</span>'
+        +'<input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem" placeholder="Day title e.g. Arusha → Tarangire">'
+      +'</h3>'
+      +'<div style="display:flex;align-items:center;gap:.5rem"><span class="day-cost-badge" style="font-size:.65rem;background:#0a0a0a;color:#fff;padding:.2rem .6rem;font-weight:600">$0</span></div>'
+    +'</div>'
+    +'<div class="admin-card-body">'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">'
+        +'<div><label class="admin-label">Location / Park</label><input name="day_location[]" class="admin-input" placeholder="e.g. Serengeti National Park"></div>'
+        +'<div><label class="admin-label">Day Description</label><textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"></textarea></div>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">'
+        +'<div style="border:1px solid #e5e7eb;padding:.85rem;background:#eff6ff20">'
+          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8">🏕 Accommodation</p>'
+          +'<input type="hidden" name="day_acc_id[]" class="day-acc-id" value="0">'
+          +'<div style="margin-bottom:.45rem"><label class="admin-label">Property</label>'
+            +'<input name="day_acc_name[]" class="admin-input day-acc-name" list="pe-acc-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayAcc(this,'+i+')" placeholder="Select or type">'
+            +'<datalist id="pe-acc-list-'+i+'">'+accOpts+'</datalist>'
+          +'</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 60px;gap:.35rem">'
+            +'<div><label class="admin-label">Rate/Room/Night</label><input name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate" value="0" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label">Rooms</label><input name="day_acc_rooms[]" type="number" min="1" class="admin-input" value="1" oninput="calcItinTotal()"></div>'
+          +'</div>'
+        +'</div>'
+        +'<div style="border:1px solid #e5e7eb;padding:.85rem;background:#f0fdf420">'
+          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534">🚙 Vehicle</p>'
+          +'<input type="hidden" name="day_veh_id[]" class="day-veh-id" value="0">'
+          +'<div style="margin-bottom:.45rem"><label class="admin-label">Vehicle</label>'
+            +'<input name="day_veh_name[]" class="admin-input day-veh-name" list="pe-veh-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayVeh(this,'+i+')" placeholder="Select or type">'
+            +'<datalist id="pe-veh-list-'+i+'">'+vehOpts+'</datalist>'
+          +'</div>'
+          +'<div><label class="admin-label">Daily Rate (incl. fuel+driver)</label><input name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate" value="0" oninput="calcItinTotal()"></div>'
+        +'</div>'
+        +'<div style="border:1px solid #e5e7eb;padding:.85rem;background:#fef3e220">'
+          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e">🏞 Park &amp; Meals</p>'
+          +'<input type="hidden" name="day_park_id[]" value="0">'
+          +'<div style="margin-bottom:.45rem"><label class="admin-label">Park / Area</label>'
+            +'<input name="day_park_name[]" class="admin-input" list="pe-park-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayPark(this,'+i+')" placeholder="Select or leave blank">'
+            +'<datalist id="pe-park-list-'+i+'">'+parkOpts+'</datalist>'
+          +'</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem">'
+            +'<div><label class="admin-label">Adult Fee</label><input name="day_park_fee[]" type="number" step="0.01" class="admin-input day-park-fee" value="0" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label">Meals/pp</label><input name="day_meals_pp[]" type="number" step="0.01" class="admin-input" value="20" oninput="calcItinTotal()"></div>'
+          +'</div>'
+        +'</div>'
+      +'</div>'
+      +'<div style="margin-bottom:1rem">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
+          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b7280">Activities (Day '+(i+1)+')</p>'
+          +'<button type="button" onclick="addDayActivity('+i+')" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>'
+        +'</div>'
+        +'<div id="day-acts-'+i+'"></div>'
+        +'<input type="hidden" name="day_activities_json[]" id="acts-json-'+i+'" value="[]">'
+      +'</div>'
+      +'<div>'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
+          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b7280">Other Costs (Day '+(i+1)+')</p>'
+          +'<button type="button" onclick="addDayOther('+i+')" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>'
+        +'</div>'
+        +'<div id="day-other-'+i+'"></div>'
+        +'<input type="hidden" name="day_other_json[]" id="other-json-'+i+'" value="[]">'
+      +'</div>'
+    +'</div>';
+}
+
 function syncItineraryDays(n) {
   n = Math.max(1, Math.min(60, parseInt(n)||1));
   var container = document.getElementById('itinerary-rows');
@@ -821,12 +819,10 @@ function syncItineraryDays(n) {
   // Add days
   for (var i = current; i < n; i++) {
     var div = document.createElement('div');
-    div.className = 'itinerary-day';
-    div.style.cssText = 'display:grid;grid-template-columns:130px 1fr;gap:.75rem;margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid #f3f4f6';
-    div.innerHTML = '<div><label class="admin-label">Day '+(i+1)+' Title</label>'
-      +'<input name="day_title[]" class="admin-input" placeholder="e.g. Game Drive"></div>'
-      +'<div><label class="admin-label">Description</label>'
-      +'<textarea name="day_desc[]" class="admin-input" rows="2"></textarea></div>';
+    div.className = 'day-block itinerary-day';
+    div.dataset.day = i;
+    div.style.cssText = 'margin-bottom:1rem;border-left:3px solid #0a0a0a';
+    div.innerHTML = peDayBlockHtml(i);
     container.appendChild(div);
   }
 
@@ -836,89 +832,147 @@ function syncItineraryDays(n) {
   }
 
   document.getElementById('itinerary-count').textContent = n+' day'+(n!==1?'s':'')+' · matches duration above';
+  calcItinTotal();
 }
 
-// ── Add row helpers ─────────────────────────────────────────
-function addAccRow() {
-  var d=document.createElement('div'); d.className='acc-row';
-  d.style.cssText='display:grid;grid-template-columns:2fr 55px 95px 55px 115px 75px auto;gap:.4rem;align-items:end;margin-bottom:.6rem;padding:.75rem;background:#f9f9f8;border:1px solid #e5e7eb';
-  d.innerHTML='<div><label class="admin-label">Property</label><input name="acc_name[]" class="admin-input" list="acc-list" oninput="calcTotals()" onchange="fillAccRate(this)"></div><div><label class="admin-label">Nights</label><input name="acc_nights[]" type="number" min="1" value="1" class="admin-input" oninput="calcTotals()"></div><div><label class="admin-label">$/Room/Night</label><input name="acc_rate[]" type="number" step="1" value="0" class="admin-input" oninput="calcTotals()"></div><div><label class="admin-label">Rooms</label><input name="acc_rooms[]" type="number" min="1" value="1" class="admin-input" oninput="calcTotals()"></div><div><label class="admin-label">Level</label><select name="acc_level[]" class="admin-input"><option value="budget">Budget</option><option value="midrange" selected>Mid-Range</option><option value="highend">High-End</option><option value="ultra_luxury">Ultra Luxury</option></select></div><div><label class="admin-label">Subtotal</label><input class="admin-input acc-sub" readonly style="background:#f3f4f6;font-weight:700" value="$0"></div><div style="padding-top:1.2rem"><button type="button" onclick="this.closest(\'.acc-row\').remove();calcTotals()" class="admin-btn admin-btn--danger" style="padding:.3rem .5rem">✕</button></div>';
-  document.getElementById('acc-rows').appendChild(d); calcTotals();
-}
-
-function addTransRow() {
-  var days = document.getElementById('duration_days').value || 5;
-  var d=document.createElement('div'); d.className='trans-row';
-  d.style.cssText='display:grid;grid-template-columns:2fr 55px 90px 75px 75px 90px auto;gap:.4rem;align-items:end;margin-bottom:.6rem;padding:.75rem;background:#f9f9f8;border:1px solid #e5e7eb';
-  d.innerHTML='<div><label class="admin-label">Vehicle</label><input name="trans_vehicle[]" class="admin-input" list="veh-list" oninput="calcTotals()" onchange="fillVehRate(this)"></div><div><label class="admin-label">Days</label><input name="trans_days[]" type="number" min="1" value="'+days+'" class="admin-input" oninput="calcTotals()"></div><div><label class="admin-label">Rate/Day</label><input name="trans_rate[]" type="number" step="1" value="250" class="admin-input" oninput="calcTotals()"></div><div><label class="admin-label">Fuel/Day</label><input name="trans_fuel[]" type="number" step="1" value="50" class="admin-input" oninput="calcTotals()"></div><div><label class="admin-label">Driver/Day</label><input name="trans_driver[]" type="number" step="1" value="50" class="admin-input" oninput="calcTotals()"></div><div><label class="admin-label">Subtotal</label><input class="admin-input trans-sub" readonly style="background:#f3f4f6;font-weight:700" value="$0"></div><div style="padding-top:1.2rem"><button type="button" onclick="this.closest(\'.trans-row\').remove();calcTotals()" class="admin-btn admin-btn--danger" style="padding:.3rem .5rem">✕</button></div>';
-  document.getElementById('trans-rows').appendChild(d); calcTotals();
-}
-
-function addParkRow() {
-  var d=document.createElement('div'); d.className='park-row';
-  d.style.cssText='display:grid;grid-template-columns:2fr 85px 85px 55px 55px 85px auto;gap:.4rem;align-items:end;margin-bottom:.6rem;padding:.75rem;background:#f9f9f8;border:1px solid #e5e7eb';
-  d.innerHTML='<div><label class="admin-label">Park</label><input name="park_name[]" class="admin-input" list="park-list" oninput="calcTotals()" onchange="fillParkFee(this)"></div><div><label class="admin-label">Adult Fee</label><input name="park_adult_fee[]" type="number" step="0.01" value="0" class="admin-input" oninput="calcTotals()"></div><div><label class="admin-label">Child Fee</label><input name="park_child_fee[]" type="number" step="0.01" value="0" class="admin-input" oninput="calcTotals()"></div><div><label class="admin-label">Entries</label><input name="park_entries[]" type="number" min="1" value="1" class="admin-input" oninput="calcTotals()"></div><div><label class="admin-label">Adults</label><input name="park_adults[]" type="number" min="1" value="2" class="admin-input" oninput="calcTotals()"></div><div><label class="admin-label">Subtotal</label><input class="admin-input park-sub" readonly style="background:#f3f4f6;font-weight:700" value="$0"></div><div style="padding-top:1.2rem"><button type="button" onclick="this.closest(\'.park-row\').remove();calcTotals()" class="admin-btn admin-btn--danger" style="padding:.3rem .5rem">✕</button></div>';
-  document.getElementById('park-rows').appendChild(d); calcTotals();
-}
-
-function addActRow() {
-  var d=document.createElement('div'); d.className='act-row';
-  d.style.cssText='display:grid;grid-template-columns:2fr 90px 55px 110px 1fr auto;gap:.4rem;align-items:end;margin-bottom:.6rem;padding:.75rem;background:#f9f9f8;border:1px solid #e5e7eb';
-  d.innerHTML='<div><label class="admin-label">Activity</label><input name="act_name[]" class="admin-input" list="act-list" oninput="calcTotals()" onchange="fillActPrice(this)"></div><div><label class="admin-label">$/Person</label><input name="act_price[]" type="number" step="0.01" value="0" class="admin-input" oninput="calcTotals()"></div><div><label class="admin-label">Pax</label><input name="act_pax[]" type="number" min="1" value="2" class="admin-input" oninput="calcTotals()"></div><div><label class="admin-label">Type</label><select name="act_type[]" class="admin-input"><option value="included">Included</option><option value="optional">Optional</option></select></div><div><label class="admin-label">Note</label><input name="act_note[]" class="admin-input"></div><div style="padding-top:1.2rem"><button type="button" onclick="this.closest(\'.act-row\').remove();calcTotals()" class="admin-btn admin-btn--danger" style="padding:.3rem .5rem">✕</button></div>';
-  document.getElementById('act-rows').appendChild(d); calcTotals();
-}
-
-function addOtherRow() {
-  var d=document.createElement('div'); d.className='other-row';
-  d.style.cssText='display:grid;grid-template-columns:2fr 100px 1fr auto;gap:.4rem;align-items:end;margin-bottom:.6rem;padding:.75rem;background:#f9f9f8;border:1px solid #e5e7eb';
-  d.innerHTML='<div><label class="admin-label">Item</label><input name="other_name[]" class="admin-input" oninput="calcTotals()"></div><div><label class="admin-label">Amount ($)</label><input name="other_amount[]" type="number" step="1" value="0" class="admin-input" oninput="calcTotals()"></div><div><label class="admin-label">Note</label><input name="other_note[]" class="admin-input"></div><div style="padding-top:1.2rem"><button type="button" onclick="this.closest(\'.other-row\').remove();calcTotals()" class="admin-btn admin-btn--danger" style="padding:.3rem .5rem">✕</button></div>';
-  document.getElementById('other-rows').appendChild(d); calcTotals();
-}
-
-// ── Auto-fill from datalists ───────────────────────────────
-function fillAccRate(input) {
-  var opts=document.querySelectorAll('#acc-list option');
+// ── Per-day auto-fill from datalists ───────────────────────
+function fillDayAcc(input, dayIdx) {
+  var opts=document.querySelectorAll('#pe-acc-list-'+dayIdx+' option');
   for(var i=0;i<opts.length;i++){
     if(opts[i].value===input.value){
-      var row=input.closest('.acc-row');
-      if(opts[i].dataset.rate)  row.querySelector('[name="acc_rate[]"]').value=opts[i].dataset.rate;
-      if(opts[i].dataset.level) row.querySelector('[name="acc_level[]"]').value=opts[i].dataset.level;
-      calcTotals(); break;
+      var block=input.closest('.day-block');
+      if(opts[i].dataset.rate) block.querySelector('.day-acc-rate').value=opts[i].dataset.rate;
+      if(opts[i].dataset.id)   block.querySelector('.day-acc-id').value=opts[i].dataset.id;
+      calcItinTotal(); break;
     }
   }
 }
-function fillVehRate(input) {
-  var opts=document.querySelectorAll('#veh-list option');
+function fillDayVeh(input, dayIdx) {
+  var opts=document.querySelectorAll('#pe-veh-list-'+dayIdx+' option');
   for(var i=0;i<opts.length;i++){
     if(opts[i].value===input.value){
-      var row=input.closest('.trans-row');
-      if(opts[i].dataset.rate)   row.querySelector('[name="trans_rate[]"]').value=opts[i].dataset.rate;
-      if(opts[i].dataset.fuel)   row.querySelector('[name="trans_fuel[]"]').value=opts[i].dataset.fuel;
-      if(opts[i].dataset.driver) row.querySelector('[name="trans_driver[]"]').value=opts[i].dataset.driver;
-      calcTotals(); break;
+      var block=input.closest('.day-block');
+      if(opts[i].dataset.rate) block.querySelector('.day-veh-rate').value=opts[i].dataset.rate;
+      if(opts[i].dataset.id)   block.querySelector('.day-veh-id').value=opts[i].dataset.id;
+      calcItinTotal(); break;
     }
   }
 }
-function fillParkFee(input) {
-  var opts=document.querySelectorAll('#park-list option');
+function fillDayPark(input, dayIdx) {
+  var opts=document.querySelectorAll('#pe-park-list-'+dayIdx+' option');
   for(var i=0;i<opts.length;i++){
     if(opts[i].value===input.value){
-      var row=input.closest('.park-row');
-      if(opts[i].dataset.adult) row.querySelector('[name="park_adult_fee[]"]').value=opts[i].dataset.adult;
-      if(opts[i].dataset.child) row.querySelector('[name="park_child_fee[]"]').value=opts[i].dataset.child;
-      calcTotals(); break;
+      var block=input.closest('.day-block');
+      if(opts[i].dataset.fee) block.querySelector('.day-park-fee').value=opts[i].dataset.fee;
+      calcItinTotal(); break;
     }
   }
 }
-function fillActPrice(input) {
-  var opts=document.querySelectorAll('#act-list option');
-  for(var i=0;i<opts.length;i++){
-    if(opts[i].value===input.value){
-      var row=input.closest('.act-row');
-      if(opts[i].dataset.price) row.querySelector('[name="act_price[]"]').value=opts[i].dataset.price;
-      calcTotals(); break;
+
+// ── Calculate itinerary total across all days (mirrors
+//    admin/itineraries.php's calcItinTotal — same field roles, same
+//    once-per-property accommodation/vehicle counting) ────────────
+function calcItinTotal() {
+  var pax      = parseInt((document.getElementById('traveler_count')||{}).value)||2;
+  var total    = 0;
+  var blocks   = document.querySelectorAll('.day-block');
+  var accSeen  = {}, vehSeen = {};
+
+  blocks.forEach(function(block) {
+    var accName = (block.querySelector('.day-acc-name')||{}).value||'';
+    var accRate = parseFloat((block.querySelector('.day-acc-rate')||{}).value)||0;
+    var accRooms= parseInt((block.querySelector('[name="day_acc_rooms[]"]')||{}).value)||1;
+    var vehName = (block.querySelector('.day-veh-name')||{}).value||'';
+    var vehRate = parseFloat((block.querySelector('.day-veh-rate')||{}).value)||0;
+    var parkFee = parseFloat((block.querySelector('.day-park-fee')||{}).value)||0;
+    var meals   = parseFloat((block.querySelector('[name="day_meals_pp[]"]')||{}).value)||0;
+
+    if (accName && !accSeen[accName]) accSeen[accName] = {rate:accRate,rooms:accRooms,nights:0};
+    if (accName) accSeen[accName].nights++;
+
+    if (vehName && !vehSeen[vehName]) vehSeen[vehName] = {rate:vehRate,days:0};
+    if (vehName) vehSeen[vehName].days++;
+
+    total += parkFee * pax;
+    total += meals * pax;
+
+    block.querySelectorAll('.act-item').forEach(function(row){
+      var price = parseFloat((row.querySelector('.day-act-price')||{}).value)||0;
+      var type  = (row.querySelector('.day-act-type')||{}).value||'included';
+      if(type==='included') total += price * pax;
+    });
+
+    var dayCost = parkFee*pax + meals*pax + accRate*accRooms + vehRate;
+    var badge = block.querySelector('.day-cost-badge');
+    if(badge) badge.textContent='$'+Math.round(dayCost).toLocaleString();
+  });
+
+  Object.values(accSeen).forEach(function(a){ total += a.rate * a.nights * a.rooms; });
+  Object.values(vehSeen).forEach(function(v){ total += v.rate * v.days; });
+
+  // Keep the Quotation Live Cost Summary in sync with whatever just
+  // changed in the itinerary above it — the two used to be
+  // independent, so editing a day's accommodation rate here never
+  // touched the summary until the admin also (re-)touched Travelers or
+  // Service Charge.
+  calcTotals();
+}
+
+// ── Activities per day ────────────────────────────────────
+function addDayActivity(dayIdx) {
+  var container = document.getElementById('day-acts-'+dayIdx);
+  var div = document.createElement('div');
+  div.className='act-item';
+  div.style.cssText='display:grid;grid-template-columns:2fr 80px 90px auto;gap:.35rem;align-items:end;margin-bottom:.4rem';
+  div.innerHTML='<input class="admin-input day-act-name" list="act-list" placeholder="Activity name" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
+    +'<input type="number" step="0.01" class="admin-input day-act-price" value="0" placeholder="$/pp" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
+    +'<select class="admin-input day-act-type" style="font-size:.72rem" onchange="saveDayActs('+dayIdx+')"><option value="included">Included</option><option value="optional">Optional</option></select>'
+    +'<button type="button" onclick="this.closest(\'.act-item\').remove();saveDayActs('+dayIdx+')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;padding:.2rem">✕</button>';
+  container.appendChild(div);
+  div.querySelector('.day-act-name').addEventListener('change', function(){
+    var opts=document.querySelectorAll('#act-list option');
+    for(var i=0;i<opts.length;i++){
+      if(opts[i].value===this.value && opts[i].dataset.price){
+        div.querySelector('.day-act-price').value=opts[i].dataset.price;
+        saveDayActs(dayIdx); break;
+      }
     }
-  }
+  });
+}
+
+function saveDayActs(dayIdx) {
+  var container = document.getElementById('day-acts-'+dayIdx);
+  var acts=[];
+  container.querySelectorAll('.act-item').forEach(function(row){
+    var name=row.querySelector('.day-act-name').value.trim();
+    if(!name) return;
+    acts.push({name:name, price_pp:parseFloat(row.querySelector('.day-act-price').value)||0, type:row.querySelector('.day-act-type').value});
+  });
+  document.getElementById('acts-json-'+dayIdx).value=JSON.stringify(acts);
+  calcItinTotal();
+}
+
+// ── Other items per day ───────────────────────────────────
+function addDayOther(dayIdx) {
+  var container=document.getElementById('day-other-'+dayIdx);
+  var div=document.createElement('div');
+  div.className='other-item';
+  div.style.cssText='display:grid;grid-template-columns:2fr 100px auto;gap:.35rem;align-items:end;margin-bottom:.4rem';
+  div.innerHTML='<input class="admin-input day-other-name" placeholder="Item name" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
+    +'<input type="number" step="0.01" class="admin-input day-other-amount" value="0" placeholder="$" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
+    +'<button type="button" onclick="this.closest(\'.other-item\').remove();saveDayOther('+dayIdx+')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;padding:.2rem">✕</button>';
+  container.appendChild(div);
+}
+
+function saveDayOther(dayIdx) {
+  var container=document.getElementById('day-other-'+dayIdx);
+  var items=[];
+  container.querySelectorAll('.other-item').forEach(function(row){
+    var name=row.querySelector('.day-other-name').value.trim();
+    if(!name) return;
+    items.push({name:name, amount:parseFloat(row.querySelector('.day-other-amount').value)||0});
+  });
+  document.getElementById('other-json-'+dayIdx).value=JSON.stringify(items);
 }
 
 // ── Add Vehicle to DB ──────────────────────────────────────
@@ -949,13 +1003,18 @@ async function saveNewVehicle() {
     var r = await fetch('<?= BASE_PATH ?>/api/vehicle_manage.php',{method:'POST',body:fd,credentials:'same-origin'});
     var d = await r.json();
     if (d.success) {
-      // Add to datalist
-      var opt = document.createElement('option');
-      opt.value = name;
-      opt.dataset.rate   = rate;
-      opt.dataset.fuel   = fuel;
-      opt.dataset.driver = driver;
-      document.getElementById('veh-list').appendChild(opt);
+      // Push into PE_VEHS and every per-day vehicle datalist (pe-veh-list-N)
+      // — there's no single shared #veh-list any more since each day's
+      // vehicle box has its own datalist instance.
+      var combinedRate = (parseFloat(rate)||0) + (parseFloat(fuel)||0) + (parseFloat(driver)||0);
+      PE_VEHS.push({name:name, id:d.id, rate:combinedRate});
+      document.querySelectorAll('[id^="pe-veh-list-"]').forEach(function(list){
+        var opt = document.createElement('option');
+        opt.value = name;
+        opt.dataset.id   = d.id;
+        opt.dataset.rate = combinedRate;
+        list.appendChild(opt);
+      });
       document.getElementById('addVehicleModal').style.display='none';
       // Reset
       document.getElementById('veh-name').value='';
@@ -968,15 +1027,36 @@ async function saveNewVehicle() {
 }
 
 // ── Gallery picker ─────────────────────────────────────────
+// Rewritten: the previous version rebuilt the folder tabs from whatever
+// subset of images the grid happened to be showing, so each tab's click
+// handler closed over that shrinking subset. Click a folder tab once and
+// every other folder's tab vanished; click "All" afterwards and it now
+// showed only the previously-selected folder, not everything — the
+// picker looked increasingly "stuck"/broken the more you clicked around
+// in it. Typing in the search box also rebuilt the entire tab bar (and
+// re-registered every tab's onclick) on every keystroke, which is pure
+// wasted work on top of the bug.
+//
+// Fixed by keeping one true source of data (allPickerImages, populated
+// once and never mutated) plus two small pieces of UI state
+// (currentFolder, currentSearch). Tabs are built once per picker open,
+// always enumerating folders from allPickerImages; only the image grid
+// re-renders on search input or a tab click.
 var allPickerImages = [];
 var pickerSelected  = new Set(
   document.getElementById('gallery_images_input').value.split(',').filter(Boolean)
 );
+var currentFolder = 'all';
+var currentSearch = '';
 
 async function openGalleryPicker() {
   document.getElementById('galleryPickerModal').style.display='flex';
   if (allPickerImages.length === 0) await loadPickerImages();
-  renderPickerGrid(allPickerImages);
+  currentFolder = 'all';
+  currentSearch = '';
+  document.getElementById('picker-search').value = '';
+  renderPickerTabs();
+  renderPickerGrid();
 }
 
 async function loadPickerImages() {
@@ -986,33 +1066,39 @@ async function loadPickerImages() {
   } catch(e) { allPickerImages = []; }
 }
 
-function renderPickerGrid(images, filter) {
-  var grid  = document.getElementById('picker-grid');
-  var tabs  = document.getElementById('picker-tabs');
-  filter    = (filter||'').toLowerCase();
-
-  // Build folder tabs
-  var folders = [...new Set(images.map(function(img){ return img.folder; }))].sort();
+function renderPickerTabs() {
+  var tabs = document.getElementById('picker-tabs');
+  var folders = [...new Set(allPickerImages.map(function(img){ return img.folder; }))].sort();
   tabs.innerHTML = '';
   ['all'].concat(folders).forEach(function(f){
     var tab = document.createElement('button');
     tab.type='button';
     tab.textContent = f==='all' ? 'All' : f.replace('packages/','');
     tab.dataset.folder = f;
-    tab.style.cssText='padding:.5rem 1rem;font-size:.7rem;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af';
+    var active = f === currentFolder;
+    tab.style.cssText='padding:.5rem 1rem;font-size:.7rem;font-weight:600;background:none;border:none;'
+      +'border-bottom:2px solid '+(active?'#0a0a0a':'transparent')+';cursor:pointer;white-space:nowrap;'
+      +'letter-spacing:.06em;text-transform:uppercase;color:'+(active?'#0a0a0a':'#9ca3af');
     tab.onclick = function(){
-      document.querySelectorAll('#picker-tabs button').forEach(function(b){ b.style.borderBottomColor='transparent'; b.style.color='#9ca3af'; });
-      tab.style.borderBottomColor='#0a0a0a'; tab.style.color='#0a0a0a';
-      var filtered = f==='all' ? images : images.filter(function(img){ return img.folder===f; });
-      renderPickerGrid(filtered, document.getElementById('picker-search').value);
+      currentFolder = f;
+      renderPickerTabs();
+      renderPickerGrid();
     };
     tabs.appendChild(tab);
   });
-  tabs.children[0].style.borderBottomColor='#0a0a0a';
-  tabs.children[0].style.color='#0a0a0a';
+}
 
-  // Render images
-  var filtered = filter ? images.filter(function(img){ return img.url.toLowerCase().includes(filter); }) : images;
+function renderPickerGrid() {
+  var grid   = document.getElementById('picker-grid');
+  var filter = currentSearch.toLowerCase();
+
+  var images = currentFolder === 'all'
+    ? allPickerImages
+    : allPickerImages.filter(function(img){ return img.folder === currentFolder; });
+  var filtered = filter
+    ? images.filter(function(img){ return img.url.toLowerCase().includes(filter); })
+    : images;
+
   grid.innerHTML = '';
   filtered.forEach(function(img) {
     var isSelected = pickerSelected.has(img.url);
@@ -1044,7 +1130,7 @@ function renderPickerGrid(images, filter) {
   document.getElementById('picker-selected-count').textContent = pickerSelected.size+' selected';
 }
 
-function filterPickerImages(q) { renderPickerGrid(allPickerImages, q); }
+function filterPickerImages(q) { currentSearch = q; renderPickerGrid(); }
 
 function applyGallerySelection() {
   var urls   = [...pickerSelected];
@@ -1117,40 +1203,79 @@ async function loadPkgItinerary() {
     var lvlSel = document.querySelector('[name="accommodation_level"]');
     if (lvlSel) lvlSel.value = itin.accommodation_level||'midrange';
 
-    // Fill day titles/descriptions
+    // Fill every field the Itinerary Manager's own day-block has — not
+    // just title/description, which is all this used to copy over,
+    // silently dropping every accommodation/vehicle/park/activity the
+    // template actually defined.
     var days = itin.days || [];
     days.forEach(function(day, i) {
-      var titles = document.querySelectorAll('[name="day_title[]"]');
-      var descs  = document.querySelectorAll('[name="day_desc[]"]');
-      if (titles[i]) titles[i].value = day.title || '';
-      if (descs[i])  descs[i].value  = day.description || '';
+      var block = document.querySelector('.day-block[data-day="'+i+'"]');
+      if (!block) return;
+
+      var titleInp = block.querySelector('[name="day_title[]"]');
+      var descInp  = block.querySelector('[name="day_desc[]"]');
+      var locInp   = block.querySelector('[name="day_location[]"]');
+      if (titleInp) titleInp.value = day.title || '';
+      if (descInp)  descInp.value  = day.description || '';
+      if (locInp)   locInp.value   = day.location || '';
+
+      var accName = block.querySelector('.day-acc-name');
+      var accRate = block.querySelector('.day-acc-rate');
+      var accRoom = block.querySelector('[name="day_acc_rooms[]"]');
+      var accId   = block.querySelector('.day-acc-id');
+      if (accName) accName.value = day.accommodation_name || '';
+      if (accRate) accRate.value = day.accommodation_rate || 0;
+      if (accRoom) accRoom.value = day.accommodation_rooms || 1;
+      if (accId)   accId.value   = day.accommodation_id || 0;
+
+      var vehName = block.querySelector('.day-veh-name');
+      var vehRate = block.querySelector('.day-veh-rate');
+      var vehId   = block.querySelector('.day-veh-id');
+      if (vehName) vehName.value = day.vehicle_name || '';
+      if (vehRate) vehRate.value = day.vehicle_rate || 0;
+      if (vehId)   vehId.value   = day.vehicle_id || 0;
+
+      var parkName = block.querySelector('[name="day_park_name[]"]');
+      var parkFee  = block.querySelector('.day-park-fee');
+      var parkId   = block.querySelector('[name="day_park_id[]"]');
+      var mealsInp = block.querySelector('[name="day_meals_pp[]"]');
+      if (parkName) parkName.value = day.park_fee_name || '';
+      if (parkFee)  parkFee.value  = day.park_adult_fee || 0;
+      if (parkId)   parkId.value   = day.park_fee_id || 0;
+      if (mealsInp) mealsInp.value = day.meals_cost_pp || 0;
+
+      (day.activities || []).forEach(function(act) {
+        addDayActivity(i);
+        var rows = block.querySelectorAll('.act-item');
+        var row  = rows[rows.length - 1];
+        row.querySelector('.day-act-name').value  = act.name || '';
+        row.querySelector('.day-act-price').value = act.price_pp || 0;
+        row.querySelector('.day-act-type').value  = act.type || 'included';
+      });
+      saveDayActs(i);
+
+      (day.other_items || []).forEach(function(ot) {
+        addDayOther(i);
+        var rows = block.querySelectorAll('.other-item');
+        var row  = rows[rows.length - 1];
+        row.querySelector('.day-other-name').value   = ot.name || '';
+        row.querySelector('.day-other-amount').value = ot.amount || 0;
+      });
+      saveDayOther(i);
     });
 
+    calcItinTotal();
     alert('Itinerary "'+itin.name+'" loaded — '+itin.duration_days+' days filled. Review and save.');
   } catch(e) { alert('Error: '+e.message); }
 }
 
 
-// ── Day row totals ────────────────────────────────────────────
-function calcDayTotals() {
-    var dayRows = document.querySelectorAll('.itinerary-day');
-    dayRows.forEach(function(row) {
-        var acc    = parseFloat(row.querySelector('[name="accommodation_rate[]"]')?.value) || 0;
-        var veh    = parseFloat(row.querySelector('[name="vehicle_rate[]"]')?.value) || 0;
-        var meals  = parseFloat(row.querySelector('[name="meals_cost[]"]')?.value) || 0;
-        var adults = parseInt(document.getElementById('inp_duration')?.dataset?.adults || '2');
-        var dayTotal = acc + veh + (meals * 2); // 2pax default
-        var dispEl  = row.querySelector('.day-total');
-        if (dispEl) dispEl.textContent = '$' + dayTotal.toFixed(0);
-    });
-}
-// Run on input changes
-document.addEventListener('input', function(e){
-    if (e.target.matches('[name="accommodation_rate[]"],[name="vehicle_rate[]"],[name="meals_cost[]"]')) {
-        calcDayTotals();
-    }
-});
-document.addEventListener('DOMContentLoaded', calcDayTotals);
+// calcItinTotal() (defined above, alongside syncItineraryDays) now owns
+// the day-cost badges and the itinerary section's grand total/per-person
+// figures — it replaced a dead calcDayTotals() that matched field names
+// (accommodation_rate[], vehicle_rate[], meals_cost[]) this section no
+// longer has after being rebuilt to match the Itinerary Manager's fields.
+document.addEventListener('DOMContentLoaded', calcItinTotal);
 
 </script>
 

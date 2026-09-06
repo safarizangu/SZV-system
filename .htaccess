@@ -23,7 +23,14 @@ ServerSignature Off
 # ── Block sensitive directories and file types ────────────────
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /
+  # No RewriteBase: left to Apache's default per-directory inference, which
+  # correctly resolves to '/' when this .htaccess sits at the true docroot
+  # (production, files in public_html/ root) AND to '/safari-zangu/' when it
+  # sits in a plain subfolder of a shared docroot (local dev on this
+  # machine — no Apache Alias is configured here, confirmed live). A
+  # hardcoded `RewriteBase /` only produces correct rewrite targets in the
+  # first case; in the second it turns `public/$1` into `/public/$1`
+  # (true docroot), 404ing every public page except the directory index.
 
   # Block hidden files except .well-known (for SSL certs)
   RewriteRule ^\.(?!well-known) - [F,L]

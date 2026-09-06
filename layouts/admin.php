@@ -45,6 +45,7 @@
         ['index.php',            'Dashboard',        '◈', ''],
         ['analytics.php',        'Analytics',        '◉', ''],
         ['bookings.php',         'Bookings',         '◉', ''],
+        ['customers.php',        'Customers',        '⬡', ''],
         ['custom_requests.php',  'Requests',         '◎', $newRequests > 0 ? $newRequests : ''],
         ['contact_messages.php', 'Messages',         '✉', $unreadCount > 0 ? $unreadCount : ''],
         ['leads.php',            'Leads',            '◇', ''],
