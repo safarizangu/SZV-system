@@ -81,11 +81,15 @@ try {
     foreach ($rows as $r) $statusCounts[$r['payment_status']] = $r['c'];
 } catch(\Exception $e) {}
 
+// One status→color config, shared with the JS below via STATUS_META
+// (see script block) instead of the PHP map, the status-update JS map,
+// and the detail-modal JS map each independently hand-maintaining the
+// same four colors.
 $statusColors = [
-    'pending'      => ['bg'=>'#fef3e2','color'=>'#92400e','label'=>'Pending'],
-    'deposit_paid' => ['bg'=>'#eff6ff','color'=>'#1d4ed8','label'=>'Deposit Paid'],
-    'fully_paid'   => ['bg'=>'#f0fdf4','color'=>'#166534','label'=>'Fully Paid'],
-    'cancelled'    => ['bg'=>'#fef2f2','color'=>'#991b1b','label'=>'Cancelled'],
+    'pending'      => ['bg'=>'var(--amber-light)','color'=>'#92400e','badge'=>'amber','label'=>'Pending'],
+    'deposit_paid' => ['bg'=>'var(--blue-light)', 'color'=>'#1e40af','badge'=>'blue', 'label'=>'Deposit Paid'],
+    'fully_paid'   => ['bg'=>'var(--black)',       'color'=>'var(--white)','badge'=>'dark', 'label'=>'Fully Paid'],
+    'cancelled'    => ['bg'=>'var(--red-light)',  'color'=>'#991b1b','badge'=>'red',  'label'=>'Cancelled'],
 ];
 
 $pageTitle = 'Bookings';
@@ -93,13 +97,13 @@ ob_start();
 ?>
 
 <!-- Status filter pills -->
-<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem">
+<div class="admin-filter-pills">
   <a href="bookings.php" class="admin-filter-pill<?= !$status?' active':'' ?>">
     All &nbsp;<span style="opacity:.6"><?= number_format($totalRows) ?></span>
   </a>
   <?php foreach ($statusColors as $sv => $sc): ?>
   <a href="?status=<?= $sv ?><?= $search?'&search='.urlencode($search):'' ?>"
-     style="padding:.35rem .9rem;font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border:1.5px solid <?= $status===$sv?'#0a0a0a':'#e5e7eb' ?>;background:<?= $status===$sv?$sc['bg']:'#fff' ?>;color:<?= $status===$sv?$sc['color']:'#0a0a0a' ?>;text-decoration:none">
+     class="admin-filter-pill admin-filter-pill--<?= $sc['badge'] ?><?= $status===$sv?' active':'' ?>">
     <?= $sc['label'] ?> &nbsp;<span style="opacity:.6"><?= $statusCounts[$sv] ?? 0 ?></span>
   </a>
   <?php endforeach; ?>
@@ -139,12 +143,8 @@ ob_start();
       $hasQuote = !empty($b['quotation_id']);
     ?>
     <tr id="row-<?= htmlspecialchars($b['booking_ref']) ?>"
-        <?= ($viewRef && $viewRef===$b['booking_ref']) ? 'style="background:#f0f0ee"' : '' ?>>
-      <td>
-        <code style="font-size:.78rem;background:#f3f4f6;padding:.12rem .4rem;font-family:monospace">
-          <?= htmlspecialchars($b['booking_ref']) ?>
-        </code>
-      </td>
+        class="<?= ($viewRef && $viewRef===$b['booking_ref']) ? 'highlighted-row' : '' ?>">
+      <td><code><?= htmlspecialchars($b['booking_ref']) ?></code></td>
       <td>
         <div style="font-weight:600;font-size:.85rem"><?= htmlspecialchars($b['full_name']) ?></div>
         <div style="font-size:.72rem;color:#9ca3af;margin-top:.1rem">
@@ -170,7 +170,7 @@ ob_start();
       </td>
       <td>
         <select onchange="updateStatus('<?= htmlspecialchars($b['booking_ref']) ?>', this.value, this)"
-                style="border:1.5px solid #e5e7eb;padding:.3rem .5rem;font-size:.72rem;cursor:pointer;background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>;font-weight:700;max-width:130px">
+                class="admin-input" style="padding:.3rem .5rem;font-size:.72rem;cursor:pointer;background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>;font-weight:700;max-width:130px">
           <?php foreach ($statusColors as $sv => $sl): ?>
           <option value="<?= $sv ?>" <?= $b['payment_status']===$sv?'selected':'' ?>><?= $sl['label'] ?></option>
           <?php endforeach; ?>
@@ -188,23 +188,23 @@ ob_start();
            class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">
           PDF
         </a>
-        <!-- Quotation status: + Quote creates new, ✓ Quote opens existing -->
+        <!-- Quotation status: + Quote creates new, view opens existing -->
         <?php if ($hasQuote): ?>
         <a href="quotations.php?search=<?= urlencode($b['booking_ref']) ?>"
-           class="admin-btn" style="font-size:.6rem;padding:.3rem .6rem;background:#f0fdf4;border-color:#86efac;color:#166534">
-          ✓ Quote
+           class="admin-btn admin-btn--tint-green" style="font-size:.6rem;padding:.3rem .6rem">
+          Quote
         </a>
         <?php else: ?>
         <a href="quotation_new.php?from_booking=<?= urlencode($b['booking_ref']) ?>"
-           class="admin-btn" style="font-size:.6rem;padding:.3rem .6rem;background:#eff6ff;border-color:#93c5fd;color:#1d4ed8">
+           class="admin-btn admin-btn--tint-blue" style="font-size:.6rem;padding:.3rem .6rem">
           + Quote
         </a>
         <?php endif; ?>
         <!-- Email booking confirmation -->
         <a href="../api/booking_email.php?ref=<?= urlencode($b['booking_ref']) ?>"
            onclick="return confirm('Send booking confirmation email to <?= htmlspecialchars(addslashes($b['email'])) ?>?')"
-           class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem;background:#f0f9ff;border-color:#7dd3fc;color:#0369a1">
-          ✉ Email
+           class="admin-btn admin-btn--tint-blue" style="font-size:.65rem;padding:.3rem .6rem">
+          Email
         </a>
         <!-- WhatsApp quick contact -->
         <a href="https://wa.me/<?= preg_replace('/[^0-9]/','', $b['phone']??'') ?>?text=<?= urlencode('Hi '.$b['full_name'].', this is Safari Zangu regarding your booking '.$b['booking_ref'].'.') ?>"
@@ -224,12 +224,12 @@ ob_start();
 
 <!-- Pagination -->
 <?php if ($totalPages > 1): ?>
-<div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 0;flex-wrap:wrap;gap:.5rem">
-  <span style="font-size:.75rem;color:#9ca3af">Page <?= $page ?> of <?= $totalPages ?></span>
-  <div style="display:flex;gap:.25rem;flex-wrap:wrap">
+<div class="pagination" style="border-top:none">
+  <span style="font-size:.75rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?></span>
+  <div class="page-btns">
     <?php for ($i=1; $i<=$totalPages; $i++): ?>
     <a href="?page=<?= $i ?>&search=<?= urlencode($search) ?>&status=<?= urlencode($status) ?>"
-       style="display:inline-block;padding:.3rem .6rem;font-size:.75rem;border:1.5px solid <?= $i===$page?'#0a0a0a':'#e5e7eb' ?>;background:<?= $i===$page?'#0a0a0a':'#fff' ?>;color:<?= $i===$page?'#fff':'#0a0a0a' ?>;text-decoration:none">
+       class="page-btn<?= $i===$page?' active':'' ?>">
       <?= $i ?>
     </a>
     <?php endfor; ?>
@@ -238,21 +238,21 @@ ob_start();
 <?php endif; ?>
 
 <!-- ── Booking Detail Modal ─────────────────────────────── -->
-<div id="bookingModal"
-     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999;align-items:center;justify-content:center;padding:1rem">
-  <div style="background:#fff;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;border-radius:2px;box-shadow:0 24px 80px rgba(0,0,0,.25)">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.5rem;border-bottom:1px solid #e5e7eb;position:sticky;top:0;background:#fff;z-index:1">
-      <span style="font-size:.95rem;font-weight:600" id="modalTitle">Booking Detail</span>
-      <button onclick="closeModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#9ca3af;line-height:1">✕</button>
+<div id="bookingModal" class="admin-modal-overlay">
+  <div class="admin-modal">
+    <div class="admin-modal-header" style="position:sticky;top:0;background:var(--white);z-index:1">
+      <span class="admin-modal-title" id="modalTitle">Booking Detail</span>
+      <button onclick="closeModal()" class="admin-icon-btn admin-modal-close"><?= \App\Helpers\AdminIcon::render('close', 18) ?></button>
     </div>
     <div id="modalBody" style="padding:0 0 1rem"></div>
   </div>
 </div>
 
-<div id="toastContainer" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem"></div>
+<div id="toastContainer" class="toast-container"></div>
 
 <script>
 var BASE = '<?= BASE_PATH ?>';
+var STATUS_META = <?= json_encode($statusColors) ?>;
 
 async function updateStatus(ref, newStatus, sel) {
   var fd = new FormData();
@@ -264,10 +264,8 @@ async function updateStatus(ref, newStatus, sel) {
     var d = await r.json();
     if (d.success) {
       toast('Status updated: '+newStatus,'ok');
-      var colors    = {pending:'#fef3e2',deposit_paid:'#eff6ff',fully_paid:'#f0fdf4',cancelled:'#fef2f2'};
-      var textColors= {pending:'#92400e',deposit_paid:'#1d4ed8',fully_paid:'#166534',cancelled:'#991b1b'};
-      sel.style.background = colors[newStatus] || '#fff';
-      sel.style.color      = textColors[newStatus] || '#0a0a0a';
+      var meta = STATUS_META[newStatus];
+      if (meta) { sel.style.background = meta.bg; sel.style.color = meta.color; }
     } else {
       toast('Failed: '+(d.message||'Error'),'err');
     }
@@ -284,15 +282,13 @@ async function viewBooking(ref) {
 
   document.getElementById('modalTitle').textContent = 'Booking — ' + b.booking_ref;
 
-  var statusLabel = {pending:'Pending',deposit_paid:'Deposit Paid',fully_paid:'Fully Paid',cancelled:'Cancelled'};
-  var statusColor = {pending:'#92400e',deposit_paid:'#1d4ed8',fully_paid:'#166534',cancelled:'#991b1b'};
-  var statusBg    = {pending:'#fef3e2',deposit_paid:'#eff6ff',fully_paid:'#f0fdf4',cancelled:'#fef2f2'};
+  var meta = STATUS_META[b.payment_status] || {};
 
   var travelDate = b.travel_date ? new Date(b.travel_date).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}) : '—';
   var bookedDate = b.created_at  ? new Date(b.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}) : '—';
 
   var rows = [
-    ['Reference',      '<code style="font-family:monospace;font-size:.9rem;background:#f3f4f6;padding:.1rem .35rem">'+b.booking_ref+'</code>'],
+    ['Reference',      '<code>'+b.booking_ref+'</code>'],
     ['Guest',          '<strong>'+b.full_name+'</strong>'],
     ['Email',          '<a href="mailto:'+b.email+'" style="color:inherit">'+b.email+'</a>'],
     ['Phone',          '<a href="https://wa.me/'+(b.phone||'').replace(/[^0-9]/g,'')+'?text='+encodeURIComponent('Hi '+b.full_name+', Safari Zangu here regarding booking '+b.booking_ref+'.')+'" target="_blank" style="color:inherit">'+b.phone+'</a>'],
@@ -303,16 +299,14 @@ async function viewBooking(ref) {
     ['Total Amount',   b.total_amount   ? '<strong>USD $'+Number(b.total_amount).toLocaleString('en-US',{minimumFractionDigits:2})+'</strong>' : '—'],
     ['Deposit (25%)',  b.deposit_amount ? 'USD $'+Number(b.deposit_amount).toLocaleString('en-US',{minimumFractionDigits:2}) : '—'],
     ['Balance Due',    (b.total_amount && b.deposit_amount) ? 'USD $'+(b.total_amount - b.deposit_amount).toLocaleString('en-US',{minimumFractionDigits:2}) : '—'],
-    ['Payment Status', '<span style="display:inline-block;padding:.2rem .65rem;font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:'+(statusBg[b.payment_status]||'#f3f4f6')+';color:'+(statusColor[b.payment_status]||'#374151')+'">'+(statusLabel[b.payment_status]||b.payment_status)+'</span>'],
+    ['Payment Status', '<span class="badge-status badge-status--'+(meta.badge||'gray')+'">'+(meta.label||b.payment_status)+'</span>'],
     ['Booked On',      bookedDate],
   ];
   if (b.special_requests) rows.push(['Special Requests', b.special_requests]);
   if (b.admin_notes)      rows.push(['Admin Notes', b.admin_notes]);
 
   var html = rows.map(function(r){
-    return '<div style="display:grid;grid-template-columns:130px 1fr;gap:.5rem;padding:.6rem 1.5rem;border-bottom:1px solid #f3f4f6;font-size:.85rem">'
-      +'<span style="font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;padding-top:.15rem">'+r[0]+'</span>'
-      +'<span>'+r[1]+'</span></div>';
+    return '<div class="detail-row"><span class="detail-label">'+r[0]+'</span><span>'+r[1]+'</span></div>';
   }).join('');
 
   // Action buttons
@@ -320,38 +314,37 @@ async function viewBooking(ref) {
 
     // PDF — booking confirmation
     +'<a href="'+BASE+'/api/booking_pdf.php?ref='+encodeURIComponent(b.booking_ref)+'" '
-    +'target="_blank" class="admin-btn admin-btn--outline" style="font-size:.72rem">'
-    +'📄 Booking PDF</a>'
+    +'target="_blank" class="admin-btn admin-btn--outline" style="font-size:.72rem">Booking PDF</a>'
 
     // Create / View Quotation
     +(b.has_quote
       ? '<a href="'+BASE+'/admin/quotations.php?search='+encodeURIComponent(b.booking_ref)+'" '
-        +'class="admin-btn" style="font-size:.72rem;background:#f0fdf4;border-color:#86efac;color:#166534">✓ View Quotation</a>'
+        +'class="admin-btn admin-btn--tint-green" style="font-size:.72rem">View Quotation</a>'
       : '<a href="'+BASE+'/admin/quotation_new.php?from_booking='+encodeURIComponent(b.booking_ref)+'" '
-        +'class="admin-btn" style="font-size:.72rem;background:#eff6ff;border-color:#93c5fd;color:#1d4ed8">+ Create Quotation</a>'
+        +'class="admin-btn admin-btn--tint-blue" style="font-size:.72rem">+ Create Quotation</a>'
     )
 
     // Resend confirmation email
     +'<a href="'+BASE+'/api/booking_email.php?ref='+encodeURIComponent(b.booking_ref)+'" '
     +'onclick="return confirm(\'Resend booking confirmation to '+b.email+'?\')" '
-    +'class="admin-btn admin-btn--outline" style="font-size:.72rem">📧 Resend Email</a>'
+    +'class="admin-btn admin-btn--outline" style="font-size:.72rem">Resend Email</a>'
 
     // Track page
     +'<a href="'+BASE+'/track.php?ref='+encodeURIComponent(b.booking_ref)+'&date='+(b.travel_date||'')+'" '
-    +'target="_blank" class="admin-btn admin-btn--outline" style="font-size:.72rem">🔍 Track Page</a>'
+    +'target="_blank" class="admin-btn admin-btn--outline" style="font-size:.72rem">Track Page</a>'
 
     // WhatsApp
     +'<a href="https://wa.me/'+(b.phone||'').replace(/[^0-9]/g,'')+'?text='+encodeURIComponent('Hi '+b.full_name+', this is Safari Zangu Ventures regarding your booking '+b.booking_ref+'.')+'" '
-    +'target="_blank" class="admin-btn admin-btn--success" style="font-size:.72rem">💬 WhatsApp</a>'
+    +'target="_blank" class="admin-btn admin-btn--success" style="font-size:.72rem">WhatsApp</a>'
 
     +'</div>';
 
   document.getElementById('modalBody').innerHTML = html;
-  document.getElementById('bookingModal').style.display = 'flex';
+  document.getElementById('bookingModal').classList.add('open');
 }
 
 function closeModal() {
-  document.getElementById('bookingModal').style.display = 'none';
+  document.getElementById('bookingModal').classList.remove('open');
 }
 document.getElementById('bookingModal').addEventListener('click', function(e){
   if (e.target === this) closeModal();
@@ -362,8 +355,7 @@ document.addEventListener('keydown', function(e){
 
 function toast(msg, type) {
   var t = document.createElement('div');
-  var bg = type==='ok' ? '#166534' : type==='err' ? '#991b1b' : '#0a0a0a';
-  t.style.cssText = 'background:'+bg+';color:#fff;padding:.65rem 1.1rem;font-size:.8rem;min-width:180px;box-shadow:0 4px 16px rgba(0,0,0,.2);border-radius:2px';
+  t.className = 'toast' + (type==='ok' ? ' toast--ok' : type==='err' ? ' toast--err' : '');
   t.textContent = msg;
   document.getElementById('toastContainer').appendChild(t);
   setTimeout(function(){ t.remove(); }, 3500);

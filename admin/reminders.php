@@ -83,11 +83,11 @@ $typeLabels = [
     'custom'      => 'Custom',
 ];
 $typeColors = [
-    'deposit_due' => ['#fef3e2','#92400e'],
-    'balance_due' => ['#eff6ff','#1d4ed8'],
-    'departure'   => ['#f0fdf4','#166534'],
-    'post_trip'   => ['#fdf4ff','#7e22ce'],
-    'custom'      => ['#f3f4f6','#374151'],
+    'deposit_due' => 'amber',
+    'balance_due' => 'blue',
+    'departure'   => 'green',
+    'post_trip'   => 'purple',
+    'custom'      => 'gray',
 ];
 
 $pageTitle = 'Reminders';
@@ -99,23 +99,20 @@ ob_start();
 <!-- Stats + Cron Status -->
 <div style="display:grid;grid-template-columns:repeat(5,1fr) auto;gap:1rem;margin-bottom:1.5rem;align-items:stretch">
   <?php foreach([
-    ['Pending',   $stats['pending']??0,   '#fef3e2','#92400e'],
-    ['Sent',      $stats['sent']??0,      '#f0fdf4','#166534'],
-    ['Failed',    $stats['failed']??0,    '#fef2f2','#991b1b'],
-    ['Cancelled', $stats['cancelled']??0, '#f3f4f6','#374151'],
-    ['Due 24h',   $due24,                 '#eff6ff','#1d4ed8'],
-  ] as [$lbl,$val,$bg,$col]): ?>
-  <div style="background:<?= $bg ?>;color:<?= $col ?>;padding:1rem 1.1rem;border:1.5px solid #e5e7eb">
-    <div style="font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;opacity:.7"><?= $lbl ?></div>
-    <div style="font-family:Georgia,serif;font-size:1.5rem;font-weight:500;margin-top:.2rem"><?= $val ?></div>
+    ['Pending',   $stats['pending']??0,   'amber'],
+    ['Sent',      $stats['sent']??0,      'green'],
+    ['Failed',    $stats['failed']??0,    'red'],
+    ['Cancelled', $stats['cancelled']??0, ''],
+    ['Due 24h',   $due24,                 'blue'],
+  ] as [$lbl,$val,$tint]): ?>
+  <div class="metric-card<?= $tint ? ' metric-card--'.$tint : '' ?>">
+    <span class="metric-label"><?= $lbl ?></span>
+    <span class="metric-value"><?= $val ?></span>
   </div>
   <?php endforeach; ?>
-  <div style="padding:1rem 1.25rem;border:1.5px solid <?= $cronActive?'#bbf7d0':'#fecaca' ?>;background:<?= $cronActive?'#f0fdf4':'#fef2f2' ?>">
-    <div style="font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:<?= $cronActive?'#166534':'#991b1b' ?>">Cron</div>
-    <div style="font-size:.85rem;font-weight:700;color:<?= $cronActive?'#166534':'#991b1b' ?>;margin-top:.4rem">
-      <?= $cronActive ? '✓ Active' : '✗ Not Set' ?>
-    </div>
-    <div style="font-size:.65rem;color:#9ca3af;margin-top:.2rem">Every hour</div>
+  <div class="cron-pill <?= $cronActive?'cron-pill--active':'cron-pill--inactive' ?>" style="flex-direction:column;align-items:flex-start;gap:.3rem;height:auto">
+    <span>Cron</span>
+    <span style="font-size:.8rem"><?= $cronActive ? 'Active' : 'Not Set' ?></span>
   </div>
 </div>
 
@@ -163,7 +160,7 @@ ob_start();
 <!-- PENDING TABLE -->
 <div class="admin-card" style="margin-bottom:1.5rem">
   <div class="admin-card-header">
-    <h3>Pending <span style="font-size:.72rem;color:#9ca3af">· <?= count($pending) ?> scheduled</span></h3>
+    <h3>Pending <span style="font-size:.72rem;color:var(--gray-500)">· <?= count($pending) ?> scheduled</span></h3>
     <a href="email_queue.php" class="admin-btn admin-btn--outline" style="font-size:.68rem">View Email Queue →</a>
   </div>
   <div class="admin-table-wrap">
@@ -174,21 +171,21 @@ ob_start();
     </tr></thead>
     <tbody>
     <?php foreach($pending as $r):
-      $tc = $typeColors[$r['type']] ?? ['#f3f4f6','#374151'];
+      $badge = $typeColors[$r['type']] ?? 'gray';
       $isDue = strtotime($r['send_at']) <= time();
     ?>
-    <tr style="<?= $isDue?'background:#fffbf0':'' ?>">
-      <td><code style="font-size:.75rem"><?= htmlspecialchars($r['booking_ref']) ?></code></td>
+    <tr class="<?= $isDue?'highlighted-row':'' ?>">
+      <td><code><?= htmlspecialchars($r['booking_ref']) ?></code></td>
       <td>
         <div style="font-weight:600;font-size:.82rem"><?= htmlspecialchars($r['full_name']??'—') ?></div>
-        <div style="font-size:.68rem;color:#9ca3af"><?= htmlspecialchars($r['email']??'') ?></div>
+        <div style="font-size:.68rem;color:var(--gray-500)"><?= htmlspecialchars($r['email']??'') ?></div>
       </td>
       <td style="font-size:.78rem;white-space:nowrap"><?= $r['travel_date'] ? date('d M Y',strtotime($r['travel_date'])) : '—' ?></td>
-      <td><span style="font-size:.65rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.15rem .45rem;background:<?= $tc[0] ?>;color:<?= $tc[1] ?>"><?= $typeLabels[$r['type']]??$r['type'] ?></span>
-        <?php if($isDue): ?><span style="font-size:.62rem;color:#dc2626;font-weight:700;margin-left:.25rem">DUE</span><?php endif; ?>
+      <td><span class="badge-status badge-status--<?= $badge ?>"><?= $typeLabels[$r['type']]??$r['type'] ?></span>
+        <?php if($isDue): ?><span style="font-size:.62rem;color:var(--red);font-weight:700;margin-left:.25rem">DUE</span><?php endif; ?>
       </td>
       <td style="white-space:nowrap;font-size:.78rem"><?= date('d M Y H:i',strtotime($r['send_at'])) ?></td>
-      <td style="font-size:.75rem;color:#6b7280;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= htmlspecialchars($r['subject']??'Auto') ?></td>
+      <td style="font-size:.75rem;color:var(--gray-500);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= htmlspecialchars($r['subject']??'Auto') ?></td>
       <td>
         <form method="POST" style="display:inline" onsubmit="return confirm('Cancel this reminder?')">
           <input type="hidden" name="cancel_id" value="<?= $r['id'] ?>">
@@ -207,25 +204,27 @@ ob_start();
 
 <!-- HISTORY TABLE -->
 <div class="admin-card">
-  <div class="admin-card-header"><h3>History <span style="font-size:.72rem;color:#9ca3af">· last 30</span></h3></div>
+  <div class="admin-card-header"><h3>History <span style="font-size:.72rem;color:var(--gray-500)">· last 30</span></h3></div>
   <div class="admin-table-wrap">
   <table class="admin-table">
     <thead><tr><th>Ref</th><th>Guest</th><th>Type</th><th>Sent At</th><th>Status</th><th></th></tr></thead>
     <tbody>
-    <?php foreach($sent as $r):
-      $tc=$typeColors[$r['type']]??['#f3f4f6','#374151'];
+    <?php
+    $historyStatusBadge = ['sent'=>'green','failed'=>'red','cancelled'=>'gray'];
+    foreach($sent as $r):
+      $badge = $typeColors[$r['type']] ?? 'gray';
     ?>
     <tr>
-      <td><code style="font-size:.75rem"><?= htmlspecialchars($r['booking_ref']) ?></code></td>
+      <td><code><?= htmlspecialchars($r['booking_ref']) ?></code></td>
       <td style="font-size:.82rem;font-weight:600"><?= htmlspecialchars($r['full_name']??'—') ?></td>
-      <td><span style="font-size:.62rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:.12rem .4rem;background:<?= $tc[0] ?>;color:<?= $tc[1] ?>"><?= $typeLabels[$r['type']]??$r['type'] ?></span></td>
+      <td><span class="badge-status badge-status--<?= $badge ?>"><?= $typeLabels[$r['type']]??$r['type'] ?></span></td>
       <td style="white-space:nowrap;font-size:.75rem"><?= $r['sent_at'] ? date('d M H:i',strtotime($r['sent_at'])) : '—' ?></td>
-      <td><span style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:<?= ['sent'=>'#16a34a','failed'=>'#dc2626','cancelled'=>'#9ca3af'][$r['status']]??'#374151' ?>"><?= $r['status'] ?></span></td>
+      <td><span class="badge-status badge-status--<?= $historyStatusBadge[$r['status']]??'gray' ?>"><?= $r['status'] ?></span></td>
       <td>
         <?php if($r['status']==='failed'): ?>
         <form method="POST" style="display:inline">
           <input type="hidden" name="resend_id" value="<?= $r['id'] ?>">
-          <button class="admin-btn admin-btn--outline" style="font-size:.62rem;padding:.25rem .45rem">↺ Retry</button>
+          <button class="admin-btn admin-btn--outline" style="font-size:.62rem;padding:.25rem .45rem">Retry</button>
         </form>
         <?php endif; ?>
       </td>
@@ -247,17 +246,17 @@ ob_start();
     <div class="admin-card-header"><h3>Cron Jobs</h3></div>
     <div class="admin-card-body" style="padding:.75rem 1rem">
       <div style="margin-bottom:1rem">
-        <div style="font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:.4rem">Email Queue</div>
-        <code style="font-size:.68rem;display:block;background:#f3f4f6;padding:.5rem .65rem;word-break:break-all">*/2 * * * * /usr/bin/php8.3 <?= BASE_PATH ?>/api/cron/process_email_queue.php</code>
-        <div style="font-size:.68rem;color:#9ca3af;margin-top:.2rem">Runs every 2 minutes</div>
+        <div style="font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gray-500);margin-bottom:.4rem">Email Queue</div>
+        <code style="font-size:.68rem;display:block;padding:.5rem .65rem;word-break:break-all">*/2 * * * * /usr/bin/php8.3 <?= BASE_PATH ?>/api/cron/process_email_queue.php</code>
+        <div style="font-size:.68rem;color:var(--gray-500);margin-top:.2rem">Runs every 2 minutes</div>
       </div>
       <div>
-        <div style="font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:.4rem">Reminders</div>
-        <code style="font-size:.68rem;display:block;background:#f3f4f6;padding:.5rem .65rem;word-break:break-all">0 * * * * /usr/bin/php8.3 <?= BASE_PATH ?>/api/cron/process_reminders.php</code>
-        <div style="font-size:.68rem;color:#9ca3af;margin-top:.2rem">Runs every hour</div>
+        <div style="font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gray-500);margin-bottom:.4rem">Reminders</div>
+        <code style="font-size:.68rem;display:block;padding:.5rem .65rem;word-break:break-all">0 * * * * /usr/bin/php8.3 <?= BASE_PATH ?>/api/cron/process_reminders.php</code>
+        <div style="font-size:.68rem;color:var(--gray-500);margin-top:.2rem">Runs every hour</div>
       </div>
-      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #f3f4f6">
-        <div style="font-size:.68rem;color:#9ca3af">Logs:</div>
+      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--gray-100)">
+        <div style="font-size:.68rem;color:var(--gray-500)">Logs:</div>
         <div style="font-size:.68rem;margin-top:.25rem"><code>/var/log/szv_email.log</code></div>
         <div style="font-size:.68rem"><code>/var/log/szv_reminders.log</code></div>
       </div>
@@ -278,11 +277,11 @@ ob_start();
         ['post_trip',  'Post-Trip', '3 days after return'],
         ['custom',     'Custom',    'Any time you set'],
       ] as [$key,$lbl,$when]):
-        $tc=$typeColors[$key];
+        $badge = $typeColors[$key];
       ?>
-      <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem 1rem;border-bottom:1px solid #f3f4f6">
-        <span style="font-size:.6rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.15rem .4rem;background:<?= $tc[0] ?>;color:<?= $tc[1] ?>;white-space:nowrap"><?= $lbl ?></span>
-        <span style="font-size:.72rem;color:#9ca3af"><?= $when ?></span>
+      <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem 1rem;border-bottom:1px solid var(--gray-100)">
+        <span class="badge-status badge-status--<?= $badge ?>" style="white-space:nowrap"><?= $lbl ?></span>
+        <span style="font-size:.72rem;color:var(--gray-500)"><?= $when ?></span>
       </div>
       <?php endforeach; ?>
     </div>
@@ -292,12 +291,11 @@ ob_start();
   <div class="admin-card">
     <div class="admin-card-header">
       <h3>Reminders Log</h3>
-      <button onclick="refreshReminderLog()" class="admin-btn admin-btn--outline" style="font-size:.62rem">↺</button>
+      <button onclick="refreshReminderLog()" class="admin-btn admin-btn--outline" style="font-size:.62rem;padding:.3rem .5rem"><?= \App\Helpers\AdminIcon::render('refresh', 12) ?></button>
     </div>
-    <div id="rem-log"
-         style="background:#0a0a0a;color:#a3e635;font-family:monospace;font-size:.68rem;padding:.85rem;max-height:240px;overflow-y:auto;line-height:1.8">
+    <div id="rem-log" class="admin-log-terminal" style="font-size:.68rem;padding:.85rem;max-height:240px">
       <?php if(empty($logLines)): ?>
-      <span style="color:#6b7280">No log yet. Runs every hour.</span>
+      <span style="color:var(--gray-500)">No log yet. Runs every hour.</span>
       <?php else: ?>
       <?php foreach($logLines as $line): ?>
       <div><?= htmlspecialchars($line) ?></div>

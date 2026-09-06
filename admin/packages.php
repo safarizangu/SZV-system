@@ -36,7 +36,7 @@ ob_start();
     $level = $levelLabels[$p['accommodation_level']??'midrange']??'Mid-Range';
     $borderColor = $p['is_active'] ? 'var(--gray-200)' : 'var(--red-border)';
 ?>
-<div style="background:#fff;border:1.5px solid <?= $borderColor ?>;display:flex;flex-direction:column">
+<div style="background:var(--white);border:1.5px solid <?= $borderColor ?>;display:flex;flex-direction:column">
 
   <!-- Thumbnail -->
   <div style="height:150px;overflow:hidden;background:var(--gray-100);flex-shrink:0;position:relative">
@@ -44,13 +44,13 @@ ob_start();
     <img src="<?= htmlspecialchars($hero) ?>" alt="<?= htmlspecialchars($p['name']) ?>"
          style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy">
     <?php else: ?>
-    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--gray-300);font-size:2.5rem">🏕</div>
+    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--gray-300)"><?= \App\Helpers\AdminIcon::render('packages', 40) ?></div>
     <?php endif; ?>
-    <span style="position:absolute;top:.5rem;left:.5rem;font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.15rem .45rem;background:<?= $p['is_active']?'#16a34a':'#dc2626' ?>;color:#fff">
+    <span class="badge-status badge-status--<?= $p['is_active']?'green':'red' ?>" style="position:absolute;top:.5rem;left:.5rem">
       <?= $p['is_active']?'Active':'Inactive' ?>
     </span>
     <?php if($p['is_featured']): ?>
-    <span style="position:absolute;top:.5rem;right:.5rem;font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.15rem .45rem;background:#0a0a0a;color:#fff">
+    <span class="badge-status badge-status--dark" style="position:absolute;top:.5rem;right:.5rem">
       Featured
     </span>
     <?php endif; ?>
@@ -63,15 +63,15 @@ ob_start();
         <h3 style="font-family:var(--font-disp);font-size:.95rem;font-weight:500;line-height:1.2"><?= htmlspecialchars($p['name']) ?></h3>
         <p style="font-size:.65rem;color:var(--gray-500);margin-top:.1rem"><?= htmlspecialchars($p['slug']) ?></p>
       </div>
-      <span style="font-size:.58rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:.15rem .4rem;background:var(--gray-100);color:var(--gray-700);white-space:nowrap;flex-shrink:0"><?= $level ?></span>
+      <span class="badge-status badge-status--gray" style="white-space:nowrap;flex-shrink:0"><?= $level ?></span>
     </div>
     <p style="font-size:.78rem;color:var(--gray-700);line-height:1.6;margin-bottom:.75rem;flex:1">
       <?= htmlspecialchars(mb_substr($p['short_description']??'',0,100)) ?><?= mb_strlen($p['short_description']??'')>100?'…':'' ?>
     </p>
     <div style="display:flex;gap:.75rem;margin-bottom:.85rem;font-size:.7rem;color:var(--gray-500)">
-      <span>⏱ <?= $p['duration_days'] ?> nights</span>
-      <span>💰 $<?= number_format((float)$p['price_2pax'],0) ?>/pp</span>
-      <span>🖼 <?= count($imgs) ?> images</span>
+      <span style="display:inline-flex;align-items:center;gap:.25rem"><?= \App\Helpers\AdminIcon::render('clock', 12) ?> <?= $p['duration_days'] ?> nights</span>
+      <span>$<?= number_format((float)$p['price_2pax'],0) ?>/pp</span>
+      <span style="display:inline-flex;align-items:center;gap:.25rem"><?= \App\Helpers\AdminIcon::render('gallery', 12) ?> <?= count($imgs) ?> images</span>
     </div>
     <div style="display:flex;gap:.4rem;flex-wrap:wrap">
       <a href="package_edit.php?id=<?= $p['id'] ?>" class="admin-btn admin-btn--primary" style="font-size:.62rem">Edit</a>

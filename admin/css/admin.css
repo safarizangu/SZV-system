@@ -19,6 +19,20 @@
   --red:         #dc2626;
   --blue:        #1d4ed8;
   --amber:       #d97706;
+
+  /* Tinted card/badge variants (border + light fill per status color).
+     These were referenced by .metric-card--*/.admin-stat-card--*/
+     .badge-status--* below without ever being declared, so every tinted
+     card silently rendered with a transparent border and no fill. */
+  --green-border: #86efac;
+  --green-light:  #f0fdf4;
+  --red-border:   #fca5a5;
+  --red-light:    #fef2f2;
+  --blue-border:  #93c5fd;
+  --blue-light:   #eff6ff;
+  --amber-border: #fbbf24;
+  --amber-light:  #fef3e2;
+
   --sidebar-w:   240px;
   --topbar-h:    60px;
   --font-body:   'Jost', system-ui, sans-serif;
@@ -115,7 +129,9 @@ html, body { height: 100%; }
 .admin-nav-link.active      { color: var(--white); border-left-color: var(--white); background: rgba(255,255,255,.08); }
 .admin-nav-link--danger     { color: rgba(255,80,80,.6); }
 .admin-nav-link--danger:hover { color: #ff5050; }
-.admin-nav-icon             { font-size: .8rem; width: 16px; text-align: center; flex-shrink: 0; }
+.admin-nav-icon              { display: inline-flex; align-items: center; justify-content: center; width: 16px; flex-shrink: 0; opacity: .85; }
+.admin-nav-icon .admin-icon  { vertical-align: 0; }
+.admin-sidebar-footer .admin-nav-link { display: flex; align-items: center; gap: .65rem; }
 
 .admin-sidebar-footer {
   padding: .75rem 0;
@@ -206,18 +222,11 @@ html, body { height: 100%; }
   gap: 1rem;
   margin-bottom: 1.75rem;
 }
-.metric-card {
-  background: var(--white);
-  border: 1px solid var(--gray-200);
-  padding: 1.25rem 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: .25rem;
-}
+/* Base .metric-card look, hover state and color variants are defined
+   once, together, further down (search "METRICS GRID" again) — this
+   used to be declared twice with different values, a silent cascade
+   conflict where whichever rule loaded last quietly won. */
 .metric-card--revenue { border-top: 3px solid var(--black); }
-.metric-label  { font-size: .6rem; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: var(--gray-500); }
-.metric-value  { font-family: var(--font-disp); font-size: 1.85rem; font-weight: 500; color: var(--black); line-height: 1.1; }
-.metric-sub    { font-size: .68rem; color: var(--gray-500); }
 
 /* ── CARDS ──────────────────────────────────────────────────── */
 .admin-card          { background: var(--white); border: 1px solid var(--gray-200); }
@@ -236,7 +245,7 @@ html, body { height: 100%; }
 .admin-table td  { padding: .7rem .75rem; border-bottom: 1px solid var(--gray-100); vertical-align: middle; }
 .admin-table tr:last-child td { border-bottom: none; }
 .admin-table tr:hover td      { background: var(--gray-50); }
-.admin-table code { font-size: .72rem; background: var(--gray-100); padding: .12rem .35rem; }
+.admin-body code   { font-size: .72rem; background: var(--gray-100); padding: .12rem .35rem; border-radius: var(--radius); }
 .admin-empty     { text-align: center; padding: 2.5rem; color: var(--gray-500); font-style: italic; }
 
 /* ── FORMS ──────────────────────────────────────────────────── */
@@ -289,12 +298,32 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 .admin-btn--success  { background: var(--green); color: var(--white); border-color: var(--green); }
 .admin-btn--danger   { background: var(--red); color: var(--white); border-color: var(--red); }
 .admin-btn--muted    { background: var(--gray-100); color: var(--gray-500); border-color: var(--gray-200); }
-.admin-btn--warning  { background: var(--amber); color: var(--white); border-color: var(--amber); }
+.admin-btn--warning,
+.admin-btn--amber    { background: var(--amber); color: var(--white); border-color: var(--amber); }
+.admin-btn:focus-visible,
+.admin-link:focus-visible,
+.admin-nav-link:focus-visible,
+.admin-icon-btn:focus-visible { outline: 2px solid var(--black); outline-offset: 2px; }
+
+/* ── ICONS ──────────────────────────────────────────────────── */
+/* Inline SVGs from App\Helpers\AdminIcon — one line-icon set for the
+   whole panel instead of the color-emoji / geometric-glyph mix that had
+   spread across the sidebar and individual pages. */
+.admin-icon      { display: inline-block; vertical-align: -3px; flex-shrink: 0; }
+.admin-icon-btn  {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; padding: .3rem;
+  color: var(--gray-500); border-radius: var(--radius);
+  transition: color var(--transition), background var(--transition);
+}
+.admin-icon-btn:hover         { color: var(--black); background: var(--gray-100); }
+.admin-icon-btn--danger:hover { color: var(--red); background: var(--red-light); }
 
 /* ── ALERTS ─────────────────────────────────────────────────── */
 .admin-alert         { padding: .85rem 1.1rem; margin-bottom: 1.25rem; font-size: .85rem; font-weight: 500; border-radius: var(--radius); }
 .admin-alert--success{ background: #f0fdf4; border-left: 3px solid var(--green); color: #166534; }
-.admin-alert--error  { background: #fef2f2; border-left: 3px solid var(--red); color: #991b1b; }
+.admin-alert--error,
+.admin-alert--danger { background: #fef2f2; border-left: 3px solid var(--red); color: #991b1b; }
 .admin-alert--info   { background: #eff6ff; border-left: 3px solid var(--blue); color: #1e40af; }
 
 /* ── BADGES ─────────────────────────────────────────────────── */
@@ -310,14 +339,49 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 .badge-fully_paid.badge-status { background: var(--black); color: var(--white); }
 .badge-cancelled.badge-status  { background: #fef2f2; color: #991b1b; }
 
+/* Generic color modifiers for .badge / .badge-status — every page that
+   used to hand-roll its own status→color map (draft/sent/accepted…,
+   pending/sent/failed…) can use one of these instead, so a "sent"
+   quotation and a "sent" reminder read as the same visual language. */
+.badge-status--gray  { background: var(--gray-100); color: var(--gray-700); }
+.badge-status--green { background: var(--green-light); color: #166534; }
+.badge-status--red   { background: var(--red-light);   color: #991b1b; }
+.badge-status--blue  { background: var(--blue-light);  color: #1e40af; }
+.badge-status--amber { background: var(--amber-light); color: #92400e; }
+.badge-status--dark  { background: var(--black);       color: var(--white); }
+.badge-status--purple { background: #fdf4ff;           color: #7e22ce; }
+
 /* ── MODAL ──────────────────────────────────────────────────── */
-.admin-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 999; align-items: center; justify-content: center; padding: 1rem; }
+/* One real modal component — .admin-modal-overlay/.admin-modal were
+   declared but never actually used by any page; every modal in the
+   panel hand-rolled its own near-identical inline version instead
+   (varying overlay opacity, no shared header/footer structure). */
+.admin-modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.65);
+  z-index: 999; align-items: center; justify-content: center; padding: 1rem;
+}
 .admin-modal-overlay.open { display: flex; }
-.admin-modal         { background: var(--white); border: 1px solid var(--gray-200); padding: 1.75rem; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; position: relative; border-radius: var(--radius); }
-.admin-modal-close   { position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--gray-500); }
+.admin-modal {
+  background: var(--white); border: 1px solid var(--gray-200);
+  width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto;
+  position: relative; border-radius: var(--radius);
+}
+.admin-modal--wide  { max-width: 760px; }
+.admin-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding: 1.1rem 1.5rem; border-bottom: 1px solid var(--gray-200);
+}
+.admin-modal-title  { font-family: var(--font-disp); font-size: 1.05rem; font-weight: 500; }
+.admin-modal-body   { padding: 1.5rem; }
+.admin-modal-footer {
+  display: flex; align-items: center; justify-content: flex-end; gap: .6rem;
+  padding: 1rem 1.5rem; border-top: 1px solid var(--gray-200);
+}
+.admin-modal-close  { color: var(--gray-500); }
 
 /* ── LEAD LIST ──────────────────────────────────────────────── */
 .lead-list           { display: flex; flex-direction: column; gap: 0; }
+.admin-cards-stack    { display: flex; flex-direction: column; gap: .85rem; }
 .lead-item           { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: .75rem; padding: .65rem 0; border-bottom: 1px solid var(--gray-100); }
 .lead-item:last-child{ border-bottom: none; }
 .lead-name           { font-weight: 600; font-size: .82rem; }
@@ -327,16 +391,12 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 /* ── MISC ───────────────────────────────────────────────────── */
 .admin-form-group    { display: flex; flex-direction: column; gap: .3rem; margin-bottom: 1rem; }
 .toast-container     { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: .5rem; }
-.toast               { background: var(--black); color: var(--white); padding: .75rem 1.25rem; font-size: .8rem; min-width: 200px; box-shadow: var(--shadow-md); }
+.toast               { background: var(--black); color: var(--white); padding: .75rem 1.25rem; font-size: .8rem; min-width: 200px; box-shadow: var(--shadow-md); border-radius: var(--radius); }
+.toast--ok           { background: #166534; }
+.toast--err          { background: #991b1b; }
 .highlighted-row td  { background: #f0f0f0 !important; }
 
-/* ── MODAL / DATA CARD extras ───────────────────────────────── */
-.modal-overlay       { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 999; align-items: center; justify-content: center; padding: 1rem; }
-.modal-overlay.open  { display: flex; }
-.modal-box           { background: var(--white); width: 100%; max-width: 620px; max-height: 90vh; overflow-y: auto; border-radius: var(--radius); }
-.modal-header        { display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 1.5rem; border-bottom: 1px solid var(--gray-200); }
-.modal-title         { font-size: .95rem; font-weight: 600; }
-.modal-close         { background: none; border: none; font-size: 1.1rem; cursor: pointer; }
+/* ── DATA CARD extras ───────────────────────────────────────── */
 .detail-row          { display: grid; grid-template-columns: 130px 1fr; gap: .5rem; padding: .6rem 1.5rem; border-bottom: 1px solid var(--gray-100); font-size: .85rem; }
 .detail-label        { font-size: .62rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--gray-500); padding-top: .1rem; }
 .data-card           { background: var(--white); border: 1px solid var(--gray-200); margin-bottom: 2rem; }
@@ -480,6 +540,23 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 .admin-filter-pill--amber { border-color:var(--amber); color:var(--amber); }
 .admin-filter-pill--green { border-color:var(--green); color:var(--green); }
 .admin-filter-pill--red   { border-color:var(--red);   color:var(--red);   }
+.admin-filter-pill--blue  { border-color:var(--blue);  color:var(--blue);  }
+.admin-filter-pill--dark  { border-color:var(--black); color:var(--black); }
+.admin-filter-pill.active.admin-filter-pill--amber { background:var(--amber-light); color:#92400e; border-color:var(--amber); }
+.admin-filter-pill.active.admin-filter-pill--green { background:var(--green-light); color:#166534; border-color:var(--green); }
+.admin-filter-pill.active.admin-filter-pill--red   { background:var(--red-light);   color:#991b1b; border-color:var(--red);   }
+.admin-filter-pill.active.admin-filter-pill--blue  { background:var(--blue-light);  color:#1e40af; border-color:var(--blue);  }
+
+/* Tinted button variants — a lighter-weight alternative to solid
+   --success/--danger for "this already exists, view it" vs "this
+   doesn't exist yet, create it" actions (e.g. bookings.php's Quote
+   column) without reaching for a full solid color block each time. */
+.admin-btn--tint-green { background:var(--green-light); border-color:var(--green-border); color:#166534; }
+.admin-btn--tint-blue  { background:var(--blue-light);  border-color:var(--blue-border);  color:#1e40af; }
+.admin-btn--tint-amber { background:var(--amber-light); border-color:var(--amber-border); color:#92400e; }
+.admin-btn--tint-green:hover { border-color:var(--green); }
+.admin-btn--tint-blue:hover  { border-color:var(--blue);  }
+.admin-btn--tint-amber:hover { border-color:var(--amber); }
 
 /* ── Status dot ───────────────────────────────────────────── */
 .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:.35rem; flex-shrink:0; vertical-align:middle; }

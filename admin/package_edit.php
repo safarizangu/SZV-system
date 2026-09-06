@@ -12,6 +12,39 @@ if ($id > 0) {
     catch(\Exception $e){}
 }
 
+// ── Unlink — detach this package from its Itinerary Manager template,
+// seeding its own now-editable itinerary copy from the template's
+// current days first so nothing the admin was looking at disappears.
+// A one-shot DB action, not a form submit — the linked template has no
+// editable inputs on this page to submit in the first place.
+if ($id > 0 && isset($_GET['unlink']) && $pkg && !empty($pkg['itinerary_id'])) {
+    try {
+        $ls = $db->prepare("SELECT days FROM itineraries WHERE id=? LIMIT 1");
+        $ls->execute([(int)$pkg['itinerary_id']]);
+        $row  = $ls->fetch();
+        $days = $row ? (json_decode($row['days'] ?? '[]', true) ?: []) : [];
+        $db->prepare("UPDATE packages SET itinerary_id=NULL, itinerary=? WHERE id=?")
+           ->execute([json_encode($days), $id]);
+        header("Location: package_edit.php?id=$id&msg=".urlencode('Unlinked — itinerary is now editable here.')); exit;
+    } catch (\Exception $e) {}
+}
+
+// ── Link — attach this package to an Itinerary Manager template. The
+// template becomes authoritative for pricing and display (see
+// ItineraryQuoteBuilder usage in the SAVE block below); this package's
+// own itinerary copy is simply not read anywhere once linked.
+if ($id > 0 && !empty($_GET['link']) && $pkg) {
+    $linkId = (int)$_GET['link'];
+    try {
+        $chk = $db->prepare("SELECT id FROM itineraries WHERE id=? LIMIT 1");
+        $chk->execute([$linkId]);
+        if ($chk->fetch()) {
+            $db->prepare("UPDATE packages SET itinerary_id=? WHERE id=?")->execute([$linkId, $id]);
+            header("Location: package_edit.php?id=$id&msg=".urlencode('Linked to itinerary template.')); exit;
+        }
+    } catch (\Exception $e) {}
+}
+
 function fetchAll($db,$sql){try{return $db->query($sql)->fetchAll();}catch(\Exception $e){return[];}}
 $accommodations = fetchAll($db,"SELECT id,name,level,rate_per_room,rate_per_person FROM accommodations WHERE is_active=1 ORDER BY level,name");
 $vehicles       = fetchAll($db,"SELECT id,name,daily_rate,fuel_cost_day,driver_cost_day,capacity FROM vehicles WHERE is_active=1 ORDER BY name");
@@ -76,6 +109,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
         'notes'               => trim($_POST['breakdown_notes']??''),
     ];
 
+    // Listed prices are no longer typed — they're the itinerary total
+    // (linked Itinerary Manager template when this package is linked,
+    // otherwise its own Day-by-Day Itinerary above) plus the Service
+    // Charge, divided by traveler count for each tier. This is exactly
+    // what api/book.php actually charges, so the listed price can't
+    // drift from the real one the way a hand-typed number could.
+    $pricingItinId = !empty($_POST['itinerary_id']) ? (int)$_POST['itinerary_id'] : 0;
+    $pricingDays   = $itinerary;
+    if ($pricingItinId) {
+        $ls  = $db->prepare("SELECT days FROM itineraries WHERE id=? LIMIT 1");
+        $ls->execute([$pricingItinId]);
+        $row = $ls->fetch();
+        $pricingDays = $row ? (json_decode($row['days'] ?? '[]', true) ?: []) : [];
+    }
+    $svcPax = $bd['service_charge_pax'];
+    $computedPrices = [];
+    foreach ([1, 2, 3] as $n) {
+        $quote     = \App\Services\ItineraryQuoteBuilder::build(['days' => $pricingDays], $n, 0, false);
+        $lineItems = $quote['line_items'];
+        if ($svcPax > 0) {
+            $lineItems[] = [
+                'description' => 'Service Charge', 'unit_price' => $svcPax,
+                'quantity_str'=> $n . ' Guest' . ($n !== 1 ? 's' : ''),
+                'amount'      => round($svcPax * $n, 2), 'category' => 'service_charge',
+            ];
+        }
+        $totals = \App\Services\ItineraryQuoteBuilder::totals($lineItems);
+        $computedPrices[$n] = round($totals['grand_total'] / $n, 2);
+    }
+
     $data = [
         'slug'                => $slug,
         'name'                => trim($_POST['name']??''),
@@ -84,10 +147,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
         'overview'            => trim($_POST['overview']??''),
         'accommodation'       => trim($_POST['accommodation']??''),
         'accommodation_level' => $_POST['accommodation_level']??'midrange',
-        'price_1pax'          => (float)($_POST['price_1pax']??0),
-        'price_2pax'          => (float)($_POST['price_2pax']??0),
-        'price_3pax'          => (float)($_POST['price_3pax']??0),
-        'price_notes'         => trim($_POST['price_notes']??''),
+        'price_1pax'          => $computedPrices[1],
+        'price_2pax'          => $computedPrices[2],
+        'price_3pax'          => $computedPrices[3],
         'is_featured'         => isset($_POST['is_featured'])?1:0,
         'is_active'           => isset($_POST['is_active'])?1:0,
         'sort_order'          => (int)($_POST['sort_order']??0),
@@ -116,6 +178,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
 
 // Parse existing
 $durationDays = (int)($pkg['duration_days'] ?? 5);
+
+// A package linked to an Itinerary Manager template treats that shared
+// template as authoritative for pricing and day-by-day display — it's
+// what api/book.php actually charges and what the public packages page
+// actually shows (see views/packages.php). This package's own itinerary
+// section below is only ever editable/used when nothing is linked.
+$linkedItin = null;
+if ($pkg && !empty($pkg['itinerary_id'])) {
+    try {
+        $ls = $db->prepare("SELECT * FROM itineraries WHERE id=? LIMIT 1");
+        $ls->execute([(int)$pkg['itinerary_id']]);
+        $linkedItin = $ls->fetch() ?: null;
+    } catch (\Exception $e) {}
+}
+$isLinked       = $linkedItin !== null;
+$linkedDays     = $isLinked ? (json_decode($linkedItin['days']??'[]',true)?:[]) : [];
+$linkedIncludes = $isLinked ? (json_decode($linkedItin['includes']??'[]',true)?:[]) : [];
+$linkedExcludes = $isLinked ? (json_decode($linkedItin['excludes']??'[]',true)?:[]) : [];
+
 $itinerary  = $pkg ? (json_decode($pkg['itinerary']??'[]',true)?:[]) : [];
 $includes   = $pkg ? implode("\n",json_decode($pkg['includes']??'[]',true)?:[]) : '';
 $excludes   = $pkg ? implode("\n",json_decode($pkg['excludes']??'[]',true)?:[]) : '';
@@ -140,6 +221,7 @@ $bdTravelers = (int)($bd['traveler_count'] ?? 2);
 $pageTitle = $id ? 'Edit Package' : 'New Package';
 ob_start();
 ?>
+<style><?= \App\Helpers\ItineraryDayCards::css() ?></style>
 <?php if($msg): ?>
 <div class="admin-alert admin-alert--<?= str_starts_with($msg,'Error')?'error':'success' ?>">
   <?= $msg ?>
@@ -216,50 +298,29 @@ ob_start();
   </div>
 </div>
 
-<!-- PRICING -->
-<div class="admin-card" style="margin-bottom:1.25rem">
-  <div class="admin-card-header"><h3>Listed Prices (USD per person)</h3>
-    <span style="font-size:.72rem;color:#9ca3af">Selling price — can include margin above cost</span>
-  </div>
-  <div class="admin-card-body">
-    <div style="background:#f7f7f5;border:1px solid #e5e7eb;padding:.65rem .85rem;margin-bottom:1rem;font-size:.75rem;color:#6b7280">
-      These are typed independently of the Cost Breakdown Builder below by default — nothing keeps them in sync automatically. Use <strong>↓ Sync</strong> on each tier to pull that tier's live per-person total from the breakdown into the field, so the listed price actually reflects what the breakdown adds up to.
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
-      <div>
-        <label class="admin-label">1 Person (Solo)</label>
-        <input name="price_1pax" id="price_1pax" type="number" step="1" class="admin-input" value="<?= (float)($pkg['price_1pax']??0) ?>">
-        <button type="button" onclick="syncPriceFromBreakdown(1)" class="admin-btn admin-btn--muted" style="font-size:.62rem;padding:.25rem .5rem;margin-top:.35rem;width:100%">↓ Sync from breakdown</button>
-      </div>
-      <div>
-        <label class="admin-label">2 People (Couple)</label>
-        <input name="price_2pax" id="price_2pax" type="number" step="1" class="admin-input" value="<?= (float)($pkg['price_2pax']??0) ?>">
-        <button type="button" onclick="syncPriceFromBreakdown(2)" class="admin-btn admin-btn--muted" style="font-size:.62rem;padding:.25rem .5rem;margin-top:.35rem;width:100%">↓ Sync from breakdown</button>
-      </div>
-      <div>
-        <label class="admin-label">3+ People (Group)</label>
-        <input name="price_3pax" id="price_3pax" type="number" step="1" class="admin-input" value="<?= (float)($pkg['price_3pax']??0) ?>">
-        <button type="button" onclick="syncPriceFromBreakdown(3)" class="admin-btn admin-btn--muted" style="font-size:.62rem;padding:.25rem .5rem;margin-top:.35rem;width:100%">↓ Sync from breakdown</button>
-      </div>
-    </div>
-    <div><label class="admin-label">Price Notes</label>
-      <textarea name="price_notes" class="admin-input" rows="2"><?= htmlspecialchars($pkg['price_notes']??'') ?></textarea></div>
-  </div>
-</div>
+<!-- Listed Prices removed — the price shown to guests is now always the
+     itinerary total (linked template, or this package's own Day-by-Day
+     Itinerary below) plus Service Charge, divided by traveler count.
+     See the Quotation Live Cost Summary further down for the live
+     number, and price_1pax/2pax/3pax are recomputed automatically on
+     every save so nothing has to be typed or kept in sync by hand. -->
 
 
-<!-- LOAD FROM ITINERARY TEMPLATE -->
-<div class="admin-card" style="margin-bottom:1.25rem;border:1.5px solid #7c3aed">
-  <div class="admin-card-header" style="background:#7c3aed;color:#fff">
-    <h3 style="color:#fff">Load Itinerary Template</h3>
-    <span style="font-size:.72rem;opacity:.7">Fills day-by-day itinerary + auto-sets cost breakdown</span>
+<?php if (!$isLinked): ?>
+<!-- LOAD OR LINK ITINERARY TEMPLATE — only relevant while this package
+     has no linked template of its own (see $isLinked branch on the
+     Day-by-Day Itinerary card below). -->
+<div class="admin-card" style="margin-bottom:1.25rem;border:1.5px solid var(--black)">
+  <div class="admin-card-header" style="background:var(--black);color:var(--white)">
+    <h3 style="color:var(--white)">Load or Link Itinerary Template</h3>
+    <span style="font-size:.72rem;opacity:.7">Copy to customize, or link permanently</span>
   </div>
   <div class="admin-card-body">
-    <div style="display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:end">
+    <div style="display:grid;grid-template-columns:1fr auto<?= $id ? ' auto' : '' ?>;gap:.75rem;align-items:end">
       <div>
         <label class="admin-label">Select Itinerary</label>
         <select id="pkg_itin_select" class="admin-input">
-          <option value="">— Load an itinerary template —</option>
+          <option value="">— Select an itinerary template —</option>
           <?php
           $itinList2 = [];
           try { $itinList2 = $db->query("SELECT id,name,duration_days,accommodation_level,base_price_pax FROM itineraries WHERE is_active=1 ORDER BY sort_order,name")->fetchAll(); }
@@ -271,16 +332,42 @@ ob_start();
           <?php endforeach; ?>
         </select>
       </div>
-      <button type="button" onclick="loadPkgItinerary()" class="admin-btn" style="background:#7c3aed;color:#fff;padding:.75rem 1.5rem">
-        ↓ Load Template
+      <button type="button" onclick="loadPkgItinerary()" class="admin-btn admin-btn--primary" style="padding:.75rem 1.5rem">
+        Copy to Customize
       </button>
+      <?php if ($id): ?>
+      <button type="button" onclick="linkPkgItinerary()" class="admin-btn admin-btn--outline" style="padding:.75rem 1.5rem">
+        Link Permanently
+      </button>
+      <?php endif; ?>
     </div>
-    <p style="font-size:.68rem;color:#9ca3af;margin-top:.4rem">This will overwrite the current day-by-day itinerary below. Cost breakdown stays unchanged.</p>
+    <p style="font-size:.68rem;color:var(--gray-500);margin-top:.4rem"><strong>Copy</strong> fills the day-by-day itinerary below so you can customize it just for this package — pricing then comes from that local copy. <strong>Link</strong> attaches this package to the template directly: pricing and display always follow the Itinerary Manager, and the section below becomes read-only.<?= $id ? '' : ' (Save the package first to enable linking.)' ?></p>
   </div>
 </div>
+<?php endif; ?>
 
 
 
+<?php if ($isLinked): ?>
+<!-- Linked to an Itinerary Manager template — that shared template is
+     what api/book.php actually charges and what guests see on the
+     public packages page, so this package's own itinerary section is
+     read-only here; edit day-by-day details in the Itinerary Manager. -->
+<div class="admin-card" style="margin-bottom:1.25rem;border:1.5px solid var(--black)">
+  <div class="admin-card-header" style="background:var(--gray-50)">
+    <h3>Day-by-Day Itinerary <span style="font-weight:400;color:var(--gray-500);font-size:.75rem">— linked to "<?= htmlspecialchars($linkedItin['name']) ?>"</span></h3>
+    <div style="display:flex;gap:.5rem">
+      <a href="itineraries.php?id=<?= (int)$linkedItin['id'] ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.65rem">Edit in Itinerary Manager <?= \App\Helpers\AdminIcon::render('external-link', 11) ?></a>
+      <a href="package_edit.php?id=<?= $id ?>&amp;unlink=1"
+         onclick="return confirm('Unlink and make this package’s itinerary editable here instead? The template’s current days will be copied over first as a starting point.')"
+         class="admin-btn admin-btn--muted" style="font-size:.65rem">Unlink &amp; Customize Here</a>
+    </div>
+  </div>
+  <div class="admin-card-body">
+    <?= \App\Helpers\ItineraryDayCards::render($linkedDays, true) ?>
+  </div>
+</div>
+<?php else: ?>
 <!-- ITINERARY — days sync with duration_days. Same arrangement as
      admin/itineraries.php's day-block: a "Day N" + title header with a
      live cost badge, then one colour-coded box per category
@@ -293,7 +380,7 @@ ob_start();
   <div class="admin-card-header">
     <h3>Day-by-Day Itinerary</h3>
     <div style="display:flex;align-items:center;gap:.85rem">
-      <span style="font-size:.72rem;color:#9ca3af" id="itinerary-count">
+      <span style="font-size:.72rem;color:var(--gray-500)" id="itinerary-count">
         <?= $durationDays ?> day<?= $durationDays!=1?'s':'' ?> · matches duration above
       </span>
       <button type="button" onclick="openAddVehicleModal()" class="admin-btn admin-btn--outline" style="font-size:.7rem;padding:.3rem .6rem">+ New Vehicle</button>
@@ -301,16 +388,16 @@ ob_start();
   </div>
   <div class="admin-card-body" id="itinerary-rows">
     <?php foreach($itinerary as $i=>$day): ?>
-    <div class="day-block itinerary-day" data-day="<?= $i ?>" style="margin-bottom:1rem;border-left:3px solid #0a0a0a">
-      <div class="admin-card-header" style="background:#f7f7f5">
+    <div class="day-block itinerary-day" data-day="<?= $i ?>" style="margin-bottom:1rem;border-left:3px solid var(--black)">
+      <div class="admin-card-header" style="background:var(--gray-50)">
         <h3 style="font-size:.85rem">
-          <span style="font-family:Georgia,serif;color:#0a0a0a;margin-right:.5rem">Day <?= $i+1 ?></span>
+          <span style="font-family:Georgia,serif;color:var(--black);margin-right:.5rem">Day <?= $i+1 ?></span>
           <input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem"
                  placeholder="Day title e.g. Arusha → Tarangire"
                  value="<?= htmlspecialchars($day['title']??'') ?>">
         </h3>
         <div style="display:flex;align-items:center;gap:.5rem">
-          <span class="day-cost-badge" style="font-size:.65rem;background:#0a0a0a;color:#fff;padding:.2rem .6rem;font-weight:600">$0</span>
+          <span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span>
         </div>
       </div>
 
@@ -326,8 +413,8 @@ ob_start();
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
 
           <!-- Accommodation -->
-          <div style="border:1px solid #e5e7eb;padding:.85rem;background:#eff6ff20">
-            <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8">🏕 Accommodation</p>
+          <div style="border:1px solid var(--gray-200);padding:.85rem;background:#eff6ff20">
+            <p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8"><?= \App\Helpers\AdminIcon::render('accommodations', 13) ?> Accommodation</p>
             <input type="hidden" name="day_acc_id[]" class="day-acc-id" value="<?= (int)($day['accommodation_id']??0) ?>">
             <div style="margin-bottom:.45rem"><label class="admin-label">Property</label>
               <input name="day_acc_name[]" class="admin-input day-acc-name" list="pe-acc-list-<?= $i ?>"
@@ -351,8 +438,8 @@ ob_start();
           </div>
 
           <!-- Vehicle -->
-          <div style="border:1px solid #e5e7eb;padding:.85rem;background:#f0fdf420">
-            <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534">🚙 Vehicle</p>
+          <div style="border:1px solid var(--gray-200);padding:.85rem;background:#f0fdf420">
+            <p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534"><?= \App\Helpers\AdminIcon::render('fleet', 13) ?> Vehicle</p>
             <input type="hidden" name="day_veh_id[]" class="day-veh-id" value="<?= (int)($day['vehicle_id']??0) ?>">
             <div style="margin-bottom:.45rem"><label class="admin-label">Vehicle</label>
               <input name="day_veh_name[]" class="admin-input day-veh-name" list="pe-veh-list-<?= $i ?>"
@@ -371,8 +458,8 @@ ob_start();
           </div>
 
           <!-- Park + Meals -->
-          <div style="border:1px solid #e5e7eb;padding:.85rem;background:#fef3e220">
-            <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e">🏞 Park &amp; Meals</p>
+          <div style="border:1px solid var(--gray-200);padding:.85rem;background:#fef3e220">
+            <p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e"><?= \App\Helpers\AdminIcon::render('park-fees', 13) ?> Park &amp; Meals</p>
             <input type="hidden" name="day_park_id[]" value="<?= (int)($day['park_fee_id']??0) ?>">
             <div style="margin-bottom:.45rem"><label class="admin-label">Park / Area</label>
               <input name="day_park_name[]" class="admin-input" list="pe-park-list-<?= $i ?>"
@@ -400,7 +487,7 @@ ob_start();
         <!-- Activities for this day -->
         <div style="margin-bottom:1rem">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-            <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b7280">Activities (Day <?= $i+1 ?>)</p>
+            <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day <?= $i+1 ?>)</p>
             <button type="button" onclick="addDayActivity(<?= $i ?>)" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>
           </div>
           <div id="day-acts-<?= $i ?>">
@@ -415,7 +502,7 @@ ob_start();
                 <option value="optional" <?= ($act['type']??'included')==='optional'?'selected':'' ?>>Optional</option>
               </select>
               <button type="button" onclick="this.closest('.act-item').remove();saveDayActs(<?= $i ?>)"
-                      style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;padding:.2rem">✕</button>
+                      class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render('close', 14) ?></button>
             </div>
             <?php endforeach; ?>
           </div>
@@ -426,7 +513,7 @@ ob_start();
         <!-- Other items for this day -->
         <div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-            <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b7280">Other Costs (Day <?= $i+1 ?>)</p>
+            <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day <?= $i+1 ?>)</p>
             <button type="button" onclick="addDayOther(<?= $i ?>)" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>
           </div>
           <div id="day-other-<?= $i ?>">
@@ -435,7 +522,7 @@ ob_start();
               <input class="admin-input day-other-name" value="<?= htmlspecialchars($ot['name']??'') ?>" placeholder="Item name" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
               <input type="number" step="0.01" class="admin-input day-other-amount" value="<?= (float)($ot['amount']??0) ?>" placeholder="$" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
               <button type="button" onclick="this.closest('.other-item').remove();saveDayOther(<?= $i ?>)"
-                      style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;padding:.2rem">✕</button>
+                      class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render('close', 14) ?></button>
             </div>
             <?php endforeach; ?>
           </div>
@@ -448,19 +535,27 @@ ob_start();
     <?php endforeach; ?>
   </div>
 </div>
+<?php endif; ?>
 
-<!-- INCLUDES / EXCLUDES -->
+<!-- INCLUDES / EXCLUDES — auto-fillable from whatever's actually in the
+     itinerary (linked template's own curated lists when linked, or
+     derived from the local Day-by-Day Itinerary otherwise) via ↓ Sync,
+     then still freely editable by hand afterward. -->
 <div class="admin-card" style="margin-bottom:1.25rem">
   <div class="admin-card-header"><h3>Includes &amp; Excludes</h3>
-    <span style="font-size:.72rem;color:#9ca3af">One item per line</span>
+    <div style="display:flex;align-items:center;gap:.75rem">
+      <span style="font-size:.72rem;color:var(--gray-500)">One item per line</span>
+      <button type="button" onclick="syncIncludesExcludes()" class="admin-btn admin-btn--muted" style="font-size:.65rem;padding:.25rem .55rem;display:inline-flex;align-items:center;gap:.3rem"><?= \App\Helpers\AdminIcon::render('refresh', 11) ?> Sync from Itinerary</button>
+    </div>
   </div>
   <div class="admin-card-body">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-      <div><label class="admin-label">✓ Included</label>
-        <textarea name="includes" class="admin-input" rows="8"><?= htmlspecialchars($includes) ?></textarea></div>
-      <div><label class="admin-label">✗ Not Included</label>
-        <textarea name="excludes" class="admin-input" rows="8"><?= htmlspecialchars($excludes) ?></textarea></div>
+      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem;color:#166534"><?= \App\Helpers\AdminIcon::render('check', 11) ?> Included</label>
+        <textarea name="includes" id="includes_ta" class="admin-input" rows="8"><?= htmlspecialchars($includes) ?></textarea></div>
+      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem;color:#991b1b"><?= \App\Helpers\AdminIcon::render('close', 11) ?> Not Included</label>
+        <textarea name="excludes" id="excludes_ta" class="admin-input" rows="8"><?= htmlspecialchars($excludes) ?></textarea></div>
     </div>
+    <p style="font-size:.68rem;color:var(--gray-500);margin-top:.5rem">Sync pulls the linked itinerary template's own list when linked<?php if(!$isLinked): ?>, or builds a starting Includes list from what's actually in the Day-by-Day Itinerary above — Excludes still needs typing, since things like visas or insurance aren't part of the itinerary<?php endif; ?>. Edit the result freely afterward.</p>
   </div>
 </div>
 
@@ -473,7 +568,7 @@ ob_start();
 <div class="admin-card" style="margin-bottom:1.25rem">
   <div class="admin-card-header">
     <h3>Quotation Live Cost Summary</h3>
-    <span style="font-size:.72rem;color:#9ca3af">Pulled from the itinerary above · same VAT and deposit math as a real quotation</span>
+    <span style="font-size:.72rem;color:var(--gray-500)">Pulled from the itinerary above · same VAT and deposit math as a real quotation</span>
   </div>
   <div class="admin-card-body">
     <div style="display:grid;grid-template-columns:1fr 260px;gap:1.5rem;align-items:start">
@@ -481,22 +576,23 @@ ob_start();
       <!-- Read-only summary -->
       <div>
         <table style="width:100%;font-size:.85rem;border-collapse:collapse">
-          <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:.5rem 0;color:#6b7280">Accommodation</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-acc">$0</td></tr>
-          <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:.5rem 0;color:#6b7280">Vehicle</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-veh">$0</td></tr>
-          <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:.5rem 0;color:#6b7280">Park Fees</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-park">$0</td></tr>
-          <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:.5rem 0;color:#6b7280">Meals</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-meals">$0</td></tr>
-          <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:.5rem 0;color:#6b7280">Activities (included)</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-act">$0</td></tr>
-          <tr style="border-bottom:1px solid #e5e7eb;background:#f0fdf4"><td style="padding:.5rem 0 .5rem .5rem;color:#166534">Service Charge</td><td style="padding:.5rem .5rem .5rem 0;text-align:right;font-weight:600;color:#166534" id="qs-svc">$0</td></tr>
-          <tr style="border-top:1px solid #e5e7eb"><td style="padding:.6rem 0;font-weight:600">Subtotal</td><td style="padding:.6rem 0;text-align:right;font-weight:600" id="qs-subtotal">$0</td></tr>
-          <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:.4rem 0;color:#6b7280;font-size:.78rem">VAT (18%)</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-vat">$0</td></tr>
-          <tr style="background:#0a0a0a;color:#fff"><td style="padding:.75rem;font-weight:700">TOTAL</td><td style="padding:.75rem;text-align:right;font-family:Georgia,serif;font-size:1.1rem" id="qs-total">$0</td></tr>
-          <tr><td style="padding:.5rem 0;font-size:.75rem;color:#9ca3af" id="qs-pp-label">Per Person (÷2)</td><td style="padding:.5rem 0;text-align:right;font-size:.9rem;font-weight:700" id="qs-pp">$0</td></tr>
+          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Accommodation</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-acc">$0</td></tr>
+          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Vehicle</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-veh">$0</td></tr>
+          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Park Fees</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-park">$0</td></tr>
+          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Meals</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-meals">$0</td></tr>
+          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Activities (included)</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-act">$0</td></tr>
+          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Other Costs</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-other">$0</td></tr>
+          <tr style="border-bottom:1px solid var(--gray-200);background:var(--green-light)"><td style="padding:.5rem 0 .5rem .5rem;color:#166534">Service Charge</td><td style="padding:.5rem .5rem .5rem 0;text-align:right;font-weight:600;color:#166534" id="qs-svc">$0</td></tr>
+          <tr style="border-top:1px solid var(--gray-200)"><td style="padding:.6rem 0;font-weight:600">Subtotal</td><td style="padding:.6rem 0;text-align:right;font-weight:600" id="qs-subtotal">$0</td></tr>
+          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">VAT (18%)</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-vat">$0</td></tr>
+          <tr style="background:var(--black);color:var(--white)"><td style="padding:.75rem;font-weight:700">TOTAL</td><td style="padding:.75rem;text-align:right;font-family:Georgia,serif;font-size:1.1rem" id="qs-total">$0</td></tr>
+          <tr><td style="padding:.5rem 0;font-size:.75rem;color:var(--gray-500)" id="qs-pp-label">Per Person (÷2)</td><td style="padding:.5rem 0;text-align:right;font-size:.9rem;font-weight:700" id="qs-pp">$0</td></tr>
         </table>
       </div>
 
       <!-- Aside: the only editable inputs — travelers (shared with the
            itinerary day badges above) and service charge -->
-      <div style="background:#f7f7f5;border:1px solid #e5e7eb;padding:1rem">
+      <div style="background:var(--gray-50);border:1px solid var(--gray-200);padding:1rem">
         <label class="admin-label">Travelers</label>
         <input type="number" name="traveler_count" id="traveler_count" min="1" max="20"
                value="<?= $bdTravelers ?>" class="admin-input" style="margin-bottom:1rem"
@@ -505,7 +601,7 @@ ob_start();
         <label class="admin-label">Service Charge ($ / person)</label>
         <input name="service_charge_pax" type="number" step="0.01" class="admin-input" id="service_charge_pax"
                value="<?= $bdSvcPax ?>" oninput="calcTotals()" placeholder="e.g. 50">
-        <p style="font-size:.68rem;color:#9ca3af;margin-top:.5rem;line-height:1.5">The only cost entered directly here — everything else above comes from the Day-by-Day Itinerary.</p>
+        <p style="font-size:.68rem;color:var(--gray-500);margin-top:.5rem;line-height:1.5">The only cost entered directly here — everything else above comes from the Day-by-Day Itinerary.</p>
       </div>
 
     </div>
@@ -579,14 +675,14 @@ ob_start();
 </form>
 
 <!-- ════ ADD VEHICLE MODAL ════ -->
-<div id="addVehicleModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999;align-items:center;justify-content:center;padding:1rem">
-  <div style="background:#fff;width:100%;max-width:480px;border-radius:2px">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid #e5e7eb;background:#0a0a0a;color:#fff">
-      <span style="font-size:.9rem;font-weight:600">Add New Vehicle to Database</span>
-      <button onclick="document.getElementById('addVehicleModal').style.display='none'" style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.1rem">✕</button>
+<div id="addVehicleModal" class="admin-modal-overlay" style="display:none">
+  <div class="admin-modal">
+    <div class="admin-modal-header">
+      <span class="admin-modal-title">Add New Vehicle to Database</span>
+      <button onclick="document.getElementById('addVehicleModal').style.display='none'" class="admin-icon-btn admin-modal-close"><?= \App\Helpers\AdminIcon::render('close', 18) ?></button>
     </div>
-    <div style="padding:1.5rem">
-      <div id="veh-err" style="display:none;background:#fef2f2;border-left:3px solid #dc2626;color:#991b1b;padding:.65rem 1rem;font-size:.82rem;margin-bottom:1rem"></div>
+    <div class="admin-modal-body">
+      <div id="veh-err" class="admin-alert admin-alert--error" style="display:none"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
         <div><label class="admin-label">Vehicle Name *</label>
           <input id="veh-name" class="admin-input" placeholder="e.g. Toyota Hilux"></div>
@@ -613,26 +709,25 @@ ob_start();
 </div>
 
 <!-- ════ GALLERY PICKER MODAL ════ -->
-<div id="galleryPickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:999;align-items:center;justify-content:center;padding:1rem">
-  <div style="background:#fff;width:100%;max-width:900px;max-height:90vh;display:flex;flex-direction:column;border-radius:2px">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid #e5e7eb;flex-shrink:0">
+<div id="galleryPickerModal" class="admin-modal-overlay" style="display:none">
+  <div class="admin-modal admin-modal--wide" style="max-width:900px;display:flex;flex-direction:column">
+    <div class="admin-modal-header" style="flex-shrink:0">
       <div>
-        <span style="font-size:.9rem;font-weight:600">Select Gallery Images</span>
-        <span id="picker-selected-count" style="font-size:.72rem;color:#9ca3af;margin-left:.75rem">0 selected</span>
+        <span class="admin-modal-title">Select Gallery Images</span>
+        <span id="picker-selected-count" style="font-size:.72rem;color:var(--gray-500);margin-left:.75rem">0 selected</span>
       </div>
-      <div style="display:flex;gap:.5rem">
+      <div style="display:flex;gap:.5rem;align-items:center">
         <button onclick="applyGallerySelection()" class="admin-btn admin-btn--primary" style="font-size:.72rem">Apply Selection</button>
-        <button onclick="document.getElementById('galleryPickerModal').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:#9ca3af">✕</button>
+        <button onclick="document.getElementById('galleryPickerModal').style.display='none'" class="admin-icon-btn admin-modal-close"><?= \App\Helpers\AdminIcon::render('close', 18) ?></button>
       </div>
     </div>
 
     <!-- Folder tabs -->
-    <div style="display:flex;gap:0;border-bottom:1px solid #e5e7eb;overflow-x:auto;flex-shrink:0" id="picker-tabs"></div>
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--gray-200);overflow-x:auto;flex-shrink:0" id="picker-tabs"></div>
 
     <!-- Image grid -->
     <div style="flex:1;overflow-y:auto;padding:1rem">
-      <input type="text" id="picker-search" placeholder="Filter images…"
-             style="border:1.5px solid #e5e7eb;padding:.4rem .75rem;font-size:.78rem;outline:none;width:100%;margin-bottom:1rem"
+      <input type="text" id="picker-search" placeholder="Filter images…" class="admin-input" style="margin-bottom:1rem"
              oninput="filterPickerImages(this.value)">
       <div id="picker-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.65rem"></div>
     </div>
@@ -642,52 +737,104 @@ ob_start();
 <script>
 var fmt = function(n){ return '$'+Math.round(n).toLocaleString('en-US'); };
 
+// Non-null only when this package is linked to an Itinerary Manager
+// template — that template's days/includes/excludes are then what
+// actually prices and describes the package (see PHP $isLinked), and
+// there are no editable .day-block elements in the DOM to read instead.
+var LINKED_ITIN_DAYS     = <?= $isLinked ? json_encode($linkedDays) : 'null' ?>;
+var LINKED_ITIN_INCLUDES = <?= json_encode($linkedIncludes) ?>;
+var LINKED_ITIN_EXCLUDES = <?= json_encode($linkedExcludes) ?>;
+
 // ── Quotation Live Cost Summary ──────────────────────────────
-// Aggregates straight from the Day-by-Day Itinerary's day-blocks —
-// same category grouping calcItinTotal() uses for the per-day badges
-// (each accommodation/vehicle counted once per unique property across
-// all nights/days, not once per day) — then adds VAT, matching how a
-// real quotation is actually priced (see App\Services\ItineraryQuoteBuilder::totals()
-// and api/quotation_pdf.php). Previously this read a separate set of
+// Aggregates from either the linked template's days (LINKED_ITIN_DAYS)
+// or the Day-by-Day Itinerary's own day-blocks — same category grouping
+// calcItinTotal() uses for the per-day badges (each accommodation/
+// vehicle counted once per unique property across all nights/days, not
+// once per day) — then adds VAT, matching how a real quotation is
+// actually priced (see App\Services\ItineraryQuoteBuilder::totals() and
+// api/quotation_pdf.php). Previously this read a separate set of
 // manually-typed rows instead of the itinerary, so the two could
 // silently disagree.
 function calcTotals() {
   var travelers = +((document.getElementById('traveler_count')||{}).value)||1;
-  var accT=0, vehT=0, parkT=0, mealsT=0, actT=0;
-  var accSeen = {}, vehSeen = {};
+  var accT=0, vehT=0, parkT=0, mealsT=0, actT=0, otherT=0;
+  var accSeen = {}, vehSeen = {}, otherSeen = {};
 
-  document.querySelectorAll('.day-block').forEach(function(block){
-    var accName = (block.querySelector('.day-acc-name')||{}).value||'';
-    var accRate = parseFloat((block.querySelector('.day-acc-rate')||{}).value)||0;
-    var accRooms= parseInt((block.querySelector('[name="day_acc_rooms[]"]')||{}).value)||1;
-    var vehName = (block.querySelector('.day-veh-name')||{}).value||'';
-    var vehRate = parseFloat((block.querySelector('.day-veh-rate')||{}).value)||0;
-    var parkFee = parseFloat((block.querySelector('.day-park-fee')||{}).value)||0;
-    var meals   = parseFloat((block.querySelector('[name="day_meals_pp[]"]')||{}).value)||0;
+  var dayDescriptors = LINKED_ITIN_DAYS
+    ? LINKED_ITIN_DAYS.map(function(day){
+        return {
+          accName: day.accommodation_name||'', accRate: +day.accommodation_rate||0, accRooms: +day.accommodation_rooms||1,
+          vehName: day.vehicle_name||'', vehRate: +day.vehicle_rate||0,
+          parkFee: +day.park_adult_fee||0, meals: +day.meals_cost_pp||0,
+          activities: (day.activities||[]).map(function(a){ return {price:+a.price_pp||0, type:a.type||'included'}; }),
+          other: (day.other_items||[]).map(function(o){ return {name:o.name||'', amount:+o.amount||0}; })
+        };
+      })
+    : Array.prototype.map.call(document.querySelectorAll('.day-block'), function(block){
+        return {
+          accName: (block.querySelector('.day-acc-name')||{}).value||'',
+          accRate: parseFloat((block.querySelector('.day-acc-rate')||{}).value)||0,
+          accRooms: parseInt((block.querySelector('[name="day_acc_rooms[]"]')||{}).value)||1,
+          vehName: (block.querySelector('.day-veh-name')||{}).value||'',
+          vehRate: parseFloat((block.querySelector('.day-veh-rate')||{}).value)||0,
+          parkFee: parseFloat((block.querySelector('.day-park-fee')||{}).value)||0,
+          meals: parseFloat((block.querySelector('[name="day_meals_pp[]"]')||{}).value)||0,
+          activities: Array.prototype.map.call(block.querySelectorAll('.act-item'), function(row){
+            return {
+              price: parseFloat((row.querySelector('.day-act-price')||{}).value)||0,
+              type: (row.querySelector('.day-act-type')||{}).value||'included'
+            };
+          }),
+          other: Array.prototype.map.call(block.querySelectorAll('.other-item'), function(row){
+            return {
+              name: ((row.querySelector('.day-other-name')||{}).value||'').trim(),
+              amount: parseFloat((row.querySelector('.day-other-amount')||{}).value)||0
+            };
+          })
+        };
+      });
 
-    if (accName && !accSeen[accName]) accSeen[accName] = {rate:accRate,rooms:accRooms,nights:0};
-    if (accName) accSeen[accName].nights++;
+  dayDescriptors.forEach(function(d){
+    if (d.accName && !accSeen[d.accName]) accSeen[d.accName] = {rate:d.accRate,rooms:d.accRooms,nights:0};
+    if (d.accName) accSeen[d.accName].nights++;
 
-    if (vehName && !vehSeen[vehName]) vehSeen[vehName] = {rate:vehRate,days:0};
-    if (vehName) vehSeen[vehName].days++;
+    if (d.vehName && !vehSeen[d.vehName]) vehSeen[d.vehName] = {rate:d.vehRate,days:0};
+    if (d.vehName) vehSeen[d.vehName].days++;
 
-    parkT  += parkFee * travelers;
-    mealsT += meals * travelers;
+    parkT  += d.parkFee * travelers;
+    mealsT += d.meals * travelers;
 
-    block.querySelectorAll('.act-item').forEach(function(row){
-      var price = parseFloat((row.querySelector('.day-act-price')||{}).value)||0;
-      var type  = (row.querySelector('.day-act-type')||{}).value||'included';
-      if (type==='included') actT += price * travelers;
+    d.activities.forEach(function(a){
+      if (a.type==='included') actT += a.price * travelers;
+    });
+
+    d.other.forEach(function(o){
+      if (!o.name || o.amount <= 0) return;
+      if (!otherSeen[o.name]) otherSeen[o.name] = 0;
+      otherSeen[o.name] += o.amount;
     });
   });
 
   Object.values(accSeen).forEach(function(a){ accT += a.rate * a.nights * a.rooms; });
   Object.values(vehSeen).forEach(function(v){ vehT += v.rate * v.days; });
 
+  // Same "is this per-traveler" heuristic api/book.php's real pricing
+  // uses (App\Services\ItineraryQuoteBuilder::build()) — anything named
+  // like a transfer/water/contribution scales with travelers, everything
+  // else (crater service fees, vehicle fees, etc.) is a flat one-time
+  // cost regardless of party size. Keeping this identical to the server
+  // logic is what keeps the live preview honest against what's actually
+  // saved as the listed price.
+  Object.keys(otherSeen).forEach(function(name){
+    var amt = otherSeen[name];
+    var isPerPax = /transfer|water|contribution/i.test(name);
+    otherT += (isPerPax && travelers > 1) ? amt * travelers : amt;
+  });
+
   var svcPax   = +((document.getElementById('service_charge_pax')||{}).value)||0;
   var svcTotal = svcPax * travelers;
 
-  var subtotal = accT + vehT + parkT + mealsT + actT + svcTotal;
+  var subtotal = accT + vehT + parkT + mealsT + actT + otherT + svcTotal;
   var vat      = subtotal * 0.18;
   var total    = subtotal + vat;
   var pp       = travelers > 0 ? total/travelers : total;
@@ -697,36 +844,55 @@ function calcTotals() {
   document.getElementById('qs-park').textContent     = fmt(parkT);
   document.getElementById('qs-meals').textContent    = fmt(mealsT);
   document.getElementById('qs-act').textContent      = fmt(actT);
+  document.getElementById('qs-other').textContent    = fmt(otherT);
   document.getElementById('qs-svc').textContent      = fmt(svcTotal);
   document.getElementById('qs-subtotal').textContent = fmt(subtotal);
   document.getElementById('qs-vat').textContent      = fmt(vat);
   document.getElementById('qs-total').textContent    = fmt(total);
   document.getElementById('qs-pp').textContent       = fmt(pp);
   document.getElementById('qs-pp-label').textContent = 'Per Person (÷'+travelers+')';
-
-  // Exposed so syncPriceFromBreakdown() (Listed Prices card, above) can
-  // read the current per-person total without re-parsing formatted text
-  // back out of the DOM.
-  window.__breakdownPerPerson = pp;
-  window.__breakdownTravelers = travelers;
 }
 
-// ── Keep Listed Prices honest against the Cost Breakdown Builder ──
-// The two were previously fully independent: an admin could build a
-// $2,000/pp breakdown and still have a stale $1,200 typed into Listed
-// Prices from months ago, and packages.php would happily publish the
-// stale number. This doesn't force them to always match (margin above
-// cost is often deliberate) — it just makes copying the current
-// breakdown total into a tier one click instead of a manual retype
-// (and a manual retype is exactly where staleness creeps in).
-function syncPriceFromBreakdown(tier) {
-  var pp = window.__breakdownPerPerson;
-  if (typeof pp !== 'number') { calcTotals(); pp = window.__breakdownPerPerson; }
-  var rounded = Math.round(pp || 0);
-  document.getElementById('price_' + tier + 'pax').value = rounded;
-  toast('Synced ' + tier + '-pax listed price to $' + rounded.toLocaleString('en-US')
-      + ' (breakdown at ' + window.__breakdownTravelers + ' traveler'
-      + (window.__breakdownTravelers !== 1 ? 's' : '') + ') — set Travelers above to match this tier before syncing each one.');
+// ── Includes/Excludes sync ────────────────────────────────────
+function syncIncludesExcludes() {
+  if (LINKED_ITIN_DAYS) {
+    // Linked package — pull the template's own curated lists verbatim.
+    document.getElementById('includes_ta').value = LINKED_ITIN_INCLUDES.join('\n');
+    document.getElementById('excludes_ta').value = LINKED_ITIN_EXCLUDES.join('\n');
+    toast('Includes & Excludes synced from the itinerary template.');
+    return;
+  }
+  // Unlinked — build Includes from what's actually in the day-by-day
+  // itinerary below. Excludes has nothing itinerary-side to derive from
+  // (visas, insurance, tips aren't part of the itinerary), so it's left
+  // for the admin to type.
+  var accSeen = {}, vehSeen = {}, parkSeen = {}, hasMeals = false, acts = {};
+  document.querySelectorAll('.day-block').forEach(function(block){
+    var accName  = ((block.querySelector('.day-acc-name')||{}).value||'').trim();
+    var vehName  = ((block.querySelector('.day-veh-name')||{}).value||'').trim();
+    var parkName = ((block.querySelector('[name="day_park_name[]"]')||{}).value||'').trim();
+    var meals    = parseFloat((block.querySelector('[name="day_meals_pp[]"]')||{}).value)||0;
+    if (accName)  accSeen[accName]   = true;
+    if (vehName)  vehSeen[vehName]   = true;
+    if (parkName) parkSeen[parkName] = true;
+    if (meals > 0) hasMeals = true;
+    block.querySelectorAll('.act-item').forEach(function(row){
+      var name = ((row.querySelector('.day-act-name')||{}).value||'').trim();
+      var type = (row.querySelector('.day-act-type')||{}).value||'included';
+      if (name && type==='included') acts[name] = true;
+    });
+  });
+
+  var lines = [];
+  if (Object.keys(vehSeen).length) lines.push('Private 4WD safari vehicle (' + Object.keys(vehSeen).join(', ') + ')');
+  lines.push('Professional driver-guide');
+  Object.keys(parkSeen).forEach(function(p){ lines.push(p + ' entry fees'); });
+  Object.keys(accSeen).forEach(function(a){ lines.push('Accommodation: ' + a); });
+  if (hasMeals) lines.push('Full-board meals as per itinerary');
+  Object.keys(acts).forEach(function(a){ lines.push(a); });
+
+  document.getElementById('includes_ta').value = lines.join('\n');
+  toast('Includes built from the itinerary — Excludes still needs typing.');
 }
 
 // ── Itinerary sync with duration_days ──────────────────────
@@ -744,12 +910,12 @@ function peDayBlockHtml(i) {
   var parkOpts = PE_PARKS.map(function(p){ return '<option value="'+p.name+'" data-id="'+p.id+'" data-fee="'+p.fee+'">'; }).join('');
 
   return ''
-    +'<div class="admin-card-header" style="background:#f7f7f5">'
+    +'<div class="admin-card-header" style="background:var(--gray-50)">'
       +'<h3 style="font-size:.85rem">'
-        +'<span style="font-family:Georgia,serif;color:#0a0a0a;margin-right:.5rem">Day '+(i+1)+'</span>'
+        +'<span style="font-family:Georgia,serif;color:var(--black);margin-right:.5rem">Day '+(i+1)+'</span>'
         +'<input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem" placeholder="Day title e.g. Arusha → Tarangire">'
       +'</h3>'
-      +'<div style="display:flex;align-items:center;gap:.5rem"><span class="day-cost-badge" style="font-size:.65rem;background:#0a0a0a;color:#fff;padding:.2rem .6rem;font-weight:600">$0</span></div>'
+      +'<div style="display:flex;align-items:center;gap:.5rem"><span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span></div>'
     +'</div>'
     +'<div class="admin-card-body">'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">'
@@ -757,8 +923,8 @@ function peDayBlockHtml(i) {
         +'<div><label class="admin-label">Day Description</label><textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"></textarea></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">'
-        +'<div style="border:1px solid #e5e7eb;padding:.85rem;background:#eff6ff20">'
-          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8">🏕 Accommodation</p>'
+        +'<div style="border:1px solid var(--gray-200);padding:.85rem;background:#eff6ff20">'
+          +'<p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8"><?= \App\Helpers\AdminIcon::render('accommodations', 13) ?> Accommodation</p>'
           +'<input type="hidden" name="day_acc_id[]" class="day-acc-id" value="0">'
           +'<div style="margin-bottom:.45rem"><label class="admin-label">Property</label>'
             +'<input name="day_acc_name[]" class="admin-input day-acc-name" list="pe-acc-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayAcc(this,'+i+')" placeholder="Select or type">'
@@ -769,8 +935,8 @@ function peDayBlockHtml(i) {
             +'<div><label class="admin-label">Rooms</label><input name="day_acc_rooms[]" type="number" min="1" class="admin-input" value="1" oninput="calcItinTotal()"></div>'
           +'</div>'
         +'</div>'
-        +'<div style="border:1px solid #e5e7eb;padding:.85rem;background:#f0fdf420">'
-          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534">🚙 Vehicle</p>'
+        +'<div style="border:1px solid var(--gray-200);padding:.85rem;background:#f0fdf420">'
+          +'<p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534"><?= \App\Helpers\AdminIcon::render('fleet', 13) ?> Vehicle</p>'
           +'<input type="hidden" name="day_veh_id[]" class="day-veh-id" value="0">'
           +'<div style="margin-bottom:.45rem"><label class="admin-label">Vehicle</label>'
             +'<input name="day_veh_name[]" class="admin-input day-veh-name" list="pe-veh-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayVeh(this,'+i+')" placeholder="Select or type">'
@@ -778,8 +944,8 @@ function peDayBlockHtml(i) {
           +'</div>'
           +'<div><label class="admin-label">Daily Rate (incl. fuel+driver)</label><input name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate" value="0" oninput="calcItinTotal()"></div>'
         +'</div>'
-        +'<div style="border:1px solid #e5e7eb;padding:.85rem;background:#fef3e220">'
-          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e">🏞 Park &amp; Meals</p>'
+        +'<div style="border:1px solid var(--gray-200);padding:.85rem;background:#fef3e220">'
+          +'<p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e"><?= \App\Helpers\AdminIcon::render('park-fees', 13) ?> Park &amp; Meals</p>'
           +'<input type="hidden" name="day_park_id[]" value="0">'
           +'<div style="margin-bottom:.45rem"><label class="admin-label">Park / Area</label>'
             +'<input name="day_park_name[]" class="admin-input" list="pe-park-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayPark(this,'+i+')" placeholder="Select or leave blank">'
@@ -793,7 +959,7 @@ function peDayBlockHtml(i) {
       +'</div>'
       +'<div style="margin-bottom:1rem">'
         +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
-          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b7280">Activities (Day '+(i+1)+')</p>'
+          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day '+(i+1)+')</p>'
           +'<button type="button" onclick="addDayActivity('+i+')" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>'
         +'</div>'
         +'<div id="day-acts-'+i+'"></div>'
@@ -801,7 +967,7 @@ function peDayBlockHtml(i) {
       +'</div>'
       +'<div>'
         +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
-          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b7280">Other Costs (Day '+(i+1)+')</p>'
+          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day '+(i+1)+')</p>'
           +'<button type="button" onclick="addDayOther('+i+')" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>'
         +'</div>'
         +'<div id="day-other-'+i+'"></div>'
@@ -821,7 +987,7 @@ function syncItineraryDays(n) {
     var div = document.createElement('div');
     div.className = 'day-block itinerary-day';
     div.dataset.day = i;
-    div.style.cssText = 'margin-bottom:1rem;border-left:3px solid #0a0a0a';
+    div.style.cssText = 'margin-bottom:1rem;border-left:3px solid var(--black)';
     div.innerHTML = peDayBlockHtml(i);
     container.appendChild(div);
   }
@@ -927,7 +1093,7 @@ function addDayActivity(dayIdx) {
   div.innerHTML='<input class="admin-input day-act-name" list="act-list" placeholder="Activity name" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
     +'<input type="number" step="0.01" class="admin-input day-act-price" value="0" placeholder="$/pp" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
     +'<select class="admin-input day-act-type" style="font-size:.72rem" onchange="saveDayActs('+dayIdx+')"><option value="included">Included</option><option value="optional">Optional</option></select>'
-    +'<button type="button" onclick="this.closest(\'.act-item\').remove();saveDayActs('+dayIdx+')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;padding:.2rem">✕</button>';
+    +'<button type="button" onclick="this.closest(\'.act-item\').remove();saveDayActs('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render("close", 14) ?></button>';
   container.appendChild(div);
   div.querySelector('.day-act-name').addEventListener('change', function(){
     var opts=document.querySelectorAll('#act-list option');
@@ -960,7 +1126,7 @@ function addDayOther(dayIdx) {
   div.style.cssText='display:grid;grid-template-columns:2fr 100px auto;gap:.35rem;align-items:end;margin-bottom:.4rem';
   div.innerHTML='<input class="admin-input day-other-name" placeholder="Item name" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
     +'<input type="number" step="0.01" class="admin-input day-other-amount" value="0" placeholder="$" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
-    +'<button type="button" onclick="this.closest(\'.other-item\').remove();saveDayOther('+dayIdx+')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;padding:.2rem">✕</button>';
+    +'<button type="button" onclick="this.closest(\'.other-item\').remove();saveDayOther('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render("close", 14) ?></button>';
   container.appendChild(div);
 }
 
@@ -1180,12 +1346,14 @@ function toast(msg) {
 // ── Init ──────────────────────────────────────────────────
 calcTotals();
 
-// ── Load itinerary template into package editor ────────────
+// ── Copy an itinerary template's days into the local, editable
+// Day-by-Day Itinerary as a customizable starting point. This does NOT
+// link the package (selected_itinerary_id stays whatever it already
+// was) — that's what "Link Permanently" / linkPkgItinerary() is for,
+// which becomes a real link and switches this section to read-only on
+// the next page load instead.
 async function loadPkgItinerary() {
   var id = document.getElementById('pkg_itin_select').value;
-  // Save itinerary_id to hidden field so it gets submitted with the form
-  var hiddenField = document.getElementById('selected_itinerary_id');
-  if (hiddenField) hiddenField.value = id;
   if (!id) { alert('Select an itinerary first.'); return; }
 
   try {
@@ -1269,6 +1437,17 @@ async function loadPkgItinerary() {
   } catch(e) { alert('Error: '+e.message); }
 }
 
+// ── Link this package to an itinerary template permanently. Unlike
+// loadPkgItinerary() (a local copy), this is a real link: it navigates
+// to the unlink/link GET action in package_edit.php's PHP, which writes
+// itinerary_id straight to the DB and reloads the page — at which point
+// the Day-by-Day Itinerary section becomes the read-only, linked view.
+function linkPkgItinerary() {
+  var id = document.getElementById('pkg_itin_select').value;
+  if (!id) { alert('Select an itinerary first.'); return; }
+  if (!confirm('Link this package to that itinerary template? Its pricing and day-by-day display will then always follow the template — edit the itinerary in the Itinerary Manager instead of here.')) return;
+  window.location = (window.BASE_PATH||'') + '/admin/package_edit.php?id=<?= $id ?>&link=' + id;
+}
 
 // calcItinTotal() (defined above, alongside syncItineraryDays) now owns
 // the day-cost badges and the itinerary section's grand total/per-person

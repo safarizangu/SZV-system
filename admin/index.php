@@ -23,11 +23,22 @@ $recentBookings = sa($db,"SELECT * FROM bookings ORDER BY created_at DESC LIMIT 
 $recentQuotes   = sa($db,"SELECT * FROM quotations ORDER BY created_at DESC LIMIT 5");
 $newLeadRows    = sa($db,"SELECT * FROM custom_safari_requests WHERE status='new' ORDER BY created_at DESC LIMIT 5");
 
+// Maps each status to one of admin.css's shared .badge-status--* color
+// modifiers, instead of a page-local bg/color hex map — the same
+// statuses get re-colored ad-hoc on bookings.php, quotations.php etc.,
+// so centralizing the mapping here (and eventually the others) keeps
+// "pending" the same shade of amber everywhere it appears.
 $statusColors = [
-    'pending'      => ['bg'=>'#fef3e2','color'=>'#92400e','label'=>'Pending'],
-    'deposit_paid' => ['bg'=>'#eff6ff','color'=>'#1d4ed8','label'=>'Deposit Paid'],
-    'fully_paid'   => ['bg'=>'#f0fdf4','color'=>'#166534','label'=>'Fully Paid'],
-    'cancelled'    => ['bg'=>'#fef2f2','color'=>'#991b1b','label'=>'Cancelled'],
+    'pending'      => ['badge'=>'amber','label'=>'Pending'],
+    'deposit_paid' => ['badge'=>'blue', 'label'=>'Deposit Paid'],
+    'fully_paid'   => ['badge'=>'dark', 'label'=>'Fully Paid'],
+    'cancelled'    => ['badge'=>'red',  'label'=>'Cancelled'],
+];
+$quoteStatusColors = [
+    'draft'    => 'gray',
+    'sent'     => 'blue',
+    'accepted' => 'green',
+    'declined' => 'red',
 ];
 
 $pageTitle = 'Dashboard';
@@ -119,7 +130,7 @@ ob_start();
                     ? date('d M Y',strtotime($b['travel_date'])) : '—';
     ?>
     <tr style="cursor:pointer" onclick="window.location='bookings.php?search=<?= urlencode($b['booking_ref']) ?>'">
-      <td><code style="font-size:.72rem;background:#f3f4f6;padding:.1rem .35rem"><?= htmlspecialchars($b['booking_ref']) ?></code></td>
+      <td><code><?= htmlspecialchars($b['booking_ref']) ?></code></td>
       <td>
         <div style="font-weight:600;font-size:.82rem"><?= htmlspecialchars($b['full_name']??'') ?></div>
         <div style="font-size:.68rem;color:var(--gray-500)"><?= htmlspecialchars($b['email']??'') ?></div>
@@ -128,7 +139,7 @@ ob_start();
       <td style="font-size:.75rem;white-space:nowrap"><?= $travelDate ?></td>
       <td style="font-weight:700;font-size:.82rem">$<?= number_format((float)($b['total_amount']??0),0) ?></td>
       <td>
-        <span style="display:inline-block;padding:.15rem .5rem;font-size:.58rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>">
+        <span class="badge-status badge-status--<?= $sc['badge'] ?>">
           <?= str_replace('_',' ',$b['payment_status']??'pending') ?>
         </span>
       </td>
@@ -150,7 +161,7 @@ ob_start();
     <div class="admin-card-header">
       <h3>New Requests
         <?php if($newRequests>0): ?>
-        <span style="background:#dc2626;color:#fff;font-size:.55rem;padding:.1rem .35rem;border-radius:99px;margin-left:.35rem"><?= $newRequests ?></span>
+        <span class="nav-badge" style="margin-left:.5rem"><?= $newRequests ?></span>
         <?php endif; ?>
       </h3>
       <a href="custom_requests.php" class="admin-btn admin-btn--outline" style="font-size:.65rem">View All →</a>
@@ -189,15 +200,14 @@ ob_start();
       <thead><tr><th>Ref</th><th>Client</th><th>Total</th><th>Status</th></tr></thead>
       <tbody>
       <?php
-      $qStatusColors = ['draft'=>'#9ca3af','sent'=>'#1d4ed8','accepted'=>'#16a34a','declined'=>'#dc2626'];
       foreach($recentQuotes as $q):
-        $qColor = $qStatusColors[$q['status']??'draft'] ?? '#9ca3af';
+        $qBadge = $quoteStatusColors[$q['status']??'draft'] ?? 'gray';
       ?>
       <tr onclick="window.location='quotation_new.php?id=<?= $q['id'] ?>'" style="cursor:pointer">
-        <td><code style="font-size:.72rem;background:#f3f4f6;padding:.1rem .35rem"><?= htmlspecialchars($q['quote_ref']) ?></code></td>
+        <td><code><?= htmlspecialchars($q['quote_ref']) ?></code></td>
         <td style="font-size:.82rem;font-weight:600"><?= htmlspecialchars($q['client_name']) ?></td>
         <td style="font-size:.82rem;font-weight:700">$<?= number_format((float)($q['grand_total']??0),0) ?></td>
-        <td><span style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:<?= $qColor ?>"><?= $q['status']??'draft' ?></span></td>
+        <td><span class="badge-status badge-status--<?= $qBadge ?>"><?= $q['status']??'draft' ?></span></td>
       </tr>
       <?php endforeach; ?>
       <?php if(empty($recentQuotes)): ?><tr><td colspan="4" class="admin-empty">No quotations.</td></tr><?php endif; ?>

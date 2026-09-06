@@ -16,7 +16,7 @@ class ItineraryQuoteBuilder
     /**
      * @param array $itinerary Row from the `itineraries` table (days/includes/excludes as JSON strings or already-decoded arrays)
      */
-    public static function build(array $itinerary, int $adults, int $children): array
+    public static function build(array $itinerary, int $adults, int $children, bool $includeDefaultServiceFee = true): array
     {
         $adults   = max(1, $adults);
         $children = max(0, $children);
@@ -217,7 +217,7 @@ class ItineraryQuoteBuilder
                 $hasServiceFee = true; break;
             }
         }
-        if (!$hasServiceFee) {
+        if (!$hasServiceFee && $includeDefaultServiceFee) {
             $svcRate = 100;
             $lineItems[] = [
                 'description' => 'Professional Driver Guide & Service Fee',

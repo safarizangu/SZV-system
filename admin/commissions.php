@@ -99,11 +99,13 @@ try {
         GROUP BY u.id ORDER BY total_commission DESC")->fetchAll();
 } catch(\Exception $e){ error_log($e->getMessage()); }
 
+// 'paid' is a final settled state — same semantics as bookings.php's
+// "Fully Paid", which is standardized to the dark badge, not green.
 $statusColors = [
-    'pending'   => ['bg'=>'#fef3e2','color'=>'#92400e'],
-    'approved'  => ['bg'=>'#eff6ff','color'=>'#1d4ed8'],
-    'paid'      => ['bg'=>'#f0fdf4','color'=>'#16a34a'],
-    'cancelled' => ['bg'=>'#fef2f2','color'=>'#991b1b'],
+    'pending'   => ['badge'=>'amber'],
+    'approved'  => ['badge'=>'blue'],
+    'paid'      => ['badge'=>'dark'],
+    'cancelled' => ['badge'=>'red'],
 ];
 ob_start();
 ?>
@@ -196,9 +198,7 @@ ob_start();
         $<?= number_format((float)$c['commission_amount'],2) ?>
       </td>
       <td>
-        <span style="display:inline-block;padding:.18rem .55rem;font-size:.58rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>">
-          <?= ucfirst($c['status']) ?>
-        </span>
+        <span class="badge-status badge-status--<?= $sc['badge'] ?>"><?= ucfirst($c['status']) ?></span>
       </td>
       <td style="font-size:.72rem;color:var(--gray-500)"><?= date('d M Y',strtotime($c['created_at'])) ?></td>
       <td>

@@ -107,28 +107,28 @@ ob_start();
       </tr></thead>
       <tbody>
       <?php foreach($users as $u): $isMe = ($u['id'] == ($_SESSION['admin_user_id']??0)); ?>
-      <tr style="<?= $isMe?'background:#f0fdf4':'' ?>">
+      <tr style="<?= $isMe?'background:var(--green-light)':'' ?>">
         <td>
           <div style="font-weight:700;font-size:.88rem">
             <?= htmlspecialchars($u['full_name']?:$u['username']) ?>
-            <?php if($isMe): ?><span style="font-size:.6rem;background:#0a0a0a;color:#fff;padding:.1rem .4rem;margin-left:.35rem">YOU</span><?php endif; ?>
+            <?php if($isMe): ?><span class="badge-status badge-status--dark" style="margin-left:.35rem">YOU</span><?php endif; ?>
           </div>
-          <div style="font-size:.72rem;color:#9ca3af">@<?= htmlspecialchars($u['username']) ?></div>
+          <div style="font-size:.72rem;color:var(--gray-500)">@<?= htmlspecialchars($u['username']) ?></div>
         </td>
         <td style="font-size:.8rem"><?= htmlspecialchars($u['email']??'—') ?></td>
         <td>
-          <span style="font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:.15rem .45rem;background:<?= $u['role']==='superadmin'?'#0a0a0a':'#f3f4f6' ?>;color:<?= $u['role']==='superadmin'?'#fff':'#374151' ?>">
+          <span class="badge-status badge-status--<?= $u['role']==='superadmin'?'dark':'gray' ?>">
             <?= htmlspecialchars($u['role']??'admin') ?>
           </span>
         </td>
-        <td style="font-size:.75rem;color:#9ca3af">
+        <td style="font-size:.75rem;color:var(--gray-500)">
           <?= $u['last_login'] ? date('d M Y H:i', strtotime($u['last_login'])) : 'Never' ?>
         </td>
         <td>
           <?php if($u['is_active']??1): ?>
-          <span class="status-dot status-dot--green"></span><span style="font-size:.72rem;font-weight:600;color:#16a34a">Active</span>
+          <span class="status-dot status-dot--green"></span><span style="font-size:.72rem;font-weight:600;color:var(--green)">Active</span>
           <?php else: ?>
-          <span class="status-dot status-dot--gray"></span><span style="font-size:.72rem;color:#9ca3af">Inactive</span>
+          <span class="status-dot status-dot--gray"></span><span style="font-size:.72rem;color:var(--gray-500)">Inactive</span>
           <?php endif; ?>
         </td>
         <td style="white-space:nowrap">
@@ -189,19 +189,19 @@ ob_start();
           <input type="checkbox" name="is_active" value="1" <?= ($editUser['is_active']??1)?'checked':'' ?>>
           <span class="admin-label" style="margin:0">Active (can log in)</span>
         </label>
-        <div style="border-top:1.5px solid #f3f4f6;padding-top:1rem">
-          <label class="admin-label" style="color:#dc2626">Your Current Password (to authorise) *</label>
+        <div style="border-top:1.5px solid var(--gray-100);padding-top:1rem">
+          <label class="admin-label" style="color:var(--red)">Your Current Password (to authorise) *</label>
           <input name="auth_password" type="password" class="admin-input" required placeholder="Your password to confirm changes">
         </div>
         <button type="submit" class="admin-btn admin-btn--primary" style="width:100%;justify-content:center;margin-top:1rem">
-          <?= $editUser ? '💾 Update User' : '+ Create User' ?>
+          <?= $editUser ? 'Update User' : '+ Create User' ?>
         </button>
       </form>
     </div>
   </div>
   <div class="admin-card" style="margin-top:1rem">
-    <div class="admin-card-body" style="font-size:.78rem;color:#6b7280;line-height:1.75">
-      <strong style="color:#0a0a0a;display:block;margin-bottom:.25rem">Security Notes</strong>
+    <div class="admin-card-body" style="font-size:.78rem;color:var(--gray-500);line-height:1.75">
+      <strong style="color:var(--black);display:block;margin-bottom:.25rem">Security Notes</strong>
       · Your current password required to make any changes<br>
       · Passwords hashed with bcrypt (cost 12)<br>
       · You cannot delete your own account<br>

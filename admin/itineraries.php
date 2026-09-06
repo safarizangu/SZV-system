@@ -124,6 +124,7 @@ if ($editId) {
 $dur = (int)($itin['duration_days']??5);
 while (count($days)<$dur) $days[]=['day'=>count($days)+1,'title'=>'','description'=>'','location'=>'','accommodation_id'=>0,'accommodation_name'=>'','accommodation_rate'=>0,'accommodation_rooms'=>1,'vehicle_id'=>0,'vehicle_name'=>'','vehicle_rate'=>0,'park_fee_id'=>0,'park_fee_name'=>'','park_adult_fee'=>0,'meals_cost_pp'=>20,'activities'=>[],'other_items'=>[]];
 $days = array_slice($days,0,$dur);
+$trashIconJs = json_encode(\App\Helpers\AdminIcon::render('trash', 14));
 
 ob_start();
 ?>
@@ -144,9 +145,9 @@ ob_start();
       <?php foreach($itineraries as $it): ?>
       <a href="?id=<?= $it['id'] ?>"
          style="display:block;padding:.6rem 1rem;font-size:.78rem;text-decoration:none;
-                border-left:2px solid <?= $it['id']===$editId?'#fff':'transparent' ?>;
-                background:<?= $it['id']===$editId?'#0a0a0a':'transparent' ?>;
-                color:<?= $it['id']===$editId?'#fff':'#374151' ?>">
+                border-left:2px solid <?= $it['id']===$editId?'var(--white)':'transparent' ?>;
+                background:<?= $it['id']===$editId?'var(--black)':'transparent' ?>;
+                color:<?= $it['id']===$editId?'var(--white)':'var(--gray-700)' ?>">
         <div style="font-weight:600"><?= htmlspecialchars($it['name']) ?></div>
         <div style="font-size:.65rem;opacity:.55;margin-top:.1rem">
           <?= $it['duration_days'] ?>d ·
@@ -162,12 +163,12 @@ ob_start();
   <?php if($editId && $itin): ?>
   <div class="admin-card">
     <div class="admin-card-header" style="padding:.75rem 1rem"><h3 style="font-size:.78rem">API</h3></div>
-    <div class="admin-card-body" style="padding:.75rem;font-size:.65rem;color:#9ca3af">
+    <div class="admin-card-body" style="padding:.75rem;font-size:.65rem;color:var(--gray-500)">
       <div style="margin-bottom:.4rem">Use in quotation or package:</div>
-      <code style="display:block;background:#f3f4f6;padding:.4rem .5rem;font-size:.62rem;word-break:break-all">
+      <code style="display:block;word-break:break-all">
         /api/itinerary.php?action=get&id=<?= $editId ?>
       </code>
-      <code style="display:block;background:#f3f4f6;padding:.4rem .5rem;font-size:.62rem;margin-top:.35rem;word-break:break-all">
+      <code style="display:block;word-break:break-all;margin-top:.35rem">
         /api/itinerary.php?action=quote_items&id=<?= $editId ?>&adults=2
       </code>
     </div>
@@ -221,7 +222,7 @@ ob_start();
 </div>
 
 <!-- Grand total bar -->
-<div style="background:#0a0a0a;color:#fff;padding:1rem 1.5rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+<div style="background:var(--black);color:var(--white);padding:1rem 1.5rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
   <div>
     <div style="font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;opacity:.5">Estimated Base Cost</div>
     <div style="font-family:Georgia,serif;font-size:1.5rem" id="itin-total">$0</div>
@@ -229,7 +230,7 @@ ob_start();
   <div style="text-align:center">
     <div style="font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;opacity:.5">Travelers (for preview)</div>
     <input type="number" id="preview_pax" value="2" min="1" max="20"
-           style="width:56px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;text-align:center;padding:.35rem;font-size:1rem;font-family:inherit"
+           style="width:56px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:var(--white);text-align:center;padding:.35rem;font-size:1rem;font-family:inherit"
            oninput="calcItinTotal()">
   </div>
   <div style="text-align:right">
@@ -241,16 +242,16 @@ ob_start();
 <!-- DAY-BY-DAY BUILDER -->
 <div id="days-container">
 <?php foreach($days as $i=>$day): ?>
-<div class="day-block admin-card" data-day="<?= $i ?>" style="margin-bottom:1rem;border-left:3px solid #0a0a0a">
-  <div class="admin-card-header" style="background:#f7f7f5">
+<div class="day-block admin-card" data-day="<?= $i ?>" style="margin-bottom:1rem;border-left:3px solid var(--black)">
+  <div class="admin-card-header" style="background:var(--gray-50)">
     <h3 style="font-size:.85rem">
-      <span style="font-family:Georgia,serif;color:#0a0a0a;margin-right:.5rem">Day <?= $i+1 ?></span>
+      <span style="font-family:Georgia,serif;color:var(--black);margin-right:.5rem">Day <?= $i+1 ?></span>
       <input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem"
              placeholder="Day title e.g. Arusha → Tarangire"
              value="<?= htmlspecialchars($day['title']) ?>">
     </h3>
     <div style="display:flex;align-items:center;gap:.5rem">
-      <span class="day-cost-badge" style="font-size:.65rem;background:#0a0a0a;color:#fff;padding:.2rem .6rem;font-weight:600">$0</span>
+      <span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span>
     </div>
   </div>
 
@@ -269,7 +270,7 @@ ob_start();
 
       <!-- Accommodation -->
       <div style="border:1px solid #e5e7eb;padding:.85rem;background:#eff6ff20">
-        <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8">🏕 Accommodation</p>
+        <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8;display:flex;align-items:center;gap:.35rem"><?= \App\Helpers\AdminIcon::render('accommodations', 13) ?> Accommodation</p>
         <input type="hidden" name="day_acc_id[]" class="day-acc-id" value="<?= (int)($day['accommodation_id']??0) ?>">
         <div style="margin-bottom:.45rem"><label class="admin-label">Property</label>
           <input name="day_acc_name[]" class="admin-input day-acc-name" list="acc-list-<?= $i ?>"
@@ -294,7 +295,7 @@ ob_start();
 
       <!-- Vehicle -->
       <div style="border:1px solid #e5e7eb;padding:.85rem;background:#f0fdf420">
-        <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534">🚙 Vehicle</p>
+        <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534;display:flex;align-items:center;gap:.35rem"><?= \App\Helpers\AdminIcon::render('fleet', 13) ?> Vehicle</p>
         <input type="hidden" name="day_veh_id[]" class="day-veh-id" value="<?= (int)($day['vehicle_id']??0) ?>">
         <div style="margin-bottom:.45rem"><label class="admin-label">Vehicle</label>
           <input name="day_veh_name[]" class="admin-input day-veh-name" list="veh-list-<?= $i ?>"
@@ -314,7 +315,7 @@ ob_start();
 
       <!-- Park + Meals -->
       <div style="border:1px solid #e5e7eb;padding:.85rem;background:#fef3e220">
-        <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e">🏕 Park & Meals</p>
+        <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e;display:flex;align-items:center;gap:.35rem"><?= \App\Helpers\AdminIcon::render('park-fees', 13) ?> Park & Meals</p>
         <input type="hidden" name="day_park_id[]" value="<?= (int)($day['park_fee_id']??0) ?>">
         <div style="margin-bottom:.45rem"><label class="admin-label">Park / Area</label>
           <input name="day_park_name[]" class="admin-input" list="park-list-<?= $i ?>"
@@ -342,7 +343,7 @@ ob_start();
     <!-- Activities for this day -->
     <div style="margin-bottom:1rem">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-        <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b7280">Activities (Day <?= $i+1 ?>)</p>
+        <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day <?= $i+1 ?>)</p>
         <button type="button" onclick="addDayActivity(<?= $i ?>)" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>
       </div>
       <div id="day-acts-<?= $i ?>">
@@ -357,7 +358,7 @@ ob_start();
             <option value="optional" <?= ($act['type']??'included')==='optional'?'selected':'' ?>>Optional</option>
           </select>
           <button type="button" onclick="this.closest('.act-item').remove();saveDayActs(<?= $i ?>)"
-                  style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;padding:.2rem">✕</button>
+                  class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?></button>
         </div>
         <?php endforeach; ?>
       </div>
@@ -368,7 +369,7 @@ ob_start();
     <!-- Other items for this day -->
     <div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-        <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b7280">Other Costs (Day <?= $i+1 ?>)</p>
+        <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day <?= $i+1 ?>)</p>
         <button type="button" onclick="addDayOther(<?= $i ?>)" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>
       </div>
       <div id="day-other-<?= $i ?>">
@@ -377,7 +378,7 @@ ob_start();
           <input class="admin-input day-other-name" value="<?= htmlspecialchars($ot['name']??'') ?>" placeholder="Item name" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
           <input type="number" step="0.01" class="admin-input day-other-amount" value="<?= (float)($ot['amount']??0) ?>" placeholder="$" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
           <button type="button" onclick="this.closest('.other-item').remove();saveDayOther(<?= $i ?>)"
-                  style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;padding:.2rem">✕</button>
+                  class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?></button>
         </div>
         <?php endforeach; ?>
       </div>
@@ -393,13 +394,13 @@ ob_start();
 <!-- Includes / Excludes -->
 <div class="admin-card" style="margin-bottom:1.25rem">
   <div class="admin-card-header"><h3>Includes &amp; Excludes</h3>
-    <span style="font-size:.72rem;color:#9ca3af">One item per line</span>
+    <span style="font-size:.72rem;color:var(--gray-500)">One item per line</span>
   </div>
   <div class="admin-card-body">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-      <div><label class="admin-label">✓ Included</label>
+      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem"><?= \App\Helpers\AdminIcon::render('check', 12) ?> Included</label>
         <textarea name="includes" class="admin-input" rows="6"><?= htmlspecialchars($includes) ?></textarea></div>
-      <div><label class="admin-label">✗ Not Included</label>
+      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem"><?= \App\Helpers\AdminIcon::render('close', 12) ?> Not Included</label>
         <textarea name="excludes" class="admin-input" rows="6"><?= htmlspecialchars($excludes) ?></textarea></div>
     </div>
   </div>
@@ -407,7 +408,7 @@ ob_start();
 
 <!-- Save -->
 <div style="display:flex;gap:.75rem">
-  <button type="submit" class="admin-btn admin-btn--primary" style="padding:.85rem 2.5rem">💾 Save Itinerary</button>
+  <button type="submit" class="admin-btn admin-btn--primary" style="padding:.85rem 2.5rem">Save Itinerary</button>
   <a href="itineraries.php" class="admin-btn admin-btn--muted">Cancel</a>
 </div>
 
@@ -529,7 +530,7 @@ function addDayActivity(dayIdx) {
   div.innerHTML='<input class="admin-input day-act-name" list="act-list" placeholder="Activity name" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
     +'<input type="number" step="0.01" class="admin-input day-act-price" value="0" placeholder="$/pp" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
     +'<select class="admin-input day-act-type" style="font-size:.72rem" onchange="saveDayActs('+dayIdx+')"><option value="included">Included</option><option value="optional">Optional</option></select>'
-    +'<button type="button" onclick="this.closest(\'.act-item\').remove();saveDayActs('+dayIdx+')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;padding:.2rem">✕</button>';
+    +'<button type="button" onclick="this.closest(\'.act-item\').remove();saveDayActs('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger">'+<?= $trashIconJs ?>+'</button>';
   container.appendChild(div);
   div.querySelector('.day-act-name').addEventListener('change', function(){
     var opts=document.querySelectorAll('#act-list option');
@@ -562,7 +563,7 @@ function addDayOther(dayIdx) {
   div.style.cssText='display:grid;grid-template-columns:2fr 100px auto;gap:.35rem;align-items:end;margin-bottom:.4rem';
   div.innerHTML='<input class="admin-input day-other-name" placeholder="Item name" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
     +'<input type="number" step="0.01" class="admin-input day-other-amount" value="0" placeholder="$" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
-    +'<button type="button" onclick="this.closest(\'.other-item\').remove();saveDayOther('+dayIdx+')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;padding:.2rem">✕</button>';
+    +'<button type="button" onclick="this.closest(\'.other-item\').remove();saveDayOther('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger">'+<?= $trashIconJs ?>+'</button>';
   container.appendChild(div);
 }
 

@@ -69,7 +69,7 @@ ob_start();
           <input type="password" name="current_password" class="admin-input" required autocomplete="current-password">
         </div>
         <div class="admin-form-group">
-          <label class="admin-label">New Password <span style="color:#9ca3af;font-weight:400;text-transform:none;letter-spacing:0">(min 10 characters)</span></label>
+          <label class="admin-label">New Password <span style="color:var(--gray-500);font-weight:400;text-transform:none;letter-spacing:0">(min 10 characters)</span></label>
           <input type="password" name="new_password" class="admin-input" required autocomplete="new-password" minlength="10">
         </div>
         <div class="admin-form-group">
@@ -85,8 +85,8 @@ ob_start();
   </div>
 
   <div class="admin-card" style="margin-top:1.25rem">
-    <div class="admin-card-body" style="font-size:.82rem;color:#6b7280;line-height:1.7">
-      <strong style="color:#0a0a0a">Password requirements:</strong><br>
+    <div class="admin-card-body" style="font-size:.82rem;color:var(--gray-500);line-height:1.7">
+      <strong style="color:var(--black)">Password requirements:</strong><br>
       · Minimum 10 characters<br>
       · Use a mix of letters, numbers and symbols<br>
       · Never reuse your previous password<br>

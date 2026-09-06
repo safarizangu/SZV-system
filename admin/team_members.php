@@ -100,7 +100,7 @@ catch(Exception $e){ error_log($e->getMessage()); }
   <td><strong><?= htmlspecialchars($m['name']) ?></strong></td>
   <td><?= htmlspecialchars($m['role'] ?? '—') ?></td>
   <td><?= htmlspecialchars($m['email'] ?? '—') ?></td>
-  <td><?= $m['is_active'] ? '<span style="color:#16a34a;font-weight:700">Yes</span>' : '<span style="color:#9ca3af">No</span>' ?></td>
+  <td><?= $m['is_active'] ? '<span class="badge-status badge-status--green">Yes</span>' : '<span class="badge-status badge-status--gray">No</span>' ?></td>
   <td>
     <a href="?edit=<?= $m['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Edit</a>
     <form method="POST" style="display:inline" onsubmit="return confirm('Delete <?= htmlspecialchars($m['name']) ?>?')">

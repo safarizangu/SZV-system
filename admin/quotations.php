@@ -80,11 +80,10 @@ try {
 } catch(Exception $e) { error_log($e->getMessage()); }
 
 $statusColors = [
-    'draft'    => ['bg'=>'#f3f4f6','color'=>'#374151','label'=>'Draft'],
-    'sent'     => ['bg'=>'#eff6ff','color'=>'#1d4ed8','label'=>'Sent'],
-    'accepted' => ['bg'=>'#f0fdf4','color'=>'#166534','label'=>'Accepted'],
-    'declined' => ['bg'=>'#fef2f2','color'=>'#991b1b','label'=>'Declined'],
-    
+    'draft'    => ['badge'=>'gray',  'label'=>'Draft'],
+    'sent'     => ['badge'=>'blue',  'label'=>'Sent'],
+    'accepted' => ['badge'=>'green', 'label'=>'Accepted'],
+    'declined' => ['badge'=>'red',   'label'=>'Declined'],
 ];
 
 $pageTitle = 'Quotations';
@@ -92,14 +91,16 @@ ob_start();
 ?>
 
 <!-- Stats row -->
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1.75rem">
+<div class="admin-metrics-grid">
   <?php foreach ($statusColors as $key => $s): ?>
-  <a href="?status=<?= $key ?>" style="text-decoration:none;border:1.5px solid <?= $statusFilter===$key ? '#0a0a0a' : '#e5e7eb' ?>;background:<?= $s['bg'] ?>;padding:.85rem 1rem;display:block">
-    <div style="font-family:var(--font-disp);font-size:1.5rem;font-weight:500;color:<?= $s['color'] ?>"><?= $stats[$key]['cnt'] ?? 0 ?></div>
-    <div style="font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:<?= $s['color'] ?>;margin-top:.2rem"><?= $s['label'] ?></div>
-    <?php if (!empty($stats[$key]['rev'])): ?>
-    <div style="font-size:.7rem;color:<?= $s['color'] ?>;margin-top:.15rem;opacity:.7">$<?= number_format($stats[$key]['rev'],0) ?></div>
-    <?php endif; ?>
+  <a href="?status=<?= $key ?>" style="text-decoration:none">
+    <div class="metric-card<?= $statusFilter===$key ? ' metric-card--'.$s['badge'] : '' ?>">
+      <span class="metric-label"><?= $s['label'] ?></span>
+      <span class="metric-value"><?= $stats[$key]['cnt'] ?? 0 ?></span>
+      <?php if (!empty($stats[$key]['rev'])): ?>
+      <span class="metric-sub">$<?= number_format($stats[$key]['rev'],0) ?></span>
+      <?php endif; ?>
+    </div>
   </a>
   <?php endforeach; ?>
 </div>
@@ -110,7 +111,7 @@ ob_start();
     <input type="hidden" name="status" value="<?= htmlspecialchars($statusFilter) ?>">
     <input type="text" name="q" value="<?= htmlspecialchars($search) ?>"
            placeholder="Search name, email, ref…"
-           style="border:1.5px solid #e5e7eb;padding:.45rem .85rem;font-size:.82rem;outline:none;min-width:220px">
+           class="admin-input" style="min-width:220px">
     <button class="admin-btn admin-btn--primary">Search</button>
     <?php if ($search || $statusFilter): ?>
     <a href="quotations.php" class="admin-btn admin-btn--outline">Clear</a>
@@ -135,15 +136,12 @@ ob_start();
   $expired = $q['valid_until'] && strtotime($q['valid_until']) < time() && $q['status'] === 'sent';
 ?>
 <tr <?= $expired ? 'style="opacity:.6"' : '' ?>>
-  <td>
-    <code style="font-size:.78rem;background:#f3f4f6;padding:.15rem .4rem"><?= htmlspecialchars($q['quote_ref']) ?></code>
-    
-  </td>
+  <td><code><?= htmlspecialchars($q['quote_ref']) ?></code></td>
   <td>
     <strong style="font-size:.85rem"><?= htmlspecialchars($q['client_name']) ?></strong><br>
-    <a href="mailto:<?= htmlspecialchars($q['client_email']) ?>" style="font-size:.72rem;color:#6b7280"><?= htmlspecialchars($q['client_email']) ?></a>
+    <a href="mailto:<?= htmlspecialchars($q['client_email']) ?>" style="font-size:.72rem;color:var(--gray-500)"><?= htmlspecialchars($q['client_email']) ?></a>
     <?php if ($q['client_phone']): ?>
-      <br><span style="font-size:.72rem;color:#9ca3af"><?= htmlspecialchars($q['client_phone']) ?></span>
+      <br><span style="font-size:.72rem;color:var(--gray-500)"><?= htmlspecialchars($q['client_phone']) ?></span>
     <?php endif; ?>
   </td>
   <td style="font-size:.78rem">
@@ -157,24 +155,22 @@ ob_start();
   </td>
   <td style="text-align:center">
     <span style="font-size:.85rem;font-weight:700"><?= ((int)$q['adults']) + ((int)$q['children']) ?></span>
-    <span style="font-size:.68rem;color:#9ca3af"><br><?= $q['adults'] ?>A <?= $q['children']>0 ? '+'.$q['children'].'C' : '' ?></span>
+    <span style="font-size:.68rem;color:var(--gray-500)"><br><?= $q['adults'] ?>A <?= $q['children']>0 ? '+'.$q['children'].'C' : '' ?></span>
   </td>
   <td>
     <strong style="font-size:.9rem">$<?= number_format($q['grand_total'],0) ?></strong>
-    <br><span style="font-size:.68rem;color:#9ca3af">$<?= number_format($q['per_person'],0) ?>/pp</span>
+    <br><span style="font-size:.68rem;color:var(--gray-500)">$<?= number_format($q['per_person'],0) ?>/pp</span>
   </td>
   <td>
-    <span style="display:inline-block;padding:.2rem .6rem;font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>">
-      <?= $sc['label'] ?>
-    </span>
+    <span class="badge-status badge-status--<?= $sc['badge'] ?>"><?= $sc['label'] ?></span>
     <?php if ($expired): ?>
-      <br><span style="font-size:.62rem;color:#dc2626">Expired</span>
+      <br><span style="font-size:.62rem;color:var(--red)">Expired</span>
     <?php endif; ?>
   </td>
-  <td style="font-size:.78rem;<?= $expired ? 'color:#dc2626' : 'color:#6b7280' ?>">
+  <td style="font-size:.78rem;<?= $expired ? 'color:var(--red)' : 'color:var(--gray-500)' ?>">
     <?= $q['valid_until'] ? date('d M Y', strtotime($q['valid_until'])) : '—' ?>
   </td>
-  <td style="font-size:.72rem;color:#9ca3af"><?= date('d M Y', strtotime($q['created_at'])) ?></td>
+  <td style="font-size:.72rem;color:var(--gray-500)"><?= date('d M Y', strtotime($q['created_at'])) ?></td>
   <td>
     <div style="display:flex;gap:.3rem;flex-wrap:wrap">
       <!-- Edit -->
@@ -190,8 +186,8 @@ ob_start();
       <form method="POST" style="display:inline">
         <input type="hidden" name="update_status" value="1">
         <input type="hidden" name="id" value="<?= $q['id'] ?>">
-        <select name="status" onchange="this.form.submit()"
-                style="border:1.5px solid #e5e7eb;font-size:.65rem;padding:.3rem .5rem;cursor:pointer;max-width:100px">
+        <select name="status" onchange="this.form.submit()" class="admin-input"
+                style="font-size:.65rem;padding:.3rem .5rem;max-width:100px">
           <?php foreach ($statusColors as $sv => $sl): ?>
           <option value="<?= $sv ?>" <?= $q['status']===$sv?'selected':'' ?>><?= $sl['label'] ?></option>
           <?php endforeach; ?>
@@ -201,7 +197,7 @@ ob_start();
       <?php if ($q['status'] === 'accepted'): ?>
       <button onclick="openConvertModal(<?= $q['id'] ?>, '<?= htmlspecialchars($q['quote_ref']) ?>', '<?= htmlspecialchars($q['client_name']) ?>', <?= (float)$q['grand_total'] ?>, '<?= htmlspecialchars($q['package_name']??'') ?>', '<?= htmlspecialchars($q['start_date']??'') ?>')"
               class="admin-btn admin-btn--success" style="font-size:.65rem;padding:.3rem .6rem">
-        → Convert to Booking
+        Convert to Booking
       </button>
       <?php endif; ?>
       <?php if ($q['status'] === 'converted' && !empty($q['booking_ref'])): ?>
@@ -225,14 +221,14 @@ ob_start();
 
 
 <!-- ── CONVERT TO BOOKING MODAL ─────────────────────────── -->
-<div id="convertModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999;align-items:center;justify-content:center;padding:1rem">
-  <div style="background:#fff;width:100%;max-width:520px;border-radius:2px;overflow:hidden">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.5rem;border-bottom:1px solid #e5e7eb;background:#0a0a0a;color:#fff">
-      <span style="font-size:.9rem;font-weight:600">Convert Quotation to Booking</span>
-      <button onclick="closeConvertModal()" style="background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer">✕</button>
+<div id="convertModal" class="admin-modal-overlay">
+  <div class="admin-modal">
+    <div class="admin-modal-header">
+      <span class="admin-modal-title">Convert Quotation to Booking</span>
+      <button onclick="closeConvertModal()" class="admin-icon-btn admin-modal-close"><?= \App\Helpers\AdminIcon::render('close', 18) ?></button>
     </div>
-    <div style="padding:1.5rem">
-      <div id="convert-summary" style="background:#f7f7f5;padding:1rem;margin-bottom:1.25rem;font-size:.85rem;line-height:1.8"></div>
+    <div class="admin-modal-body">
+      <div id="convert-summary" style="background:var(--gray-50);padding:1rem;margin-bottom:1.25rem;font-size:.85rem;line-height:1.8"></div>
       <form id="convert-form">
         <input type="hidden" id="convert-quote-id" name="quotation_id">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
@@ -255,11 +251,11 @@ ob_start();
           <label class="admin-label">Special Requests / Notes</label>
           <textarea name="special_requests" class="admin-input" rows="2" placeholder="Any notes from the client…"></textarea>
         </div>
-        <div id="convert-error" style="display:none;background:#fdf2f2;border-left:3px solid #dc2626;color:#7f1d1d;padding:.75rem 1rem;font-size:.82rem;margin-bottom:1rem"></div>
+        <div id="convert-error" class="admin-alert admin-alert--error" style="display:none"></div>
         <div style="display:flex;gap:.75rem;justify-content:flex-end">
           <button type="button" onclick="closeConvertModal()" class="admin-btn admin-btn--outline">Cancel</button>
           <button type="submit" class="admin-btn admin-btn--primary" id="convert-submit">
-            ✓ Create Booking
+            Create Booking
           </button>
         </div>
       </form>
@@ -267,7 +263,7 @@ ob_start();
   </div>
 </div>
 
-<div id="toastContainer2" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem"></div>
+<div id="toastContainer2" class="toast-container"></div>
 
 <script>
 function openConvertModal(id, ref, name, total, pkg, startDate) {
@@ -281,9 +277,9 @@ function openConvertModal(id, ref, name, total, pkg, startDate) {
     +'<strong>Deposit (30%):</strong> USD $'+Math.round(total*0.3).toLocaleString('en-US');
   document.getElementById('convert-error').style.display='none';
   document.getElementById('convert-modal-ref') && (document.getElementById('convert-modal-ref').textContent=ref);
-  document.getElementById('convertModal').style.display='flex';
+  document.getElementById('convertModal').classList.add('open');
 }
-function closeConvertModal() { document.getElementById('convertModal').style.display='none'; }
+function closeConvertModal() { document.getElementById('convertModal').classList.remove('open'); }
 document.getElementById('convertModal').addEventListener('click',function(e){if(e.target===this)closeConvertModal();});
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeConvertModal();});
 
@@ -305,8 +301,8 @@ document.getElementById('convert-form').addEventListener('submit', async functio
       closeConvertModal();
       // Show success toast
       var t = document.createElement('div');
-      t.style.cssText='background:#16a34a;color:#fff;padding:.85rem 1.25rem;font-size:.82rem;min-width:240px;box-shadow:0 4px 16px rgba(0,0,0,.2)';
-      t.innerHTML='✓ Booking <strong>'+d.booking_ref+'</strong> created! <a href="'+d.admin_url+'" style="color:#fff;margin-left:.5rem;text-decoration:underline">View →</a>';
+      t.className = 'toast toast--ok';
+      t.innerHTML='Booking <strong>'+d.booking_ref+'</strong> created! <a href="'+d.admin_url+'" style="color:#fff;margin-left:.5rem;text-decoration:underline">View →</a>';
       document.getElementById('toastContainer2').appendChild(t);
       setTimeout(function(){ t.remove(); window.location.reload(); }, 4000);
     } else {
@@ -317,7 +313,7 @@ document.getElementById('convert-form').addEventListener('submit', async functio
     document.getElementById('convert-error').textContent = 'Network error: '+ex.message;
     document.getElementById('convert-error').style.display='block';
   }
-  btn.disabled=false; btn.textContent='✓ Create Booking';
+  btn.disabled=false; btn.textContent='Create Booking';
 });
 </script>
 

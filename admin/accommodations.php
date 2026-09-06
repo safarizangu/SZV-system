@@ -111,7 +111,7 @@ catch(Exception $e){}
   <td><?= htmlspecialchars($r['park_key']??'—') ?></td>
   <td>$<?= number_format($r['rate_per_room'],0) ?></td>
   <td>$<?= number_format($r['rate_per_person'],0) ?></td>
-  <td><?= $r['is_active'] ? '<span style="color:#16a34a">✓</span>' : '—' ?></td>
+  <td><?= $r['is_active'] ? '<span class="badge-status badge-status--green">Active</span>' : '<span class="badge-status badge-status--gray">Inactive</span>' ?></td>
   <td>
     <a href="?edit=<?= $r['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Edit</a>
     <form method="POST" style="display:inline" onsubmit="return confirm('Delete?')">

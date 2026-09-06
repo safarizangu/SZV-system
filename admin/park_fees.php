@@ -86,7 +86,7 @@ catch(Exception $e){}
   <td>$<?= number_format($r['adult_fee'],0) ?></td>
   <td>$<?= number_format($r['child_fee'],0) ?></td>
   <td>$<?= number_format($r['resident_adult'],0) ?></td>
-  <td><?= $r['is_active'] ? '<span style="color:#16a34a">✓</span>' : '—' ?></td>
+  <td><?= $r['is_active'] ? '<span class="badge-status badge-status--green">Active</span>' : '<span class="badge-status badge-status--gray">Inactive</span>' ?></td>
   <td><a href="?edit=<?= $r['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Edit</a></td>
 </tr>
 <?php endforeach; ?>

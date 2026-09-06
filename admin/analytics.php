@@ -168,8 +168,7 @@ ob_start();
   </div>
   <div style="display:flex;gap:.5rem;flex-wrap:wrap">
     <?php foreach ($ranges as $v => $l): ?>
-    <a href="?range=<?= $v ?>"
-       style="padding:.4rem .9rem;font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;border:1.5px solid <?= $v===$range ? '#0a0a0a' : '#e5e7eb' ?>;background:<?= $v===$range ? '#0a0a0a' : '#fff' ?>;color:<?= $v===$range ? '#fff' : '#0a0a0a' ?>">
+    <a href="?range=<?= $v ?>" class="admin-filter-pill<?= $v===$range?' active':'' ?>">
       <?= $l ?>
     </a>
     <?php endforeach; ?>
@@ -206,13 +205,13 @@ ob_start();
   <div class="admin-card-body">
     <?php
     $funnelSteps = [
-        ['Unique Visitors',       $funnel['page_views'],          '#6b7280'],
+        ['Unique Visitors',       $funnel['page_views'],          'var(--gray-500)'],
         ['Viewed a Package',      $funnel['package_views'],        '#3b82f6'],
         ['Clicked Book Now',      $funnel['book_now_clicks'],      '#8b5cf6'],
         ['WhatsApp Enquiry',      $funnel['whatsapp_clicks'],      '#25d366'],
         ['Custom Safari Request', $funnel['custom_submissions'],   '#f59e0b'],
         ['Contact Form Sent',     $funnel['contact_submissions'],  '#06b6d4'],
-        ['Booking Completed',     $funnel['bookings_completed'],   '#16a34a'],
+        ['Booking Completed',     $funnel['bookings_completed'],   'var(--green)'],
     ];
     $maxVal = max(1, $funnelSteps[0][1]);
     foreach ($funnelSteps as $i => [$label, $val, $color]):
@@ -222,7 +221,7 @@ ob_start();
     ?>
     <div style="display:grid;grid-template-columns:180px 1fr 80px 70px;align-items:center;gap:.75rem;margin-bottom:.6rem">
       <span style="font-size:.78rem;font-weight:500"><?= $label ?></span>
-      <div style="background:#f3f4f6;height:10px;border-radius:5px;overflow:hidden">
+      <div style="background:var(--gray-100);height:10px;border-radius:5px;overflow:hidden">
         <div style="width:<?= $pct ?>%;height:100%;background:<?= $color ?>;border-radius:5px;transition:width .5s ease"></div>
       </div>
       <span style="font-size:.85rem;font-weight:700;text-align:right"><?= number_format($val) ?></span>
@@ -234,10 +233,10 @@ ob_start();
     $visitorsToBkd = $funnel['page_views'] > 0
         ? round(($funnel['bookings_completed'] / $funnel['page_views']) * 100, 2) : 0;
     ?>
-    <div style="margin-top:1.25rem;padding:.85rem 1rem;background:#f7f7f5;border-left:3px solid #0a0a0a">
-      <span style="font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#6b7280">Overall Conversion Rate</span>
+    <div style="margin-top:1.25rem;padding:.85rem 1rem;background:var(--gray-50);border-left:3px solid var(--black)">
+      <span style="font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gray-500)">Overall Conversion Rate</span>
       <span style="font-family:var(--font-disp);font-size:1.5rem;font-weight:500;margin-left:1rem"><?= $visitorsToBkd ?>%</span>
-      <span style="font-size:.75rem;color:#6b7280;margin-left:.5rem">visitors → bookings</span>
+      <span style="font-size:.75rem;color:var(--gray-500);margin-left:.5rem">visitors → bookings</span>
     </div>
   </div>
 </div>
@@ -260,17 +259,17 @@ ob_start();
           $barH = max(2, round(($day['events'] / $maxDay) * $chartH));
         ?>
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:8px" title="<?= $day['day'] ?>: <?= $day['events'] ?> events, <?= $day['visitors'] ?> visitors">
-          <div style="width:100%;height:<?= $barH ?>px;background:#0a0a0a;border-radius:2px 2px 0 0;opacity:.85;min-height:2px"></div>
+          <div style="width:100%;height:<?= $barH ?>px;background:var(--black);border-radius:2px 2px 0 0;opacity:.85;min-height:2px"></div>
         </div>
         <?php endforeach; ?>
       </div>
-      <div style="display:flex;justify-content:space-between;margin-top:.35rem;font-size:.62rem;color:#9ca3af">
+      <div style="display:flex;justify-content:space-between;margin-top:.35rem;font-size:.62rem;color:var(--gray-500)">
         <span><?= date('d M', strtotime($dailyTrend[0]['day'])) ?></span>
         <span><?= date('d M', strtotime(end($dailyTrend)['day'])) ?></span>
       </div>
     </div>
     <?php else: ?>
-    <p style="color:#9ca3af;font-size:.85rem;text-align:center;padding:2rem">No trend data yet.</p>
+    <p style="color:var(--gray-500);font-size:.85rem;text-align:center;padding:2rem">No trend data yet.</p>
     <?php endif; ?>
   </div>
 </div>
@@ -290,19 +289,19 @@ ob_start();
           <td style="font-size:.75rem">
             <?php
             $icon = match(true) {
-                str_contains($e['event_name'],'page_view')   => '👁',
-                str_contains($e['event_name'],'book')        => '📋',
-                str_contains($e['event_name'],'whatsapp')    => '💬',
-                str_contains($e['event_name'],'contact')     => '✉',
-                str_contains($e['event_name'],'custom')      => '🦁',
-                str_contains($e['event_name'],'package')     => '🗺',
+                str_contains($e['event_name'],'page_view')   => \App\Helpers\AdminIcon::render('eye', 13),
+                str_contains($e['event_name'],'book')        => \App\Helpers\AdminIcon::render('bookings', 13),
+                str_contains($e['event_name'],'whatsapp')    => \App\Helpers\AdminIcon::render('messages', 13),
+                str_contains($e['event_name'],'contact')     => \App\Helpers\AdminIcon::render('messages', 13),
+                str_contains($e['event_name'],'custom')      => '',
+                str_contains($e['event_name'],'package')     => \App\Helpers\AdminIcon::render('packages', 13),
                 default                                       => '•',
             };
             ?>
             <?= $icon ?> <?= htmlspecialchars(str_replace('_',' ', $e['event_name'])) ?>
           </td>
           <td><strong><?= number_format($e['cnt']) ?></strong></td>
-          <td style="color:#6b7280"><?= number_format($e['unique_ips']) ?></td>
+          <td style="color:var(--gray-500)"><?= number_format($e['unique_ips']) ?></td>
         </tr>
         <?php endforeach; ?>
         <?php if(empty($eventBreakdown)): ?><tr><td colspan="3" class="admin-empty">No events.</td></tr><?php endif; ?>
@@ -325,7 +324,7 @@ ob_start();
             <?= htmlspecialchars(str_replace('/safari-zangu','',$p['page_url'])) ?: '/' ?>
           </td>
           <td><strong><?= number_format($p['views']) ?></strong></td>
-          <td style="color:#6b7280"><?= number_format($p['unique_visitors']) ?></td>
+          <td style="color:var(--gray-500)"><?= number_format($p['unique_visitors']) ?></td>
         </tr>
         <?php endforeach; ?>
         <?php if(empty($topPages)): ?><tr><td colspan="3" class="admin-empty">No page views.</td></tr><?php endif; ?>
@@ -345,7 +344,7 @@ ob_start();
         <tr>
           <td style="font-size:.72rem"><?= htmlspecialchars(str_replace('-',' ', $p['package_slug'])) ?></td>
           <td><strong><?= number_format($p['views']) ?></strong></td>
-          <td style="color:#16a34a;font-weight:700"><?= number_format($p['book_clicks']) ?></td>
+          <td style="color:var(--green);font-weight:700"><?= number_format($p['book_clicks']) ?></td>
         </tr>
         <?php endforeach; ?>
         <?php if(empty($topPackages)): ?><tr><td colspan="3" class="admin-empty">No package data.</td></tr><?php endif; ?>
@@ -365,17 +364,17 @@ ob_start();
     <div class="admin-card-body">
       <?php
       $totalVisits = array_sum(array_column($referrers, 'visits')) ?: 1;
-      $srcColors   = ['Direct / None'=>'#6b7280','Google'=>'#4285f4','Facebook'=>'#1877f2','Instagram'=>'#e1306c','Twitter/X'=>'#1da1f2','WhatsApp'=>'#25d366','Internal'=>'#0a0a0a','Other'=>'#9ca3af','TikTok'=>'#010101'];
+      $srcColors   = ['Direct / None'=>'var(--gray-500)','Google'=>'#4285f4','Facebook'=>'#1877f2','Instagram'=>'#e1306c','Twitter/X'=>'#1da1f2','WhatsApp'=>'#25d366','Internal'=>'var(--black)','Other'=>'var(--gray-500)','TikTok'=>'#010101'];
       foreach ($referrers as $r):
         $pct = round(($r['visits'] / $totalVisits) * 100);
-        $col = $srcColors[$r['source']] ?? '#9ca3af';
+        $col = $srcColors[$r['source']] ?? 'var(--gray-500)';
       ?>
       <div style="margin-bottom:.75rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem">
           <span style="font-size:.8rem;font-weight:500"><?= htmlspecialchars($r['source']) ?></span>
-          <span style="font-size:.8rem;font-weight:700"><?= number_format($r['visits']) ?> <span style="font-weight:400;color:#9ca3af">(<?= $pct ?>%)</span></span>
+          <span style="font-size:.8rem;font-weight:700"><?= number_format($r['visits']) ?> <span style="font-weight:400;color:var(--gray-500)">(<?= $pct ?>%)</span></span>
         </div>
-        <div style="background:#f3f4f6;height:6px;border-radius:3px">
+        <div style="background:var(--gray-100);height:6px;border-radius:3px">
           <div style="width:<?= $pct ?>%;height:100%;background:<?= $col ?>;border-radius:3px"></div>
         </div>
       </div>
@@ -393,17 +392,15 @@ ob_start();
       <div class="admin-card-body" style="display:flex;gap:1.5rem;flex-wrap:wrap">
         <?php
         $totalDev = array_sum(array_column($devices,'cnt')) ?: 1;
-        $devIcons = ['Desktop'=>'🖥','Mobile'=>'📱','Tablet'=>'📟','Bot'=>'🤖'];
-        $devColors= ['Desktop'=>'#0a0a0a','Mobile'=>'#3b82f6','Tablet'=>'#8b5cf6','Bot'=>'#9ca3af'];
+        $devColors= ['Desktop'=>'var(--black)','Mobile'=>'#3b82f6','Tablet'=>'#8b5cf6','Bot'=>'var(--gray-500)'];
         foreach ($devices as $d):
           $pct = round(($d['cnt'] / $totalDev) * 100);
-          $col = $devColors[$d['device']] ?? '#9ca3af';
+          $col = $devColors[$d['device']] ?? 'var(--gray-500)';
         ?>
         <div style="text-align:center;flex:1;min-width:70px">
-          <div style="font-size:1.5rem;margin-bottom:.3rem"><?= $devIcons[$d['device']] ?? '?' ?></div>
           <div style="font-size:1.2rem;font-weight:700;color:<?= $col ?>"><?= $pct ?>%</div>
-          <div style="font-size:.7rem;color:#6b7280;font-weight:500"><?= $d['device'] ?></div>
-          <div style="font-size:.68rem;color:#9ca3af"><?= number_format($d['cnt']) ?></div>
+          <div style="font-size:.7rem;color:var(--gray-500);font-weight:500"><?= $d['device'] ?></div>
+          <div style="font-size:.68rem;color:var(--gray-500)"><?= number_format($d['cnt']) ?></div>
         </div>
         <?php endforeach; ?>
         <?php if(empty($devices)): ?><p class="admin-empty">No device data.</p><?php endif; ?>
@@ -425,11 +422,11 @@ ob_start();
           $slotTotal = 0;
           for($i=$from;$i<$to;$i++) $slotTotal += $hrLookup[$i] ?? 0;
           $pct = round(($slotTotal / max(1, array_sum($hrLookup))) * 100);
-          $col = $pct > 30 ? '#0a0a0a' : ($pct > 15 ? '#3b82f6' : '#e5e7eb');
+          $col = $pct > 30 ? 'var(--black)' : ($pct > 15 ? '#3b82f6' : 'var(--gray-200)');
         ?>
         <div style="display:grid;grid-template-columns:80px 1fr 50px;align-items:center;gap:.5rem;margin-bottom:.5rem">
           <span style="font-size:.75rem;font-weight:500"><?= $label ?></span>
-          <div style="background:#f3f4f6;height:8px;border-radius:4px">
+          <div style="background:var(--gray-100);height:8px;border-radius:4px">
             <div style="width:<?= $pct ?>%;height:100%;background:<?= $col ?>;border-radius:4px"></div>
           </div>
           <span style="font-size:.72rem;font-weight:700;text-align:right"><?= $slotTotal ?></span>
@@ -439,7 +436,7 @@ ob_start();
         // Best single hour
         if ($hrLookup) {
           $peakHr = array_keys($hrLookup, max($hrLookup))[0];
-          echo '<p style="margin-top:.75rem;font-size:.75rem;color:#6b7280">Peak hour: <strong>' . sprintf('%02d:00', $peakHr) . '–' . sprintf('%02d:00', $peakHr+1) . ' EAT</strong> (' . $hrLookup[$peakHr] . ' events)</p>';
+          echo '<p style="margin-top:.75rem;font-size:.75rem;color:var(--gray-500)">Peak hour: <strong>' . sprintf('%02d:00', $peakHr) . '–' . sprintf('%02d:00', $peakHr+1) . ' EAT</strong> (' . $hrLookup[$peakHr] . ' events)</p>';
         }
         ?>
       </div>
@@ -463,8 +460,8 @@ ob_start();
       ?>
       <div style="text-align:center;flex:1;min-width:50px">
         <div style="font-size:.72rem;font-weight:700;margin-bottom:.25rem"><?= $pd['events'] ?></div>
-        <div style="height:<?= $h ?>px;background:<?= $isTop ? '#0a0a0a' : '#e5e7eb' ?>;border-radius:3px 3px 0 0;min-height:4px"></div>
-        <div style="font-size:.65rem;font-weight:600;margin-top:.3rem;color:<?= $isTop ? '#0a0a0a' : '#9ca3af' ?>"><?= substr($pd['day_name'],0,3) ?></div>
+        <div style="height:<?= $h ?>px;background:<?= $isTop ? 'var(--black)' : 'var(--gray-200)' ?>;border-radius:3px 3px 0 0;min-height:4px"></div>
+        <div style="font-size:.65rem;font-weight:600;margin-top:.3rem;color:<?= $isTop ? 'var(--black)' : 'var(--gray-500)' ?>"><?= substr($pd['day_name'],0,3) ?></div>
       </div>
       <?php endforeach; ?>
     </div>
@@ -474,7 +471,7 @@ ob_start();
 
 <!-- ── INSIGHTS & RECOMMENDATIONS ─────────────────────────────── -->
 <div class="admin-card" style="margin-bottom:1.5rem">
-  <div class="admin-card-header"><h2>💡 Insights &amp; Recommendations</h2></div>
+  <div class="admin-card-header"><h2>Insights &amp; Recommendations</h2></div>
   <div class="admin-card-body">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
       <?php
@@ -483,37 +480,37 @@ ob_start();
 
       // Conversion insight
       $conv = $funnel['page_views'] > 0 ? round(($funnel['bookings_completed']/$funnel['page_views'])*100,1) : 0;
-      if ($conv < 1) $insights[] = ['⚠', 'Low conversion rate ('.$conv.'%). Add stronger CTAs and pricing transparency to package pages.', '#fef3e2','#92400e'];
-      elseif ($conv < 3) $insights[] = ['📈', 'Conversion rate is '.$conv.'% — industry average is 2–4%. Test adding urgency (limited availability) to booking page.', '#eff6ff','#1d4ed8'];
-      else $insights[] = ['🎉', 'Strong conversion rate of '.$conv.'%. Focus on driving more top-of-funnel traffic.', '#f0fdf4','#166534'];
+      if ($conv < 1) $insights[] = [\App\Helpers\AdminIcon::render('alert', 14), 'Low conversion rate ('.$conv.'%). Add stronger CTAs and pricing transparency to package pages.', 'var(--amber-light)','#92400e'];
+      elseif ($conv < 3) $insights[] = [\App\Helpers\AdminIcon::render('analytics', 14), 'Conversion rate is '.$conv.'% — industry average is 2–4%. Test adding urgency (limited availability) to booking page.', 'var(--blue-light)','var(--blue)'];
+      else $insights[] = ['', 'Strong conversion rate of '.$conv.'%. Focus on driving more top-of-funnel traffic.', 'var(--green-light)','#166534'];
 
       // WhatsApp insight
       $waRatio = $funnel['page_views'] > 0 ? round(($funnel['whatsapp_clicks']/$funnel['page_views'])*100,1) : 0;
-      if ($waRatio > 5) $insights[] = ['💬', 'High WhatsApp engagement ('.$waRatio.'%). Respond quickly — these are warm leads. Consider WhatsApp Business automation.', '#f0fdf4','#166534'];
-      else $insights[] = ['💬', 'WhatsApp engagement is '.$waRatio.'%. Make the WhatsApp button more prominent on mobile — it\'s your fastest conversion path.', '#fef3e2','#92400e'];
+      if ($waRatio > 5) $insights[] = [\App\Helpers\AdminIcon::render('messages', 14), 'High WhatsApp engagement ('.$waRatio.'%). Respond quickly — these are warm leads. Consider WhatsApp Business automation.', 'var(--green-light)','#166534'];
+      else $insights[] = [\App\Helpers\AdminIcon::render('messages', 14), 'WhatsApp engagement is '.$waRatio.'%. Make the WhatsApp button more prominent on mobile — it\'s your fastest conversion path.', 'var(--amber-light)','#92400e'];
 
       // Device insight
       $mobileEvents = 0; $totalDevE = 0;
       foreach ($devices as $d) { $totalDevE += $d['cnt']; if ($d['device']==='Mobile') $mobileEvents = $d['cnt']; }
       $mobilePct = $totalDevE > 0 ? round($mobileEvents/$totalDevE*100) : 0;
-      if ($mobilePct > 60) $insights[] = ['📱', $mobilePct.'% of visitors are on mobile. Prioritize mobile UX — test the booking form on a phone monthly.', '#eff6ff','#1d4ed8'];
+      if ($mobilePct > 60) $insights[] = ['', $mobilePct.'% of visitors are on mobile. Prioritize mobile UX — test the booking form on a phone monthly.', 'var(--blue-light)','var(--blue)'];
 
       // Top package insight
       if (!empty($topPackages)) {
         $top = $topPackages[0];
-        $insights[] = ['🦁', '"'.ucwords(str_replace('-',' ',$top['package_slug'])).'" gets the most interest ('.number_format($top['views']).' views). Make sure its images, pricing, and itinerary are fully up to date.', '#f0fdf4','#166534'];
+        $insights[] = ['', '"'.ucwords(str_replace('-',' ',$top['package_slug'])).'" gets the most interest ('.number_format($top['views']).' views). Make sure its images, pricing, and itinerary are fully up to date.', 'var(--green-light)','#166534'];
       }
 
       // Peak day insight
       if (!empty($peakDays)) {
         usort($peakDays, fn($a,$b) => $b['events'] <=> $a['events']);
-        $insights[] = ['📅', 'Most activity happens on '.$peakDays[0]['day_name'].'s. Schedule social posts and email campaigns for '.($peakDays[0]['day_name'] === 'Sunday' || $peakDays[0]['day_name'] === 'Saturday' ? 'Friday afternoons' : 'the day before').'.', '#faf5ff','#6d28d9'];
+        $insights[] = ['', 'Most activity happens on '.$peakDays[0]['day_name'].'s. Schedule social posts and email campaigns for '.($peakDays[0]['day_name'] === 'Sunday' || $peakDays[0]['day_name'] === 'Saturday' ? 'Friday afternoons' : 'the day before').'.', '#faf5ff','#6d28d9'];
       }
 
       // Traffic source insight
       $directPct = 0;
       foreach ($referrers as $r) { if ($r['source']==='Direct / None') $directPct = round($r['visits']/max(1,array_sum(array_column($referrers,'visits')))*100); }
-      if ($directPct > 70) $insights[] = ['🔍', $directPct.'% of traffic is direct. Invest in SEO and social media to diversify traffic sources and reduce dependency on word-of-mouth.', '#fef3e2','#92400e'];
+      if ($directPct > 70) $insights[] = [\App\Helpers\AdminIcon::render('search', 14), $directPct.'% of traffic is direct. Invest in SEO and social media to diversify traffic sources and reduce dependency on word-of-mouth.', 'var(--amber-light)','#92400e'];
 
       foreach ($insights as [$icon, $text, $bg, $color]):
       ?>
@@ -539,16 +536,16 @@ ob_start();
     <tr>
       <td style="white-space:nowrap;font-size:.72rem"><?= date('d M H:i', strtotime($e['created_at'])) ?></td>
       <td>
-        <span style="font-size:.72rem;font-weight:600;background:#f3f4f6;padding:.15rem .4rem">
+        <span style="font-size:.72rem;font-weight:600;background:var(--gray-100);padding:.15rem .4rem">
           <?= htmlspecialchars($e['event_name']) ?>
         </span>
       </td>
-      <td style="font-size:.72rem;color:#6b7280;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+      <td style="font-size:.72rem;color:var(--gray-500);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
         <?= htmlspecialchars(str_replace('/safari-zangu','',$e['page_url'] ?? '')) ?>
       </td>
       <td style="font-size:.72rem"><?= htmlspecialchars($e['package_slug'] ?? '—') ?></td>
-      <td style="font-size:.7rem;color:#9ca3af"><?= htmlspecialchars($e['ip_address'] ?? '') ?></td>
-      <td style="font-size:.7rem;color:#9ca3af;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+      <td style="font-size:.7rem;color:var(--gray-500)"><?= htmlspecialchars($e['ip_address'] ?? '') ?></td>
+      <td style="font-size:.7rem;color:var(--gray-500);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
         <?php
         $ref = $e['referrer'] ?? '';
         echo $ref ? htmlspecialchars(parse_url($ref, PHP_URL_HOST) ?: $ref) : '—';

@@ -86,7 +86,7 @@ $months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','De
   <td><?= $r['multiplier'] ?>×</td>
   <td><?= round($r['multiplier']*100) ?>%</td>
   <td><?= $months[($r['start_month']??1)-1] ?> – <?= $months[($r['end_month']??12)-1] ?></td>
-  <td style="font-size:.8rem;color:#666"><?= htmlspecialchars($r['description']??'') ?></td>
+  <td style="font-size:.8rem;color:var(--gray-500)"><?= htmlspecialchars($r['description']??'') ?></td>
   <td><a href="?edit=<?= $r['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Edit</a></td>
 </tr>
 <?php endforeach; ?>

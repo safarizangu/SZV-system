@@ -85,19 +85,28 @@ foreach ($grouped as $items) {
     }
 }
 
-// ── Day-by-day itinerary breakdown (if built from a template) ──
-// TRADE-OFF: computed LIVE from itineraries.days, not snapshotted like
-// line_items is. Editing an itinerary template after a quotation was
-// sent will change what a re-send shows. See this script's header.
+// ── Day-by-day itinerary breakdown (from the quotation's own
+//    Day-by-Day Itinerary, or a linked template as a fallback) ──
+// The quotation's own itinerary column always wins when present — it's
+// what the admin actually edited and what pricing was computed from
+// (see admin/quotation_new.php's save handler, which never re-fetches
+// itineraries.days live). itinerary_id only matters for older
+// quotations saved before that column existed; for those, this IS
+// computed live from itineraries.days, so editing the template after
+// such a quotation was sent will change what a re-send shows.
 $dayByDayHtml = '';
-if (!empty($q['itinerary_id'])) {
-    try {
-        $is = $db->prepare("SELECT days FROM itineraries WHERE id=?");
-        $is->execute([(int)$q['itinerary_id']]);
-        $itinRow = $is->fetch();
-        $days = $itinRow ? (json_decode($itinRow['days'] ?? '[]', true) ?: []) : [];
-    } catch (Exception $e) {
-        $days = [];
+if (!empty($q['itinerary']) || !empty($q['itinerary_id'])) {
+    if (!empty($q['itinerary'])) {
+        $days = json_decode($q['itinerary'], true) ?: [];
+    } else {
+        try {
+            $is = $db->prepare("SELECT days FROM itineraries WHERE id=?");
+            $is->execute([(int)$q['itinerary_id']]);
+            $itinRow = $is->fetch();
+            $days = $itinRow ? (json_decode($itinRow['days'] ?? '[]', true) ?: []) : [];
+        } catch (Exception $e) {
+            $days = [];
+        }
     }
 
     $adultsQ   = (int)($q['adults']   ?? 0);

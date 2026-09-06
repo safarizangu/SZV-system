@@ -76,18 +76,18 @@ ob_start();
 <?php endif; ?>
 
 <!-- Stats row -->
-<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1.75rem">
-  <div style="border:1.5px solid #e5e7eb;padding:.85rem 1rem">
-    <div style="font-family:var(--font-disp);font-size:1.5rem;font-weight:500"><?= number_format($stats['total']) ?></div>
-    <div style="font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;margin-top:.2rem">Total Customers</div>
+<div class="admin-stats-grid" style="grid-template-columns:repeat(3,1fr)">
+  <div class="admin-stat-card">
+    <span class="admin-stat-value"><?= number_format($stats['total']) ?></span>
+    <span class="admin-stat-label">Total Customers</span>
   </div>
-  <div style="border:1.5px solid #e5e7eb;padding:.85rem 1rem">
-    <div style="font-family:var(--font-disp);font-size:1.5rem;font-weight:500">$<?= number_format($stats['total_spent'],0) ?></div>
-    <div style="font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;margin-top:.2rem">Lifetime Booking Value</div>
+  <div class="admin-stat-card">
+    <span class="admin-stat-value">$<?= number_format($stats['total_spent'],0) ?></span>
+    <span class="admin-stat-label">Lifetime Booking Value</span>
   </div>
-  <div style="border:1.5px solid #e5e7eb;padding:.85rem 1rem">
-    <div style="font-family:var(--font-disp);font-size:1.5rem;font-weight:500"><?= number_format($stats['repeat']) ?></div>
-    <div style="font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;margin-top:.2rem">Repeat Guests (2+ Bookings)</div>
+  <div class="admin-stat-card">
+    <span class="admin-stat-value"><?= number_format($stats['repeat']) ?></span>
+    <span class="admin-stat-label">Repeat Guests (2+ Bookings)</span>
   </div>
 </div>
 
@@ -96,8 +96,8 @@ ob_start();
   <form style="display:flex;gap:.5rem;flex-wrap:wrap">
     <input type="text" name="q" value="<?= htmlspecialchars($search) ?>"
            placeholder="Search name, email, phone…"
-           style="border:1.5px solid #e5e7eb;padding:.45rem .85rem;font-size:.82rem;outline:none;min-width:240px">
-    <select name="sort" onchange="this.form.submit()" style="border:1.5px solid #e5e7eb;padding:.45rem .7rem;font-size:.78rem">
+           class="admin-input" style="min-width:240px">
+    <select name="sort" onchange="this.form.submit()" class="admin-input" style="width:auto">
       <option value="recent" <?= $sort==='recent'?'selected':'' ?>>Most Recent</option>
       <option value="oldest" <?= $sort==='oldest'?'selected':'' ?>>Oldest First</option>
       <option value="spend"  <?= $sort==='spend' ?'selected':'' ?>>Highest Spend</option>
@@ -131,20 +131,20 @@ ob_start();
   <td>
     <strong style="font-size:.85rem"><?= htmlspecialchars($c['full_name']) ?></strong>
     <?php if ((int)$c['booking_count'] > 1): ?>
-      <span style="display:inline-block;margin-left:.35rem;font-size:.58rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:#f0fdf4;color:#166534;padding:.1rem .4rem">Repeat</span>
+      <span class="badge-status badge-status--green" style="margin-left:.35rem">Repeat</span>
     <?php endif; ?>
   </td>
   <td style="font-size:.78rem">
-    <a href="mailto:<?= htmlspecialchars($c['email']) ?>" style="color:#6b7280"><?= htmlspecialchars($c['email']) ?></a>
-    <?php if ($c['phone']): ?><br><span style="color:#9ca3af"><?= htmlspecialchars($c['phone']) ?></span><?php endif; ?>
+    <a href="mailto:<?= htmlspecialchars($c['email']) ?>" style="color:var(--gray-500)"><?= htmlspecialchars($c['email']) ?></a>
+    <?php if ($c['phone']): ?><br><span style="color:var(--gray-500)"><?= htmlspecialchars($c['phone']) ?></span><?php endif; ?>
   </td>
-  <td style="font-size:.8rem;color:#6b7280"><?= htmlspecialchars($c['country'] ?? '—') ?></td>
+  <td style="font-size:.8rem;color:var(--gray-500)"><?= htmlspecialchars($c['country'] ?? '—') ?></td>
   <td style="text-align:center;font-weight:700"><?= (int)$c['booking_count'] ?></td>
   <td style="text-align:right;font-weight:700">$<?= number_format((float)$c['total_spent'],0) ?></td>
-  <td style="text-align:center;color:#6b7280"><?= (int)$c['quotation_count'] ?></td>
-  <td style="text-align:center;color:#6b7280"><?= (int)$c['lead_count'] ?></td>
-  <td style="text-align:center;color:#6b7280"><?= (int)$c['request_count'] ?></td>
-  <td style="font-size:.72rem;color:#9ca3af"><?= date('d M Y', strtotime($c['first_seen_at'])) ?></td>
+  <td style="text-align:center;color:var(--gray-500)"><?= (int)$c['quotation_count'] ?></td>
+  <td style="text-align:center;color:var(--gray-500)"><?= (int)$c['lead_count'] ?></td>
+  <td style="text-align:center;color:var(--gray-500)"><?= (int)$c['request_count'] ?></td>
+  <td style="font-size:.72rem;color:var(--gray-500)"><?= date('d M Y', strtotime($c['first_seen_at'])) ?></td>
   <td>
     <div style="display:flex;gap:.3rem">
       <a href="customer_view.php?id=<?= $c['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">View</a>
@@ -164,18 +164,18 @@ ob_start();
 </div>
 
 <!-- Edit modal -->
-<div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999;align-items:center;justify-content:center;padding:1rem">
-  <div style="background:#fff;width:100%;max-width:440px;border-radius:2px;overflow:hidden">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.5rem;border-bottom:1px solid #e5e7eb;background:#0a0a0a;color:#fff">
-      <span style="font-size:.9rem;font-weight:600">Edit Customer</span>
-      <button type="button" onclick="closeEdit()" style="background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer">✕</button>
+<div id="editModal" class="admin-modal-overlay">
+  <div class="admin-modal">
+    <div class="admin-modal-header">
+      <span class="admin-modal-title">Edit Customer</span>
+      <button type="button" onclick="closeEdit()" class="admin-icon-btn admin-modal-close"><?= \App\Helpers\AdminIcon::render('close', 18) ?></button>
     </div>
-    <form method="POST" style="padding:1.5rem">
+    <form method="POST" class="admin-modal-body">
       <input type="hidden" name="update_customer" value="1">
       <input type="hidden" name="id" id="edit_id">
       <div class="admin-form-group" style="margin-bottom:1rem">
         <label class="admin-label">Email (fixed — the dedup key)</label>
-        <input class="admin-input" id="edit_email" disabled style="background:#f3f4f6;color:#9ca3af">
+        <input class="admin-input" id="edit_email" disabled style="background:var(--gray-100);color:var(--gray-500)">
       </div>
       <div class="admin-form-group" style="margin-bottom:1rem">
         <label class="admin-label">Full Name</label>
@@ -204,9 +204,9 @@ function openEdit(c) {
   document.getElementById('edit_name').value    = c.full_name || '';
   document.getElementById('edit_phone').value   = c.phone || '';
   document.getElementById('edit_country').value = c.country || '';
-  document.getElementById('editModal').style.display = 'flex';
+  document.getElementById('editModal').classList.add('open');
 }
-function closeEdit() { document.getElementById('editModal').style.display = 'none'; }
+function closeEdit() { document.getElementById('editModal').classList.remove('open'); }
 document.getElementById('editModal').addEventListener('click', function(e){ if (e.target === this) closeEdit(); });
 document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeEdit(); });
 </script>

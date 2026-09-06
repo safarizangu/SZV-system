@@ -42,36 +42,36 @@
 
     $groups = [
       'Operations' => [
-        ['index.php',            'Dashboard',        '◈', ''],
-        ['analytics.php',        'Analytics',        '◉', ''],
-        ['bookings.php',         'Bookings',         '◉', ''],
-        ['customers.php',        'Customers',        '⬡', ''],
-        ['custom_requests.php',  'Requests',         '◎', $newRequests > 0 ? $newRequests : ''],
-        ['contact_messages.php', 'Messages',         '✉', $unreadCount > 0 ? $unreadCount : ''],
-        ['leads.php',            'Leads',            '◇', ''],
-        ['commissions.php',    'Commissions',      '$', ''],
-        ['quotations.php',       'Quotations',       '❝', ''],
+        ['index.php',            'Dashboard',        'dashboard', ''],
+        ['analytics.php',        'Analytics',        'analytics', ''],
+        ['bookings.php',         'Bookings',         'bookings', ''],
+        ['customers.php',        'Customers',        'customers', ''],
+        ['custom_requests.php',  'Requests',         'requests', $newRequests > 0 ? $newRequests : ''],
+        ['contact_messages.php', 'Messages',         'messages', $unreadCount > 0 ? $unreadCount : ''],
+        ['leads.php',            'Leads',            'leads', ''],
+        ['commissions.php',    'Commissions',      'commissions', ''],
+        ['quotations.php',       'Quotations',       'quotations', ''],
       ],
       'Comms' => [
-        ['email_templates.php', 'Email Templates',   '✉', ''],
-    ['email_queue.php',      'Email Queue',      '✉', $queuePending > 0 ? $queuePending : ''],
-        ['reminders.php',        'Reminders',        '⏰', $remindersDue > 0 ? $remindersDue : ''],
+        ['email_templates.php', 'Email Templates',   'email-template', ''],
+    ['email_queue.php',      'Email Queue',      'email-queue', $queuePending > 0 ? $queuePending : ''],
+        ['reminders.php',        'Reminders',        'reminders', $remindersDue > 0 ? $remindersDue : ''],
       ],
       'Content' => [
-        ['poster_maker.php',       'Poster Maker',        '◈', ''],
-    ['gallery.php',          'Image Gallery',    '🖼', ''],
-        ['itineraries.php',      'Itineraries',      '🗺', ''],
-        ['packages.php',         'Packages',         '▣', ''],
-        ['package_edit.php',      'New Package',      '+', ''],
-        ['team_members.php',     'Team',             '◑', ''],
-        ['accommodations.php',   'Accommodations',   '⌂', ''],
-        ['activities.php',       'Activities',       '◆', ''],
-        ['vehicles.php',         'Fleet',            '⊕', ''],
+        ['poster_maker.php',       'Poster Maker',        'poster', ''],
+    ['gallery.php',          'Image Gallery',    'gallery', ''],
+        ['itineraries.php',      'Itineraries',      'itineraries', ''],
+        ['packages.php',         'Packages',         'packages', ''],
+        ['package_edit.php',      'New Package',      'plus', ''],
+        ['team_members.php',     'Team',             'team', ''],
+        ['accommodations.php',   'Accommodations',   'accommodations', ''],
+        ['activities.php',       'Activities',       'activities', ''],
+        ['vehicles.php',         'Fleet',            'fleet', ''],
       ],
       'Settings' => [
-        ['park_fees.php',        'Park Fees',        '♦', ''],
-        ['seasonal_rates.php',   'Seasons',          '◐', ''],
-        ['users.php',             'Users',            '👤', ''],
+        ['park_fees.php',        'Park Fees',        'park-fees', ''],
+        ['seasonal_rates.php',   'Seasons',          'seasons', ''],
+        ['users.php',             'Users',            'users', ''],
       ],
     ];
 
@@ -82,7 +82,7 @@
       $active = ($cur === $href) ? ' active' : '';
     ?>
     <a href="<?= $href ?>" class="admin-nav-link<?= $active ?>">
-      <span class="admin-nav-icon"><?= $icon ?></span>
+      <span class="admin-nav-icon"><?= \App\Helpers\AdminIcon::render($icon, 15) ?></span>
       <?= $label ?>
       <?php if ($badge): ?>
         <span class="nav-badge"><?= $badge ?></span>
@@ -92,9 +92,9 @@
   </nav>
 
   <div class="admin-sidebar-footer">
-    <a href="<?= BASE_PATH ?>/" target="_blank" class="admin-nav-link">← View Site</a>
-    <a href="change_password.php" class="admin-nav-link" style="font-size:.65rem">🔑 Change Password</a>
-    <a href="logout.php" class="admin-nav-link admin-nav-link--danger">Sign Out</a>
+    <a href="<?= BASE_PATH ?>/" target="_blank" class="admin-nav-link"><span class="admin-nav-icon"><?= \App\Helpers\AdminIcon::render('external-link', 15) ?></span> View Site</a>
+    <a href="change_password.php" class="admin-nav-link"><span class="admin-nav-icon"><?= \App\Helpers\AdminIcon::render('key', 15) ?></span> Change Password</a>
+    <a href="logout.php" class="admin-nav-link admin-nav-link--danger"><span class="admin-nav-icon"><?= \App\Helpers\AdminIcon::render('logout', 15) ?></span> Sign Out</a>
   </div>
 </aside>
 

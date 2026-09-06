@@ -74,13 +74,15 @@ if (!$search && !$statusFilter) {
     } catch (\Exception $e) {}
 }
 
-// Status helpers
+// Status helpers — one status→color config (bg/color match the shared
+// .badge-status--* modifiers in admin.css) shared with the JS below via
+// STATUS_META, same pattern as bookings.php's $statusColors.
 $statusColors = [
-    'new'       => ['bg'=>'#0a0a0a','color'=>'#fff',    'label'=>'New'],
-    'in_review' => ['bg'=>'#eff6ff','color'=>'#1d4ed8', 'label'=>'In Review'],
-    'quoted'    => ['bg'=>'#fef3e2','color'=>'#92400e', 'label'=>'Quoted'],
-    'converted' => ['bg'=>'#f0fdf4','color'=>'#166534', 'label'=>'Converted'],
-    'closed'    => ['bg'=>'#f3f4f6','color'=>'#6b7280', 'label'=>'Closed'],
+    'new'       => ['bg'=>'var(--black)',      'color'=>'var(--white)',    'badge'=>'dark',  'label'=>'New'],
+    'in_review' => ['bg'=>'var(--blue-light)',  'color'=>'#1e40af',        'badge'=>'blue',  'label'=>'In Review'],
+    'quoted'    => ['bg'=>'var(--amber-light)', 'color'=>'#92400e',        'badge'=>'amber', 'label'=>'Quoted'],
+    'converted' => ['bg'=>'var(--green-light)', 'color'=>'#166534',        'badge'=>'green', 'label'=>'Converted'],
+    'closed'    => ['bg'=>'var(--gray-100)',    'color'=>'var(--gray-700)','badge'=>'gray',  'label'=>'Closed'],
 ];
 
 // Summary counts
@@ -95,11 +97,13 @@ ob_start();
 ?>
 
 <!-- ── Summary cards ──────────────────────────────────────── -->
-<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.75rem;margin-bottom:1.75rem">
+<div class="admin-metrics-grid">
   <?php foreach ($statusColors as $key => $sc): ?>
-  <a href="?status=<?= $key ?>" style="text-decoration:none;display:block;border:1.5px solid <?= $statusFilter===$key?'#0a0a0a':'#e5e7eb' ?>;background:<?= $sc['bg'] ?>;padding:.85rem 1rem">
-    <div style="font-family:var(--font-disp);font-size:1.5rem;font-weight:500;color:<?= $sc['color'] ?>"><?= $counts[$key] ?? 0 ?></div>
-    <div style="font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:<?= $sc['color'] ?>;margin-top:.2rem"><?= $sc['label'] ?></div>
+  <a href="?status=<?= $key ?>" style="text-decoration:none">
+    <div class="metric-card<?= $statusFilter===$key ? ' metric-card--'.$sc['badge'] : '' ?>">
+      <span class="metric-label"><?= $sc['label'] ?></span>
+      <span class="metric-value"><?= $counts[$key] ?? 0 ?></span>
+    </div>
   </a>
   <?php endforeach; ?>
 </div>
@@ -161,7 +165,7 @@ ob_start();
     <td style="color:var(--gray-500);font-size:.75rem"><?= $r['id'] ?></td>
     <td>
       <strong style="font-size:.85rem"><?= htmlspecialchars($r['full_name']) ?></strong><br>
-      <a href="mailto:<?= htmlspecialchars($r['email']) ?>" style="font-size:.72rem;color:#6b7280"><?= htmlspecialchars($r['email']) ?></a><br>
+      <a href="mailto:<?= htmlspecialchars($r['email']) ?>" style="font-size:.72rem;color:var(--gray-500)"><?= htmlspecialchars($r['email']) ?></a><br>
       <?php if ($r['phone']): ?>
       <a href="https://wa.me/<?= preg_replace('/[^0-9]/','',$r['phone']) ?>" target="_blank" style="font-size:.7rem;color:#25D366;font-weight:600"><?= htmlspecialchars($r['phone']) ?></a>
       <?php endif; ?>
@@ -176,19 +180,19 @@ ob_start();
     <td style="font-size:.78rem;white-space:nowrap">
       <?= $r['start_date'] ? date('d M Y', strtotime($r['start_date'])) : '—' ?>
       <?php if (!empty($r['flexible_dates']) && $r['flexible_dates'] !== 'No'): ?>
-        <br><span style="font-size:.65rem;color:#9ca3af">Flexible</span>
+        <br><span style="font-size:.65rem;color:var(--gray-500)">Flexible</span>
       <?php endif; ?>
     </td>
     <td style="font-size:.78rem"><?= htmlspecialchars($r['total_budget'] ?? '—') ?: '—' ?></td>
     <td>
       <select class="status-select" onchange="updateStatus(<?= $r['id'] ?>, this.value)"
-              style="font-size:.72rem;padding:.3rem .5rem;border:1.5px solid #e5e7eb;background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>;font-weight:700;cursor:pointer">
+              style="font-size:.72rem;padding:.3rem .5rem;border:1.5px solid var(--gray-200);background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>;font-weight:700;cursor:pointer">
         <?php foreach ($statusColors as $sv => $sl): ?>
         <option value="<?= $sv ?>" <?= $r['status']===$sv?'selected':'' ?>><?= $sl['label'] ?></option>
         <?php endforeach; ?>
       </select>
     </td>
-    <td style="font-size:.72rem;color:#9ca3af;white-space:nowrap">
+    <td style="font-size:.72rem;color:var(--gray-500);white-space:nowrap">
       <?= date('d M Y', strtotime($r['created_at'])) ?><br>
       <?= date('H:i', strtotime($r['created_at'])) ?>
     </td>
@@ -225,32 +229,32 @@ ob_start();
 
 <!-- ── Pagination ──────────────────────────────────────────── -->
 <?php if ($totalPages > 1): ?>
-<div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 0;flex-wrap:wrap;gap:.5rem">
+<div class="pagination" style="border-top:none">
   <span style="font-size:.78rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?></span>
-  <div style="display:flex;gap:.25rem;flex-wrap:wrap">
+  <div class="page-btns">
     <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-    <a href="?page=<?= $i ?>&search=<?= urlencode($search) ?>&status=<?= urlencode($statusFilter) ?>">
-      <button class="page-btn <?= $i===$page?'active':'' ?>"><?= $i ?></button>
+    <a href="?page=<?= $i ?>&search=<?= urlencode($search) ?>&status=<?= urlencode($statusFilter) ?>"
+       class="page-btn<?= $i===$page?' active':'' ?>">
+      <?= $i ?>
     </a>
     <?php endfor; ?>
   </div>
 </div>
-</div>
 <?php endif; ?>
 
 <!-- ══ DETAIL MODAL ════════════════════════════════════════ -->
-<div style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999;align-items:center;justify-content:center;padding:1rem" id="crModal" onclick="if(event.target===this)closeModal()">
-  <div style="background:#fff;width:100%;max-width:640px;border-radius:2px;overflow:hidden" style="max-width:640px">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid #e5e7eb">
-      <span style="font-size:.9rem;font-weight:600" id="crModalTitle">Request Detail</span>
-      <button style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#9ca3af" onclick="closeModal()">✕</button>
+<div id="crModal" class="admin-modal-overlay">
+  <div class="admin-modal">
+    <div class="admin-modal-header">
+      <span class="admin-modal-title" id="crModalTitle">Request Detail</span>
+      <button onclick="closeModal()" class="admin-icon-btn admin-modal-close"><?= \App\Helpers\AdminIcon::render('close', 18) ?></button>
     </div>
     <div id="crModalBody" style="overflow-y:auto;max-height:70vh"></div>
-    <div style="padding:1rem 1.5rem;border-top:1px solid #e5e7eb;display:flex;gap:.5rem;flex-wrap:wrap" id="crModalActions"></div>
+    <div class="admin-modal-footer" id="crModalActions"></div>
   </div>
 </div>
 
-<div id="toastContainer" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem;pointer-events:none"></div>
+<div id="toastContainer" class="toast-container"></div>
 
 <script>
 /* ── Status update ──────────────────────────────────────── */
@@ -262,8 +266,8 @@ async function updateStatus(id, newStatus) {
   try {
     var res  = await fetch('custom_requests.php', { method:'POST', body:fd });
     var data = await res.json();
-    toast(data.success ? 'Status updated ✓' : 'Update failed', data.success);
-  } catch(e) { toast('Network error', false); }
+    toast(data.success ? 'Status updated' : 'Update failed', data.success ? 'ok' : 'err');
+  } catch(e) { toast('Network error', 'err'); }
 }
 
 /* ── View request modal ─────────────────────────────────── */
@@ -284,7 +288,7 @@ function viewRequest(r) {
 
   function row(label, val) {
     if (!val || val === 'null' || val === '—' || val === '') return '';
-    return '<div style="display:grid;grid-template-columns:130px 1fr;gap:.5rem;padding:.55rem 1.5rem;border-bottom:1px solid #f3f4f6;font-size:.85rem"><span style="font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;padding-top:.15rem">' + label + '</span><span>' + val + '</span></div>';
+    return '<div class="detail-row"><span class="detail-label">' + label + '</span><span>' + val + '</span></div>';
   }
 
   var adults   = parseInt(r.adults)   || 0;
@@ -314,24 +318,23 @@ function viewRequest(r) {
   // Action buttons
   var actions = '<a href="quotation_new.php?from_request=' + r.id + '" class="admin-btn admin-btn--primary">+ Create Quotation</a>';
   if (r.email) actions += ' <a href="mailto:'+r.email+'?subject=Your+Custom+Safari+—+Safari+Zangu+Ventures" class="admin-btn admin-btn--outline">Email Client</a>';
-  if (r.phone) actions += ' <a href="https://wa.me/'+r.phone.replace(/[^0-9]/g,'')+'" target="_blank" class="admin-btn" style="background:#25D366;color:#fff;border-color:#25D366">WhatsApp</a>';
+  if (r.phone) actions += ' <a href="https://wa.me/'+r.phone.replace(/[^0-9]/g,'')+'" target="_blank" class="admin-btn admin-btn--success" style="background:#25D366;border-color:#25D366">WhatsApp</a>';
   document.getElementById('crModalActions').innerHTML = actions;
 
-  document.getElementById('crModal').style.display='flex';
+  document.getElementById('crModal').classList.add('open');
 }
 
 function closeModal() {
-  document.getElementById('crModal').style.display='none';
+  document.getElementById('crModal').classList.remove('open');
 }
+document.getElementById('crModal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
 document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeModal(); });
 
 /* ── Toast ──────────────────────────────────────────────── */
-function toast(msg, ok) {
-  ok = ok === undefined ? true : ok;
+function toast(msg, type) {
   var t = document.createElement('div');
-  t.style.cssText='background:#0a0a0a;color:#fff;padding:.65rem 1.1rem;font-size:.78rem;min-width:180px;pointer-events:auto';
+  t.className = 'toast' + (type==='ok' ? ' toast--ok' : type==='err' ? ' toast--err' : '');
   t.textContent = msg;
-  if (!ok) t.style.background='#dc2626';
   document.getElementById('toastContainer').appendChild(t);
   setTimeout(function(){ t.remove(); }, 3000);
 }

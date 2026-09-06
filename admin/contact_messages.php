@@ -52,7 +52,7 @@ ob_start();
   <?php if($unread > 0): ?>
   <form method="POST" style="display:inline">
     <input type="hidden" name="action" value="mark_all_read">
-    <button class="admin-btn admin-btn--outline" style="font-size:.72rem">✓ Mark All Read</button>
+    <button class="admin-btn admin-btn--outline" style="font-size:.72rem"><?= \App\Helpers\AdminIcon::render('check', 12) ?> Mark All Read</button>
   </form>
   <?php endif; ?>
 </div>
@@ -60,35 +60,35 @@ ob_start();
 <!-- Messages list -->
 <div class="admin-cards-stack">
 <?php foreach($msgs as $m): ?>
-<div style="border:1.5px solid <?= !$m['is_read']?'#fcd34d':'#e5e7eb' ?>;background:<?= !$m['is_read']?'#fffbeb':'#fff' ?>;padding:1.25rem 1.5rem">
+<div style="border:1.5px solid <?= !$m['is_read']?'#fcd34d':'var(--gray-200)' ?>;background:<?= !$m['is_read']?'#fffbeb':'var(--white)' ?>;padding:1.25rem 1.5rem">
   <div style="display:flex;align-items:start;justify-content:space-between;gap:1rem;flex-wrap:wrap">
     <div style="flex:1;min-width:0">
       <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.35rem">
         <?php if(!$m['is_read']): ?>
-        <span style="font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:#dc2626;color:#fff;padding:.15rem .45rem">UNREAD</span>
+        <span class="badge-status badge-status--red">Unread</span>
         <?php else: ?>
-        <span style="font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af">Read</span>
+        <span class="badge-status badge-status--gray">Read</span>
         <?php endif; ?>
-        <span style="font-size:.72rem;color:#9ca3af"><?= date('d M Y H:i', strtotime($m['created_at'])) ?></span>
+        <span style="font-size:.72rem;color:var(--gray-500)"><?= date('d M Y H:i', strtotime($m['created_at'])) ?></span>
       </div>
       <!-- Name + contact -->
       <div style="font-weight:700;font-size:.95rem;margin-bottom:.2rem"><?= htmlspecialchars($m['full_name']) ?></div>
-      <div style="font-size:.8rem;color:#6b7280;margin-bottom:.5rem">
+      <div style="font-size:.8rem;color:var(--gray-500);margin-bottom:.5rem">
         <a href="mailto:<?= htmlspecialchars($m['email']) ?>" style="color:inherit"><?= htmlspecialchars($m['email']) ?></a>
         <?php if(!empty($m['phone'])): ?> · <a href="https://wa.me/<?= preg_replace('/[^0-9]/','',$m['phone']) ?>" target="_blank" style="color:inherit"><?= htmlspecialchars($m['phone']) ?></a><?php endif; ?>
         <?php if(!empty($m['country'])): ?> · <?= htmlspecialchars($m['country']) ?><?php endif; ?>
       </div>
       <!-- Subject -->
       <?php if(!empty($m['subject'])): ?>
-      <div style="font-size:.8rem;font-weight:600;color:#374151;margin-bottom:.5rem">Re: <?= htmlspecialchars($m['subject']) ?></div>
+      <div style="font-size:.8rem;font-weight:600;color:var(--gray-700);margin-bottom:.5rem">Re: <?= htmlspecialchars($m['subject']) ?></div>
       <?php endif; ?>
       <!-- Full message -->
-      <div class="msg-body" style="font-size:.85rem;line-height:1.8;color:#0a0a0a;white-space:pre-wrap;background:#f9f9f8;padding:1rem 1.25rem;border-left:3px solid <?= !$m['is_read']?'#c8963e':'#e5e7eb' ?>;max-height:200px;overflow:hidden;transition:max-height .3s ease;position:relative">
+      <div class="msg-body" style="font-size:.85rem;line-height:1.8;color:var(--black);white-space:pre-wrap;background:var(--gray-50);padding:1rem 1.25rem;border-left:3px solid <?= !$m['is_read']?'var(--gold)':'var(--gray-200)' ?>;max-height:200px;overflow:hidden;transition:max-height .3s ease;position:relative">
         <?= nl2br(htmlspecialchars($m['message'])) ?>
-        <div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,#f9f9f8);pointer-events:none;transition:opacity .3s" class="msg-fade"></div>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,var(--gray-50));pointer-events:none;transition:opacity .3s" class="msg-fade"></div>
       </div>
       <button onclick="var b=this.previousElementSibling;var f=b.querySelector('.msg-fade');if(b.style.maxHeight==='none'){b.style.maxHeight='200px';f.style.opacity='1';this.textContent='▼ Read more';}else{b.style.maxHeight='none';f.style.opacity='0';this.textContent='▲ Show less';}"
-              style="font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:none;border:none;color:#c8963e;cursor:pointer;padding:.25rem 0;margin-bottom:.5rem">
+              style="font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:none;border:none;color:var(--gold);cursor:pointer;padding:.25rem 0;margin-bottom:.5rem">
         ▼ Read more
       </button>
     </div>
@@ -104,7 +104,7 @@ ob_start();
       <form method="POST" style="display:contents">
         <input type="hidden" name="action" value="mark_read">
         <input type="hidden" name="id" value="<?= $m['id'] ?>">
-        <button class="admin-btn admin-btn--outline" style="font-size:.65rem">✓ Mark Read</button>
+        <button class="admin-btn admin-btn--outline" style="font-size:.65rem"><?= \App\Helpers\AdminIcon::render('check', 12) ?> Mark Read</button>
       </form>
       <?php else: ?>
       <form method="POST" style="display:contents">
@@ -123,8 +123,8 @@ ob_start();
 </div>
 <?php endforeach; ?>
 <?php if(empty($msgs)): ?>
-<div style="text-align:center;padding:3rem;color:#9ca3af">
-  <div style="font-size:2rem;margin-bottom:.5rem;opacity:.3">✉</div>
+<div style="text-align:center;padding:3rem;color:var(--gray-500)">
+  <div style="margin-bottom:.5rem;opacity:.3"><?= \App\Helpers\AdminIcon::render('messages', 32) ?></div>
   <p style="font-size:.85rem">No <?= $filter !== 'all' ? $filter : '' ?> messages.</p>
 </div>
 <?php endif; ?>

@@ -47,15 +47,16 @@ if (is_dir($imgRoot)) {
 
 $activeFolder = $_GET['folder'] ?? (array_key_first($folders) ?: 'downloaded');
 $activeFolder = preg_replace('/[^a-zA-Z0-9_\-\/]/', '', $activeFolder);
+$trashIconJs = json_encode(\App\Helpers\AdminIcon::render('trash', 12));
 
 ob_start();
 ?>
 <style>
 .gallery-layout { display:grid; grid-template-columns:220px 1fr; gap:0; min-height:70vh; }
 .gallery-sidebar {
-  border-right:1px solid #e5e7eb;
+  border-right:1px solid var(--gray-200);
   padding:1rem 0;
-  background:#fafafa;
+  background:var(--gray-50);
   overflow-y:auto;
   max-height:80vh;
   position:sticky;
@@ -69,18 +70,18 @@ ob_start();
   font-size:.72rem;
   font-weight:600;
   text-decoration:none;
-  color:#374151;
+  color:var(--gray-700);
   border-left:3px solid transparent;
   transition:all .15s;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
-.gallery-sidebar a:hover { background:#f3f4f6; color:#0a0a0a; }
+.gallery-sidebar a:hover { background:var(--gray-100); color:var(--black); }
 .gallery-sidebar a.active {
-  background:#0a0a0a;
-  color:#fff;
-  border-left-color:#c8963e;
+  background:var(--black);
+  color:var(--white);
+  border-left-color:var(--gold);
 }
 .gallery-sidebar span.count {
   font-size:.6rem;
@@ -96,18 +97,18 @@ ob_start();
   gap:1rem;
 }
 .img-card {
-  border:1.5px solid #e5e7eb;
-  background:#fff;
+  border:1.5px solid var(--gray-200);
+  background:var(--white);
   position:relative;
   overflow:hidden;
   transition:border-color .15s, box-shadow .15s;
 }
-.img-card:hover { border-color:#c8963e; box-shadow:0 4px 16px rgba(0,0,0,.08); }
-.img-card.is-hero { border-color:#c8963e; border-width:2px; }
+.img-card:hover { border-color:var(--gold); box-shadow:0 4px 16px rgba(0,0,0,.08); }
+.img-card.is-hero { border-color:var(--gold); border-width:2px; }
 .img-thumb {
   aspect-ratio:4/3;
   overflow:hidden;
-  background:#f3f4f6;
+  background:var(--gray-100);
   cursor:pointer;
 }
 .img-thumb img {
@@ -123,15 +124,15 @@ ob_start();
   grid-template-columns:1fr auto auto;
   gap:4px;
   padding:6px;
-  border-top:1px solid #f3f4f6;
+  border-top:1px solid var(--gray-100);
 }
 .btn-preview {
   padding:.35rem .5rem;
   font-size:.6rem;
   font-weight:600;
   letter-spacing:.06em;
-  border:1px solid #e5e7eb;
-  background:#fff;
+  border:1px solid var(--gray-200);
+  background:var(--white);
   cursor:pointer;
   text-align:center;
   transition:all .15s;
@@ -139,7 +140,7 @@ ob_start();
   overflow:hidden;
   text-overflow:ellipsis;
 }
-.btn-preview:hover { background:#f3f4f6; }
+.btn-preview:hover { background:var(--gray-100); }
 .btn-hero {
   padding:.35rem .5rem;
   font-size:.65rem;
@@ -151,24 +152,24 @@ ob_start();
   transition:all .15s;
   white-space:nowrap;
 }
-.btn-hero:hover { background:#c8963e; border-color:#c8963e; color:#fff; }
-.btn-hero.active-hero { background:#c8963e; border-color:#c8963e; color:#fff; }
+.btn-hero:hover { background:var(--gold); border-color:var(--gold); color:var(--white); }
+.btn-hero.active-hero { background:var(--gold); border-color:var(--gold); color:var(--white); }
 .btn-delete {
   padding:.35rem .5rem;
   font-size:.65rem;
   border:1.5px solid #fee2e2;
-  background:#fef2f2;
-  color:#dc2626;
+  background:var(--red-light);
+  color:var(--red);
   cursor:pointer;
   transition:all .15s;
 }
-.btn-delete:hover { background:#dc2626; color:#fff; }
+.btn-delete:hover { background:var(--red); color:var(--white); }
 .hero-badge {
   position:absolute;
   top:6px;
   left:6px;
-  background:#c8963e;
-  color:#fff;
+  background:var(--gold);
+  color:var(--white);
   font-size:.5rem;
   font-weight:700;
   letter-spacing:.12em;
@@ -183,15 +184,15 @@ ob_start();
   text-align:center;
   cursor:pointer;
   transition:all .2s;
-  background:#fafafa;
+  background:var(--gray-50);
   margin-bottom:1.25rem;
 }
 .upload-zone:hover, .upload-zone.drag-over {
-  border-color:#c8963e;
+  border-color:var(--gold);
   background:#fffbeb;
 }
 .upload-progress-bar {
-  background:#f3f4f6;
+  background:var(--gray-100);
   height:4px;
   border-radius:2px;
   margin-top:.75rem;
@@ -199,22 +200,16 @@ ob_start();
   display:none;
 }
 .upload-progress-fill {
-  background:#c8963e;
+  background:var(--gold);
   height:4px;
   width:0;
   transition:width .3s;
 }
-#preview-modal {
-  display:none;
-  position:fixed;
-  inset:0;
+#preview-modal.admin-modal-overlay {
   background:rgba(0,0,0,.92);
   z-index:9999;
-  align-items:center;
-  justify-content:center;
   padding:2rem;
 }
-#preview-modal.open { display:flex; }
 #preview-modal img {
   max-width:90vw;
   max-height:85vh;
@@ -227,12 +222,11 @@ ob_start();
   right:1.25rem;
   background:rgba(255,255,255,.15);
   border:none;
-  color:#fff;
+  color:var(--white);
   width:36px;
   height:36px;
   border-radius:50%;
   cursor:pointer;
-  font-size:1.1rem;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -250,15 +244,15 @@ ob_start();
   padding:.75rem 1.1rem;
   font-size:.78rem;
   font-weight:600;
-  color:#fff;
+  color:var(--white);
   border-radius:2px;
   box-shadow:0 4px 16px rgba(0,0,0,.2);
   animation:toast-in .2s ease;
 }
 @keyframes toast-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
 .toast.ok  { background:#166534; }
-.toast.err { background:#dc2626; }
-.toast.inf { background:#1d4ed8; }
+.toast.err { background:var(--red); }
+.toast.inf { background:var(--blue); }
 .gallery-header {
   display:flex;
   align-items:center;
@@ -269,7 +263,7 @@ ob_start();
 }
 .gallery-count {
   font-size:.72rem;
-  color:#6b7280;
+  color:var(--gray-500);
   font-weight:500;
 }
 </style>
@@ -278,7 +272,7 @@ ob_start();
 
   <!-- Sidebar: folder tree -->
   <div class="gallery-sidebar">
-    <div style="padding:.5rem 1.1rem;font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;border-bottom:1px solid #e5e7eb;margin-bottom:.5rem;padding-bottom:.75rem">
+    <div style="padding:.5rem 1.1rem;font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--gray-500);border-bottom:1px solid var(--gray-200);margin-bottom:.5rem;padding-bottom:.75rem">
       Image Folders
     </div>
     <?php foreach ($folders as $folder => $imgs): ?>
@@ -289,7 +283,7 @@ ob_start();
     </a>
     <?php endforeach; ?>
     <?php if (empty($folders)): ?>
-    <p style="padding:1rem;font-size:.72rem;color:#9ca3af">No image folders found</p>
+    <p style="padding:1rem;font-size:.72rem;color:var(--gray-500)">No image folders found</p>
     <?php endif; ?>
   </div>
 
@@ -301,11 +295,11 @@ ob_start();
          onclick="document.getElementById('file-input').click()">
       <input type="file" id="file-input" multiple accept="image/*"
              style="display:none" onchange="uploadFiles(this.files)">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" style="margin:0 auto .5rem;display:block">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gray-500)" stroke-width="1.5" style="margin:0 auto .5rem;display:block">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
         <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
       </svg>
-      <p style="font-size:.72rem;color:#6b7280;margin:0">
+      <p style="font-size:.72rem;color:var(--gray-500);margin:0">
         Drop images here or <strong>click to upload</strong> into <em><?= htmlspecialchars($activeFolder) ?>/</em>
       </p>
       <div class="upload-progress-bar" id="upload-bar-wrap">
@@ -316,7 +310,7 @@ ob_start();
     <!-- Header -->
     <div class="gallery-header">
       <div>
-        <div style="font-size:.6rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;margin-bottom:.2rem">
+        <div style="font-size:.6rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--gray-500);margin-bottom:.2rem">
           Current folder
         </div>
         <div style="font-family:var(--font-display,Georgia),serif;font-size:1.1rem">
@@ -350,7 +344,7 @@ ob_start();
                loading="lazy">
         </div>
 
-        <div style="padding:5px 6px;font-size:.55rem;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid #f3f4f6">
+        <div style="padding:5px 6px;font-size:.55rem;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid var(--gray-100)">
           <?= htmlspecialchars($img) ?>
         </div>
 
@@ -368,14 +362,14 @@ ob_start();
           <button class="btn-delete"
                   onclick="deleteImage('<?= htmlspecialchars($imgUrl) ?>', this)"
                   title="Delete image">
-            ✕
+            <?= \App\Helpers\AdminIcon::render('trash', 12) ?>
           </button>
         </div>
       </div>
       <?php endforeach; ?>
 
       <?php if (empty($activeImgs)): ?>
-      <div style="grid-column:1/-1;text-align:center;padding:3rem;color:#9ca3af;font-size:.85rem">
+      <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--gray-500);font-size:.85rem">
         No images in this folder. Upload some above.
       </div>
       <?php endif; ?>
@@ -385,8 +379,8 @@ ob_start();
 </div><!-- /.gallery-layout -->
 
 <!-- Preview modal -->
-<div id="preview-modal">
-  <button id="preview-modal-close" onclick="closePreview()">✕</button>
+<div id="preview-modal" class="admin-modal-overlay">
+  <button id="preview-modal-close" onclick="closePreview()"><?= \App\Helpers\AdminIcon::render('close', 18) ?></button>
   <img id="preview-img" src="" alt="Preview">
 </div>
 
@@ -583,11 +577,11 @@ function addImageCard(url, filename) {
     '<div class="img-thumb" onclick="previewImage(\''+url+'\')">'+
       '<img src="'+url+'" alt="'+filename+'" loading="lazy">'+
     '</div>'+
-    '<div style="padding:5px 6px;font-size:.55rem;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid #f3f4f6">'+filename+'</div>'+
+    '<div style="padding:5px 6px;font-size:.55rem;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid var(--gray-100)">'+filename+'</div>'+
     '<div class="img-actions">'+
       '<button class="btn-preview" onclick="previewImage(\''+url+'\')">Preview</button>'+
       '<button class="btn-hero'+(isHero?' active-hero':'')+'" onclick="setHeroImage(\''+url+'\',this)" title="Set hero">⌂</button>'+
-      '<button class="btn-delete" onclick="deleteImage(\''+url+'\',this)" title="Delete">✕</button>'+
+      '<button class="btn-delete" onclick="deleteImage(\''+url+'\',this)" title="Delete">'+<?= $trashIconJs ?>+'</button>'+
     '</div>';
   grid.appendChild(div);
   // Update count

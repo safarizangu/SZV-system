@@ -56,14 +56,14 @@ ob_start();
 ?>
 <style>
 .tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;margin-bottom:2rem}
-.tpl-card{border:1.5px solid #e5e7eb;background:#fff;padding:1.1rem;position:relative}
-.tpl-card.custom-override{border-color:#c8963e;background:#fffbeb}
-.tpl-badge{position:absolute;top:.65rem;right:.65rem;font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.15rem .4rem;background:#c8963e;color:#fff}
-.tpl-key{font-size:.6rem;font-family:monospace;color:#9ca3af;margin-bottom:.35rem}
+.tpl-card{border:1.5px solid var(--gray-200);background:var(--white);padding:1.1rem;position:relative}
+.tpl-card.custom-override{border-color:var(--gold);background:#fffbeb}
+.tpl-badge{position:absolute;top:.65rem;right:.65rem;font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.15rem .4rem;background:var(--gold);color:var(--white)}
+.tpl-key{font-size:.6rem;font-family:monospace;color:var(--gray-500);margin-bottom:.35rem}
 .tpl-label{font-weight:700;font-size:.9rem;margin-bottom:.2rem}
-.tpl-meta{font-size:.72rem;color:#6b7280;margin-bottom:.75rem}
+.tpl-meta{font-size:.72rem;color:var(--gray-500);margin-bottom:.75rem}
 .tpl-actions{display:flex;gap:.4rem}
-#editor-area{background:#f9f9f8;border:1.5px solid #e5e7eb;padding:1.5rem;margin-bottom:1.5rem}
+#editor-area{background:var(--gray-50);border:1.5px solid var(--gray-200);padding:1.5rem;margin-bottom:1.5rem}
 </style>
 
 <?php if ($saveMsg): ?>
@@ -79,7 +79,7 @@ ob_start();
     <h3 style="font-family:var(--font-disp)">
       Editing: <?= htmlspecialchars($editKey) ?>
       <?php if (isset($customTemplates[$editKey])): ?>
-      <span style="font-size:.65rem;font-weight:400;color:#c8963e"> ★ Custom override active</span>
+      <span style="font-size:.65rem;font-weight:400;color:var(--gold)"> ★ Custom override active</span>
       <?php endif; ?>
     </h3>
     <a href="email_templates.php" class="admin-btn admin-btn--outline">← Back to Templates</a>
@@ -93,23 +93,23 @@ ob_start();
         <label class="admin-label">Subject Line *</label>
         <input class="admin-input" name="subject" required
                value="<?= htmlspecialchars($editData['subject'] ?? 'Safari Zangu — '.ucwords(str_replace('_',' ',$editKey))) ?>">
-        <small style="font-size:.65rem;color:#9ca3af">Use {client_name}, {booking_ref}, {package_name} etc as placeholders</small>
+        <small style="font-size:.65rem;color:var(--gray-500)">Use {client_name}, {booking_ref}, {package_name} etc as placeholders</small>
       </div>
 
       <div style="margin-bottom:1rem">
         <label class="admin-label">Email Body (HTML)</label>
-        <div style="border:1.5px solid #e5e7eb;border-bottom:none;background:#f3f4f6;padding:.4rem .65rem;font-size:.65rem;color:#6b7280;display:flex;gap:.5rem;flex-wrap:wrap">
+        <div style="border:1.5px solid var(--gray-200);border-bottom:none;background:var(--gray-100);padding:.4rem .65rem;font-size:.65rem;color:var(--gray-500);display:flex;gap:.5rem;flex-wrap:wrap">
           <?php foreach(['<b>Bold</b>','<i>Italic</i>','<br>','<p>','</p>','<strong>','</strong>',
                           '{client_name}','{booking_ref}','{package_name}','{travel_date}','{total_amount}',
                           '{deposit_amount}','{agent_name}','{commission_amount}'] as $snip): ?>
           <button type="button" onclick="insertSnippet('<?= htmlspecialchars($snip,ENT_QUOTES) ?>')"
-                  style="background:#fff;border:1px solid #e5e7eb;padding:.15rem .4rem;font-family:monospace;font-size:.62rem;cursor:pointer">
+                  style="background:var(--white);border:1px solid var(--gray-200);padding:.15rem .4rem;font-family:monospace;font-size:.62rem;cursor:pointer">
             <?= htmlspecialchars($snip) ?>
           </button>
           <?php endforeach; ?>
         </div>
         <textarea name="body_html" id="body_html" rows="18"
-                  style="width:100%;font-family:monospace;font-size:.8rem;line-height:1.6;padding:.75rem;border:1.5px solid #e5e7eb;resize:vertical"
+                  style="width:100%;font-family:monospace;font-size:.8rem;line-height:1.6;padding:.75rem;border:1.5px solid var(--gray-200);resize:vertical"
         ><?= htmlspecialchars($editData['body_html'] ?? '<p>Hello {client_name},</p>
 <p>Thank you for choosing Safari Zangu Ventures.</p>
 <p>Best regards,<br>The Safari Zangu Team</p>') ?></textarea>
@@ -124,7 +124,7 @@ ob_start();
             <input type="checkbox" id="mobile-preview" onchange="toggleMobile(this.checked)"> Mobile view
           </label>
         </div>
-        <div id="preview-wrap" style="border:1.5px solid #e5e7eb;transition:width .3s">
+        <div id="preview-wrap" style="border:1.5px solid var(--gray-200);transition:width .3s">
           <iframe id="preview-frame" style="width:100%;height:400px;border:none"></iframe>
         </div>
       </div>
@@ -176,7 +176,7 @@ document.getElementById('body_html').addEventListener('input', updatePreview);
 <!-- ── Template Grid ──────────────────────────────────────── -->
 <div class="admin-card-header">
   <h2 style="font-family:var(--font-disp);font-size:1.05rem">Email Templates</h2>
-  <span style="font-size:.72rem;color:#6b7280"><?= count($customTemplates) ?> custom override<?= count($customTemplates)!==1?'s':'' ?> active</span>
+  <span style="font-size:.72rem;color:var(--gray-500)"><?= count($customTemplates) ?> custom override<?= count($customTemplates)!==1?'s':'' ?> active</span>
 </div>
 
 <div style="background:#fffbeb;border:1.5px solid #fde68a;padding:.85rem 1rem;margin-bottom:1.25rem;font-size:.8rem;color:#92400e">
@@ -188,21 +188,22 @@ document.getElementById('body_html').addEventListener('input', updatePreview);
 <div class="tpl-grid">
   <?php foreach ($templates as $tpl):
     $isCustom = isset($customTemplates[$tpl['key']]);
-    $toColor  = $tpl['to']==='Guest' ? '#1d4ed8' : ($tpl['to']==='Agent' ? '#166534' : '#dc2626');
-    $toBg     = $tpl['to']==='Guest' ? '#eff6ff' : ($tpl['to']==='Agent' ? '#f0fdf4' : '#fef2f2');
+    // "Who this email goes to" pill — uses the shared badge-status palette
+    // instead of its own hand-rolled Guest/Agent/Admin color map.
+    $toBadge  = $tpl['to']==='Guest' ? 'blue' : ($tpl['to']==='Agent' ? 'green' : 'red');
   ?>
   <div class="tpl-card <?= $isCustom ? 'custom-override' : '' ?>">
     <?php if ($isCustom): ?><div class="tpl-badge">★ Custom</div><?php endif; ?>
     <div class="tpl-key"><?= htmlspecialchars($tpl['key']) ?></div>
     <div class="tpl-label"><?= htmlspecialchars($tpl['label']) ?></div>
     <div class="tpl-meta">
-      <span style="background:<?= $toBg ?>;color:<?= $toColor ?>;padding:.1rem .4rem;font-size:.6rem;font-weight:700">→ <?= $tpl['to'] ?></span>
+      <span class="badge-status badge-status--<?= $toBadge ?>">→ <?= $tpl['to'] ?></span>
       <span style="margin-left:.4rem;font-size:.68rem"><?= htmlspecialchars($tpl['trigger']) ?></span>
     </div>
     <div class="tpl-actions">
       <a href="?edit=<?= urlencode($tpl['key']) ?>" class="admin-btn admin-btn--primary" style="font-size:.65rem;padding:.35rem .7rem">Edit Template</a>
       <?php if ($isCustom): ?>
-      <span style="font-size:.65rem;color:#c8963e;display:flex;align-items:center">Custom active</span>
+      <span style="font-size:.65rem;color:var(--gold);display:flex;align-items:center">Custom active</span>
       <?php endif; ?>
     </div>
   </div>

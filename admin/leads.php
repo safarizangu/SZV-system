@@ -69,15 +69,18 @@ try { $rows = $db->query("SELECT * FROM leads ORDER BY created_at DESC")->fetchA
 catch(\Exception $e) {}
 
 $stages = ['lead','qualified','quoted','negotiation','booked','travelled','completed','lost'];
+// Stage→color map keyed to the shared .badge-status--* palette (same bg/text
+// values those classes use) so a pipeline stage reads the same as any other
+// status pill in the panel instead of inventing its own hues per page.
 $stageColors = [
-    'lead'        => ['bg'=>'#f3f4f6','text'=>'#374151'],
-    'qualified'   => ['bg'=>'#eff6ff','text'=>'#1d4ed8'],
-    'quoted'      => ['bg'=>'#fffbeb','text'=>'#92400e'],
-    'negotiation' => ['bg'=>'#faf5ff','text'=>'#7c3aed'],
-    'booked'      => ['bg'=>'#f0fdf4','text'=>'#166534'],
-    'travelled'   => ['bg'=>'#ecfeff','text'=>'#0e7490'],
-    'completed'   => ['bg'=>'#f0fdf4','text'=>'#15803d'],
-    'lost'        => ['bg'=>'#fef2f2','text'=>'#991b1b'],
+    'lead'        => ['bg'=>'var(--gray-100)',   'text'=>'var(--gray-700)', 'badge'=>'gray'],
+    'qualified'   => ['bg'=>'var(--blue-light)',  'text'=>'#1e40af',        'badge'=>'blue'],
+    'quoted'      => ['bg'=>'var(--amber-light)', 'text'=>'#92400e',        'badge'=>'amber'],
+    'negotiation' => ['bg'=>'var(--amber-light)', 'text'=>'#92400e',        'badge'=>'amber'],
+    'booked'      => ['bg'=>'var(--green-light)', 'text'=>'#166534',        'badge'=>'green'],
+    'travelled'   => ['bg'=>'var(--green-light)', 'text'=>'#166534',        'badge'=>'green'],
+    'completed'   => ['bg'=>'var(--black)',       'text'=>'var(--white)',   'badge'=>'dark'],
+    'lost'        => ['bg'=>'var(--red-light)',   'text'=>'#991b1b',        'badge'=>'red'],
 ];
 $stageCounts = array_fill_keys($stages, 0);
 foreach ($rows as $r) $stageCounts[$r['pipeline_stage']]++;
@@ -100,9 +103,9 @@ ob_start();
     <?php foreach($stages as $s):
       $sc = $stageColors[$s];
     ?>
-    <div style="background:<?= $sc['bg'] ?>;border:1.5px solid <?= $sc['text'] ?>22;padding:.35rem .85rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:<?= $sc['text'] ?>">
+    <span class="badge-status badge-status--<?= $sc['badge'] ?>" style="padding:.35rem .85rem">
       <?= ucfirst($s) ?> <span style="opacity:.7"><?= $stageCounts[$s] ?></span>
-    </div>
+    </span>
     <?php endforeach; ?>
   </div>
   <button onclick="openAddModal()"
@@ -136,7 +139,7 @@ ob_start();
       <td>
         <strong style="font-size:.85rem"><?= htmlspecialchars($r['full_name']) ?></strong>
         <?php if (!empty($r['source'])): ?>
-        <div style="font-size:.65rem;color:#9ca3af"><?= htmlspecialchars($r['source']) ?></div>
+        <div style="font-size:.65rem;color:var(--gray-500)"><?= htmlspecialchars($r['source']) ?></div>
         <?php endif; ?>
       </td>
       <td>
@@ -153,7 +156,7 @@ ob_start();
       <td style="font-size:.82rem"><?= htmlspecialchars($r['budget_range'] ?? '—') ?></td>
       <td>
         <select onchange="updateStage(<?= $r['id'] ?>, this.value, this)"
-                style="border:1.5px solid #e5e7eb;padding:.25rem .5rem;font-size:.7rem;background:<?= $sc['bg'] ?>;color:<?= $sc['text'] ?>;font-weight:700;max-width:120px;cursor:pointer">
+                style="border:1.5px solid var(--gray-200);padding:.25rem .5rem;font-size:.7rem;background:<?= $sc['bg'] ?>;color:<?= $sc['text'] ?>;font-weight:700;max-width:120px;cursor:pointer">
           <?php foreach ($stages as $s): ?>
           <option value="<?= $s ?>" <?= $r['pipeline_stage']===$s?'selected':'' ?>><?= ucfirst($s) ?></option>
           <?php endforeach; ?>
@@ -161,16 +164,16 @@ ob_start();
       </td>
       <td style="white-space:nowrap">
         <a href="mailto:<?= htmlspecialchars($r['email']) ?>"
-           class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .55rem">✉</a>
+           class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .55rem"><?= \App\Helpers\AdminIcon::render('messages', 12) ?></a>
         <a href="https://wa.me/<?= preg_replace('/[^0-9]/','',($r['phone']??'')) ?>?text=<?= urlencode('Hi '.$r['full_name'].',') ?>"
            target="_blank"
            class="admin-btn admin-btn--success" style="font-size:.65rem;padding:.3rem .55rem">WA</a>
         <?php if (!empty($r['email'])): ?>
         <a href="../admin/quotation_new.php?from_lead=<?= $r['id'] ?>"
-           class="admin-btn" style="font-size:.65rem;padding:.3rem .55rem;background:#eff6ff;border-color:#93c5fd;color:#1d4ed8">Quote</a>
+           class="admin-btn admin-btn--tint-blue" style="font-size:.65rem;padding:.3rem .55rem">Quote</a>
         <?php endif; ?>
         <button onclick="deleteLead(<?= $r['id'] ?>)"
-                class="admin-btn admin-btn--danger" style="font-size:.65rem;padding:.3rem .55rem">✕</button>
+                class="admin-btn admin-btn--danger" style="font-size:.65rem;padding:.3rem .55rem"><?= \App\Helpers\AdminIcon::render('trash', 12) ?></button>
       </td>
     </tr>
     <?php endforeach; ?>
@@ -182,14 +185,13 @@ ob_start();
 </div>
 
 <!-- ── Add Lead Modal ──────────────────────────────────────── -->
-<div id="addLeadModal"
-     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999;align-items:center;justify-content:center;padding:1rem">
-  <div style="background:#fff;width:100%;max-width:580px;max-height:92vh;overflow-y:auto;border-radius:2px">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid #e5e7eb;position:sticky;top:0;background:#fff;z-index:1">
-      <span style="font-size:.95rem;font-weight:600">Add New Lead</span>
-      <button onclick="closeAddModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#9ca3af">✕</button>
+<div id="addLeadModal" class="admin-modal-overlay">
+  <div class="admin-modal">
+    <div class="admin-modal-header" style="position:sticky;top:0;background:var(--white);z-index:1">
+      <span class="admin-modal-title">Add New Lead</span>
+      <button onclick="closeAddModal()" class="admin-icon-btn admin-modal-close"><?= \App\Helpers\AdminIcon::render('close', 18) ?></button>
     </div>
-    <div style="padding:1.25rem 1.5rem">
+    <div class="admin-modal-body">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:.85rem">
         <div>
           <label class="admin-label">Full Name *</label>
@@ -212,7 +214,7 @@ ob_start();
           <input id="lf-travel-date" type="date" class="admin-input"
                  min="<?= date('Y-m-d') ?>"
                  style="font-family:monospace">
-          <small style="font-size:.65rem;color:#9ca3af">dd/mm/yyyy — shown as date to client</small>
+          <small style="font-size:.65rem;color:var(--gray-500)">dd/mm/yyyy — shown as date to client</small>
         </div>
         <div>
           <label class="admin-label">Party Size (Adults)</label>
@@ -274,23 +276,23 @@ ob_start();
       <div style="display:flex;gap:.5rem">
         <button onclick="submitAddLead()" class="admin-btn admin-btn--primary">Save Lead</button>
         <button onclick="closeAddModal()" class="admin-btn admin-btn--outline">Cancel</button>
-        <span id="lf-status" style="font-size:.78rem;color:#6b7280;display:flex;align-items:center;margin-left:.5rem"></span>
+        <span id="lf-status" style="font-size:.78rem;color:var(--gray-500);display:flex;align-items:center;margin-left:.5rem"></span>
       </div>
     </div>
   </div>
 </div>
 
-<div id="toastContainer" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem"></div>
+<div id="toastContainer" class="toast-container"></div>
 
 <script>
 var STAGE_COLORS = <?= json_encode($stageColors) ?>;
 
 function openAddModal() {
-    document.getElementById('addLeadModal').style.display = 'flex';
+    document.getElementById('addLeadModal').classList.add('open');
     document.getElementById('lf-name').focus();
 }
 function closeAddModal() {
-    document.getElementById('addLeadModal').style.display = 'none';
+    document.getElementById('addLeadModal').classList.remove('open');
     ['lf-name','lf-email','lf-phone','lf-country','lf-notes'].forEach(function(id){
         var el = document.getElementById(id); if(el) el.value='';
     });
@@ -308,9 +310,9 @@ async function submitAddLead() {
     var status = document.getElementById('lf-status');
     var name   = document.getElementById('lf-name').value.trim();
     var email  = document.getElementById('lf-email').value.trim();
-    if (!name || !email) { status.textContent='Name and email required.'; status.style.color='#dc2626'; return; }
+    if (!name || !email) { status.textContent='Name and email required.'; status.style.color='var(--red)'; return; }
 
-    status.textContent = 'Saving…'; status.style.color='#6b7280';
+    status.textContent = 'Saving…'; status.style.color='var(--gray-500)';
     var fd = new FormData();
     fd.append('action',           'add_lead');
     fd.append('full_name',        name);
@@ -329,15 +331,15 @@ async function submitAddLead() {
         var r = await fetch('leads.php', {method:'POST', body:fd});
         var d = await r.json();
         if (d.success) {
-            toast('Lead added ✓', 'ok');
+            toast('Lead added', 'ok');
             closeAddModal();
             setTimeout(function(){ window.location.reload(); }, 800);
         } else {
             status.textContent = d.message || 'Error saving lead.';
-            status.style.color = '#dc2626';
+            status.style.color = 'var(--red)';
         }
     } catch(e) {
-        status.textContent = 'Network error.'; status.style.color='#dc2626';
+        status.textContent = 'Network error.'; status.style.color='var(--red)';
     }
 }
 
@@ -350,7 +352,7 @@ async function updateStage(id, stage, sel) {
         var r = await fetch('leads.php',{method:'POST',body:fd});
         var d = await r.json();
         if (d.success) {
-            var sc = STAGE_COLORS[stage] || {bg:'#f3f4f6',text:'#374151'};
+            var sc = STAGE_COLORS[stage] || {bg:'var(--gray-100)',text:'var(--gray-700)'};
             sel.style.background = sc.bg; sel.style.color = sc.text;
             toast('Stage → '+stage,'ok');
         }
@@ -375,7 +377,7 @@ async function deleteLead(id) {
 
 function toast(msg, type) {
     var t = document.createElement('div');
-    t.style.cssText='background:'+(type==='ok'?'#166534':'#991b1b')+';color:#fff;padding:.65rem 1.1rem;font-size:.8rem;min-width:160px;box-shadow:0 4px 16px rgba(0,0,0,.2);border-radius:2px';
+    t.className = 'toast' + (type==='ok' ? ' toast--ok' : type==='err' ? ' toast--err' : '');
     t.textContent = msg;
     document.getElementById('toastContainer').appendChild(t);
     setTimeout(function(){ t.remove(); }, 3200);

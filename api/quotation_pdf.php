@@ -32,20 +32,27 @@ $destinations = json_decode($q['destinations']  ?? '[]', true) ?: [];
 
 // Load the FULL itinerary (days + overview + includes/excludes) so the
 // Quotation PDF is one combined document, not split across two files.
+//
+// Priority matches what admin/quotation_new.php's save handler actually
+// priced the quotation with: its own itinerary/includes/excludes
+// columns always win when present, because the Day-by-Day Itinerary
+// editor stays editable even when itinerary_id is set (unlike
+// admin/package_edit.php) — pricing is always computed from exactly
+// what's in those columns, never re-fetched live from itineraries.days.
+// itinerary_id is only a fallback for older quotations saved before
+// this snapshot existed; package_name is a last-resort legacy fallback
+// for quotations older still.
 $itinDays     = [];
 $itinOverview = '';
 $itinIncludes = [];
 $itinExcludes = [];
 try {
     $itinRow = null;
-    if (!empty($q['package_name'])) {
-        $ps = $db->prepare("SELECT i.* FROM packages p
-                            JOIN itineraries i ON i.id = p.itinerary_id
-                            WHERE p.name = ? AND p.is_active = 1 LIMIT 1");
-        $ps->execute([$q['package_name']]);
-        $itinRow = $ps->fetch() ?: null;
-    }
-    if (!$itinRow && !empty($q['itinerary_id'])) {
+    if (!empty($q['itinerary'])) {
+        $itinDays     = json_decode($q['itinerary'], true) ?: [];
+        $itinIncludes = json_decode($q['includes']  ?? '[]', true) ?: [];
+        $itinExcludes = json_decode($q['excludes']  ?? '[]', true) ?: [];
+    } elseif (!empty($q['itinerary_id'])) {
         $is = $db->prepare("SELECT * FROM itineraries WHERE id=? LIMIT 1");
         $is->execute([$q['itinerary_id']]);
         $itinRow = $is->fetch() ?: null;
@@ -55,6 +62,20 @@ try {
         $itinOverview = $itinRow['overview'] ?? '';
         $itinIncludes = json_decode($itinRow['includes'] ?? '[]', true) ?: [];
         $itinExcludes = json_decode($itinRow['excludes'] ?? '[]', true) ?: [];
+    } elseif (empty($itinDays) && !empty($q['package_name'])) {
+        // Legacy fallback: an older quotation with neither of the above,
+        // typed a package name that happens to still exist.
+        $ps = $db->prepare("SELECT i.* FROM packages p
+                            JOIN itineraries i ON i.id = p.itinerary_id
+                            WHERE p.name = ? AND p.is_active = 1 LIMIT 1");
+        $ps->execute([$q['package_name']]);
+        $itinRow = $ps->fetch() ?: null;
+        if ($itinRow) {
+            $itinDays     = json_decode($itinRow['days']     ?? '[]', true) ?: [];
+            $itinOverview = $itinRow['overview'] ?? '';
+            $itinIncludes = json_decode($itinRow['includes'] ?? '[]', true) ?: [];
+            $itinExcludes = json_decode($itinRow['excludes'] ?? '[]', true) ?: [];
+        }
     }
 } catch(Exception $e) { $itinDays = []; $itinOverview = ''; $itinIncludes = []; $itinExcludes = []; }
 $isDownload   = isset($_GET['download']);
