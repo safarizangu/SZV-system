@@ -58,5 +58,6 @@ if (!move_uploaded_file($file['tmp_name'], $dest)) {
     grespond(['success'=>false,'message'=>'Failed to save file.']);
 }
 
-$url = BASE_PATH . '/assets/images/' . $folder . '/' . $filename;
+// Root-relative, WITHOUT BASE_PATH — see api/gallery/list.php for why.
+$url = '/assets/images/' . $folder . '/' . $filename;
 grespond(['success'=>true, 'url'=>$url, 'filename'=>$filename, 'folder'=>$folder]);

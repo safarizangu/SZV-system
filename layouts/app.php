@@ -47,6 +47,20 @@ try {
     $_hs = $_db->prepare("SELECT value FROM settings WHERE `key`='hero_image' LIMIT 1");
     $_hs->execute();
     $_heroImg = $_hs->fetchColumn() ?: '';
+    // Stored value is root-relative (no BASE_PATH) — normalize away any
+    // stray prefix from before that fix, then add BASE_PATH back for
+    // the current environment. Done only when a value was actually
+    // found, so an empty result stays empty rather than becoming a
+    // bare, always-truthy BASE_PATH.
+    if ($_heroImg !== '') {
+        if (BASE_PATH !== '' && str_starts_with($_heroImg, BASE_PATH)) {
+            $_heroImg = substr($_heroImg, strlen(BASE_PATH));
+        }
+        if (str_starts_with($_heroImg, '/safari-zangu')) {
+            $_heroImg = substr($_heroImg, strlen('/safari-zangu'));
+        }
+        $_heroImg = BASE_PATH . $_heroImg;
+    }
 } catch(\Exception $_e) {}
 if ($_heroImg): ?>
 <link rel="preload" as="image"

@@ -5,8 +5,15 @@ AuthMiddleware::requireAdmin();
 $pageTitle = 'Gallery Manager';
 
 // ── Image root ────────────────────────────────────────────────
+// $imgRoot resolves an actual DISK path, so it correctly includes
+// BASE_PATH (local really does live under /safari-zangu on disk here).
+// $imgBase builds the STORED/compared image URL ($imgUrl below) and
+// deliberately does NOT include BASE_PATH — that gets prepended fresh
+// at render time (see the <img src> below) so nothing environment-
+// specific ever ends up in data compared against settings.hero_image
+// or written back out via api/set_hero.php.
 $imgRoot  = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . BASE_PATH . '/assets/images/';
-$imgBase  = BASE_PATH . '/assets/images/';
+$imgBase  = '/assets/images/';
 
 // ── Get current hero image from settings ──────────────────────
 $currentHero = '';
@@ -15,6 +22,16 @@ try {
     $hs->execute(['hero_image']);
     $hr = $hs->fetch();
     $currentHero = $hr ? $hr['value'] : '';
+    // Defensive normalization for any row saved before this fix, or
+    // copied over from the other environment — strip a stray BASE_PATH
+    // (either environment's) so the $imgUrl === $currentHero check
+    // below still lines up.
+    if (BASE_PATH !== '' && str_starts_with($currentHero, BASE_PATH)) {
+        $currentHero = substr($currentHero, strlen(BASE_PATH));
+    }
+    if (str_starts_with($currentHero, '/safari-zangu')) {
+        $currentHero = substr($currentHero, strlen('/safari-zangu'));
+    }
 } catch (\Exception $e) {}
 
 // ── Scan folders ──────────────────────────────────────────────
@@ -339,7 +356,7 @@ ob_start();
 
         <div class="img-thumb"
              onclick="previewImage('<?= htmlspecialchars($imgUrl) ?>')">
-          <img src="<?= htmlspecialchars($imgUrl) ?>"
+          <img src="<?= htmlspecialchars(BASE_PATH . $imgUrl) ?>"
                alt="<?= htmlspecialchars($img) ?>"
                loading="lazy">
         </div>
@@ -403,7 +420,9 @@ function toast(msg, type) {
 
 // ── Preview modal ─────────────────────────────────────────────
 function previewImage(url) {
-  document.getElementById('preview-img').src = url;
+  // url is root-relative (no BASE_PATH) — see admin/gallery.php's PHP
+  // header comment for why; add it back only for this actual <img src>.
+  document.getElementById('preview-img').src = BASE + url;
   document.getElementById('preview-modal').classList.add('open');
 }
 function closePreview() {
@@ -575,7 +594,7 @@ function addImageCard(url, filename) {
   div.innerHTML =
     (isHero ? '<div class="hero-badge">⌂ HERO</div>' : '') +
     '<div class="img-thumb" onclick="previewImage(\''+url+'\')">'+
-      '<img src="'+url+'" alt="'+filename+'" loading="lazy">'+
+      '<img src="'+BASE+url+'" alt="'+filename+'" loading="lazy">'+
     '</div>'+
     '<div style="padding:5px 6px;font-size:.55rem;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid var(--gray-100)">'+filename+'</div>'+
     '<div class="img-actions">'+

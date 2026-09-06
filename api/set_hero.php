@@ -23,29 +23,34 @@ if (!$imageUrl) {
     exit;
 }
 
-// Security: must be a relative path inside our assets directory
-// Strip any domain prefix so we only store relative paths
+// Security: must be a relative path inside our assets directory.
+// Strip any domain prefix AND any BASE_PATH prefix (older callers, or a
+// browser tab still open from before this was fixed, may still send one)
+// so only a clean, environment-independent root-relative path is ever
+// stored — BASE_PATH differs between local (/safari-zangu) and
+// production (''), and baking either one into stored data breaks image
+// display the moment the database is shared or copied between them.
 $imageUrl = preg_replace('#^https?://[^/]+#', '', $imageUrl);
+if (BASE_PATH !== '' && str_starts_with($imageUrl, BASE_PATH)) {
+    $imageUrl = substr($imageUrl, strlen(BASE_PATH));
+}
+// A stray prefix from the OTHER environment (e.g. a production admin
+// pasting a URL copied while testing locally) — strip it too.
+if (str_starts_with($imageUrl, '/safari-zangu')) {
+    $imageUrl = substr($imageUrl, strlen('/safari-zangu'));
+}
 
-// Must be within /safari-zangu/assets/images/
-if (!preg_match('#^/safari-zangu/assets/images/#', $imageUrl) &&
-    !preg_match('#^/assets/images/#', $imageUrl)) {
+if (!preg_match('#^/assets/images/#', $imageUrl)) {
     echo json_encode(['success'=>false,'message'=>'Invalid image path']);
     exit;
 }
 
 // Validate file actually exists on disk
-$docRoot   = $_SERVER['DOCUMENT_ROOT'];
-$diskPath  = $docRoot . $imageUrl;
-// Also try without the /safari-zangu prefix
+$docRoot  = $_SERVER['DOCUMENT_ROOT'];
+$diskPath = $docRoot . BASE_PATH . $imageUrl;
 if (!file_exists($diskPath)) {
-    $diskPath2 = $docRoot . str_replace('', '', $imageUrl);
-    if (file_exists($diskPath2)) {
-        $diskPath = $diskPath2;
-    } else {
-        echo json_encode(['success'=>false,'message'=>'Image file not found on disk']);
-        exit;
-    }
+    echo json_encode(['success'=>false,'message'=>'Image file not found on disk']);
+    exit;
 }
 
 // Save to settings table

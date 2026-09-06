@@ -41,7 +41,7 @@ ob_start();
   <!-- Thumbnail -->
   <div style="height:150px;overflow:hidden;background:var(--gray-100);flex-shrink:0;position:relative">
     <?php if($hero): ?>
-    <img src="<?= htmlspecialchars($hero) ?>" alt="<?= htmlspecialchars($p['name']) ?>"
+    <img src="<?= htmlspecialchars(BASE_PATH . $hero) ?>" alt="<?= htmlspecialchars($p['name']) ?>"
          style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy">
     <?php else: ?>
     <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--gray-300)"><?= \App\Helpers\AdminIcon::render('packages', 40) ?></div>

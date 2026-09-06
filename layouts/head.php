@@ -81,7 +81,18 @@ try {
     $_stmt->execute(['hero_image']);
     $_row = $_stmt->fetch();
     if ($_row && !empty($_row['value'])) {
-        $_heroImg = htmlspecialchars($_row['value'], ENT_QUOTES);
+        // Stored value is root-relative (no BASE_PATH — see
+        // api/set_hero.php); add it back for the current environment.
+        // Defensively strip a stray BASE_PATH/other-environment prefix
+        // first, in case this row predates that fix.
+        $_stored = $_row['value'];
+        if (BASE_PATH !== '' && str_starts_with($_stored, BASE_PATH)) {
+            $_stored = substr($_stored, strlen(BASE_PATH));
+        }
+        if (str_starts_with($_stored, '/safari-zangu')) {
+            $_stored = substr($_stored, strlen('/safari-zangu'));
+        }
+        $_heroImg = htmlspecialchars(BASE_PATH . $_stored, ENT_QUOTES);
     }
 } catch (\Exception $_e) {}
 ?>

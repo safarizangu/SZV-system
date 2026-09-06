@@ -718,7 +718,7 @@ function buildImgStrip(pkg) {
   strip.innerHTML = '';
   (pkg.gallery || []).forEach(function(src, i) {
     var img = document.createElement('img');
-    img.src = src; img.className = 'pm-img-thumb' + (i===0?' active':'');
+    img.src = BASE + src; img.className = 'pm-img-thumb' + (i===0?' active':'');
     img.title = 'Image ' + (i+1);
     img.onclick = (function(idx){ return function(){
       S.imgIdx = idx;
@@ -739,7 +739,7 @@ function loadPkgImages(pkg, cb) {
     img.crossOrigin = 'anonymous';
     img.onload  = function(){ S.loadedImgs[src] = img; done++; if (done === imgs.length) cb(); };
     img.onerror = function(){ done++; if (done === imgs.length) cb(); };
-    img.src = src;
+    img.src = BASE + src;
   });
 }
 
