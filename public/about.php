@@ -212,7 +212,8 @@ ob_start();
         <img src="<?= htmlspecialchars($photoSrc) ?>"
              alt="<?= htmlspecialchars($member['name']) ?>"
              class="team-avatar"
-             style="width:100%;aspect-ratio:1;object-fit:cover;display:block">
+             style="width:100%;aspect-ratio:1;object-fit:cover;display:block"
+             loading="lazy">
         <?php else: ?>
         <div class="team-avatar" style="background:var(--black);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:1.8rem;font-style:italic;color:var(--white);font-weight:500;aspect-ratio:1">
           <?= $initial ?>

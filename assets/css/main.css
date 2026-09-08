@@ -962,14 +962,8 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
 .pkg-section-header { margin-bottom: 2.5rem; }
 .include-exclude   { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; }
 
-.pkg-gallery {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 6px;
-  margin-bottom: 2.5rem;
-  height: 360px;
-}
+/* .pkg-gallery: see the canonical slider rules block further down
+   this file for its real position/size/slider behavior. */
 
 
 .pkg-nav {
@@ -977,9 +971,13 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
   gap: 0;
   overflow-x: auto;
   border: 1px solid var(--gray-2);
-  margin-bottom: 4rem;
+  margin-bottom: 3rem;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  position: sticky;
+  top: var(--nav-h);
+  z-index: 90;
+  background: var(--white);
 }
 .pkg-nav::-webkit-scrollbar { display: none; }
 .pkg-nav a {
@@ -1209,8 +1207,8 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
   .confirmation-box { padding: 1.5rem 1.25rem; }
   .booking-ref-display { font-size: 1.35rem; padding: 0.7rem 1rem; }
 
-  .pkg-gallery    { height: 260px; border-radius: 8px; }
-  .include-exclude { grid-template-columns: 1fr; }
+  /* .pkg-gallery height/border-radius and .include-exclude collapse:
+     both consolidated into their single canonical rules elsewhere. */
 }
 
 @media (max-width: 480px) {
@@ -1227,7 +1225,7 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
   .section        { padding: 3rem 1.1rem; }
   .section-lg     { padding: 4rem 1.1rem; }
   .section-sm     { padding: 2.5rem 1.1rem; }
-  .pricing-row    { padding: 0.75rem 1rem; }
+  /* .pricing-row padding: already covered by the wider 768px rule. */
 }
 
 /* ── REDUCED MOTION ─────────────────────────────────────────── */
@@ -1302,20 +1300,8 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
 
 
 
-/* ── PACKAGE GALLERY / SLIDER (definitive) ─────────────────── */
-/* pkg-gallery: see slider definition below */
-.pkg-gallery img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  transition: opacity .65s ease-in-out;
-  display: block;
-}
-.pkg-gallery img.active,
-.pkg-gallery img:first-child { opacity: 1; }
+/* pkg-gallery: see the canonical slider rules block further down
+   this file — it also carries the display:block this used to set. */
 
 .pkg-slider-btn {
   position: absolute;
@@ -1382,7 +1368,6 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
 .home-next { right: 8px; }
 
 @media (max-width: 768px) {
-  .pkg-gallery  { height: 260px; border-radius: 8px; }
   .home-slider  { height: 180px; }
 }
 
@@ -1392,7 +1377,6 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
   .pkg-detail-grid  { grid-template-columns: 1fr 380px; gap: 5rem; }
   .booking-layout   { grid-template-columns: 1fr 400px; gap: 5rem; }
   .home-slider      { height: 260px; }
-  .pkg-gallery      { height: 480px; }
   .section          { padding: 7rem 2.5rem; }
   .section-lg       { padding: 9rem 2.5rem; }
 }
@@ -1500,14 +1484,7 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
 /* Track page: narrower content for readability */
 .track-container { max-width: 760px; margin: 0 auto; }
 
-/* Package page: sticky nav bar */
-.pkg-nav {
-  position: sticky;
-  top: var(--nav-h);
-  z-index: 90;
-  background: var(--white);
-  margin-bottom: 3rem;
-}
+/* Package page: sticky nav bar — merged into the base .pkg-nav rule */
 
 /* About page hero image fix */
 .page-hero-img {
@@ -1644,10 +1621,7 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
   .about-grid { grid-template-columns: 1fr !important; gap: 2rem; }
 }
 
-/* pkg-gallery: ensure single definitive rule wins */
-.pkg-gallery { position: relative; width: 100%; height: 420px; overflow: hidden; background: #111; }
-.pkg-gallery img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .6s ease-in-out; display: block; }
-.pkg-gallery img.active, .pkg-gallery img:first-child { opacity: 1; }
+/* .pkg-gallery: see the canonical slider rules block further down. */
 .pkg-slider-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border: none; border-radius: 50%; background: rgba(0,0,0,.5); color: #fff; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: background .2s; }
 .pkg-slider-btn:hover { background: rgba(0,0,0,.8); }
 .pkg-slider-prev, .pkg-prev { left: 12px; }
@@ -1662,11 +1636,9 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
 .home-next { right: 8px; }
 
 @media (max-width: 768px) {
-  .pkg-gallery  { height: 260px; }
   .home-slider  { height: 180px; }
 }
 @media (min-width: 1400px) {
-  .pkg-gallery  { height: 480px; }
   .home-slider  { height: 260px; }
 }
 
@@ -2201,15 +2173,12 @@ body {
 
 /* ═══════════════════════════════════════════════════════════
    PACKAGE DETAIL GALLERY — better proportions
+   (height lives in the canonical slider rules block further down —
+   this keeps just the two properties only declared here)
    ═══════════════════════════════════════════════════════════ */
 .pkg-gallery {
-  height: 420px !important;
   border-radius: 0 !important;
-  overflow: hidden;
   box-shadow: var(--shadow-md) !important;
-}
-.pkg-gallery > img:first-child {
-  grid-row: span 2;
 }
 
 /* Slider buttons — gold on hover */
@@ -2322,7 +2291,6 @@ body {
 /* ── RESPONSIVE ENHANCEMENTS ─────────────────────────────────*/
 @media (max-width: 768px) {
   .home-slider { height: 180px !important; }
-  .pkg-gallery  { height: 280px !important; }
   .pkg-card { padding: 1.75rem 1.5rem !important; }
   .pkg-price { font-size: 1.45rem !important; }
 }
@@ -2459,6 +2427,11 @@ body {
   .footer-brand-col {
     grid-column: 1 !important;
   }
+  /* Explore/Company columns hidden on mobile — Get in Touch stays */
+  .footer-nav-col--explore,
+  .footer-nav-col--company {
+    display: none !important;
+  }
   .footer-brand-actions {
     flex-direction: column !important;
   }
@@ -2507,18 +2480,9 @@ body {
   }
 }
 
-/* ── [C6] PKG-GALLERY — aspect-ratio on mobile ───────────────── */
+/* ── [C6] .pkg-gallery's 600px aspect-ratio now lives in the
+   canonical slider rules block further down. ─────────────────── */
 @media (max-width: 600px) {
-  .pkg-gallery {
-    height: auto !important;
-    aspect-ratio: 16 / 9 !important;
-  }
-  .pkg-gallery img {
-    position: absolute !important;
-    inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-  }
   .home-slider {
     height: auto !important;
     aspect-ratio: 4 / 3 !important;
@@ -2547,6 +2511,7 @@ input#track-date {
   object-fit: cover !important;
   opacity: 0 !important;
   transition: opacity .65s ease-in-out !important;
+  display: block !important;
 }
 .pkg-gallery img.active,
 .pkg-gallery img:first-child { opacity: 1 !important; }
@@ -2763,12 +2728,6 @@ iframe[title*="Safari Zangu"] {
   color: #fff !important;
 }
 
-/* Package nav active — gold */
-.pkg-nav a:hover,
-.pkg-nav a.active {
-  background: var(--gold) !important;
-  color: #fff !important;
-}
 
 /* Card hover — gold underline */
 .pkg-card::after { background: var(--gold) !important; }
@@ -2846,9 +2805,8 @@ iframe[title*="Safari Zangu"] {
    PACKAGE DETAIL — mobile optimizations
    ══════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  .pkg-detail-grid {
-    grid-template-columns: 1fr !important;
-  }
+  /* .pkg-detail-grid: already collapses to 1 column at 900px (see
+     the responsive section above) — no rule needed here. */
   .include-exclude {
     grid-template-columns: 1fr !important;
     gap: 1.5rem !important;
@@ -2865,7 +2823,6 @@ iframe[title*="Safari Zangu"] {
   }
   .pkg-nav a {
     padding: .75rem 1rem !important;
-    font-size: .6rem !important;
   }
 }
 @media (max-width: 480px) {
@@ -3056,9 +3013,49 @@ iframe[title*="Safari Zangu"] {
     padding: .85rem 1rem;
     font-size: .72rem;
   }
-  /* Reserve space so the bar doesn't cover the last package section */
+  /* Reserve space so the bar doesn't cover the last package section —
+     the footer renders after </main>, so it needs its own clearance too,
+     otherwise the bar overlaps the footer's copyright/links row at the
+     very bottom of the page. */
   body.packages-page main { padding-bottom: 5rem; }
+  body.packages-page .sz-footer { padding-bottom: 5rem; }
   /* The bar already includes its own WhatsApp action — avoid a
      redundant floating WhatsApp button stacking on top of it */
   body.packages-page .wa-float { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE PRICE TEASER — packages.php only, see .mobile-book-bar above
+   ══════════════════════════════════════════════════════════════ */
+.pkg-price-teaser {
+  display: none;
+}
+@media (max-width: 900px) {
+  .pkg-price-teaser {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin: var(--space-4) 0 var(--space-5);
+    padding: var(--space-3) var(--space-4);
+    background: var(--off-white);
+    border: 1px solid var(--gray-2);
+  }
+  .pkg-price-teaser span {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    color: var(--black);
+  }
+  .pkg-price-teaser span em {
+    font-style: normal;
+    font-size: .7rem;
+    font-weight: 400;
+    color: var(--gray-4);
+    margin-left: .25rem;
+  }
+  .pkg-price-teaser a {
+    flex-shrink: 0;
+    padding: .65rem 1.1rem;
+    font-size: .65rem;
+  }
 }

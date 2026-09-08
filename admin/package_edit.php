@@ -1315,7 +1315,7 @@ function applyGallerySelection() {
     div.className='selected-img-item';
     div.dataset.url=url;
     div.style.cssText='position:relative;border:1.5px solid #e5e7eb;background:#fff';
-    div.innerHTML='<img src="'+(window.BASE_PATH||'')+url+'" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block">'
+    div.innerHTML='<img src="'+(window.BASE_PATH||'')+url+'" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" loading="lazy">'
       +'<button type="button" onclick="removeSelectedImg(this)" style="position:absolute;top:3px;right:3px;background:rgba(220,38,38,.9);border:none;color:#fff;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:.6rem;display:flex;align-items:center;justify-content:center">✕</button>';
     container.appendChild(div);
   });

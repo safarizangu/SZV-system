@@ -98,6 +98,13 @@ class ItineraryDayCards
         .box-park .box-lbl{color:#92400e}
         .box-val{font-size:.8rem;font-weight:700;color:#0a0a0a}
         .day-activities{margin-top:.5rem;font-size:.78rem;color:#374151}
+        @media screen and (max-width:480px){
+          .day-hdr{padding:.55rem .7rem}
+          .day-num{font-size:1rem}
+          .day-title{font-size:.8rem}
+          .day-body{padding:.7rem .75rem}
+          .day-box{padding:.55rem .6rem}
+        }
         ";
     }
 

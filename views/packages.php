@@ -82,6 +82,15 @@ try {
             <p style="color:var(--black);font-weight:500;line-height:1.8;max-width:580px"><?= htmlspecialchars($pkg['overview'] ?? $pkg['description'] ?? '') ?></p>
           </div>
 
+          <!-- Mobile-only price teaser — full pricing/booking widget still
+               follows at the end of this section for every viewport;
+               this just surfaces the price sooner on a stacked mobile
+               layout, before the gallery/includes/itinerary content. -->
+          <div class="pkg-price-teaser">
+            <span>From $<?= number_format($startPrice) ?> <em>per person</em></span>
+            <a href="<?= BASE_PATH ?>/book.php?package_id=<?= $pkg['id'] ?>" class="btn-sz-dark">Book Now</a>
+          </div>
+
                     <!-- ── IMAGE GALLERY — from packages.gallery_images (Admin → Packages) ── -->
           <div class="pkg-gallery" >
             <?php if (!empty($pkg['gallery'])): ?>
@@ -123,7 +132,7 @@ try {
           <?php if ($itinDays): ?>
           <div class="mt-4">
             <button type="button" onclick="toggleBreakdown(<?= $pkg['id'] ?>)"
-                    class="btn-sz-outline" style="font-size:.75rem;display:inline-flex;align-items:center;gap:.5rem">
+                    class="btn-sz-outline" style="font-size:.75rem;display:inline-flex;align-items:center;gap:var(--space-2)">
               View Day-by-Day Itinerary
               <span id="bd-arrow-<?= $pkg['id'] ?>" style="display:inline-block;transition:transform .2s">&#9662;</span>
             </button>
@@ -188,7 +197,7 @@ try {
               </div>
             </div>
 
-            <p style="font-size:.75rem;color:var(--black);line-height:1.6;margin-bottom:1.5rem;font-weight:500">50% deposit confirms your booking. Balance due <?= BALANCE_DAYS ?> days before departure.</p>
+            <p style="font-size:.75rem;color:var(--black);line-height:1.6;margin-bottom:var(--space-5);font-weight:500">50% deposit confirms your booking. Balance due <?= BALANCE_DAYS ?> days before departure.</p>
 
             <a href="book.php?package_id=<?= $pkg['id'] ?>"
                class="btn-sz-dark w-100 justify-content-center mb-2 book-now-link"

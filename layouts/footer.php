@@ -28,7 +28,7 @@
       </div>
 
       <!-- Explore column -->
-      <div class="footer-nav-col">
+      <div class="footer-nav-col footer-nav-col--explore">
         <span class="footer-col-title">Explore</span>
         <ul class="footer-links">
           <li><a href="<?= BASE_PATH ?>/packages.php">All Packages</a></li>
@@ -41,7 +41,7 @@
       </div>
 
       <!-- Company column -->
-      <div class="footer-nav-col">
+      <div class="footer-nav-col footer-nav-col--company">
         <span class="footer-col-title">Company</span>
         <ul class="footer-links">
           <li><a href="<?= BASE_PATH ?>/about.php">About Us</a></li>

@@ -230,6 +230,9 @@ ob_start();
 #preview-modal img {
   max-width:90vw;
   max-height:85vh;
+  min-width:200px;
+  min-height:200px;
+  background:rgba(255,255,255,.05);
   object-fit:contain;
   box-shadow:0 24px 80px rgba(0,0,0,.5);
 }
