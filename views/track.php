@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var fd = new FormData(trackForm);
 
       try {
-        var resp = await fetch(window.BASE_PATH + '/api/track_lookup.php', {
+        var resp = await fetch('api/track_lookup.php', {
           method: 'POST', body: fd, credentials: 'same-origin'
         });
         var data = await resp.json();

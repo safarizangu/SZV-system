@@ -12,9 +12,9 @@
     // Use sendBeacon for page-unload events (reliable), fetch for others
     if (navigator.sendBeacon) {
       var blob = new Blob([body], { type: 'application/x-www-form-urlencoded' });
-      navigator.sendBeacon((window.BASE_PATH||'')+'/php/analytics.php', blob);
+      navigator.sendBeacon('api/analytics.php', blob);
     } else {
-      fetch((window.BASE_PATH||'')+'/php/analytics.php', {
+      fetch('api/analytics.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: body,
@@ -27,7 +27,7 @@
 
     // ── Page view ────────────────────────────────────────────
     var path   = window.location.pathname;
-    var isHome = path === '/' || path.endsWith('index.php') || path.endsWith(window.BASE_PATH+'/');
+    var isHome = path === '/' || path.endsWith('index.php') || path.endsWith((window.BASE_PATH||'')+'/');
     var evtName = isHome                    ? 'home_page_view'
                 : path.includes('package') ? 'packages_page_view'
                 : path.includes('book')    ? 'book_page_view'
