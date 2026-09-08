@@ -13,6 +13,11 @@
   --black-soft: #1e1e1e;
   --white:      #ffffff;
   --off-white:  #f8f8f6;
+  /* --gray-1..5 correspond to admin.css's --gray-100/200/300 exactly
+     (#f3f3f1/#e6e6e2/#c4c4be); --gray-4/5 are close but NOT identical
+     to admin's --gray-500/700 (#888880 vs #7a7a72, #48483e vs #3a3a34)
+     — left as two separate systems rather than aliased, since a rename
+     would silently shift colors across both stylesheets. */
   --gray-1:     #f3f3f1;
   --gray-2:     #e6e6e2;
   --gray-3:     #c4c4be;
@@ -35,6 +40,30 @@
   --text-sm:   0.78rem;
   --text-base: 0.925rem;
   --text-md:   1.05rem;
+
+  /* Spacing scale — additive, matches admin.css's scale so future page
+     work can share the same vocabulary across both stylesheets. */
+  --space-1: .25rem;  /* 4px */
+  --space-2: .5rem;   /* 8px  – most common existing padding/gap */
+  --space-3: .75rem;  /* 12px */
+  --space-4: 1rem;    /* 16px */
+  --space-5: 1.5rem;  /* 24px */
+  --space-6: 2rem;    /* 32px */
+  --space-7: 3rem;    /* 48px */
+
+  /* Merged in from the former "UI ENHANCEMENT LAYER" second :root block */
+  --gold:       #c8963e;
+  --gold-light: #f5edd9;
+  --gold-muted: rgba(200,150,62,.15);
+  --radius-sm:  2px;
+  --shadow-card: 0 2px 12px rgba(0,0,0,.06), 0 1px 4px rgba(0,0,0,.04);
+  --shadow-lift: 0 8px 32px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.05);
+  --green-trust:#15803d;
+  --surface:    #fafaf8;
+  --shadow-sm:  0 1px 4px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
+  --shadow-md:  0 4px 24px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
+  --shadow-lg:  0 12px 48px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
+  --radius:     2px;
 }
 
 /* ── RESET ─────────────────────────────────────────────────── */
@@ -136,14 +165,16 @@ h1,h2,h3,h4,h5,h6 {
 
 .sz-logo {
   font-family: var(--font-display);
-  font-size: 1.85rem;
+  font-size: 1.6rem;
   font-weight: 700;
+  font-style: normal;
   color: var(--black);
   text-decoration: none;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.2em;
   line-height: 1;
   flex-shrink: 0;
+  white-space: nowrap;
   transition: color var(--dur) ease;
 }
 .sz-nav.over-hero .sz-logo { color: var(--white); }
@@ -249,6 +280,8 @@ h1,h2,h3,h4,h5,h6 {
   z-index: 998;
 }
 .sz-mobile-nav.open { display: block; }
+/* Body scroll-lock while the mobile nav panel is open */
+body.nav-open { overflow: hidden; }
 .sz-mobile-nav a {
   display: flex;
   align-items: center;
@@ -1718,19 +1751,8 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
    All additions are additive — nothing overwritten.
    ════════════════════════════════════════════════════════════ */
 
-/* ── ENHANCED TOKENS ─────────────────────────────────────────
-   Add warm accent gold for luxury feel + subtle amber undertone */
-:root {
-  --gold:       #c8963e;
-  --gold-light: #f5edd9;
-  --gold-muted: rgba(200,150,62,.18);
-  --green-trust:#15803d;
-  --surface:    #fafaf8;
-  --shadow-sm:  0 1px 4px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
-  --shadow-md:  0 4px 24px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
-  --shadow-lg:  0 12px 48px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
-  --radius:     2px;
-}
+/* Tokens formerly declared here (--gold, --shadow-*, --radius, etc.)
+   now live in the main :root block at the top of this file. */
 
 /* ── BODY REFINEMENTS ────────────────────────────────────────
    Slight warm tint to off-white for luxury paper feel */
@@ -1752,17 +1774,8 @@ body {
    NAVIGATION ENHANCEMENTS
    ═══════════════════════════════════════════════════════════ */
 
-/* Logo — make it more distinctive */
-.sz-logo {
-  font-size: 1.1rem !important;
-  letter-spacing: .38em !important;
-  font-style: normal !important;
-  font-weight: 600 !important;
-  font-family: var(--font-body) !important;
-  text-transform: uppercase;
-}
-.sz-logo em { font-style: bold; font-family: var(--font-display); font-weight: 600; }
-.sz-nav.over-hero .sz-logo { color: #fff !important; }
+/* .sz-logo styling now lives in one place — see the NAV LOGO rule
+   near the top of this file. */
 
 /* Nav link underline — gold on hover */
 .sz-nav-links a::after { background: var(--gold) !important; height: 1.5px !important; }
@@ -2333,28 +2346,10 @@ body {
    the existing design system. Tested: 320px → 2560px.
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── TOKENS (additions) ─────────────────────────────────────── */
-:root {
-  --gold:        #c8963e;
-  --gold-light:  #f5edd9;
-  --gold-muted:  rgba(200,150,62,.15);
-  --green-trust: #15803d;
-  --radius-sm:   2px;
-  --shadow-card: 0 2px 12px rgba(0,0,0,.06), 0 1px 4px rgba(0,0,0,.04);
-  --shadow-lift: 0 8px 32px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.05);
-}
+/* Tokens formerly declared here now live in the main :root block. */
 
-/* ── [C1] LOGO — full wordmark ─────────────────────────────── */
-.sz-logo {
-  font-family: var(--font-display) !important;
-  font-size: 1.35rem !important;
-  font-weight: 500 !important;
-  font-style: italic !important;
-  letter-spacing: .01em !important;
-  color: var(--black) !important;
-  white-space: nowrap;
-}
-.sz-nav.over-hero .sz-logo { color: var(--white) !important; }
+/* [C1] LOGO — .sz-logo styling now lives in one place, see the
+   NAV LOGO rule near the top of this file. */
 
 /* Active nav link ───────────────────────────────────────────── */
 .sz-nav-links a.active-link {
@@ -3035,4 +3030,35 @@ iframe[title*="Safari Zangu"] {
     transform: none !important;
     animation: none !important;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE STICKY "BOOK NOW" BAR — packages.php only
+   ══════════════════════════════════════════════════════════════ */
+.mobile-book-bar {
+  display: none;
+}
+@media (max-width: 768px) {
+  .mobile-book-bar {
+    display: flex;
+    gap: .65rem;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 900;
+    padding: .75rem var(--pad);
+    background: var(--white);
+    border-top: 1px solid var(--gray-2);
+    box-shadow: 0 -4px 20px rgba(0,0,0,.08);
+  }
+  .mobile-book-bar a {
+    flex: 1;
+    justify-content: center;
+    padding: .85rem 1rem;
+    font-size: .72rem;
+  }
+  /* Reserve space so the bar doesn't cover the last package section */
+  body.packages-page main { padding-bottom: 5rem; }
+  /* The bar already includes its own WhatsApp action — avoid a
+     redundant floating WhatsApp button stacking on top of it */
+  body.packages-page .wa-float { display: none; }
 }

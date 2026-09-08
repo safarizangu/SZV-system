@@ -413,7 +413,7 @@ ob_start();
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
 
           <!-- Accommodation -->
-          <div style="border:1px solid var(--gray-200);padding:.85rem;background:#eff6ff20">
+          <div class="itin-panel itin-panel--blue">
             <p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8"><?= \App\Helpers\AdminIcon::render('accommodations', 13) ?> Accommodation</p>
             <input type="hidden" name="day_acc_id[]" class="day-acc-id" value="<?= (int)($day['accommodation_id']??0) ?>">
             <div style="margin-bottom:.45rem"><label class="admin-label">Property</label>
@@ -438,7 +438,7 @@ ob_start();
           </div>
 
           <!-- Vehicle -->
-          <div style="border:1px solid var(--gray-200);padding:.85rem;background:#f0fdf420">
+          <div class="itin-panel itin-panel--green">
             <p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534"><?= \App\Helpers\AdminIcon::render('fleet', 13) ?> Vehicle</p>
             <input type="hidden" name="day_veh_id[]" class="day-veh-id" value="<?= (int)($day['vehicle_id']??0) ?>">
             <div style="margin-bottom:.45rem"><label class="admin-label">Vehicle</label>
@@ -458,7 +458,7 @@ ob_start();
           </div>
 
           <!-- Park + Meals -->
-          <div style="border:1px solid var(--gray-200);padding:.85rem;background:#fef3e220">
+          <div class="itin-panel itin-panel--amber">
             <p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e"><?= \App\Helpers\AdminIcon::render('park-fees', 13) ?> Park &amp; Meals</p>
             <input type="hidden" name="day_park_id[]" value="<?= (int)($day['park_fee_id']??0) ?>">
             <div style="margin-bottom:.45rem"><label class="admin-label">Park / Area</label>
@@ -923,7 +923,7 @@ function peDayBlockHtml(i) {
         +'<div><label class="admin-label">Day Description</label><textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"></textarea></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">'
-        +'<div style="border:1px solid var(--gray-200);padding:.85rem;background:#eff6ff20">'
+        +'<div class="itin-panel itin-panel--blue">'
           +'<p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8"><?= \App\Helpers\AdminIcon::render('accommodations', 13) ?> Accommodation</p>'
           +'<input type="hidden" name="day_acc_id[]" class="day-acc-id" value="0">'
           +'<div style="margin-bottom:.45rem"><label class="admin-label">Property</label>'
@@ -935,7 +935,7 @@ function peDayBlockHtml(i) {
             +'<div><label class="admin-label">Rooms</label><input name="day_acc_rooms[]" type="number" min="1" class="admin-input" value="1" oninput="calcItinTotal()"></div>'
           +'</div>'
         +'</div>'
-        +'<div style="border:1px solid var(--gray-200);padding:.85rem;background:#f0fdf420">'
+        +'<div class="itin-panel itin-panel--green">'
           +'<p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534"><?= \App\Helpers\AdminIcon::render('fleet', 13) ?> Vehicle</p>'
           +'<input type="hidden" name="day_veh_id[]" class="day-veh-id" value="0">'
           +'<div style="margin-bottom:.45rem"><label class="admin-label">Vehicle</label>'
@@ -944,7 +944,7 @@ function peDayBlockHtml(i) {
           +'</div>'
           +'<div><label class="admin-label">Daily Rate (incl. fuel+driver)</label><input name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate" value="0" oninput="calcItinTotal()"></div>'
         +'</div>'
-        +'<div style="border:1px solid var(--gray-200);padding:.85rem;background:#fef3e220">'
+        +'<div class="itin-panel itin-panel--amber">'
           +'<p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e"><?= \App\Helpers\AdminIcon::render('park-fees', 13) ?> Park &amp; Meals</p>'
           +'<input type="hidden" name="day_park_id[]" value="0">'
           +'<div style="margin-bottom:.45rem"><label class="admin-label">Park / Area</label>'

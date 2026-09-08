@@ -34,6 +34,7 @@ if (navToggle && mobileNav) {
     mobileNav.setAttribute('aria-hidden', mobileNav.classList.contains('open') ? 'false' : 'true');
     navToggle.classList.toggle('is-open');
     navToggle.setAttribute('aria-expanded', String(!isOpen));
+    document.body.classList.toggle('nav-open');
   };
   navToggle.addEventListener('click', openNav);
 
@@ -41,6 +42,7 @@ if (navToggle && mobileNav) {
     mobileNav.classList.remove('open');
     navToggle.classList.remove('is-open');
     navToggle.setAttribute('aria-expanded', 'false');
+    document.body.classList.remove('nav-open');
   };
 
   mobileNav.querySelectorAll('a').forEach(a => a.addEventListener('click', closeNav));

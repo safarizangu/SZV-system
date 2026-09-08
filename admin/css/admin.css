@@ -9,6 +9,11 @@
   --gold-light: #f5edd9;
   --black:       #0a0a0a;
   --white:       #ffffff;
+  /* --gray-100/200/300 correspond to the public site's (assets/css/
+     main.css) --gray-1/2/3 exactly; --gray-500/700 are close but NOT
+     identical to its --gray-4/5 (#7a7a72 vs #888880, #3a3a34 vs
+     #48483e) — left as two separate systems rather than aliased,
+     since a rename would silently shift colors across both files. */
   --gray-50:     #f9f9f8;
   --gray-100:    #f3f3f1;
   --gray-200:    #e6e6e2;
@@ -41,6 +46,16 @@
   --shadow-sm:   0 1px 3px rgba(0,0,0,.07);
   --shadow-md:   0 4px 16px rgba(0,0,0,.10);
   --transition:  .18s ease;
+
+  /* Spacing scale — additive, matches main.css's scale so future page
+     work can share the same vocabulary across both stylesheets. */
+  --space-1: .25rem;  /* 4px */
+  --space-2: .5rem;   /* 8px  – most common existing padding/gap */
+  --space-3: .75rem;  /* 12px */
+  --space-4: 1rem;    /* 16px */
+  --space-5: 1.5rem;  /* 24px */
+  --space-6: 2rem;    /* 32px */
+  --space-7: 3rem;    /* 48px */
 }
 
 html, body { height: 100%; }
@@ -350,6 +365,17 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 .badge-status--amber { background: var(--amber-light); color: #92400e; }
 .badge-status--dark  { background: var(--black);       color: var(--white); }
 .badge-status--purple { background: #fdf4ff;           color: #7e22ce; }
+
+/* Tinted info panels (e.g. package_edit.php's day-by-day itinerary
+   accommodation/vehicle/park boxes) — replaces three near-identical
+   inline style="" blocks that only differed by tint color. Values are
+   intentionally NOT the same as .badge-status--* (those use solid
+   *-light fills; these use the same hex at ~12.5% alpha, a lighter
+   tint that was already in use here). */
+.itin-panel { border: 1px solid var(--gray-200); padding: .85rem; }
+.itin-panel--blue   { background: #eff6ff20; }
+.itin-panel--green  { background: #f0fdf420; }
+.itin-panel--amber  { background: #fef3e220; }
 
 /* ── MODAL ──────────────────────────────────────────────────── */
 /* One real modal component — .admin-modal-overlay/.admin-modal were

@@ -6,6 +6,7 @@ $pageTitle = 'Safari Packages - Safari Zangu Ventures';
 $pageDescription = 'Browse all Safari Zangu safari packages, itineraries, accommodations and pricing.';
 
 $pageCanonical = 'https://safarizanguven.com/packages.php';
+$bodyClass = 'packages-page';
 
 ob_start();
 

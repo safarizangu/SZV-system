@@ -209,6 +209,14 @@ try {
   </div>
 </div>
 
+<!-- Sticky mobile "Book Now" bar — hidden on desktop via CSS -->
+<?php $_wa = defined('WHATSAPP_NUMBER') ? WHATSAPP_NUMBER : '255663430934'; ?>
+<div class="mobile-book-bar">
+  <a href="<?= BASE_PATH ?>/book.php" class="btn-sz-dark">Book Now</a>
+  <a href="https://wa.me/<?= $_wa ?>?text=<?= urlencode('Hi Safari Zangu, I\'d like to enquire about a Tanzania safari.') ?>"
+     target="_blank" rel="noopener" class="btn-sz-outline">WhatsApp</a>
+</div>
+
 <script>
 function toggleBreakdown(id) {
   var panel = document.getElementById('bd-panel-'+id);
