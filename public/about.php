@@ -269,12 +269,13 @@ ob_start();
 </section>
 
 <!-- CTA -->
-<section style="background:var(--black);padding:5rem 2rem;text-align:center">
+<section style="background:var(--white);padding:5rem 2rem;text-align:center">
   <div class="container-sz">
-    <h2 class="display-2" style="color:var(--white)">Ready to Meet<br><em>the Wild?</em></h2>
+    <img src="<?= BASE_PATH ?>/assets/images/logo.jpeg" alt="Safari Zangu Ventures" style="display:block;width:220px;height:220px;object-fit:contain;margin:0 auto 2rem" loading="lazy">
+    <h2 class="display-2" style="color:var(--black)">Ready to Meet<br><em>the Wild?</em></h2>
     <div class="d-flex gap-3 justify-content-center flex-wrap mt-4">
-      <a href="<?= BASE_PATH ?>/packages.php" class="btn-sz-primary">Browse Packages</a>
-      <a href="<?= BASE_PATH ?>/contact.php" class="btn-sz-ghost">Talk to Us First</a>
+      <a href="<?= BASE_PATH ?>/packages.php" class="btn-sz-dark">Browse Packages</a>
+      <a href="<?= BASE_PATH ?>/contact.php" class="btn-sz-outline">Talk to Us First</a>
     </div>
   </div>
 </section>

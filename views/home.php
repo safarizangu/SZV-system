@@ -1363,11 +1363,12 @@ document.addEventListener('DOMContentLoaded', function () {
 <!-- ── CTA BANNER ─────────────────────────────────────────── -->
 <section class="cta-banner">
   <div class="container-sz">
+    <img src="<?= BASE_PATH ?>/assets/images/logo.jpeg" alt="Safari Zangu Ventures" style="display:block;width:220px;height:220px;object-fit:contain;margin:0 auto 2rem" loading="lazy">
     <span class="section-label">Begin Your Journey</span>
     <h2 class="display-2 cta-banner-title">Tanzania Awaits.<br><em>Will You Answer?</em></h2>
     <div class="cta-banner-actions">
-      <a href="<?= BASE_PATH ?>/packages.php" class="btn-sz-primary">Explore Packages</a>
-      <a href="<?= BASE_PATH ?>/book.php" class="btn-sz-ghost">Book Now</a>
+      <a href="<?= BASE_PATH ?>/packages.php" class="btn-sz-dark">Explore Packages</a>
+      <a href="<?= BASE_PATH ?>/book.php" class="btn-sz-outline">Book Now</a>
     </div>
   </div>
 </section>
