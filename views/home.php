@@ -110,13 +110,11 @@ try {
 
 
 <div class="home-slider" data-package="classic-safari">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/classic-safari/1.jpg" alt="Classic Safari 1" class="active">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/classic-safari/2.jpg" alt="Classic Safari 2">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/classic-safari/3.jpg" alt="Classic Safari 3">
-
+<?php $__g = $pkgMap['classic-safari']['gallery'] ?? []; if ($__g): foreach ($__g as $__gi => $__url): ?>
+    <img loading="lazy" src="<?= htmlspecialchars(BASE_PATH . $__url) ?>" alt="Classic Safari<?= $__gi ? ' '.($__gi+1) : '' ?>"<?= $__gi===0 ? ' class="active"' : '' ?>>
+<?php endforeach; else: ?>
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/logo.jpeg" alt="Classic Safari" class="active">
+<?php endif; ?>
     <button type="button" class="home-prev">‹</button>
     <button type="button" class="home-next">›</button>
 
@@ -144,13 +142,11 @@ try {
 
 
 <div class="home-slider" data-package="luxury-safari">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/luxury-safari/1.jpg" alt="Luxury Safari 1" class="active">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/luxury-safari/2.jpg" alt="Luxury Safari 2">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/luxury-safari/3.jpg" alt="Luxury Safari 3">
-
+<?php $__g = $pkgMap['luxury-safari']['gallery'] ?? []; if ($__g): foreach ($__g as $__gi => $__url): ?>
+    <img loading="lazy" src="<?= htmlspecialchars(BASE_PATH . $__url) ?>" alt="Luxury Safari<?= $__gi ? ' '.($__gi+1) : '' ?>"<?= $__gi===0 ? ' class="active"' : '' ?>>
+<?php endforeach; else: ?>
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/logo.jpeg" alt="Luxury Safari" class="active">
+<?php endif; ?>
     <button type="button" class="home-prev">‹</button>
     <button type="button" class="home-next">›</button>
 
@@ -178,13 +174,11 @@ try {
 
 
 <div class="home-slider" data-package="comfort-safari">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/1.jpg" alt="Comfort Safari 1" class="active">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/2.jpg" alt="Comfort Safari 2">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/3.jpg" alt="Comfort Safari 3">
-
+<?php $__g = $pkgMap['comfort-safari']['gallery'] ?? []; if ($__g): foreach ($__g as $__gi => $__url): ?>
+    <img loading="lazy" src="<?= htmlspecialchars(BASE_PATH . $__url) ?>" alt="Comfort Safari<?= $__gi ? ' '.($__gi+1) : '' ?>"<?= $__gi===0 ? ' class="active"' : '' ?>>
+<?php endforeach; else: ?>
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/logo.jpeg" alt="Comfort Safari" class="active">
+<?php endif; ?>
     <button type="button" class="home-prev">‹</button>
     <button type="button" class="home-next">›</button>
 
@@ -211,14 +205,12 @@ try {
 
 
 
-<div class="home-slider" data-package="comfort-safari">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/1.jpg" alt="Comfort Safari 1" class="active">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/2.jpg" alt="Comfort Safari 2">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/comfort-safari/3.jpg" alt="Comfort Safari 3">
-
+<div class="home-slider" data-package="safari-zanzibar">
+<?php $__g = $pkgMap['safari-zanzibar']['gallery'] ?? []; if ($__g): foreach ($__g as $__gi => $__url): ?>
+    <img loading="lazy" src="<?= htmlspecialchars(BASE_PATH . $__url) ?>" alt="Safari + Zanzibar<?= $__gi ? ' '.($__gi+1) : '' ?>"<?= $__gi===0 ? ' class="active"' : '' ?>>
+<?php endforeach; else: ?>
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/logo.jpeg" alt="Safari + Zanzibar" class="active">
+<?php endif; ?>
     <button type="button" class="home-prev">‹</button>
     <button type="button" class="home-next">›</button>
 
@@ -246,13 +238,11 @@ try {
 
 
 <div class="home-slider" data-package="cultural-safari">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/cultural-safari/1.jpg" alt="Cultural Safari 1" class="active">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/cultural-safari/2.jpg" alt="Cultural Safari 2">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/cultural-safari/3.jpg" alt="Cultural Safari 3">
-
+<?php $__g = $pkgMap['cultural-safari']['gallery'] ?? []; if ($__g): foreach ($__g as $__gi => $__url): ?>
+    <img loading="lazy" src="<?= htmlspecialchars(BASE_PATH . $__url) ?>" alt="Cultural Safari<?= $__gi ? ' '.($__gi+1) : '' ?>"<?= $__gi===0 ? ' class="active"' : '' ?>>
+<?php endforeach; else: ?>
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/logo.jpeg" alt="Cultural Safari" class="active">
+<?php endif; ?>
     <button type="button" class="home-prev">‹</button>
     <button type="button" class="home-next">›</button>
 
@@ -280,13 +270,11 @@ try {
 
 
 <div class="home-slider" data-package="short-safari">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/short-safari/1.jpg" alt="Short Safari 1" class="active">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/short-safari/2.jpg" alt="Short Safari 2">
-
-    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/packages/short-safari/3.jpg" alt="Short Safari 3">
-
+<?php $__g = $pkgMap['short-safari']['gallery'] ?? []; if ($__g): foreach ($__g as $__gi => $__url): ?>
+    <img loading="lazy" src="<?= htmlspecialchars(BASE_PATH . $__url) ?>" alt="Short Safari<?= $__gi ? ' '.($__gi+1) : '' ?>"<?= $__gi===0 ? ' class="active"' : '' ?>>
+<?php endforeach; else: ?>
+    <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/logo.jpeg" alt="Short Safari" class="active">
+<?php endif; ?>
     <button type="button" class="home-prev">‹</button>
     <button type="button" class="home-next">›</button>
 
@@ -1289,7 +1277,7 @@ document.addEventListener('DOMContentLoaded', function () {
     btn.innerHTML = '';
 
     try {
-      var resp = await fetch('php/custom_safari.php', {
+      var resp = await fetch('api/custom_safari.php', {
         method: 'POST',
         body: new FormData(form),
         credentials: 'same-origin',
@@ -1340,131 +1328,6 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<style>
-/* Destination pill selected state */
-.cs-dest-pill:has(.cs-dest-check:checked),
-.cs-dest-pill.selected {
-  border-color: var(--black);
-  background: var(--black);
-  color: #fff;
-}
-.cs-exp-pill:has(input:checked),
-.cs-exp-pill.selected {
-  border-color: var(--black);
-  background: var(--black);
-  color: #fff;
-}
-/* Destination required error */
-#cs-dest-grid.sz-dest-error {
-  outline: 2px solid #dc2626;
-  outline-offset: 4px;
-  border-radius: 2px;
-}
-</style>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  // ── Pill toggle: destinations ──────────────────────────
-  document.querySelectorAll('.cs-dest-pill').forEach(function(pill) {
-    pill.addEventListener('click', function() {
-      var cb = pill.querySelector('.cs-dest-check');
-      cb.checked = !cb.checked;
-      pill.classList.toggle('selected', cb.checked);
-      updateDestCount();
-    });
-  });
-
-  function updateDestCount() {
-    var checked = document.querySelectorAll('.cs-dest-check:checked').length;
-    var hid = document.getElementById('cs-dest-count');
-    if (hid) hid.value = checked;
-    var grid = document.getElementById('cs-dest-grid');
-    if (grid) grid.classList.toggle('sz-dest-error', checked === 0 && form._submitted);
-    return checked;
-  }
-
-  // ── Pill toggle: experiences ───────────────────────────
-  document.querySelectorAll('.cs-exp-pill').forEach(function(pill) {
-    pill.addEventListener('click', function() {
-      var cb = pill.querySelector('input[type=checkbox]');
-      cb.checked = !cb.checked;
-      pill.classList.toggle('selected', cb.checked);
-    });
-  });
-
-  // ── Form submit ────────────────────────────────────────
-  var form   = document.getElementById('custom-safari-form');
-  var btn    = document.getElementById('cs-submit');
-  var msgDiv = document.getElementById('cs-msg');
-
-  if (!form) return;
-
-  form.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    form._submitted = true;
-
-    // Validate via SZValidator if available
-    if (window.SZValidator && !SZValidator.validateForm(form)) return;
-
-    // Check at least 1 destination
-    if (updateDestCount() === 0) {
-      var grid = document.getElementById('cs-dest-grid');
-      if (grid) {
-        grid.classList.add('sz-dest-error');
-        grid.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      showMsg('Please select at least one destination.', 'error');
-      return;
-    }
-
-    var orig = btn.innerHTML;
-    btn.disabled = true;
-    btn.classList.add('is-loading');
-    btn.innerHTML = '';
-
-    try {
-      var resp = await fetch('php/custom_safari.php', {
-        method: 'POST',
-        body: new FormData(form),
-        credentials: 'same-origin',
-      });
-      var raw = await resp.text();
-      var data;
-      try { data = JSON.parse(raw); }
-      catch(pe) {
-        console.error('[SZV Custom] Bad JSON:', raw.substring(0,200));
-        showMsg('Server error. Please WhatsApp us at +255 663 430 934.', 'error');
-        btn.disabled = false; btn.classList.remove('is-loading'); btn.innerHTML = orig;
-        return;
-      }
-      if (data.success) {
-        showMsg(data.message, 'success');
-        form.reset();
-        document.querySelectorAll('.cs-dest-pill,.cs-exp-pill').forEach(function(p){ p.classList.remove('selected'); });
-        updateDestCount();
-        // Track analytics
-        if (typeof trackEvent === 'function') trackEvent('custom_safari_submission');
-        btn.innerHTML = '✓ Request Sent';
-        btn.style.background = '#16a34a';
-        btn.style.borderColor = '#16a34a';
-      } else {
-        showMsg(data.message || 'Something went wrong. Please try again.', 'error');
-        btn.disabled = false; btn.classList.remove('is-loading'); btn.innerHTML = orig;
-      }
-    } catch(err) {
-      console.error('[SZV Custom] Network error:', err);
-      showMsg('Network error. Please check your connection and try again.', 'error');
-      btn.disabled = false; btn.classList.remove('is-loading'); btn.innerHTML = orig;
-    }
-  });
-
-  function showMsg(msg, type) {
-    if (!msgDiv) return;
-    msgDiv.textContent = msg;
-    msgDiv.className = 'form-message mt-3 ' + type;
-  }
-});
-</script>
 
 <!-- ── TESTIMONIALS ───────────────────────────────────────── -->
 <!-- <section class="section-lg">

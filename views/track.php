@@ -33,12 +33,9 @@ $_wa = defined('WHATSAPP_NUMBER') ? WHATSAPP_NUMBER : '255663430934';
                    required autocomplete="off">
           </div>
           <div class="form-group" style="margin-bottom:0">
-            <label class="form-label">Travel Date <span style="font-weight:400;font-size:.75rem;color:#9ca3af">Enter as DD/MM/YYYY (e.g. 15 Sep 2026 → 15/09/2026)</span></label>
-            <input type="text" name="date" id="track-date" class="form-control-sz" required
-               placeholder="DD/MM/YYYY or YYYY-MM-DD"
-               pattern="^(\d{2}/\d{2}/\d{4}|\d{4}-\d{2}-\d{2})$"
-               autocomplete="off"
-               style="font-family:monospace;letter-spacing:.05em">
+            <label class="form-label">Travel Date</label>
+            <input type="date" name="date" id="track-date" class="form-control-sz" required
+               autocomplete="off">
           </div>
         </div>
         <button type="submit" class="btn-sz-dark w-100 justify-content-center"

@@ -122,7 +122,7 @@ ob_start();
         <h2 class="display-2">Born in Arusha.<br><em>Built for the Wild.</em></h2>
         <div class="divider-line"></div>
         <p style="color:var(--black);font-size:.95rem;font-weight:400;line-height:1.85;margin-bottom:1.25rem">
-          Safari Zangu Ventures was founded in 2024 by Samson Gabba — a Tanzanian who spent years inside the safari industry and grew frustrated watching operators treat guests as inventory. The name means "My Safari" in Swahili, and that is the experience we build: one that feels entirely yours.
+          Safari Zangu Ventures was founded in 2024 on a simple belief: every traveler deserves a safari built around them, not slotted into someone else's fixed itinerary. The name means "My Safari" in Swahili, and that idea shaped everything from day one — an experience built around each guest, not a package sold to hundreds.
         </p>
         <p style="color:var(--black);font-size:.95rem;font-weight:400;line-height:1.85;margin-bottom:1.25rem">
           We are a young company and proud of it. We do not have decades of reviews to hide behind — we have the energy and attention of a team that still picks up the phone. Every booking is handled by a named person. Every itinerary is built from scratch. Every guest receives a follow-up.

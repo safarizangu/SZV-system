@@ -4,39 +4,6 @@
 
 'use strict';
 
-// ── CUSTOM SAFARI FORM ──────────────────────────────────
-const customForm = document.querySelector('#custom-safari-form');
-if (customForm) {
-  customForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn   = customForm.querySelector('[type="submit"]');
-    const msgEl = customForm.querySelector('.form-message');
-    const orig  = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>Sending…';
-
-    try {
-      const fd = new FormData(customForm);
-
-      // Attach the selected country's full name alongside the dial code
-      const countrySelect = customForm.querySelector('#phone-country-select');
-      if (countrySelect) {
-        const selectedOpt = countrySelect.options[countrySelect.selectedIndex];
-        fd.append('phone_country_name', selectedOpt?.dataset.countryName || '');
-      }
-
-      const res  = await fetch('php/custom_safari.php', { method: 'POST', body: fd });
-      const data = await res.json();
-      showMsg(msgEl, data.message, data.success ? 'success' : 'error');
-      if (data.success) customForm.reset();
-    } catch {
-      showMsg(msgEl, 'Network error. Please try again.', 'error');
-    }
-    btn.disabled = false;
-    btn.innerHTML = orig;
-  });
-}
-
 // ── NAV SCROLL BEHAVIOUR ─────────────────────────────────
 const nav = document.querySelector('.sz-nav');
 if (nav) {
@@ -172,7 +139,7 @@ if (bookingForm) {
     btn.innerHTML = '<span class="spinner"></span>Processing…';
 
     try {
-      const res  = await fetch(bookingForm.dataset.action || 'php/book.php', {
+      const res  = await fetch(bookingForm.dataset.action || 'api/book.php', {
         method: 'POST',
         body: new FormData(bookingForm),
       });
@@ -206,7 +173,7 @@ if (contactForm) {
     btn.innerHTML = '<span class="spinner"></span>Sending…';
 
     try {
-      const res  = await fetch('php/contact.php', { method: 'POST', body: new FormData(contactForm) });
+      const res  = await fetch(contactForm.dataset.action || 'api/contact.php', { method: 'POST', body: new FormData(contactForm) });
       const raw  = await res.text();
       let data;
       try {
@@ -231,165 +198,6 @@ if (contactForm) {
   });
 }
 
-// ── BOOKING CHECK ─────────────────────────────────────────
-const checkForm = document.querySelector('#check-booking-form');
-const checkResult = document.querySelector('#booking-result');
-if (checkForm) {
-  checkForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn  = checkForm.querySelector('[type="submit"]');
-    const orig = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>Searching…';
-    if (checkResult) checkResult.innerHTML = '';
-
-    try {
-      const refInput  = checkForm.querySelector('[name="ref"]');
-      const dateInput = checkForm.querySelector('[name="date"]');
-      const params = new URLSearchParams({
-        ref: refInput ? refInput.value : '',
-        date: dateInput ? dateInput.value : '',
-      });
-      const res = await fetch('php/check_booking.php?' + params);
-      const raw = await res.text();
-      let data;
-      try {
-        data = JSON.parse(raw);
-      } catch (pe) {
-        console.error('[SZV Track] Bad JSON:', raw.substring(0, 400));
-        if (checkResult) checkResult.innerHTML =
-          '<div class="alert-sz error">Server error. Please try again or ' +
-          '<a href="' + (window.WHATSAPP_BASE_URL || 'https://wa.me/255663430934') +
-          '?text=Hi%2C%20I%20need%20help%20tracking%20my%20booking" ' +
-          'style="color:inherit;font-weight:700">WhatsApp us</a>.</div>';
-        btn.disabled = false; btn.innerHTML = orig; return;
-      }
-
-      if (data.success) {
-        renderBookingResult(data);
-      } else {
-        if (checkResult) {
-          checkResult.innerHTML = `<div class="alert-sz error">${data.message}</div>`;
-        }
-      }
-    } catch (netErr) {
-      console.error('[SZV Track] Network error:', netErr);
-      if (checkResult) checkResult.innerHTML = '<div class="alert-sz error">Network error. Please check your connection and try again.</div>';
-    }
-    btn.disabled = false;
-    btn.innerHTML = orig;
-  });
-}
-
-// ── RENDER BOOKING RESULT ────────────────────────────────
-function renderBookingResult(data) {
-  if (!checkResult) return;
-  const b = data.booking;
-  const statusMap = {
-    pending:       ['status-pending', 'Pending Payment'],
-    deposit_paid:  ['status-deposit', 'Deposit Paid'],
-    fully_paid:    ['status-paid',    'Fully Paid ✓'],
-    cancelled:     ['status-cancelled','Cancelled'],
-  };
-  const [cls, label] = statusMap[b.status] || ['status-pending', b.status];
-
-  const rawTotal = parseFloat((b.total || '0').replace(/[^0-9.]/g, '')) || 0;
-  const rawDeposit = parseFloat((b.deposit || '0').replace(/[^0-9.]/g, '')) || 0;
-  const amountDue = (b.status === 'pending') ? rawDeposit : (rawTotal - rawDeposit);
-
-  let paymentHtml = '';
-  if (amountDue > 0 && b.status !== 'cancelled' && b.status !== 'fully_paid') {
-    paymentHtml = `
-      <div class="mt-3">
-        <p style="margin:0 0 .5rem">Amount due: <strong>${b.balance_due || ('From ' + (window.CURRENCY_SYMBOL || '$') + amountDue.toFixed(2))}</strong></p>
-        <div id="track-paypal-container"></div>
-        <div id="track-paypal-status" style="margin-top:.5rem;color:#333;font-size:.9rem"></div>
-      </div>`;
-    // Load PayPal buttons if configured
-    if (window.PAYPAL_CLIENT_ID) {
-      // render after insertion into DOM
-      setTimeout(() => loadTrackPayPal(amountDue, b.ref, b.travel_date), 50);
-    }
-  }
-
-
-  // Status colors (inline — no CSS class dependency)
-  const sColor = {pending:'#92400e',deposit_paid:'#075985',fully_paid:'#166534',cancelled:'#991b1b'};
-  const sBg    = {pending:'#fef3e2',deposit_paid:'#e0f2fe',fully_paid:'#f0fdf4',cancelled:'#fef2f2'};
-  const sc = sColor[b.status] || '#333';
-  const sb = sBg[b.status]    || '#f5f5f5';
-
-  const breakdownRows = b.base_amount ? `
-    <tr style="border-bottom:1px solid #eee">
-      <td style="padding:.4rem 0;font-weight:500;color:#111;width:55%">Safari Package Cost</td>
-      <td style="padding:.4rem 0;text-align:right">${b.base_amount}</td>
-    </tr>
-    <tr style="border-bottom:1px solid #eee">
-      <td style="padding:.4rem 0;font-weight:500;color:#111">Service Charge (5%)</td>
-      <td style="padding:.4rem 0;text-align:right">${b.service_charge}</td>
-    </tr>
-    <tr style="border-bottom:2px solid #111">
-      <td style="padding:.5rem 0;font-weight:600">Subtotal</td>
-      <td style="padding:.5rem 0;text-align:right;font-weight:600">${b.subtotal}</td>
-    </tr>
-    <tr style="border-bottom:1px solid #eee">
-      <td style="padding:.4rem 0;font-weight:500;color:#111">VAT (${b.vat_rate||'18%'} Tanzania)</td>
-      <td style="padding:.4rem 0;text-align:right">${b.vat_amount}</td>
-    </tr>
-    <tr style="background:#f7f7f7;border-bottom:2px solid #111">
-      <td style="padding:.6rem .4rem;font-weight:700;font-size:1rem">Grand Total</td>
-      <td style="padding:.6rem .4rem;text-align:right;font-weight:700;font-size:1rem">${b.total}</td>
-    </tr>
-    <tr><td colspan="2" style="padding:.25rem 0"></td></tr>
-    <tr style="border-bottom:1px solid #eee">
-      <td style="padding:.4rem 0;font-weight:500">Deposit Required (50%)</td>
-      <td style="padding:.4rem 0;text-align:right;font-weight:700">${b.deposit}</td>
-    </tr>
-    <tr>
-      <td style="padding:.4rem 0;font-weight:500">Balance Due</td>
-      <td style="padding:.4rem 0;text-align:right">${b.balance_due}</td>
-    </tr>` : `
-    <tr style="border-bottom:1px solid #eee">
-      <td style="padding:.4rem 0;font-weight:500;width:55%">Total Amount</td>
-      <td style="padding:.4rem 0;text-align:right;font-weight:600">${b.total||data.total_amount||'—'}</td>
-    </tr>
-    <tr>
-      <td style="padding:.4rem 0;font-weight:500">Deposit (50%)</td>
-      <td style="padding:.4rem 0;text-align:right;font-weight:600">${b.deposit||data.deposit_amount||'—'}</td>
-    </tr>`;
-
-  checkResult.innerHTML = `
-    <div style="border:1.5px solid #0a0a0a;padding:2rem">
-      <p style="font-size:.6rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;margin-bottom:.65rem">Booking Found</p>
-      <div style="font-family:Georgia,serif;font-size:1.9rem;font-weight:500;letter-spacing:.04em;color:#0a0a0a;margin-bottom:.5rem">${b.ref}</div>
-      <div style="display:inline-block;padding:.2rem .65rem;font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:${sb};color:${sc};border:1px solid ${sc};margin-bottom:1.25rem">${label}</div>
-
-      <p style="font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin:.75rem 0 .6rem">Summary</p>
-      <table style="width:100%;font-size:.85rem;border-collapse:collapse;margin-bottom:1.25rem">
-        <tr style="border-bottom:1px solid #eee"><td style="padding:.4rem 0;font-weight:500;color:#111;width:40%">Guest</td><td style="font-weight:600">${b.name}</td></tr>
-        <tr style="border-bottom:1px solid #eee"><td style="padding:.4rem 0;font-weight:500;color:#111">Package</td><td>${b.package}</td></tr>
-        <tr style="border-bottom:1px solid #eee"><td style="padding:.4rem 0;font-weight:500;color:#111">Accommodation</td><td>${b.accommodation_level||'—'}</td></tr>
-        <tr style="border-bottom:1px solid #eee"><td style="padding:.4rem 0;font-weight:500;color:#111">Travelers</td><td>${b.travelers}</td></tr>
-        <tr style="border-bottom:1px solid #eee"><td style="padding:.4rem 0;font-weight:500;color:#111">Travel Date</td><td style="font-weight:600">${b.travel_date}</td></tr>
-        <tr><td style="padding:.4rem 0;font-weight:500;color:#111">Booked On</td><td>${b.created_at}</td></tr>
-      </table>
-
-      <p style="font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin:.75rem 0 .6rem">Cost Breakdown</p>
-      <table style="width:100%;font-size:.85rem;border-collapse:collapse;margin-bottom:1.25rem">
-        ${breakdownRows}
-      </table>
-
-      ${paymentHtml}
-
-      <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1.5rem">
-        <a href="${data.whatsapp}" target="_blank" style="display:inline-block;padding:.65rem 1.4rem;background:#0a0a0a;color:#fff;font-size:.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;text-decoration:none">WhatsApp Us</a>
-        <button onclick="window.print()" style="padding:.65rem 1.4rem;background:#fff;color:#0a0a0a;border:1.5px solid #0a0a0a;font-size:.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer">Print / Save</button>
-      </div>
-    </div>`;
-
-
-}
-
 // ── HELPER ───────────────────────────────────────────────
 function showMsg(el, text, type) {
   if (!el) return;
@@ -411,48 +219,6 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
     } catch(err) { /* invalid selector, skip */ }
   });
 });
-
-function loadTrackPayPal(amount, bookingRef, bookingDate) {
-  if (!window.PAYPAL_CLIENT_ID) return;
-  const script = document.createElement('script');
-  script.src = `https://www.paypal.com/sdk/js?client-id=${window.PAYPAL_CLIENT_ID}&currency=${window.PAYPAL_CURRENCY}&intent=capture`;
-  script.onload = () => {
-    paypal.Buttons({
-      style: { layout: 'vertical', color: 'black', shape: 'rect', label: 'paypal' },
-      createOrder: (data, actions) => actions.order.create({
-        purchase_units: [{
-          amount: { value: amount.toFixed(2), currency_code: window.PAYPAL_CURRENCY },
-          description: 'Safari Zangu Ventures — Booking ' + bookingRef
-        }]
-      }),
-      onApprove: (data, actions) => actions.order.capture().then(details => {
-        const statusEl = document.getElementById('track-paypal-status');
-        statusEl.textContent = 'Payment received — updating your booking…';
-        statusEl.style.color = '#1a6b1a';
-
-        const fd = new FormData();
-        fd.append('ref', bookingRef);
-        fd.append('travel_date', bookingDate);
-        fd.append('paypal_order_id', details.id);
-        fd.append('amount_paid', amount.toFixed(2));
-
-        fetch('php/record_payment.php', { method: 'POST', body: fd })
-          .then(r => r.json())
-          .then(res => {
-            statusEl.textContent = res.success
-              ? 'Payment confirmed! Refresh to see your updated status.'
-              : 'Payment captured, but updating your booking failed — please contact us with your reference.';
-          });
-      }),
-      onError: (err) => {
-        document.getElementById('track-paypal-status').textContent = 'PayPal payment failed. Please try again.';
-        document.getElementById('track-paypal-status').style.color = '#cc2222';
-        console.error('PayPal error:', err);
-      }
-    }).render('#track-paypal-container');
-  };
-  document.body.appendChild(script);
-}
 
 
 // ── CURRENCY SWITCHER ──────────────────────────────────────
@@ -527,7 +293,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  /* ── home-slider: auto-advance + swipe ─────────────────── */
+  /* ── home-slider: manual navigation + swipe (no auto-advance) ── */
   document.querySelectorAll('.home-slider').forEach(function (slider) {
     var imgs    = Array.from(slider.querySelectorAll('img'));
     var prevBtn = slider.querySelector('.home-prev');
@@ -548,12 +314,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     show(0);
     if (imgs.length < 2) return;
-
-    var timer = setInterval(function () { show((current+1) % imgs.length); }, 4000);
-    slider.addEventListener('mouseenter', function () { clearInterval(timer); });
-    slider.addEventListener('mouseleave', function () {
-      timer = setInterval(function () { show((current+1) % imgs.length); }, 4000);
-    });
 
     if (prevBtn) prevBtn.addEventListener('click', function () { show((current-1+imgs.length)%imgs.length); });
     if (nextBtn) nextBtn.addEventListener('click', function () { show((current+1)%imgs.length); });

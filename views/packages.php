@@ -82,20 +82,19 @@ try {
             <p style="color:var(--black);font-weight:500;line-height:1.8;max-width:580px"><?= htmlspecialchars($pkg['overview'] ?? $pkg['description'] ?? '') ?></p>
           </div>
 
-                    <!-- ── IMAGE GALLERY — local files ── -->
-          <?php
-            $imgBase = BASE_PATH . '/assets/images/packages/' . $pkg['slug'];
-          ?>
+                    <!-- ── IMAGE GALLERY — from packages.gallery_images (Admin → Packages) ── -->
           <div class="pkg-gallery" >
-            <img loading="lazy" src="<?= $imgBase ?>/1.jpg" alt="<?= htmlspecialchars($pkg['name']) ?>"
-                 loading="lazy" onerror="this.style.display='none'"
+            <?php if (!empty($pkg['gallery'])): ?>
+              <?php foreach ($pkg['gallery'] as $gi => $imgUrl): ?>
+            <img loading="lazy" src="<?= htmlspecialchars(BASE_PATH . $imgUrl) ?>" alt="<?= htmlspecialchars($pkg['name']) ?><?= $gi ? ' '.($gi+1) : '' ?>"
+                 onerror="this.style.display='none'"
                  style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;">
-            <img loading="lazy" src="<?= $imgBase ?>/2.jpg" alt="<?= htmlspecialchars($pkg['name']) ?> 2"
-                 loading="lazy" onerror="this.style.display='none'"
+              <?php endforeach; ?>
+            <?php else: ?>
+            <img loading="lazy" src="<?= BASE_PATH ?>/assets/images/logo.jpeg" alt="<?= htmlspecialchars($pkg['name']) ?>"
+                 onerror="this.style.display='none'"
                  style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;">
-            <img loading="lazy" src="<?= $imgBase ?>/3.jpg" alt="<?= htmlspecialchars($pkg['name']) ?> 3"
-                 loading="lazy" onerror="this.style.display='none'"
-                 style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;">
+            <?php endif; ?>
             <button type="button" class="pkg-slider-btn pkg-slider-prev pkg-prev" aria-label="Previous"
               >&#8249;</button>
             <button type="button" class="pkg-slider-btn pkg-slider-next pkg-next" aria-label="Next"
