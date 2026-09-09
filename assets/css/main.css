@@ -2433,6 +2433,32 @@ body {
   .footer-nav-col--contact {
     display: none !important;
   }
+  /* Brand name/description/CTA buttons hidden on mobile too — the
+     WhatsApp float button and page CTAs already cover that action,
+     so all that's left of the footer is the licence line. Re-laid
+     out as a single centered row (was designed to sit alongside the
+     now-hidden content) so it doesn't look like leftover content. */
+  .footer-brand-name,
+  .footer-brand-desc,
+  .footer-brand-actions {
+    display: none !important;
+  }
+  .footer-grid {
+    padding-bottom: 2rem !important;
+  }
+  .footer-brand-col {
+    text-align: center;
+  }
+  .footer-licence {
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: .5rem !important;
+    margin-bottom: 0 !important;
+  }
+  .footer-licence-dot {
+    display: inline !important;
+  }
   .footer-brand-actions {
     flex-direction: column !important;
   }
