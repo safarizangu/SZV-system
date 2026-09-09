@@ -343,7 +343,7 @@ ob_start();
 <input type="hidden" name="save_quote" value="1">
 <input type="hidden" name="itinerary_id" id="itinerary_id" value="<?= (int)($q['itinerary_id'] ?? 0) ?>">
 
-<div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem;align-items:start">
+<div class="admin-split-layout" style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem;align-items:start">
 
 <!-- ════ LEFT ════ -->
 <div>
@@ -492,7 +492,7 @@ ob_start();
                 <?php endforeach; ?>
               </datalist>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 60px;gap:.35rem">
+            <div class="admin-field-pair" style="display:grid;grid-template-columns:1fr 60px;gap:.35rem">
               <div><label class="admin-label">Rate/Room/Night</label>
                 <input name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate"
                        value="<?= (float)($day['accommodation_rate']??0) ?>" oninput="calcItinTotal()"></div>
@@ -633,7 +633,7 @@ ob_start();
     <span style="font-size:.72rem;color:var(--gray-500)">Pulled from the itinerary above · matches the PDF/email totals</span>
   </div>
   <div class="admin-card-body">
-    <div style="display:grid;grid-template-columns:1fr 260px;gap:1.5rem;align-items:start">
+    <div class="admin-split-summary" style="display:grid;grid-template-columns:1fr 260px;gap:1.5rem;align-items:start">
 
       <!-- Read-only summary -->
       <div>
@@ -1009,7 +1009,7 @@ function peDayBlockHtml(i) {
             +'<input name="day_acc_name[]" class="admin-input day-acc-name" list="qn-acc-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayAcc(this,'+i+')" placeholder="Select or type">'
             +'<datalist id="qn-acc-list-'+i+'">'+accOpts+'</datalist>'
           +'</div>'
-          +'<div style="display:grid;grid-template-columns:1fr 60px;gap:.35rem">'
+          +'<div class="admin-field-pair" style="display:grid;grid-template-columns:1fr 60px;gap:.35rem">'
             +'<div><label class="admin-label">Rate/Room/Night</label><input name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate" value="0" oninput="calcItinTotal()"></div>'
             +'<div><label class="admin-label">Rooms</label><input name="day_acc_rooms[]" type="number" min="1" class="admin-input" value="1" oninput="calcItinTotal()"></div>'
           +'</div>'

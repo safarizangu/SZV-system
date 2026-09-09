@@ -507,27 +507,14 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
   /* Modals */
   .admin-modal, .modal-box { padding: 1.25rem; margin: 0; max-height: 95vh; border-radius: 0; }
   .detail-row { grid-template-columns: 100px 1fr; }
-}
 
-/* ── MOBILE (480px) ─────────────────────────────────────────── */
-@media (max-width: 480px) {
-  /* Metrics: 1 col */
-  .metrics-grid { grid-template-columns: 1fr; }
-  .metric-card  { padding: 1rem; flex-direction: row; align-items: center; justify-content: space-between; }
-  .metric-value { font-size: 1.6rem; }
-
-  /* Full-width buttons */
-  .admin-btn { font-size: .65rem; padding: .4rem .7rem; }
-
-  /* Search bar stacks */
-  .search-bar { flex-direction: column; }
-  .search-bar input { min-width: 0; width: 100%; }
-  .search-bar button { width: 100%; justify-content: center; }
-
-  /* Table actions wrap */
-  .admin-table td { white-space: normal; word-break: break-word; }
-
-  /* Form grids collapse */
+  /* Generic inline-style grid collapse — moved here from the 480px block
+     below so tablets/phone-landscape (481-768px) get it too, not just
+     narrow phones. Catches any div whose inline style literally contains
+     "grid-template-columns:1fr 1fr" or "...1fr 1fr 1fr" (with or without
+     the space after the colon) — covers plain-value grids like
+     admin/analytics.php's mini-table row and quotation_new.php's
+     adults/children/infants/nationality row with no markup changes. */
   div[style*="grid-template-columns:1fr 1fr"],
   div[style*="grid-template-columns: 1fr 1fr"] {
     display: block !important;
@@ -544,6 +531,52 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
   div[style*="grid-template-columns: 1fr 1fr 1fr"] > div {
     margin-bottom: .75rem;
   }
+
+  /* Page-level content+sidebar splits (admin/package_edit.php,
+     admin/quotation_new.php) — px-track grids the generic rule above
+     can't match by substring, so these get real classes instead. */
+  .admin-split-layout,
+  .admin-split-summary {
+    display: block !important;
+  }
+  .admin-split-layout > div,
+  .admin-split-summary > div {
+    margin-bottom: 1rem;
+  }
+
+  /* Rate/rooms field pair, and the per-activity/other-item day rows —
+     same reasoning, fixed px tracks the generic rule can't reach. */
+  .admin-field-pair,
+  .act-item,
+  .other-item {
+    grid-template-columns: 1fr !important;
+  }
+  .admin-field-pair > div {
+    margin-bottom: .5rem;
+  }
+}
+
+/* ── MOBILE (480px) ─────────────────────────────────────────── */
+@media (max-width: 480px) {
+  /* Metrics: 1 col */
+  .metrics-grid { grid-template-columns: 1fr; }
+  .metric-card  { padding: 1rem; flex-direction: row; align-items: center; justify-content: space-between; }
+  .metric-value { font-size: 1.6rem; }
+
+  /* Full-width buttons — keep tappable, don't shrink below touch size
+     (this used to shrink font/padding here; min-height added instead) */
+  .admin-btn { min-height: 40px; padding: .5rem .85rem; }
+
+  /* Search bar stacks */
+  .search-bar { flex-direction: column; }
+  .search-bar input { min-width: 0; width: 100%; }
+  .search-bar button { width: 100%; justify-content: center; }
+
+  /* Table actions wrap */
+  .admin-table td { white-space: normal; word-break: break-word; }
+
+  /* Form grids collapse: see the @media (max-width:768px) block above —
+     moved there so tablets get it too, not just narrow phones. */
 
   /* Pagination */
   .pagination { flex-direction: column; text-align: center; }
