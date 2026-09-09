@@ -383,7 +383,7 @@ ob_start();
     <?php foreach ($packages as $i => $pkg): ?>
     <button class="pm-pkg-btn <?= $i===0?'active':'' ?>" onclick="selectPackage(<?= $i ?>)" id="pkgbtn<?= $i ?>">
       <div class="pm-pkg-name"><?= htmlspecialchars($pkg['name']) ?></div>
-      <div class="pm-pkg-meta"><?= $pkg['duration_days'] ?>n · $<?= number_format((float)$pkg['price_2pax'],0) ?>/pp · <?= ucwords(str_replace('_',' ',$pkg['accommodation_level']??'')) ?></div>
+      <div class="pm-pkg-meta"><?= $pkg['duration_days'] ?>n · $<?= number_format((float)$pkg['price_1pax'],0) ?>/pp · <?= ucwords(str_replace('_',' ',$pkg['accommodation_level']??'')) ?></div>
     </button>
     <?php endforeach; ?>
   </div>
@@ -1057,7 +1057,7 @@ function renderHero(pkg, theme, img, w, h) {
   }
   if (document.getElementById('elPrice').checked) {
     ctx.font = 'bold '+Math.round(w*0.03)+'px Arial'; ctx.fillStyle = theme.text;
-    ctx.fillText('From $'+Number(pkg.price_2pax).toLocaleString()+' per person', pad, y); y -= 56;
+    ctx.fillText('From $'+Number(pkg.price_1pax).toLocaleString()+' per person', pad, y); y -= 56;
   }
   if (document.getElementById('elDivider').checked) {
     drawAccentBar(pad, y-2, 60, 3); y -= 24;
@@ -1117,7 +1117,7 @@ function renderSplit(pkg, theme, img, w, h) {
 
   var stats = [
     {l:'DURATION', v: pkg.duration_days+' nights'},
-    {l:'FROM',     v: '$'+Number(pkg.price_2pax).toLocaleString()+'/pp'},
+    {l:'FROM',     v: '$'+Number(pkg.price_1pax).toLocaleString()+'/pp'},
     {l:'STYLE',    v: ucw(pkg.accommodation_level)},
   ];
   stats.forEach(function(s) {
@@ -1171,7 +1171,7 @@ function renderMosaic(pkg, theme, img, w, h) {
   }
   if (document.getElementById('elPrice').checked) {
     ctx.font='bold '+Math.round(w*0.03)+'px Arial'; ctx.fillStyle=theme.text;
-    ctx.fillText('From $'+Number(pkg.price_2pax).toLocaleString()+'/pp', pad, y); y-=58;
+    ctx.fillText('From $'+Number(pkg.price_1pax).toLocaleString()+'/pp', pad, y); y-=58;
   }
   var headline = applyCase(document.getElementById('txHeadline').value||pkg.name);
   if (document.getElementById('elHeadline').checked) {
@@ -1219,7 +1219,7 @@ function renderMinimal(pkg, theme, img, w, h) {
   if (document.getElementById('elDivider').checked) {
     ctx.fillStyle=hexRgba(theme.text,0.12); ctx.fillRect(pad,y,w-pad*2,1); y+=36;
   }
-  var facts = [{l:'Duration',v:pkg.duration_days+' Nights'},{l:'From',v:'$'+Number(pkg.price_2pax).toLocaleString()+'/pp'},{l:'Accommodation',v:ucw(pkg.accommodation_level)}];
+  var facts = [{l:'Duration',v:pkg.duration_days+' Nights'},{l:'From',v:'$'+Number(pkg.price_1pax).toLocaleString()+'/pp'},{l:'Accommodation',v:ucw(pkg.accommodation_level)}];
   var cw2=(w-pad*2)/facts.length;
   facts.forEach(function(f,i){
     var cx2=pad+i*cw2;
@@ -1253,7 +1253,7 @@ function renderItinerary(pkg, theme, img, w, h) {
   drawAccentBar(pad,y,100,3); y+=32;
   if (document.getElementById('elPrice').checked) {
     ctx.font='bold '+Math.round(w*0.026)+'px Arial'; ctx.fillStyle=S.accent;
-    ctx.fillText(pkg.duration_days+' NIGHTS  ·  FROM $'+Number(pkg.price_2pax).toLocaleString()+'/PP', pad, y); y+=64;
+    ctx.fillText(pkg.duration_days+' NIGHTS  ·  FROM $'+Number(pkg.price_1pax).toLocaleString()+'/PP', pad, y); y+=64;
   }
   var days = pkg.itin_days_arr.length ? pkg.itin_days_arr : pkg.itin_arr||[];
   var maxD = Math.min(days.length, S.size==='story'?7:5);
@@ -1294,13 +1294,13 @@ function renderPrice(pkg, theme, img, w, h) {
   var tag=document.getElementById('txTagline').value||pkg.short_description||'';
   if (tag) { ctx.font=Math.round(w*0.022)+'px Arial'; ctx.fillStyle=theme.sub; ctx.fillText(tag.substr(0,55),w/2,iy); iy+=44; }
   ctx.fillStyle=hexRgba(S.accent,0.25); ctx.fillRect(cx3+50,iy,cw3-100,1); iy+=40;
-  var tiers=[{l:'SOLO',p:pkg.price_1pax},{l:'COUPLE',p:pkg.price_2pax},{l:'GROUP 3+',p:pkg.price_3pax}];
+  var tiers=[{l:'DURATION',v:pkg.duration_days+' Nights'},{l:'FROM',v:'$'+Number(pkg.price_1pax).toLocaleString()},{l:'STYLE',v:ucw(pkg.accommodation_level)}];
   var tw2=(cw3-60)/3;
   tiers.forEach(function(t,i){
     var tx2=cx3+30+i*tw2+tw2/2;
     ctx.font='bold '+Math.round(w*0.016)+'px Arial'; ctx.fillStyle=S.accent; ctx.fillText(t.l,tx2,iy);
-    ctx.font='bold '+Math.round(w*0.042)+'px '+S.font; ctx.fillStyle=theme.text; ctx.fillText('$'+Number(t.p).toLocaleString(),tx2,iy+50);
-    ctx.font=Math.round(w*0.016)+'px Arial'; ctx.fillStyle=theme.sub; ctx.fillText('per person',tx2,iy+76);
+    ctx.font='bold '+Math.round(w*0.042)+'px '+S.font; ctx.fillStyle=theme.text; ctx.fillText(t.v,tx2,iy+50);
+    ctx.font=Math.round(w*0.016)+'px Arial'; ctx.fillStyle=theme.sub; ctx.fillText(i===1?'per person':'',tx2,iy+76);
   }); iy+=118;
   if (document.getElementById('elHighlights').checked) {
     var lines3=document.getElementById('txHighlights').value.split('\n').map(function(l){return l.trim();}).filter(Boolean);
@@ -1341,7 +1341,7 @@ function renderStoryTpl(pkg, theme, img, w, h) {
   // Price big
   if (document.getElementById('elPrice').checked) {
     ctx.font='bold '+Math.round(w*0.052)+'px '+S.font; ctx.fillStyle=S.accent;
-    ctx.fillText('$'+Number(pkg.price_2pax).toLocaleString(),w/2,Math.round(h*0.56));
+    ctx.fillText('$'+Number(pkg.price_1pax).toLocaleString(),w/2,Math.round(h*0.56));
     ctx.font=Math.round(w*0.024)+'px Arial'; ctx.fillStyle=theme.sub;
     ctx.fillText('per person · '+pkg.duration_days+' nights',w/2,Math.round(h*0.60));
   }
@@ -1394,7 +1394,7 @@ function renderFeature(pkg, theme, img, w, h) {
   var tag=document.getElementById('txTagline').value||pkg.short_description||'';
   if (tag) { wrapText(tag, pad, y2, w-pad*2, Math.round(w*0.026), theme.sub, 'normal', 1.6, 2); y2+=textH(tag,Math.round(w*0.026),w-pad*2)+32; }
   if (document.getElementById('elDivider').checked) { ctx.fillStyle=hexRgba(S.accent,0.3); ctx.fillRect(pad,y2,w-pad*2,1); y2+=28; }
-  var facts2=[pkg.duration_days+' Nights', '$'+Number(pkg.price_2pax).toLocaleString()+'/pp', ucw(pkg.accommodation_level)];
+  var facts2=[pkg.duration_days+' Nights', '$'+Number(pkg.price_1pax).toLocaleString()+'/pp', ucw(pkg.accommodation_level)];
   var fw=(w-pad*2)/facts2.length;
   facts2.forEach(function(f,i){
     ctx.font='bold '+Math.round(w*0.03)+'px '+S.font; ctx.fillStyle=theme.text; ctx.fillText(f, pad+i*fw, y2+28);
@@ -1434,7 +1434,7 @@ function renderDarkFull(pkg, theme, img, w, h) {
   y3+=20;
   if (document.getElementById('elPrice').checked) {
     ctx.font='bold '+Math.round(w*0.05)+'px '+S.font; ctx.fillStyle=S.accent;
-    ctx.fillText('$'+Number(pkg.price_2pax).toLocaleString()+'—'+Number(pkg.price_1pax).toLocaleString(), pad+24, h-100);
+    ctx.fillText('From $'+Number(pkg.price_1pax).toLocaleString(), pad+24, h-100);
     ctx.font=Math.round(w*0.02)+'px Arial'; ctx.fillStyle=theme.sub;
     ctx.fillText('USD per person', pad+24, h-70);
   }
@@ -1490,7 +1490,7 @@ async function generateCaption() {
   document.getElementById('captionOut').textContent='Generating...';
   var days=(pkg.itin_days_arr||pkg.itin_arr||[]).map(function(d){return 'Day '+(d.day||'')+(d.title?': '+d.title:'')+(d.location?' ('+d.location+')':'');}).join('\n');
   var tonePrompt=captionTonePrompts[S.captionTone]||captionTonePrompts.premium;
-  var prompt=tonePrompt+'\n\nPackage: '+pkg.name+'\nDuration: '+pkg.duration_days+' nights\nPrice: from $'+pkg.price_2pax+' per person\nAccommodation: '+ucw(pkg.accommodation_level||'')+'\nDescription: '+(pkg.short_description||pkg.itin_overview||'')+'\nItinerary:\n'+days+'\nKey inclusions: '+(pkg.itin_inc_arr||pkg.includes_arr||[]).slice(0,5).join(', ')+'\n\nEnd with: safarizanguven.com\nReturn ONLY the caption.';
+  var prompt=tonePrompt+'\n\nPackage: '+pkg.name+'\nDuration: '+pkg.duration_days+' nights\nPrice: from $'+pkg.price_1pax+' per person\nAccommodation: '+ucw(pkg.accommodation_level||'')+'\nDescription: '+(pkg.short_description||pkg.itin_overview||'')+'\nItinerary:\n'+days+'\nKey inclusions: '+(pkg.itin_inc_arr||pkg.includes_arr||[]).slice(0,5).join(', ')+'\n\nEnd with: safarizanguven.com\nReturn ONLY the caption.';
   try {
     var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:600,messages:[{role:'user',content:prompt}]})});
     var d=await r.json();
@@ -1549,7 +1549,7 @@ function copyHashtags() {
 /* ── Stats ────────────────────────────────────────────────── */
 function updateStats(pkg) {
   var html='<div class="pm-stat-grid">';
-  [{l:'Duration',v:pkg.duration_days+' nights'},{l:'Solo',v:'$'+Number(pkg.price_1pax).toLocaleString()},{l:'Couple',v:'$'+Number(pkg.price_2pax).toLocaleString()+'/pp'},{l:'Group 3+',v:'$'+Number(pkg.price_3pax).toLocaleString()+'/pp'}].forEach(function(s){
+  [{l:'Duration',v:pkg.duration_days+' nights'},{l:'Price',v:'$'+Number(pkg.price_1pax).toLocaleString()+'/pp'}].forEach(function(s){
     html+='<div class="pm-stat-cell"><div class="pm-stat-label">'+s.l+'</div><div class="pm-stat-val">'+s.v+'</div></div>';
   });
   html+='</div>';
@@ -1603,9 +1603,9 @@ function applyFilters() {
     }
 }
 
+// crop/zoom tool marker
 function applyZoom() {
-    _imgZoom  = parseInt(document.getElementById('// crop/zoom tool marker
-tool-zoom').value) / 100;
+    _imgZoom  = parseInt(document.getElementById('tool-zoom').value) / 100;
     _imgPanX  = parseInt(document.getElementById('tool-pan-x').value);
     _imgPanY  = parseInt(document.getElementById('tool-pan-y').value);
     document.getElementById('val-zoom').textContent = Math.round(_imgZoom*100)+'%';

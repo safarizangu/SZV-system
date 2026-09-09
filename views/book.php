@@ -142,9 +142,6 @@ try {
                 <?php foreach ($packages as $pkg): ?>
                 <option value="<?= $pkg['id'] ?>"
                   data-name="<?= htmlspecialchars($pkg['name']) ?>"
-                  data-price-1="<?= (float)($pkg['price_1pax'] ?? 0) ?>"
-                  data-price-2="<?= (float)($pkg['price_2pax'] ?? 0) ?>"
-                  data-price-3="<?= (float)($pkg['price_3pax'] ?? 0) ?>"
                   data-days="<?= (int)$pkg['duration_days'] ?>"
                   data-acc="<?= htmlspecialchars(strtolower($pkg['accommodation_level'] ?? 'midrange')) ?>"
                   data-acc-label="<?= htmlspecialchars($pkg['accommodation_level'] ?? 'Mid-Range') ?>"

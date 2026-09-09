@@ -604,7 +604,7 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
 .testimonial-origin { font-size: var(--text-xs); font-weight: 400; color: var(--black); letter-spacing: 0.06em; }
 
 /* ── CTA BANNER ─────────────────────────────────────────────── */
-.cta-banner { background: var(--white); padding: clamp(4rem, 8vw, 7rem) var(--pad); text-align: center; }
+.cta-banner { background: var(--white); padding: clamp(4rem, 8vw, 7rem) var(--pad); text-align: center; position: relative; overflow: hidden; }
 .cta-banner .section-label { color: var(--gold); }
 .cta-banner-title   { color: var(--black); margin: 1rem 0 2.5rem; }
 .cta-banner-actions { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; }
@@ -1326,26 +1326,8 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
 .pkg-slider-prev, .pkg-prev { left: 14px; }
 .pkg-slider-next, .pkg-next { right: 14px; }
 
-/* Home package cards slider */
-.home-slider {
-  position: relative;
-  width: 100%;
-  height: 220px;
-  overflow: hidden;
-  border-radius: 8px;
-  background: #111;
-  margin-bottom: 1.1rem;
-}
-.home-slider img {
-  position: absolute;
-  inset: 0;
-  width: 100%; height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  transition: opacity .6s ease-in-out;
-  display: block;
-}
-.home-slider img:first-child { opacity: 1; }
+/* Home package cards slider: see the canonical slider rules block
+   further down this file for .home-slider's real position/size. */
 .home-prev, .home-next {
   position: absolute;
   top: 50%;
@@ -1367,16 +1349,12 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
 .home-prev { left: 8px; }
 .home-next { right: 8px; }
 
-@media (max-width: 768px) {
-  .home-slider  { height: 180px; }
-}
-
 /* ── BIG SCREEN OPTIMIZATIONS (≥1400px) ───────────────────── */
 @media (min-width: 1400px) {
-  .packages-grid    { grid-template-columns: repeat(3, 1fr); }
+  /* .packages-grid: already repeat(3,1fr) from the base rule at this
+     width — no override needed. */
   .pkg-detail-grid  { grid-template-columns: 1fr 380px; gap: 5rem; }
   .booking-layout   { grid-template-columns: 1fr 400px; gap: 5rem; }
-  .home-slider      { height: 260px; }
   .section          { padding: 7rem 2.5rem; }
   .section-lg       { padding: 9rem 2.5rem; }
 }
@@ -1627,20 +1605,10 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
 .pkg-slider-prev, .pkg-prev { left: 12px; }
 .pkg-slider-next, .pkg-next { right: 12px; }
 
-/* home-slider */
-.home-slider { position: relative; width: 100%; height: 220px; overflow: hidden; background: #111; }
-.home-slider img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .55s ease-in-out; display: block; }
-.home-slider img.active { opacity: 1; }
+/* home-slider: see the canonical slider rules block further down. */
 .home-prev, .home-next { position: absolute; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; border: none; border-radius: 50%; background: rgba(0,0,0,.5); color: #fff; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 16px; }
 .home-prev { left: 8px; }
 .home-next { right: 8px; }
-
-@media (max-width: 768px) {
-  .home-slider  { height: 180px; }
-}
-@media (min-width: 1400px) {
-  .home-slider  { height: 260px; }
-}
 
 /* track.php — narrower container */
 .track-container { max-width: 780px; margin: 0 auto; }
@@ -1884,19 +1852,8 @@ body {
   letter-spacing: .14em !important;
 }
 
-/* Image slider inside cards — taller, better aspect ratio */
-.home-slider {
-  margin-bottom: 1.5rem !important;
-  height: 200px !important;
-  overflow: hidden;
-  position: relative;
-}
-.home-slider img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
+/* .home-slider: see the canonical slider rules block further down
+   (its display:block lives there now too). */
 
 /* ═══════════════════════════════════════════════════════════
    TRUST STRIP — make it visible and trustworthy
@@ -2149,26 +2106,16 @@ body {
 .status-paid    { background: #f0fdf4 !important; color: #166534 !important; border-color: #86efac !important; }
 
 /* ═══════════════════════════════════════════════════════════
-   CTA BANNER — more refined
+   CTA BANNER — more refined (background/position/section-label/title
+   colors now live in the base .cta-banner rule near the top of this
+   file — this keeps just the decorative texture, unique to here)
    ═══════════════════════════════════════════════════════════ */
-.cta-banner {
-  background: #fff !important;
-  position: relative;
-  overflow: hidden;
-}
-/* Subtle gold texture */
 .cta-banner::before {
   content: '';
   position: absolute;
   inset: 0;
   background: radial-gradient(ellipse at 30% 50%, rgba(200,150,62,.08) 0%, transparent 60%);
   pointer-events: none;
-}
-.cta-banner .section-label {
-  color: var(--gold) !important;
-}
-.cta-banner-title {
-  color: var(--black) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -2290,7 +2237,6 @@ body {
 
 /* ── RESPONSIVE ENHANCEMENTS ─────────────────────────────────*/
 @media (max-width: 768px) {
-  .home-slider { height: 180px !important; }
   .pkg-card { padding: 1.75rem 1.5rem !important; }
   .pkg-price { font-size: 1.45rem !important; }
 }
@@ -2507,14 +2453,8 @@ body {
   }
 }
 
-/* ── [C6] .pkg-gallery's 600px aspect-ratio now lives in the
-   canonical slider rules block further down. ─────────────────── */
-@media (max-width: 600px) {
-  .home-slider {
-    height: auto !important;
-    aspect-ratio: 4 / 3 !important;
-  }
-}
+/* ── [C6] .pkg-gallery's and .home-slider's 600px aspect-ratio both
+   live in the canonical slider rules block further down. ───────── */
 
 /* ── [C7] TRACK DATE — better mobile input ───────────────────── */
 input#track-date {
@@ -2560,6 +2500,7 @@ input#track-date {
   object-fit: cover !important;
   opacity: 0 !important;
   transition: opacity .55s ease-in-out !important;
+  display: block !important;
 }
 .home-slider img.active,
 .home-slider img:first-child { opacity: 1 !important; }

@@ -109,12 +109,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
         'notes'               => trim($_POST['breakdown_notes']??''),
     ];
 
-    // Listed prices are no longer typed — they're the itinerary total
+    // The listed price is no longer typed — it's the itinerary total
     // (linked Itinerary Manager template when this package is linked,
     // otherwise its own Day-by-Day Itinerary above) plus the Service
-    // Charge, divided by traveler count for each tier. This is exactly
-    // what api/book.php actually charges, so the listed price can't
-    // drift from the real one the way a hand-typed number could.
+    // Charge, for a single traveler. This is a "starting from" marketing
+    // figure only; the real price a guest pays is always recomputed fresh
+    // from their actual adults/children count via the same
+    // ItineraryQuoteBuilder (admin/quotation_new.php, api/book.php) — so
+    // there's no 2pax/3pax tier to keep in sync here, just this one rate.
     $pricingItinId = !empty($_POST['itinerary_id']) ? (int)$_POST['itinerary_id'] : 0;
     $pricingDays   = $itinerary;
     if ($pricingItinId) {
@@ -124,20 +126,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
         $pricingDays = $row ? (json_decode($row['days'] ?? '[]', true) ?: []) : [];
     }
     $svcPax = $bd['service_charge_pax'];
-    $computedPrices = [];
-    foreach ([1, 2, 3] as $n) {
-        $quote     = \App\Services\ItineraryQuoteBuilder::build(['days' => $pricingDays], $n, 0, false);
-        $lineItems = $quote['line_items'];
-        if ($svcPax > 0) {
-            $lineItems[] = [
-                'description' => 'Service Charge', 'unit_price' => $svcPax,
-                'quantity_str'=> $n . ' Guest' . ($n !== 1 ? 's' : ''),
-                'amount'      => round($svcPax * $n, 2), 'category' => 'service_charge',
-            ];
-        }
-        $totals = \App\Services\ItineraryQuoteBuilder::totals($lineItems);
-        $computedPrices[$n] = round($totals['grand_total'] / $n, 2);
+    $quote     = \App\Services\ItineraryQuoteBuilder::build(['days' => $pricingDays], 1, 0, false);
+    $lineItems = $quote['line_items'];
+    if ($svcPax > 0) {
+        $lineItems[] = [
+            'description' => 'Service Charge', 'unit_price' => $svcPax,
+            'quantity_str'=> '1 Guest',
+            'amount'      => round($svcPax, 2), 'category' => 'service_charge',
+        ];
     }
+    $totals = \App\Services\ItineraryQuoteBuilder::totals($lineItems);
+    $computedPrice = round($totals['grand_total'], 2);
 
     $data = [
         'slug'                => $slug,
@@ -147,9 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
         'overview'            => trim($_POST['overview']??''),
         'accommodation'       => trim($_POST['accommodation']??''),
         'accommodation_level' => $_POST['accommodation_level']??'midrange',
-        'price_1pax'          => $computedPrices[1],
-        'price_2pax'          => $computedPrices[2],
-        'price_3pax'          => $computedPrices[3],
+        'price_1pax'          => $computedPrice,
         'is_featured'         => isset($_POST['is_featured'])?1:0,
         'is_active'           => isset($_POST['is_active'])?1:0,
         'sort_order'          => (int)($_POST['sort_order']??0),
@@ -298,12 +295,14 @@ ob_start();
   </div>
 </div>
 
-<!-- Listed Prices removed — the price shown to guests is now always the
-     itinerary total (linked template, or this package's own Day-by-Day
-     Itinerary below) plus Service Charge, divided by traveler count.
-     See the Quotation Live Cost Summary further down for the live
-     number, and price_1pax/2pax/3pax are recomputed automatically on
-     every save so nothing has to be typed or kept in sync by hand. -->
+<!-- Listed Price removed — the "starting from" price shown to guests is
+     now always the itinerary total (linked template, or this package's
+     own Day-by-Day Itinerary below) plus Service Charge, for a single
+     traveler. See the Quotation Live Cost Summary further down for the
+     live number; price_1pax is recomputed automatically on every save
+     so nothing has to be typed or kept in sync by hand. The real price
+     a guest pays is always computed fresh from their actual party size
+     at quotation/booking time, not read from this field. -->
 
 
 <?php if (!$isLinked): ?>

@@ -37,19 +37,15 @@ class Package
     }
 
     /**
-     * Calculate price for a package given pax tier.
-     * paxTier: 1 = solo, 2 = couple, 3+ = group
+     * A package's single "starting from" rate. The real total for an
+     * actual booking/quotation is computed fresh from the traveler's
+     * exact adults/children count via ItineraryQuoteBuilder, not from
+     * this — $travelers is accepted for backward-compatible call sites
+     * but no longer changes which column is read.
      */
-    public function getPrice(array $package, int $travelers): float
+    public function getPrice(array $package, int $travelers = 1): float
     {
-        $tier = match(true) {
-            $travelers >= 3 => '3',
-            $travelers === 2 => '2',
-            default         => '1',
-        };
-        // Support both old schema (price_1pax) and new tiered schema
-        $col = "price_{$tier}pax";
-        return (float)($package[$col] ?? $package['price_2pax'] ?? 0);
+        return (float)($package['price_1pax'] ?? 0);
     }
 
     public function decode(array $package): array

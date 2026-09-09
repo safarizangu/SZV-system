@@ -85,10 +85,10 @@ if (!$package) {
 
 // ── Calculate price ───────────────────────────────────────
 // Packages linked to a real itinerary get a proper itemised quotation,
-// scaled to the exact adults/children count, instead of a flat per-tier
-// price that doesn't distinguish a 2-adult party from a 1-adult+1-child
-// one. A package without a linked itinerary falls back to the flat
-// price_1pax/2pax/3pax tiers — the only pricing that ever existed here.
+// scaled to the exact adults/children count, instead of a flat rate
+// that doesn't distinguish a 2-adult party from a 1-adult+1-child one.
+// A package without a linked itinerary falls back to its single
+// price_1pax "starting from" rate × traveler count.
 $itinerary   = null;
 $builtQuote  = null;
 $quoteTotals = null;
@@ -112,8 +112,7 @@ if ($quoteTotals) {
     $total   = $quoteTotals['grand_total'];
     $deposit = $quoteTotals['deposit'];
 } else {
-    $tier  = $travelers === 1 ? '1pax' : ($travelers === 2 ? '2pax' : '3pax');
-    $price = (float)($package['price_' . $tier] ?? $package['price_2pax'] ?? 0);
+    $price   = (float)($package['price_1pax'] ?? 0);
     $total   = round($price * $travelers, 2);
     $deposit = round($total * (DEPOSIT_PERCENT / 100), 2);
 }

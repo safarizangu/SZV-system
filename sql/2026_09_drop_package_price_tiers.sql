@@ -1,0 +1,12 @@
+-- Collapses packages' 3-tier per-person pricing (price_1pax/2pax/3pax) down
+-- to a single price_1pax column. The real price a customer pays for an
+-- actual booking/quotation was never read from these columns anyway — it's
+-- computed fresh from the linked itinerary's real costs scaled to the exact
+-- adults/children count (App\Services\ItineraryQuoteBuilder, used by
+-- admin/quotation_new.php and api/book.php's primary path). These columns
+-- only ever fed a marketing "starting from" figure and a fallback price for
+-- a package with no linked itinerary — both now use price_1pax alone.
+--
+-- price_1pax already holds the correct, auto-computed single-traveler rate
+-- (see sql/recalc_package_prices.php) before this migration runs.
+ALTER TABLE packages DROP COLUMN price_2pax, DROP COLUMN price_3pax;

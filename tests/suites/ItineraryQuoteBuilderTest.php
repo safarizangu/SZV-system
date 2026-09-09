@@ -39,14 +39,16 @@ test('line items scale with adults+children, not a flat per-booking rate', funct
         'A 2 adult + 2 child party must cost more than a 2 adult party for the same itinerary');
 });
 
-test('park fees are charged per adult only, not per child', function () {
+test('park fees charge the child rate for children, not the adult rate', function () {
     $withChildren = ItineraryQuoteBuilder::build(sampleItinerary(), 2, 2);
     $parkLines = array_filter($withChildren['line_items'], fn($i) => $i['category'] === 'park_fee');
     assertTrue(count($parkLines) === 2, 'Expected one line item per park (Tarangire, Serengeti)');
-    // Tarangire: 53 x 2 adults x 1 entry = 106. Serengeti: 70 x 2 adults x 1 entry = 140.
-    // The 2 children present in this party must not appear in either total.
+    // Tarangire: (53 adult + 18 child) x 2 each x 1 entry = 106 + 36 = 142.
+    // Serengeti: (70 adult + 20 child) x 2 each x 1 entry = 140 + 40 = 180.
+    // Child fees come from the park_fees table (matched by name), since the
+    // day itinerary snapshot only stores the adult fee.
     $total = array_sum(array_column($parkLines, 'amount'));
-    assertSame(246.0, $total);
+    assertSame(322.0, $total);
 });
 
 test('the balloon safari activity scales by full pax (adults+children)', function () {

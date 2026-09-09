@@ -68,8 +68,10 @@ try {
         $excludes    = decodeJsonField($pkg['excludes']);
         $itinDays    = $pkgItinDays[$pkg['id']] ?? [];
 
-        // Default starting price shown on widget = mid-range, 2pax
-        $startPrice = (float)($pkg['price_2pax'] ?? 0);
+        // "Starting from" marketing figure — the real total for an actual
+        // booking depends on the traveler's exact party size and is
+        // computed at quotation/booking time, not read from here.
+        $startPrice = (float)($pkg['price_1pax'] ?? 0);
     ?>
     <div class="pkg-section" data-pkg-card="true" id="<?= htmlspecialchars($pkg['slug']) ?>">
       <span class="pkg-section-num"><?= $num ?></span>
@@ -148,7 +150,7 @@ try {
           <div class="booking-widget">
             <p class="eyebrow mb-2">Starting From</p>
             <p class="widget-price" id="price-<?= $pkg['id'] ?>">$<?= number_format($startPrice) ?></p>
-            <p class="widget-price-note">per person · 2 travelers</p>
+            <p class="widget-price-note">per person · solo traveler</p>
 
             <!-- Accommodation Level -->
 
@@ -180,22 +182,7 @@ try {
 
             </div>
 
-            <h5 class="font-display mb-3" style="font-size:.9rem">Pricing Per Person</h5>
-            <div class="pricing-table mb-4">
-              <div class="pricing-row header"><span style="font-size:.65rem;letter-spacing:.1em">TRAVELERS</span><span style="font-size:.65rem;letter-spacing:.1em">PRICE / PERSON</span></div>
-              <div class="pricing-row">
-                <span style="font-size:.85rem">1 Person</span>
-                <span class="price-cell" data-pax="1" style="font-family:var(--font-display);font-size:1.1rem">$<?= number_format((float)($pkg['price_1pax'] ?? 0)) ?></span>
-              </div>
-              <div class="pricing-row">
-                <span style="font-size:.85rem">2 People</span>
-                <span class="price-cell" data-pax="2" style="font-family:var(--font-display);font-size:1.1rem">$<?= number_format((float)($pkg['price_2pax'] ?? 0)) ?></span>
-              </div>
-              <div class="pricing-row">
-                <span style="font-size:.85rem">3+ People</span>
-                <span class="price-cell" data-pax="3" style="font-family:var(--font-display);font-size:1.1rem">$<?= number_format((float)($pkg['price_3pax'] ?? 0)) ?></span>
-              </div>
-            </div>
+            <p style="font-size:.78rem;color:var(--black);line-height:1.7;margin-bottom:var(--space-4);font-weight:500">Final price depends on your travel dates and group size — request a quote for an exact total.</p>
 
             <p style="font-size:.75rem;color:var(--black);line-height:1.6;margin-bottom:var(--space-5);font-weight:500">50% deposit confirms your booking. Balance due <?= BALANCE_DAYS ?> days before departure.</p>
 

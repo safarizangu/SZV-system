@@ -70,7 +70,7 @@ ob_start();
     </p>
     <div style="display:flex;gap:.75rem;margin-bottom:.85rem;font-size:.7rem;color:var(--gray-500)">
       <span style="display:inline-flex;align-items:center;gap:.25rem"><?= \App\Helpers\AdminIcon::render('clock', 12) ?> <?= $p['duration_days'] ?> nights</span>
-      <span>$<?= number_format((float)$p['price_2pax'],0) ?>/pp</span>
+      <span>$<?= number_format((float)$p['price_1pax'],0) ?>/pp</span>
       <span style="display:inline-flex;align-items:center;gap:.25rem"><?= \App\Helpers\AdminIcon::render('gallery', 12) ?> <?= count($imgs) ?> images</span>
     </div>
     <div style="display:flex;gap:.4rem;flex-wrap:wrap">

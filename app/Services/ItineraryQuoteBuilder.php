@@ -69,7 +69,10 @@ class ItineraryQuoteBuilder
             if ($parkName && $parkFee > 0) {
                 $key = $parkName;
                 if (!isset($parkGroups[$key])) {
-                    $parkGroups[$key] = ['name' => $parkName, 'fee' => $parkFee, 'entries' => 0, 'adults' => $adults];
+                    $parkGroups[$key] = [
+                        'name' => $parkName, 'fee' => $parkFee, 'childFee' => self::lookupParkChildFee($parkName),
+                        'entries' => 0, 'adults' => $adults, 'children' => $children,
+                    ];
                 }
                 $parkGroups[$key]['entries']++;
             }
@@ -143,10 +146,10 @@ class ItineraryQuoteBuilder
         }
 
         foreach ($parkGroups as $park) {
-            $amount = $park['fee'] * $park['adults'] * $park['entries'];
-            $qtyStr = $park['entries'] > 1
-                ? $park['adults'] . ' Guests × ' . $park['entries'] . ' Days'
-                : $park['adults'] . ' Guest' . ($park['adults'] !== 1 ? 's' : '');
+            $amount   = ($park['fee'] * $park['adults'] + $park['childFee'] * $park['children']) * $park['entries'];
+            $guestStr = $park['adults'] . ' Adult' . ($park['adults'] !== 1 ? 's' : '')
+                . ($park['children'] > 0 ? ' + ' . $park['children'] . ' Child' . ($park['children'] !== 1 ? 'ren' : '') : '');
+            $qtyStr   = $park['entries'] > 1 ? $guestStr . ' × ' . $park['entries'] . ' Days' : $guestStr;
             $lineItems[] = [
                 'description' => $park['name'] . ' Entry Fees',
                 'unit_price'  => $park['fee'],
@@ -295,6 +298,31 @@ class ItineraryQuoteBuilder
             'deposit'     => $deposit,
             'balance'     => round($grandTotal - $deposit, 2),
         ];
+    }
+
+    /**
+     * The day-by-day itinerary only snapshots a park's adult fee
+     * (park_fee_name/park_adult_fee), not a child fee — looked up here
+     * from the park_fees table instead, so child pricing always reflects
+     * the current rate without needing to change the itinerary editor's
+     * day-JSON shape or backfill existing itinerary rows. Falls back to
+     * 0 for a free-typed park name with no matching row.
+     */
+    private static function lookupParkChildFee(string $parkName): float
+    {
+        static $cache = [];
+        if (array_key_exists($parkName, $cache)) return $cache[$parkName];
+
+        $fee = 0.0;
+        try {
+            $db   = \App\Models\Database::getInstance();
+            $stmt = $db->prepare("SELECT child_fee FROM park_fees WHERE name = ? LIMIT 1");
+            $stmt->execute([$parkName]);
+            $fee  = (float)($stmt->fetchColumn() ?: 0);
+        } catch (\Throwable $e) {
+            // No DB context (e.g. a future non-DB caller) — treat as no child fee.
+        }
+        return $cache[$parkName] = $fee;
     }
 
     private static function decode($value): array

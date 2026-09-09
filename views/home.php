@@ -128,8 +128,8 @@ try {
 
         <p class="pkg-duration">5 Days · 4 Nights</p>
         <p class="pkg-desc">Serengeti plains, Ngorongoro Crater, Tarangire. The quintessential Tanzania experience — and the Big Five await.</p>
-        <p class="pkg-price"><?php $__p=$pkgMap['classic-safari'] ?? null; echo $__p ? 'From $'.number_format($__p['price_2pax'],0) : 'From $1,650'; ?></p>
-        <p class="pkg-price-label">per person · 2 travelers</p>
+        <p class="pkg-price"><?php $__p=$pkgMap['classic-safari'] ?? null; echo $__p ? 'From $'.number_format($__p['price_1pax'],0) : 'From $1,650'; ?></p>
+        <p class="pkg-price-label">per person · solo traveler</p>
         <a href="packages.php#classic-safari" class="btn-sz-outline" style="font-size:.65rem;padding:.6rem 1.25rem;min-height:40px">View & Book</a>
       </div>
 
@@ -160,8 +160,8 @@ try {
 
         <p class="pkg-duration">6 Days · 5 Nights</p>
         <p class="pkg-desc">Private game drives, exclusive lodges, and a sunrise balloon flight over the Serengeti that you will never forget.</p>
-        <p class="pkg-price"><?php $__p=$pkgMap['luxury-safari'] ?? null; echo $__p ? 'From $'.number_format($__p['price_2pax'],0) : 'From $2,900'; ?></p>
-        <p class="pkg-price-label">per person · 2 travelers</p>
+        <p class="pkg-price"><?php $__p=$pkgMap['luxury-safari'] ?? null; echo $__p ? 'From $'.number_format($__p['price_1pax'],0) : 'From $2,900'; ?></p>
+        <p class="pkg-price-label">per person · solo traveler</p>
         <a href="packages.php#luxury-safari" class="btn-sz-outline" style="font-size:.65rem;padding:.6rem 1.25rem;min-height:40px">View & Book</a>
       </div>
 
@@ -192,8 +192,8 @@ try {
 
         <p class="pkg-duration">5 Days · 4 Nights</p>
         <p class="pkg-desc">A refined mid-range circuit through Manyara, Serengeti and Ngorongoro — comfortable private lodges, experienced guide, zero compromise on wildlife time.</p>
-        <p class="pkg-price"><?php $__p=$pkgMap['comfort-safari'] ?? null; echo $__p ? 'From $'.number_format($__p['price_2pax'],0) : 'From $750'; ?></p>
-        <p class="pkg-price-label">per person · 2 travelers</p>
+        <p class="pkg-price"><?php $__p=$pkgMap['comfort-safari'] ?? null; echo $__p ? 'From $'.number_format($__p['price_1pax'],0) : 'From $750'; ?></p>
+        <p class="pkg-price-label">per person · solo traveler</p>
         <a href="packages.php#comfort-safari" class="btn-sz-outline" style="font-size:.65rem;padding:.6rem 1.25rem;min-height:40px">View & Book</a>
       </div>
 
@@ -224,8 +224,8 @@ try {
 
         <p class="pkg-duration">7 Days · 6 Nights</p>
         <p class="pkg-desc">Three days of wildlife majesty on the mainland, then four days of Indian Ocean paradise. The definitive Tanzania journey.</p>
-        <p class="pkg-price"><?php $__p=$pkgMap['safari-zanzibar'] ?? null; echo $__p ? 'From $'.number_format($__p['price_2pax'],0) : 'From $2,200'; ?></p>
-        <p class="pkg-price-label">per person · 2 travelers</p>
+        <p class="pkg-price"><?php $__p=$pkgMap['safari-zanzibar'] ?? null; echo $__p ? 'From $'.number_format($__p['price_1pax'],0) : 'From $2,200'; ?></p>
+        <p class="pkg-price-label">per person · solo traveler</p>
         <a href="packages.php#safari-zanzibar" class="btn-sz-outline" style="font-size:.65rem;padding:.6rem 1.25rem;min-height:40px">View & Book</a>
       </div>
 
@@ -256,8 +256,8 @@ try {
 
         <p class="pkg-duration">4 Days · 3 Nights</p>
         <p class="pkg-desc">Maasai villages, coffee farms, local markets — an authentic connection to Tanzania's living cultures and ancient ways.</p>
-        <p class="pkg-price"><?php $__p=$pkgMap['cultural-safari'] ?? null; echo $__p ? 'From $'.number_format($__p['price_2pax'],0) : 'From $1,100'; ?></p>
-        <p class="pkg-price-label">per person · 2 travelers</p>
+        <p class="pkg-price"><?php $__p=$pkgMap['cultural-safari'] ?? null; echo $__p ? 'From $'.number_format($__p['price_1pax'],0) : 'From $1,100'; ?></p>
+        <p class="pkg-price-label">per person · solo traveler</p>
         <a href="packages.php#cultural-safari" class="btn-sz-outline" style="font-size:.65rem;padding:.6rem 1.25rem;min-height:40px">View & Book</a>
       </div>
 
@@ -288,8 +288,8 @@ try {
 
         <p class="pkg-duration">3 Days · 2 Nights</p>
         <p class="pkg-desc">A compact, high-impact introduction to Tanzania's wildlife. Perfect for stopovers, first-timers, and tight itineraries.</p>
-        <p class="pkg-price"><?php $__p=$pkgMap['short-safari'] ?? null; echo $__p ? 'From $'.number_format($__p['price_2pax'],0) : 'From $850'; ?></p>
-        <p class="pkg-price-label">per person · 2 travelers</p>
+        <p class="pkg-price"><?php $__p=$pkgMap['short-safari'] ?? null; echo $__p ? 'From $'.number_format($__p['price_1pax'],0) : 'From $850'; ?></p>
+        <p class="pkg-price-label">per person · solo traveler</p>
         <a href="packages.php#short-safari" class="btn-sz-outline" style="font-size:.65rem;padding:.6rem 1.25rem;min-height:40px">View & Book</a>
       </div>
     </div>
@@ -361,7 +361,7 @@ try {
         <span class="section-label">Bespoke Travel</span>
         <h2 class="display-2">Design<br><em>Your Safari</em></h2>
         <div class="divider-line"></div>
-        <p style="color:var(--black);font-size:var(--text-base);line-height:1.85;margin-bottom:1.5rem;font-weight:500">
+        <p style="color:var(--black);font-size:var(--text-base);line-height:1.85;margin-bottom:var(--space-5);font-weight:500">
           No two travelers are the same. Tell us your vision — budget, dates,
           destinations, travel style — and we'll craft a private safari
           built exclusively for you.
@@ -370,7 +370,7 @@ try {
           We respond within 24 hours with a fully tailored proposal: day-by-day
           itinerary, accommodation options, and transparent pricing.
         </p>
-        <div style="margin-top:2rem;padding-top:2rem;border-top:1px solid var(--gray-2)">
+        <div style="margin-top:var(--space-6);padding-top:var(--space-6);border-top:1px solid var(--gray-2)">
           <p style="font-size:var(--text-xs);font-weight:700;letter-spacing:.18em;text-transform:uppercase;margin-bottom:.85rem">Included in every proposal</p>
           <ul style="list-style:none;display:flex;flex-direction:column;gap:.55rem">
             <?php foreach(['Full day-by-day itinerary','Accommodation options at every tier','Fully transparent pricing — no hidden fees','Unlimited free revisions'] as $b): ?>
@@ -380,7 +380,7 @@ try {
             <?php endforeach; ?>
           </ul>
         </div>
-        <div style="margin-top:2rem;padding:.85rem 1rem;background:#f7f7f5;border-left:3px solid var(--black);font-size:.78rem;font-weight:500;line-height:1.8">
+        <div style="margin-top:var(--space-6);padding:.85rem var(--space-4);background:#f7f7f5;border-left:3px solid var(--black);font-size:.78rem;font-weight:500;line-height:1.8">
           <strong style="display:block;font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;margin-bottom:.35rem">Average response time</strong>
           WhatsApp: under 1 hour &nbsp;·&nbsp; Email: within 24 hours
         </div>
@@ -649,7 +649,7 @@ try {
     </div>
 
     <!-- Destination list (scrollable) -->
-    <div id="dest-modal-list" style="overflow-y:auto;flex:1;padding:1rem 1.5rem">
+    <div id="dest-modal-list" style="overflow-y:auto;flex:1;padding:var(--space-4) var(--space-5)">
       <!-- Populated from PHP/DB below -->
       <?php
 try {
@@ -673,7 +673,7 @@ try {
 ?>
 
       <?php foreach ($__grouped as $__country => $__countryParks): ?>
-      <div class="dest-group" style="margin-bottom:1.5rem">
+      <div class="dest-group" style="margin-bottom:var(--space-5)">
         <p style="font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;margin-bottom:.65rem;padding-bottom:.4rem;border-bottom:1px solid #f3f4f6">
           <?= htmlspecialchars($__country) ?> &nbsp;·&nbsp; <?= count($__countryParks) ?> destination<?= count($__countryParks)!==1?'s':'' ?>
         </p>
@@ -739,17 +739,17 @@ try {
       <?php endif; ?>
 
       <!-- No results -->
-      <p id="dest-no-results" style="display:none;text-align:center;color:#9ca3af;font-size:.85rem;padding:2rem">
+      <p id="dest-no-results" style="display:none;text-align:center;color:#9ca3af;font-size:.85rem;padding:var(--space-6)">
         No destinations match your search.
       </p>
     </div>
 
     <!-- Modal footer -->
-    <div style="padding:1rem 1.5rem;border-top:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#fafaf9">
+    <div style="padding:var(--space-4) var(--space-5);border-top:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#fafaf9">
       <p style="font-size:.78rem;font-weight:600;color:#6b7280">
         <span id="dest-selected-count">0</span> destination(s) selected
       </p>
-      <div style="display:flex;gap:.5rem">
+      <div style="display:flex;gap:var(--space-2)">
         <button type="button" onclick="clearAllDests()"
                 style="padding:.55rem 1.1rem;border:1.5px solid #e5e7eb;background:#fff;font-family:inherit;font-size:.72rem;font-weight:600;cursor:pointer;color:#6b7280">
           Clear All
@@ -783,7 +783,7 @@ try {
 .dest-card-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: .5rem;
+  gap: var(--space-2);
 }
 @media (min-width: 540px) { .dest-card-grid { grid-template-columns: 1fr 1fr 1fr; } }
 
@@ -791,8 +791,8 @@ try {
 .dest-modal-card {
   display: flex;
   align-items: center;
-  gap: .75rem;
-  padding: .75rem .85rem;
+  gap: var(--space-3);
+  padding: var(--space-3) .85rem;
   border: 1.5px solid #e5e7eb;
   background: #fff;
   cursor: pointer;
@@ -872,7 +872,7 @@ try {
   display: inline-flex;
   align-items: center;
   gap: .3rem;
-  padding: .25rem .6rem;
+  padding: var(--space-1) .6rem;
   background: #0a0a0a;
   color: #fff;
   font-size: .65rem;
@@ -923,6 +923,19 @@ try {
   var noResults   = document.getElementById('dest-no-results');
 
   var selected = {}; // { name: true }
+
+  // Bridge for the form-submit handler in the other <script> block below
+  // (separate scope — this modal owns the real selection state; the old
+  // pre-modal .cs-dest-card/.cs-dest-grid markup these used to read from
+  // no longer exists).
+  window._csGetSelectedCount = function () { return Object.keys(selected).length; };
+  window._csResetSelection = function () {
+    selected = {};
+    document.querySelectorAll('.dest-modal-card').forEach(function (c) { c.classList.remove('selected'); });
+    renderHiddenInputs();
+    updateTrigger();
+    updateCount();
+  };
 
   // ── Open ─────────────────────────────────────────────────
   window.openDestModal = function () {
@@ -1093,102 +1106,10 @@ try {
 
 <!-- ── Custom Safari CSS ──────────────────────────────────── -->
 <style>
-/* Destination card grid */
-.cs-dest-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: .6rem;
-}
-@media (max-width: 900px) { .cs-dest-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 600px) { .cs-dest-grid { grid-template-columns: repeat(2, 1fr); } }
-
-/* Each destination card */
-.cs-dest-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: .3rem;
-  padding: .9rem .5rem .75rem;
-  border: 1.5px solid #e5e7eb;
-  background: #fff;
-  cursor: pointer;
-  text-align: center;
-  transition: border-color .15s, background .15s, transform .1s;
-  user-select: none;
-  -webkit-user-select: none;
-}
-.cs-dest-card:hover {
-  border-color: #9ca3af;
-  background: #f9f9f8;
-  transform: translateY(-1px);
-}
-.cs-dest-card.selected {
-  border-color: #0a0a0a;
-  background: #0a0a0a;
-  color: #fff;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0,0,0,.15);
-}
-
-/* SVG icon */
-.cs-dest-icon {
-  width: 36px;
-  height: 36px;
-  margin-bottom: .15rem;
-  color: #0a0a0a;
-  transition: color .15s;
-}
-.cs-dest-card.selected .cs-dest-icon { color: #fff; }
-.cs-dest-icon svg { width: 100%; height: 100%; }
-
-/* Card text */
-.cs-dest-name {
-  font-size: .72rem;
-  font-weight: 700;
-  letter-spacing: .04em;
-  line-height: 1.2;
-}
-.cs-dest-sub {
-  font-size: .6rem;
-  font-weight: 500;
-  color: #9ca3af;
-  letter-spacing: .02em;
-  line-height: 1.2;
-  transition: color .15s;
-}
-.cs-dest-card.selected .cs-dest-sub { color: rgba(255,255,255,.6); }
-
-/* Checkmark indicator (top-right corner) */
-.cs-dest-check-indicator {
-  position: absolute;
-  top: .35rem;
-  right: .35rem;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: transparent;
-  border: 1.5px solid #e5e7eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: all .15s;
-}
-.cs-dest-check-indicator svg { width: 10px; height: 10px; stroke: #fff; }
-.cs-dest-card.selected .cs-dest-check-indicator {
-  background: #fff;
-  border-color: #fff;
-  opacity: 1;
-}
-.cs-dest-card.selected .cs-dest-check-indicator svg { stroke: #0a0a0a; }
-
-/* Error state */
-.cs-dest-grid.has-error {
-  outline: 2px solid #dc2626;
-  outline-offset: 4px;
-}
+/* .cs-dest-grid/.cs-dest-card/etc. (an earlier pre-modal destination
+   picker UI) removed — the current destination picker is the
+   .dest-modal-card grid inside #dest-modal-overlay, styled further
+   down this file. */
 
 /* Experience tags */
 .cs-exp-grid {
@@ -1221,25 +1142,10 @@ try {
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-  /* ── Destination cards ─────────────────────────────────── */
-  document.querySelectorAll('.cs-dest-card').forEach(function (card) {
-    card.addEventListener('click', function (e) {
-      e.preventDefault();
-      var cb = card.querySelector('.cs-dest-check');
-      cb.checked = !cb.checked;
-      card.classList.toggle('selected', cb.checked);
-      validateDests();
-    });
-  });
-
-  function validateDests() {
-    var n    = document.querySelectorAll('.cs-dest-check:checked').length;
-    var grid = document.getElementById('cs-dest-grid');
-    var err  = document.getElementById('cs-dest-error');
-    if (grid) grid.classList.toggle('has-error', n === 0 && window._csSubmitted);
-    if (err)  err.style.display = (n === 0 && window._csSubmitted) ? 'block' : 'none';
-    return n;
-  }
+  /* Destination selection/validation lives in the destination-picker
+     modal's own <script> block above — bridged via window._csGetSelectedCount
+     / window._csResetSelection. The old .cs-dest-card/.cs-dest-grid markup
+     this used to read directly no longer exists. */
 
   /* ── Experience tags ───────────────────────────────────── */
   document.querySelectorAll('.cs-exp-tag').forEach(function (tag) {
@@ -1265,9 +1171,13 @@ document.addEventListener('DOMContentLoaded', function () {
     /* Client-side field validation */
     if (window.SZValidator && !SZValidator.validateForm(form)) return;
 
-    /* Destination required */
-    if (validateDests() === 0) {
-      document.getElementById('cs-dest-grid').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    /* Destination required — checked via the destination-picker modal's
+       own selection state (the capture-phase listener above already
+       blocks this if empty, but the form can still reach here via a
+       non-click submit, e.g. pressing Enter in a text field) */
+    if (window._csGetSelectedCount && window._csGetSelectedCount() === 0) {
+      var trigEl = document.getElementById('cs-dest-trigger');
+      if (trigEl) trigEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
@@ -1294,10 +1204,10 @@ document.addEventListener('DOMContentLoaded', function () {
       if (data.success) {
         showMsg(data.message, 'success');
         form.reset();
-        document.querySelectorAll('.cs-dest-card, .cs-exp-tag').forEach(function(el){ el.classList.remove('selected'); });
-        document.querySelectorAll('.cs-dest-check, .cs-exp-tag input').forEach(function(cb){ cb.checked=false; });
+        document.querySelectorAll('.cs-exp-tag').forEach(function(el){ el.classList.remove('selected'); });
+        document.querySelectorAll('.cs-exp-tag input').forEach(function(cb){ cb.checked=false; });
+        if (window._csResetSelection) window._csResetSelection();
         window._csSubmitted = false;
-        validateDests();
         if (typeof trackEvent === 'function') trackEvent('custom_safari_submission');
         btn.disabled = false;
         btn.classList.remove('is-loading');
