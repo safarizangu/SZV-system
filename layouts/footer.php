@@ -54,7 +54,7 @@
       </div>
 
       <!-- Contact column -->
-      <div class="footer-nav-col">
+      <div class="footer-nav-col footer-nav-col--contact">
         <span class="footer-col-title">Get in Touch</span>
         <ul class="footer-contact-list">
           <li class="footer-contact-item">

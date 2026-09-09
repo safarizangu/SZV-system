@@ -2427,9 +2427,10 @@ body {
   .footer-brand-col {
     grid-column: 1 !important;
   }
-  /* Explore/Company columns hidden on mobile — Get in Touch stays */
+  /* Explore/Company/Get in Touch columns hidden on mobile */
   .footer-nav-col--explore,
-  .footer-nav-col--company {
+  .footer-nav-col--company,
+  .footer-nav-col--contact {
     display: none !important;
   }
   .footer-brand-actions {
