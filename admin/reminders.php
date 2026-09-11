@@ -6,12 +6,14 @@ $db = \App\Models\Database::getInstance();
 
 // Cancel
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_id'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     try { $db->prepare("UPDATE booking_reminders SET status='cancelled' WHERE id=?")->execute([(int)$_POST['cancel_id']]); }
     catch(\Exception $e) {}
     header('Location: reminders.php?msg=Reminder+cancelled'); exit;
 }
 // Add custom
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_reminder'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     try {
         $db->prepare("INSERT INTO booking_reminders (booking_ref,type,send_at,subject,body) VALUES (?,?,?,?,?)")
            ->execute([
@@ -26,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_reminder'])) {
 }
 // Re-send failed
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend_id'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     try { $db->prepare("UPDATE booking_reminders SET status='pending', sent_at=NULL WHERE id=?")->execute([(int)$_POST['resend_id']]); }
     catch(\Exception $e) {}
     header('Location: reminders.php?msg=Queued+for+resend'); exit;
@@ -124,6 +127,7 @@ ob_start();
   <div class="admin-card-header"><h3>Schedule a Reminder</h3></div>
   <div class="admin-card-body">
     <form method="POST">
+      <?= \App\Middleware\CsrfMiddleware::field() ?>
       <input type="hidden" name="add_reminder" value="1">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
         <div>
@@ -188,6 +192,7 @@ ob_start();
       <td style="font-size:.75rem;color:var(--gray-500);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= htmlspecialchars($r['subject']??'Auto') ?></td>
       <td>
         <form method="POST" style="display:inline" onsubmit="return confirm('Cancel this reminder?')">
+          <?= \App\Middleware\CsrfMiddleware::field() ?>
           <input type="hidden" name="cancel_id" value="<?= $r['id'] ?>">
           <button class="admin-btn admin-btn--danger" style="font-size:.62rem;padding:.25rem .45rem">Cancel</button>
         </form>
@@ -223,6 +228,7 @@ ob_start();
       <td>
         <?php if($r['status']==='failed'): ?>
         <form method="POST" style="display:inline">
+          <?= \App\Middleware\CsrfMiddleware::field() ?>
           <input type="hidden" name="resend_id" value="<?= $r['id'] ?>">
           <button class="admin-btn admin-btn--outline" style="font-size:.62rem;padding:.25rem .45rem">Retry</button>
         </form>

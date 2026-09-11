@@ -8,6 +8,7 @@ $pageTitle = 'Customers';
 // Handle manual edits (name/phone/country) — the record itself is
 // otherwise only ever written by App\Models\Customer::findOrCreateByEmail().
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_customer'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     try {
         $db->prepare("UPDATE customers SET full_name=?, phone=?, country=?, updated_at=NOW() WHERE id=?")
            ->execute([
@@ -20,9 +21,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_customer'])) {
     header('Location: customers.php?msg=' . urlencode('Customer updated.')); exit;
 }
 
-$search = trim($_GET['q'] ?? '');
-$sort   = $_GET['sort'] ?? 'recent';
-$msg    = htmlspecialchars($_GET['msg'] ?? '');
+$search  = trim($_GET['q'] ?? '');
+$sort    = $_GET['sort'] ?? 'recent';
+$msg     = htmlspecialchars($_GET['msg'] ?? '');
+$page    = max(1, (int)($_GET['page'] ?? 1));
+$perPage = 20;
+$offset  = ($page - 1) * $perPage;
 
 $where  = '';
 $params = [];
@@ -42,9 +46,18 @@ $orderBy = match ($sort) {
 // links back to it — this is the whole point of the customers table:
 // a single query now answers "how many times has this person contacted
 // us and how much have they spent," which no query could answer before.
+// Deliberately not agent-scoped: a customer is a shared contact record —
+// several agents may legitimately handle the same repeat guest across
+// different bookings, so there is no single "owner" to restrict this to.
 $customers = [];
 $stats     = ['total' => 0, 'total_spent' => 0, 'repeat' => 0];
+$totalRows = 0; $totalPages = 0;
 try {
+    $total = $db->prepare("SELECT COUNT(*) FROM customers c $where");
+    $total->execute($params);
+    $totalRows  = (int)$total->fetchColumn();
+    $totalPages = (int)ceil($totalRows / $perPage);
+
     $stmt = $db->prepare("
         SELECT c.*,
                (SELECT COUNT(*) FROM bookings b WHERE b.customer_id = c.id) AS booking_count,
@@ -55,7 +68,7 @@ try {
         FROM customers c
         $where
         ORDER BY $orderBy
-        LIMIT 200
+        LIMIT $perPage OFFSET $offset
     ");
     $stmt->execute($params);
     $customers = $stmt->fetchAll();
@@ -163,6 +176,21 @@ ob_start();
 </table>
 </div>
 
+<!-- Pagination -->
+<?php if ($totalPages > 1): ?>
+<div class="pagination" style="border-top:none">
+  <span style="font-size:.75rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?></span>
+  <div class="page-btns">
+    <?php for ($i=1; $i<=$totalPages; $i++): ?>
+    <a href="?page=<?= $i ?>&q=<?= urlencode($search) ?>&sort=<?= urlencode($sort) ?>"
+       class="page-btn<?= $i===$page?' active':'' ?>">
+      <?= $i ?>
+    </a>
+    <?php endfor; ?>
+  </div>
+</div>
+<?php endif; ?>
+
 <!-- Edit modal -->
 <div id="editModal" class="admin-modal-overlay">
   <div class="admin-modal">
@@ -171,6 +199,7 @@ ob_start();
       <button type="button" onclick="closeEdit()" class="admin-icon-btn admin-modal-close"><?= \App\Helpers\AdminIcon::render('close', 18) ?></button>
     </div>
     <form method="POST" class="admin-modal-body">
+      <?= \App\Middleware\CsrfMiddleware::field() ?>
       <input type="hidden" name="update_customer" value="1">
       <input type="hidden" name="id" id="edit_id">
       <div class="admin-form-group" style="margin-bottom:1rem">

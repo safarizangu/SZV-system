@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -iE '\\\\.\\\\s*\\\\$|\\\\$\\\\{')",
+      "Bash(mysql -u root -p'Sdg@201819' safari_zangu -e \"DESCRIBE leads;\")",
+      "Bash(mysql -u root -p'Sdg@201819' safari_zangu -e \"DESCRIBE custom_safari_requests;\")",
+      "Bash(mysql -u root -p'Sdg@201819' safari_zangu -e \"SHOW CREATE TABLE packages\\\\G\")",
+      "Bash(mysql -u root -p'Sdg@201819' safari_zangu -e \"SHOW CREATE TABLE customers\\\\G\")",
+      "Bash(mysql -u root -p'Sdg@201819' safari_zangu -e \"SHOW CREATE TABLE leads\\\\G\")",
+      "Bash(mysql -u root -p'Sdg@201819' safari_zangu -e \"DESCRIBE admin_users;\")",
+      "Bash(mysql -u root -p'Sdg@201819' safari_zangu -e \"SELECT id,username,role FROM admin_users;\")",
+      "Bash(mysql -u root -p'Sdg@201819' safari_zangu -e \"SHOW INDEX FROM packages;\")",
+      "Bash(mysql -u root -p'Sdg@201819' safari_zangu -e \"SHOW INDEX FROM quotations;\")",
+      "Bash(mysql -u root -p'Sdg@201819' safari_zangu -e \"SHOW INDEX FROM leads;\")",
+      "Bash(grep -rnE '<\\\\?=\\\\s*\\\\$_\\(GET|POST|REQUEST\\)\\\\[' /var/www/html/safari-zangu/admin /var/www/html/safari-zangu/api /var/www/html/safari-zangu/views /var/www/html/safari-zangu/public /var/www/html/safari-zangu/layouts)",
+      "Bash(git -C /var/www/html/safari-zangu ls-files config/app.php)",
+      "Bash(git -C /var/www/html/safari-zangu log --oneline -1 -- config/app.php)",
+      "Bash(xargs -I{} sh -c 'echo \"--{}--\"; cat {}')",
+      "Bash(mysql -u root -p'Sdg@201819' safari_zangu -e \"SELECT setting_key FROM settings LIMIT 30;\")",
+      "Bash(xargs -n1 basename)",
+      "Bash(cd /var/www/html/safari-zangu *)",
+      "Read(//var/www/html/safari-zangu/layouts/**)",
+      "Bash(mysql -u root -p'Sdg@201819' safari_zangu -e \"SELECT table_name, table_rows FROM information_schema.tables WHERE table_schema='safari_zangu' ORDER BY table_rows DESC LIMIT 8;\")",
+      "Bash(git check-ignore *)",
+      "Bash(php -l config/app.php)",
+      "Bash(php -l api/cron/process_email_queue.php)"
+    ]
+  }
+}

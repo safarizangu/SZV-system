@@ -14,6 +14,8 @@ function grespond(array $d): void {
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') grespond(['success'=>false,'message'=>'Invalid method.']);
 
+\App\Middleware\CsrfMiddleware::validateOrDie();
+
 $folder  = trim($_POST['folder'] ?? 'general');
 $folder  = preg_replace('/[^a-z0-9\-_]/', '', strtolower($folder));
 if (!$folder) $folder = 'general';

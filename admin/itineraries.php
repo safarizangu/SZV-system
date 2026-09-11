@@ -9,6 +9,7 @@ $msg = htmlspecialchars($_GET['msg'] ?? '');
 
 // SAVE
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_itin'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     $id       = (int)($_POST['id'] ?? 0);
     $dur      = max(1,(int)($_POST['duration_days']??5));
     $slug     = preg_replace('/[^a-z0-9-]/','',strtolower(trim($_POST['slug']??'')));
@@ -180,6 +181,7 @@ ob_start();
 <div>
 <?php if ($editId || !$editId): ?>
 <form method="POST" id="itin-form">
+<?= \App\Middleware\CsrfMiddleware::field() ?>
 <input type="hidden" name="save_itin" value="1">
 <input type="hidden" name="id" value="<?= $editId ?>">
 

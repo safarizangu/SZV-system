@@ -6,6 +6,7 @@ $db = \App\Models\Database::getInstance();
 $pageTitle = 'Contact Messages';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     $action = $_POST['action'] ?? '';
     if ($action === 'mark_read') {
         try { $db->prepare("UPDATE contact_messages SET is_read=1 WHERE id=?")->execute([(int)$_POST['id']]); }
@@ -51,6 +52,7 @@ ob_start();
   </div>
   <?php if($unread > 0): ?>
   <form method="POST" style="display:inline">
+    <?= \App\Middleware\CsrfMiddleware::field() ?>
     <input type="hidden" name="action" value="mark_all_read">
     <button class="admin-btn admin-btn--outline" style="font-size:.72rem"><?= \App\Helpers\AdminIcon::render('check', 12) ?> Mark All Read</button>
   </form>
@@ -102,18 +104,21 @@ ob_start();
       <?php endif; ?>
       <?php if(!$m['is_read']): ?>
       <form method="POST" style="display:contents">
+        <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="action" value="mark_read">
         <input type="hidden" name="id" value="<?= $m['id'] ?>">
         <button class="admin-btn admin-btn--outline" style="font-size:.65rem"><?= \App\Helpers\AdminIcon::render('check', 12) ?> Mark Read</button>
       </form>
       <?php else: ?>
       <form method="POST" style="display:contents">
+        <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="action" value="mark_unread">
         <input type="hidden" name="id" value="<?= $m['id'] ?>">
         <button class="admin-btn admin-btn--muted" style="font-size:.65rem">Mark Unread</button>
       </form>
       <?php endif; ?>
       <form method="POST" style="display:contents" onsubmit="return confirm('Delete this message?')">
+        <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="action" value="delete">
         <input type="hidden" name="id" value="<?= $m['id'] ?>">
         <button class="admin-btn admin-btn--danger" style="font-size:.65rem">Delete</button>

@@ -11,6 +11,7 @@ ob_start();
 $msg = '';
 // Add / Edit
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     $id     = (int)($_POST['id'] ?? 0);
     $name   = trim($_POST['name'] ?? '');
     $role   = trim($_POST['role'] ?? '');
@@ -35,6 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
 }
 // Delete
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     try { $db->prepare("DELETE FROM team_members WHERE id=?")->execute([(int)$_POST['delete_id']]); }
     catch(Exception $e){ error_log($e->getMessage()); }
     header('Location: team_members.php'); exit;
@@ -57,6 +59,7 @@ catch(Exception $e){ error_log($e->getMessage()); }
   <div class="admin-card-header"><h3><?= $edit ? 'Edit Member' : 'Add Team Member' ?></h3></div>
   <div class="admin-card-body">
   <form method="POST" class="av-form">
+    <?= \App\Middleware\CsrfMiddleware::field() ?>
     <input type="hidden" name="save" value="1">
     <input type="hidden" name="id" value="<?= $edit['id'] ?? 0 ?>">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
@@ -104,6 +107,7 @@ catch(Exception $e){ error_log($e->getMessage()); }
   <td>
     <a href="?edit=<?= $m['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Edit</a>
     <form method="POST" style="display:inline" onsubmit="return confirm('Delete <?= htmlspecialchars($m['name']) ?>?')">
+      <?= \App\Middleware\CsrfMiddleware::field() ?>
       <input type="hidden" name="delete_id" value="<?= $m['id'] ?>">
       <button class="admin-btn admin-btn--danger" style="font-size:.7rem">Delete</button>
     </form>

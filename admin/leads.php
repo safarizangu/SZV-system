@@ -4,11 +4,14 @@ use App\Middleware\AuthMiddleware;
 AuthMiddleware::requireAdmin();
 $db = \App\Models\Database::getInstance();
 $pageTitle = 'Leads Pipeline';
+$myId     = (int)($_SESSION['admin_user_id'] ?? 0);
+$isAdminUser = AuthMiddleware::isAdminRole();
 
 // ── Handle AJAX JSON responses ─────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
     ob_end_clean();
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     $action = $_POST['action'];
 
     if ($action === 'add_lead') {
@@ -25,6 +28,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             'pipeline_stage'=> 'lead',
             'notes'         => trim($_POST['notes']         ?? ''),
             'assigned_to'   => !empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : null,
+            // Non-admins can only ever create leads owned by themselves —
+            // an admin may optionally hand a new lead straight to an agent.
+            'agent_id'      => $isAdminUser ? (!empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : null) : $myId,
         ];
         if (!$data['full_name'] || !$data['email']) {
             echo json_encode(['success'=>false,'message'=>'Name and email required.']);
@@ -35,7 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $vals = implode(',', array_fill(0, count($data), '?'));
             $db->prepare("INSERT INTO leads ($cols,created_at) VALUES ($vals,NOW())")
                ->execute(array_values($data));
-            echo json_encode(['success'=>true,'id'=>(int)$db->lastInsertId()]);
+            $newId = (int)$db->lastInsertId();
+            \App\Services\ActivityLog::record('create', 'lead', $newId, ['full_name'=>$data['full_name']]);
+            echo json_encode(['success'=>true,'id'=>$newId]);
         } catch(\Exception $e) {
             echo json_encode(['success'=>false,'message'=>$e->getMessage()]);
         }
@@ -49,14 +57,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if (!in_array($stage, $allowed, true)) {
             echo json_encode(['success'=>false,'message'=>'Invalid stage.']); exit;
         }
-        $db->prepare("UPDATE leads SET pipeline_stage=? WHERE id=?")->execute([$stage, $id]);
+        if ($isAdminUser) {
+            $stmt = $db->prepare("UPDATE leads SET pipeline_stage=? WHERE id=?");
+            $stmt->execute([$stage, $id]);
+        } else {
+            $stmt = $db->prepare("UPDATE leads SET pipeline_stage=? WHERE id=? AND agent_id=?");
+            $stmt->execute([$stage, $id, $myId]);
+        }
+        if ($stmt->rowCount() === 0) {
+            echo json_encode(['success'=>false,'message'=>'Lead not found or not assigned to you.']); exit;
+        }
+        \App\Services\ActivityLog::record('update_stage', 'lead', $id, ['stage'=>$stage]);
         echo json_encode(['success'=>true]);
         exit;
     }
 
     if ($action === 'delete_lead') {
+        // Matches api/leads.php: deletion is admin/superadmin only, no agent ownership override.
+        if (!$isAdminUser) {
+            echo json_encode(['success'=>false,'message'=>'Permission denied.']); exit;
+        }
         $id = (int)($_POST['id'] ?? 0);
         $db->prepare("DELETE FROM leads WHERE id=?")->execute([$id]);
+        \App\Services\ActivityLog::record('delete', 'lead', $id);
         echo json_encode(['success'=>true]);
         exit;
     }
@@ -64,9 +87,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     exit;
 }
 
-$rows = [];
-try { $rows = $db->query("SELECT * FROM leads ORDER BY created_at DESC")->fetchAll(); }
-catch(\Exception $e) {}
+// ── Filters + pagination ─────────────────────────────────────
+$stageFilter = trim($_GET['stage'] ?? '');
+$page        = max(1, (int)($_GET['page'] ?? 1));
+$perPage     = 20;
+$offset      = ($page - 1) * $perPage;
+
+$where  = [];
+$params = [];
+if (!$isAdminUser) { $where[] = 'agent_id=?'; $params[] = $myId; }
+if ($stageFilter)  { $where[] = 'pipeline_stage=?'; $params[] = $stageFilter; }
+$whereSQL = $where ? 'WHERE '.implode(' AND ', $where) : '';
+
+$rows = []; $totalRows = 0; $totalPages = 0;
+try {
+    $total = $db->prepare("SELECT COUNT(*) FROM leads $whereSQL");
+    $total->execute($params);
+    $totalRows  = (int)$total->fetchColumn();
+    $totalPages = (int)ceil($totalRows / $perPage);
+    $stmt = $db->prepare("SELECT * FROM leads $whereSQL ORDER BY created_at DESC LIMIT $perPage OFFSET $offset");
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll();
+} catch(\Exception $e) {}
 
 $stages = ['lead','qualified','quoted','negotiation','booked','travelled','completed','lost'];
 // Stage→color map keyed to the shared .badge-status--* palette (same bg/text
@@ -83,7 +125,13 @@ $stageColors = [
     'lost'        => ['bg'=>'var(--red-light)',   'text'=>'#991b1b',        'badge'=>'red'],
 ];
 $stageCounts = array_fill_keys($stages, 0);
-foreach ($rows as $r) $stageCounts[$r['pipeline_stage']]++;
+try {
+    $countWhereSQL = !$isAdminUser ? 'WHERE agent_id=?' : '';
+    $countParams   = !$isAdminUser ? [$myId] : [];
+    $cs = $db->prepare("SELECT pipeline_stage, COUNT(*) c FROM leads $countWhereSQL GROUP BY pipeline_stage");
+    $cs->execute($countParams);
+    foreach ($cs->fetchAll() as $cr) $stageCounts[$cr['pipeline_stage']] = (int)$cr['c'];
+} catch(\Exception $e) {}
 
 // Get admin users for assignment
 $admins = [];
@@ -99,13 +147,17 @@ ob_start();
 
 <!-- Stage pills -->
 <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem;align-items:center;justify-content:space-between">
-  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+  <div class="admin-filter-pills" style="margin-bottom:0">
+    <a href="leads.php" class="admin-filter-pill<?= !$stageFilter?' active':'' ?>">
+      All &nbsp;<span style="opacity:.6"><?= array_sum($stageCounts) ?></span>
+    </a>
     <?php foreach($stages as $s):
       $sc = $stageColors[$s];
+      $pillMod = in_array($sc['badge'], ['amber','green','red','blue','dark'], true) ? ' admin-filter-pill--'.$sc['badge'] : '';
     ?>
-    <span class="badge-status badge-status--<?= $sc['badge'] ?>" style="padding:.35rem .85rem">
-      <?= ucfirst($s) ?> <span style="opacity:.7"><?= $stageCounts[$s] ?></span>
-    </span>
+    <a href="?stage=<?= $s ?>" class="admin-filter-pill<?= $pillMod ?><?= $stageFilter===$s?' active':'' ?>">
+      <?= ucfirst($s) ?> &nbsp;<span style="opacity:.6"><?= $stageCounts[$s] ?></span>
+    </a>
     <?php endforeach; ?>
   </div>
   <button onclick="openAddModal()"
@@ -172,8 +224,10 @@ ob_start();
         <a href="../admin/quotation_new.php?from_lead=<?= $r['id'] ?>"
            class="admin-btn admin-btn--tint-blue" style="font-size:.65rem;padding:.3rem .55rem">Quote</a>
         <?php endif; ?>
+        <?php if ($isAdminUser): ?>
         <button onclick="deleteLead(<?= $r['id'] ?>)"
                 class="admin-btn admin-btn--danger" style="font-size:.65rem;padding:.3rem .55rem"><?= \App\Helpers\AdminIcon::render('trash', 12) ?></button>
+        <?php endif; ?>
       </td>
     </tr>
     <?php endforeach; ?>
@@ -183,6 +237,21 @@ ob_start();
   </tbody>
 </table>
 </div>
+
+<!-- Pagination -->
+<?php if ($totalPages > 1): ?>
+<div class="pagination" style="border-top:none">
+  <span style="font-size:.75rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?></span>
+  <div class="page-btns">
+    <?php for ($i=1; $i<=$totalPages; $i++): ?>
+    <a href="?page=<?= $i ?>&stage=<?= urlencode($stageFilter) ?>"
+       class="page-btn<?= $i===$page?' active':'' ?>">
+      <?= $i ?>
+    </a>
+    <?php endfor; ?>
+  </div>
+</div>
+<?php endif; ?>
 
 <!-- ── Add Lead Modal ──────────────────────────────────────── -->
 <div id="addLeadModal" class="admin-modal-overlay">
@@ -326,6 +395,7 @@ async function submitAddLead() {
     fd.append('source',           document.getElementById('lf-source').value);
     fd.append('assigned_to',      document.getElementById('lf-assigned').value);
     fd.append('notes',            document.getElementById('lf-notes').value);
+    fd.append('_csrf',            window.CSRF_TOKEN || '');
 
     try {
         var r = await fetch('leads.php', {method:'POST', body:fd});
@@ -348,6 +418,7 @@ async function updateStage(id, stage, sel) {
     fd.append('action','update_stage');
     fd.append('id', id);
     fd.append('stage', stage);
+    fd.append('_csrf', window.CSRF_TOKEN || '');
     try {
         var r = await fetch('leads.php',{method:'POST',body:fd});
         var d = await r.json();
@@ -364,6 +435,7 @@ async function deleteLead(id) {
     var fd = new FormData();
     fd.append('action','delete_lead');
     fd.append('id', id);
+    fd.append('_csrf', window.CSRF_TOKEN || '');
     try {
         var r = await fetch('leads.php',{method:'POST',body:fd});
         var d = await r.json();

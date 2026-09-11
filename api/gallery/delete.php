@@ -9,6 +9,8 @@ function drespond(array $d): void { ob_end_clean(); header('Content-Type: applic
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') drespond(['success'=>false,'message'=>'Invalid method.']);
 
+\App\Middleware\CsrfMiddleware::validateOrDie();
+
 $rawPath   = trim($_POST['path'] ?? '');
 if (!$rawPath) drespond(['success'=>false,'message'=>'No path provided.']);
 

@@ -10,6 +10,7 @@ ob_start();
 <?php
 $msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     $id  = (int)($_POST['id'] ?? 0);
     $fields = ['park_key','name','country','adult_fee','child_fee','resident_adult','resident_child','fee_unit','notes'];
     $vals = [];
@@ -39,6 +40,7 @@ catch(Exception $e){}
   <div class="admin-card-header"><h3><?= $edit ? 'Edit Park Fee' : 'Add Park' ?></h3></div>
   <div class="admin-card-body">
   <form method="POST" class="av-form">
+    <?= \App\Middleware\CsrfMiddleware::field() ?>
     <input type="hidden" name="save" value="1">
     <input type="hidden" name="id"   value="<?= $edit['id']??0 ?>">
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">

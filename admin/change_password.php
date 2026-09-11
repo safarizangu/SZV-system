@@ -7,6 +7,7 @@ $db = \App\Models\Database::getInstance();
 $msg = ''; $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     $current  = $_POST['current_password'] ?? '';
     $new      = $_POST['new_password']     ?? '';
     $confirm  = $_POST['confirm_password'] ?? '';
@@ -64,6 +65,7 @@ ob_start();
     <div class="admin-card-header"><h3>Change Admin Password</h3></div>
     <div class="admin-card-body">
       <form method="POST">
+        <?= \App\Middleware\CsrfMiddleware::field() ?>
         <div class="admin-form-group">
           <label class="admin-label">Current Password</label>
           <input type="password" name="current_password" class="admin-input" required autocomplete="current-password">

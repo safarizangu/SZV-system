@@ -6,6 +6,7 @@ $db = \App\Models\Database::getInstance();
 $pageTitle = 'Packages';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_id'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     $id  = (int)$_POST['toggle_id'];
     $cur = (int)$_POST['current'];
     try { $db->prepare("UPDATE packages SET is_active=? WHERE id=?")->execute([!$cur, $id]); }
@@ -77,6 +78,7 @@ ob_start();
       <a href="package_edit.php?id=<?= $p['id'] ?>" class="admin-btn admin-btn--primary" style="font-size:.62rem">Edit</a>
       <a href="<?= BASE_PATH ?>/packages.php#<?= htmlspecialchars($p['slug']) ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.62rem">View Live ↗</a>
       <form method="POST" style="display:inline">
+        <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="toggle_id" value="<?= $p['id'] ?>">
         <input type="hidden" name="current" value="<?= $p['is_active'] ?>">
         <button class="admin-btn admin-btn--<?= $p['is_active']?'muted':'success' ?>" style="font-size:.62rem">

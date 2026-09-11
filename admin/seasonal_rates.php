@@ -10,6 +10,7 @@ ob_start();
 <?php
 $msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     $id  = (int)($_POST['id'] ?? 0);
     $name = trim($_POST['name'] ?? '');
     $key  = trim($_POST['season_key'] ?? '');
@@ -42,6 +43,7 @@ $months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','De
   <div class="admin-card-header"><h3><?= $edit ? 'Edit Season' : 'Add Season' ?></h3></div>
   <div class="admin-card-body">
   <form method="POST" class="av-form">
+    <?= \App\Middleware\CsrfMiddleware::field() ?>
     <input type="hidden" name="save" value="1">
     <input type="hidden" name="id"   value="<?= $edit['id']??0 ?>">
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:1rem">

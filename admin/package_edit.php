@@ -53,6 +53,12 @@ $activities_db  = fetchAll($db,"SELECT id,name,price,price_unit FROM activities 
 
 // SAVE
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
+    // Packages are a shared catalog with no per-record owner — pricing
+    // changes are admin/superadmin only, agents may view but not edit.
+    if (!AuthMiddleware::isAdminRole()) {
+        header("Location: package_edit.php?".($id>0?"id=$id&":"")."msg=".urlencode('Permission denied.')); exit;
+    }
     $slug = preg_replace('/[^a-z0-9-]/','',strtolower(trim($_POST['slug']??'')));
     $durationDays = max(1,(int)($_POST['duration_days']??5));
 
@@ -101,11 +107,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
 
     // Accommodation/vehicle/park/activity costs all now come from the
     // Day-by-Day Itinerary above ($itinerary, built further up) instead
-    // of being re-typed into a separate set of rows here — the only real
-    // input left for the quotation cost summary is the service charge.
+    // of being re-typed into a separate set of rows here — service
+    // charge and traveler counts are what's left to enter directly.
     $bd = [
         'service_charge_pax' => (float)($_POST['service_charge_pax'] ?? 0),
-        'traveler_count'      => max(1,(int)($_POST['traveler_count'] ?? 2)),
+        'adults'              => max(1,(int)($_POST['adults'] ?? 1)),
+        'children'            => max(0,(int)($_POST['children'] ?? 0)),
+        'infants'             => max(0,(int)($_POST['infants'] ?? 0)),
         'notes'               => trim($_POST['breakdown_notes']??''),
     ];
 
@@ -163,11 +171,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
             $set=implode(',',array_map(fn($k)=>"`$k`=?",array_keys($data)));
             $db->prepare("UPDATE packages SET $set WHERE id=?")->execute(array_merge(array_values($data),[$id]));
             $newId=$id;
+            \App\Services\ActivityLog::record('update', 'package', $newId, ['name'=>$data['name'],'price_1pax'=>$data['price_1pax']]);
         } else {
             $cols=implode(',',array_map(fn($k)=>"`$k`",array_keys($data)));
             $phld=implode(',',array_fill(0,count($data),'?'));
             $db->prepare("INSERT INTO packages ($cols,created_at) VALUES ($phld,NOW())")->execute(array_values($data));
             $newId=$db->lastInsertId();
+            \App\Services\ActivityLog::record('create', 'package', (int)$newId, ['name'=>$data['name']]);
         }
         header("Location: package_edit.php?id=$newId&msg=".urlencode('Package saved.')); exit;
     } catch(\Exception $e){ $msg='Error: '.$e->getMessage(); }
@@ -208,12 +218,15 @@ $itinerary = array_slice($itinerary, 0, $durationDays);
 // data the admin had already entered per day in the Day-by-Day Itinerary
 // above — re-typing the same lodge and vehicle rates twice, with no
 // guarantee the two ever agreed. It's now computed live from those same
-// day-blocks (see calcTotals() below); service_charge_pax is the only
-// value that has nowhere else to come from, so it's still stored here.
-// 'service_charge' is the old key, kept as a fallback for packages saved
-// before this change.
+// day-blocks (see calcTotals() below); service_charge_pax and Adults/
+// Children/Infants are what's left to enter directly. 'service_charge'
+// is the old key, kept as a fallback for packages saved before this
+// change. Adults/Children/Infants only drive this page's live cost
+// preview — the saved price_1pax is always computed for 1 adult, 0 children.
 $bdSvcPax    = (float)($bd['service_charge_pax'] ?? $bd['service_charge'] ?? 0);
-$bdTravelers = (int)($bd['traveler_count'] ?? 2);
+$bdAdults    = max(1, (int)($bd['adults'] ?? $bd['traveler_count'] ?? 1));
+$bdChildren  = max(0, (int)($bd['children'] ?? 0));
+$bdInfants   = max(0, (int)($bd['infants'] ?? 0));
 
 $pageTitle = $id ? 'Edit Package' : 'New Package';
 ob_start();
@@ -234,6 +247,7 @@ ob_start();
 </div>
 
 <form method="POST" id="pkg-form">
+<?= \App\Middleware\CsrfMiddleware::field() ?>
 <input type="hidden" name="save_pkg" value="1">
     <input type="hidden" name="itinerary_id" id="selected_itinerary_id" value="<?= (int)($pkg['itinerary_id'] ?? 0) ?>">
 <div class="admin-split-layout" style="display:grid;grid-template-columns:1fr 300px;gap:1.5rem;align-items:start">
@@ -572,35 +586,51 @@ ob_start();
   <div class="admin-card-body">
     <div class="admin-split-summary" style="display:grid;grid-template-columns:1fr 260px;gap:1.5rem;align-items:start">
 
-      <!-- Read-only summary -->
+      <!-- Read-only summary — itemized, matching what ItineraryQuoteBuilder
+           actually computes (see calcTotals() below) -->
       <div>
         <table style="width:100%;font-size:.85rem;border-collapse:collapse">
-          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Accommodation</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-acc">$0</td></tr>
-          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Vehicle</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-veh">$0</td></tr>
-          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Park Fees</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-park">$0</td></tr>
-          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Meals</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-meals">$0</td></tr>
-          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Activities (included)</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-act">$0</td></tr>
-          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Other Costs</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-other">$0</td></tr>
-          <tr style="border-bottom:1px solid var(--gray-200);background:var(--green-light)"><td style="padding:.5rem 0 .5rem .5rem;color:#166534">Service Charge</td><td style="padding:.5rem .5rem .5rem 0;text-align:right;font-weight:600;color:#166534" id="qs-svc">$0</td></tr>
-          <tr style="border-top:1px solid var(--gray-200)"><td style="padding:.6rem 0;font-weight:600">Subtotal</td><td style="padding:.6rem 0;text-align:right;font-weight:600" id="qs-subtotal">$0</td></tr>
-          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">VAT (18%)</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-vat">$0</td></tr>
-          <tr style="background:var(--black);color:var(--white)"><td style="padding:.75rem;font-weight:700">TOTAL</td><td style="padding:.75rem;text-align:right;font-family:Georgia,serif;font-size:1.1rem" id="qs-total">$0</td></tr>
-          <tr><td style="padding:.5rem 0;font-size:.75rem;color:var(--gray-500)" id="qs-pp-label">Per Person (÷2)</td><td style="padding:.5rem 0;text-align:right;font-size:.9rem;font-weight:700" id="qs-pp">$0</td></tr>
+          <thead>
+            <tr style="border-bottom:2px solid var(--gray-200)">
+              <th style="text-align:left;padding:.4rem 0;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-500);font-weight:600">Item</th>
+              <th style="text-align:right;padding:.4rem 0;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-500);font-weight:600">Unit Price</th>
+              <th style="text-align:left;padding:.4rem 0 .4rem .75rem;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-500);font-weight:600">Qty</th>
+              <th style="text-align:right;padding:.4rem 0;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-500);font-weight:600">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="qs-line-items"></tbody>
+          <tbody>
+            <tr style="border-top:1px solid var(--gray-200)"><td colspan="3" style="padding:.6rem 0;font-weight:600">Subtotal</td><td style="padding:.6rem 0;text-align:right;font-weight:600" id="qs-subtotal">$0</td></tr>
+            <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">VAT (18%)</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-vat">$0</td></tr>
+            <tr style="background:var(--black);color:var(--white)"><td colspan="3" style="padding:.75rem;font-weight:700">TOTAL</td><td style="padding:.75rem;text-align:right;font-family:Georgia,serif;font-size:1.1rem" id="qs-total">$0</td></tr>
+            <tr><td colspan="3" style="padding:.5rem 0;font-size:.75rem;color:var(--gray-500)" id="qs-pp-label">Per Person (÷2)</td><td style="padding:.5rem 0;text-align:right;font-size:.9rem;font-weight:700" id="qs-pp">$0</td></tr>
+          </tbody>
         </table>
       </div>
 
-      <!-- Aside: the only editable inputs — travelers (shared with the
-           itinerary day badges above) and service charge -->
+      <!-- Aside: the only editable inputs — Adults/Children/Infants
+           (shared with the itinerary day badges above), then Service
+           Charge. Identical field set/order to admin/quotation_new.php's
+           equivalent aside. -->
       <div style="background:var(--gray-50);border:1px solid var(--gray-200);padding:1rem">
-        <label class="admin-label">Travelers</label>
-        <input type="number" name="traveler_count" id="traveler_count" min="1" max="20"
-               value="<?= $bdTravelers ?>" class="admin-input" style="margin-bottom:1rem"
+        <label class="admin-label">Adults</label>
+        <input type="number" name="adults" id="pe_adults" min="1" max="20"
+               value="<?= $bdAdults ?>" class="admin-input" style="margin-bottom:.75rem"
                oninput="calcTotals()" title="Used for both the itinerary day badges above and this summary">
+
+        <label class="admin-label">Children</label>
+        <input type="number" name="children" id="pe_children" min="0" max="20"
+               value="<?= $bdChildren ?>" class="admin-input" style="margin-bottom:.75rem"
+               oninput="calcTotals()">
+
+        <label class="admin-label">Infants</label>
+        <input type="number" name="infants" id="pe_infants" min="0" max="20"
+               value="<?= $bdInfants ?>" class="admin-input" style="margin-bottom:.75rem">
 
         <label class="admin-label">Service Charge ($ / person)</label>
         <input name="service_charge_pax" type="number" step="0.01" class="admin-input" id="service_charge_pax"
                value="<?= $bdSvcPax ?>" oninput="calcTotals()" placeholder="e.g. 50">
-        <p style="font-size:.68rem;color:var(--gray-500);margin-top:.5rem;line-height:1.5">The only cost entered directly here — everything else above comes from the Day-by-Day Itinerary.</p>
+        <p style="font-size:.68rem;color:var(--gray-500);margin-top:.5rem;line-height:1.5">Everything above comes from the Day-by-Day Itinerary.</p>
       </div>
 
     </div>
@@ -657,9 +687,13 @@ ob_start();
   <!-- Save button -->
   <div class="admin-card">
     <div class="admin-card-body">
+      <?php if (AuthMiddleware::isAdminRole()): ?>
       <button type="submit" class="admin-btn admin-btn--primary" style="width:100%;justify-content:center;padding:.85rem;margin-bottom:.5rem">
         💾 Save Package
       </button>
+      <?php else: ?>
+      <div class="admin-alert" style="margin-bottom:.5rem">Package pricing is admin/superadmin only — you can view but not edit.</div>
+      <?php endif; ?>
       <?php if($id&&!empty($pkg['slug'])): ?>
       <a href="<?= BASE_PATH ?>/packages.php#<?= htmlspecialchars($pkg['slug']) ?>" target="_blank"
          class="admin-btn admin-btn--outline" style="width:100%;justify-content:center">
@@ -755,17 +789,21 @@ var LINKED_ITIN_EXCLUDES = <?= json_encode($linkedExcludes) ?>;
 // manually-typed rows instead of the itinerary, so the two could
 // silently disagree.
 function calcTotals() {
-  var travelers = +((document.getElementById('traveler_count')||{}).value)||1;
-  var accT=0, vehT=0, parkT=0, mealsT=0, actT=0, otherT=0;
-  var accSeen = {}, vehSeen = {}, otherSeen = {};
+  var adults   = +((document.getElementById('pe_adults')||{}).value)||1;
+  var children = +((document.getElementById('pe_children')||{}).value)||0;
+  var travelers = adults + children;
+
+  var accSeen = {}, vehSeen = {}, parkSeen = {}, otherSeen = {};
+  var mealsPP = 0, mealsDays = 0;
+  var actSeen = {};
 
   var dayDescriptors = LINKED_ITIN_DAYS
     ? LINKED_ITIN_DAYS.map(function(day){
         return {
           accName: day.accommodation_name||'', accRate: +day.accommodation_rate||0, accRooms: +day.accommodation_rooms||1,
           vehName: day.vehicle_name||'', vehRate: +day.vehicle_rate||0,
-          parkFee: +day.park_adult_fee||0, meals: +day.meals_cost_pp||0,
-          activities: (day.activities||[]).map(function(a){ return {price:+a.price_pp||0, type:a.type||'included'}; }),
+          parkName: day.park_fee_name||'', parkFee: +day.park_adult_fee||0, meals: +day.meals_cost_pp||0,
+          activities: (day.activities||[]).map(function(a){ return {name:a.name||'', price:+a.price_pp||0, type:a.type||'included'}; }),
           other: (day.other_items||[]).map(function(o){ return {name:o.name||'', amount:+o.amount||0}; })
         };
       })
@@ -776,10 +814,12 @@ function calcTotals() {
           accRooms: parseInt((block.querySelector('[name="day_acc_rooms[]"]')||{}).value)||1,
           vehName: (block.querySelector('.day-veh-name')||{}).value||'',
           vehRate: parseFloat((block.querySelector('.day-veh-rate')||{}).value)||0,
+          parkName: ((block.querySelector('[name="day_park_name[]"]')||{}).value||''),
           parkFee: parseFloat((block.querySelector('.day-park-fee')||{}).value)||0,
           meals: parseFloat((block.querySelector('[name="day_meals_pp[]"]')||{}).value)||0,
           activities: Array.prototype.map.call(block.querySelectorAll('.act-item'), function(row){
             return {
+              name: ((row.querySelector('.day-act-name')||{}).value||'').trim(),
               price: parseFloat((row.querySelector('.day-act-price')||{}).value)||0,
               type: (row.querySelector('.day-act-type')||{}).value||'included'
             };
@@ -794,28 +834,71 @@ function calcTotals() {
       });
 
   dayDescriptors.forEach(function(d){
-    if (d.accName && !accSeen[d.accName]) accSeen[d.accName] = {rate:d.accRate,rooms:d.accRooms,nights:0};
-    if (d.accName) accSeen[d.accName].nights++;
+    if (d.accName && d.accRate > 0) {
+      if (!accSeen[d.accName]) accSeen[d.accName] = {rate:d.accRate,rooms:d.accRooms,nights:0};
+      accSeen[d.accName].nights++;
+    }
+    if (d.vehName && d.vehRate > 0) {
+      if (!vehSeen[d.vehName]) vehSeen[d.vehName] = {rate:d.vehRate,days:0};
+      vehSeen[d.vehName].days++;
+    }
+    if (d.parkName && d.parkFee > 0) {
+      if (!parkSeen[d.parkName]) parkSeen[d.parkName] = {fee:d.parkFee,childFee:parkChildFee(d.parkName),entries:0};
+      parkSeen[d.parkName].entries++;
+    }
+    if (d.meals > 0) { mealsPP += d.meals; mealsDays++; }
 
-    if (d.vehName && !vehSeen[d.vehName]) vehSeen[d.vehName] = {rate:d.vehRate,days:0};
-    if (d.vehName) vehSeen[d.vehName].days++;
-
-    parkT  += d.parkFee * travelers;
-    mealsT += d.meals * travelers;
-
+    // Only paid included activities become a priced line item — a free
+    // included activity (price 0) has nothing to charge, so it doesn't
+    // belong in a cost table (matches ItineraryQuoteBuilder::build()'s
+    // actPaid/actFree split server-side).
     d.activities.forEach(function(a){
-      if (a.type==='included') actT += a.price * travelers;
+      if (!a.name || a.type!=='included' || a.price<=0) return;
+      if (!actSeen[a.name]) actSeen[a.name] = {price:a.price,count:0};
+      actSeen[a.name].count++;
     });
 
     d.other.forEach(function(o){
       if (!o.name || o.amount <= 0) return;
-      if (!otherSeen[o.name]) otherSeen[o.name] = 0;
-      otherSeen[o.name] += o.amount;
+      if (!otherSeen[o.name]) otherSeen[o.name] = {amount:0,count:0};
+      otherSeen[o.name].amount += o.amount;
+      otherSeen[o.name].count++;
     });
   });
 
-  Object.values(accSeen).forEach(function(a){ accT += a.rate * a.nights * a.rooms; });
-  Object.values(vehSeen).forEach(function(v){ vehT += v.rate * v.days; });
+  var lineItems = [];
+
+  Object.keys(accSeen).forEach(function(name){
+    var a = accSeen[name], amount = a.rate * a.nights * a.rooms;
+    var qty = a.rooms > 1
+      ? a.rooms+' Rooms × '+a.nights+' Night'+(a.nights!==1?'s':'')
+      : a.nights+' Night'+(a.nights!==1?'s':'');
+    lineItems.push({desc:'Accommodation – '+name, unit:a.rate, qty:qty, amount:amount});
+  });
+
+  Object.keys(vehSeen).forEach(function(name){
+    var v = vehSeen[name], amount = v.rate * v.days;
+    lineItems.push({desc:name+' & Fuel', unit:v.rate, qty:v.days+' Day'+(v.days!==1?'s':''), amount:amount});
+  });
+
+  Object.keys(parkSeen).forEach(function(name){
+    var p = parkSeen[name];
+    var amount = (p.fee*adults + p.childFee*children) * p.entries;
+    var guestStr = adults+' Adult'+(adults!==1?'s':'')+(children>0?' + '+children+' Child'+(children!==1?'ren':''):'');
+    var qty = p.entries > 1 ? (guestStr+' × '+p.entries+' Days') : guestStr;
+    lineItems.push({desc:name+' Entry Fees', unit:p.fee, qty:qty, amount:amount});
+  });
+
+  Object.keys(actSeen).forEach(function(name){
+    var a = actSeen[name], amount = a.price * travelers * a.count;
+    var qty = travelers+' Guest'+(travelers!==1?'s':'')+(a.count>1?' × '+a.count+' Days':'');
+    lineItems.push({desc:name, unit:a.price, qty:qty, amount:amount});
+  });
+
+  if (mealsPP > 0) {
+    var avgMealPP = mealsPP / Math.max(1,mealsDays);
+    lineItems.push({desc:'Meals (Full Board — '+mealsDays+' day'+(mealsDays!==1?'s':'')+')', unit:avgMealPP, qty:travelers+' Guests × '+mealsDays+' Days', amount:mealsPP*travelers});
+  }
 
   // Same "is this per-traveler" heuristic api/book.php's real pricing
   // uses (App\Services\ItineraryQuoteBuilder::build()) — anything named
@@ -825,31 +908,56 @@ function calcTotals() {
   // logic is what keeps the live preview honest against what's actually
   // saved as the listed price.
   Object.keys(otherSeen).forEach(function(name){
-    var amt = otherSeen[name];
+    var o = otherSeen[name];
     var isPerPax = /transfer|water|contribution/i.test(name);
-    otherT += (isPerPax && travelers > 1) ? amt * travelers : amt;
+    var amount = (isPerPax && travelers > 1) ? o.amount * travelers : o.amount;
+    var qty = isPerPax && travelers > 1
+      ? travelers+' Guests'+(o.count>1?' × '+o.count+' Days':'')
+      : (o.count>1 ? o.count+' Times' : '1');
+    lineItems.push({desc:name, unit:o.amount, qty:qty, amount:amount});
   });
 
-  var svcPax   = +((document.getElementById('service_charge_pax')||{}).value)||0;
-  var svcTotal = svcPax * travelers;
+  var svcPax = +((document.getElementById('service_charge_pax')||{}).value)||0;
+  if (svcPax > 0) {
+    lineItems.push({desc:'Service Charge', unit:svcPax, qty:travelers+' Guest'+(travelers!==1?'s':''), amount:svcPax*travelers});
+  }
 
-  var subtotal = accT + vehT + parkT + mealsT + actT + otherT + svcTotal;
+  var subtotal = lineItems.reduce(function(sum,li){ return sum+li.amount; }, 0);
   var vat      = subtotal * 0.18;
   var total    = subtotal + vat;
   var pp       = travelers > 0 ? total/travelers : total;
 
-  document.getElementById('qs-acc').textContent      = fmt(accT);
-  document.getElementById('qs-veh').textContent      = fmt(vehT);
-  document.getElementById('qs-park').textContent     = fmt(parkT);
-  document.getElementById('qs-meals').textContent    = fmt(mealsT);
-  document.getElementById('qs-act').textContent      = fmt(actT);
-  document.getElementById('qs-other').textContent    = fmt(otherT);
-  document.getElementById('qs-svc').textContent      = fmt(svcTotal);
+  var tbody = document.getElementById('qs-line-items');
+  tbody.innerHTML = lineItems.length ? lineItems.map(function(li){
+    return '<tr style="border-bottom:1px solid var(--gray-100)">'
+      + '<td style="padding:.45rem 0;color:var(--gray-500)">'+escapeHtml(li.desc)+'</td>'
+      + '<td style="padding:.45rem 0;text-align:right">'+fmt(li.unit)+'</td>'
+      + '<td style="padding:.45rem 0 .45rem .75rem;font-size:.78rem;color:var(--gray-500)">'+escapeHtml(li.qty)+'</td>'
+      + '<td style="padding:.45rem 0;text-align:right;font-weight:600">'+fmt(li.amount)+'</td>'
+      + '</tr>';
+  }).join('') : '<tr><td colspan="4" style="padding:.75rem 0;color:var(--gray-500);font-size:.8rem">Add accommodation, vehicle, or other costs to the itinerary above to see line items here.</td></tr>';
+
   document.getElementById('qs-subtotal').textContent = fmt(subtotal);
   document.getElementById('qs-vat').textContent      = fmt(vat);
   document.getElementById('qs-total').textContent    = fmt(total);
   document.getElementById('qs-pp').textContent       = fmt(pp);
   document.getElementById('qs-pp-label').textContent = 'Per Person (÷'+travelers+')';
+}
+
+function escapeHtml(s) {
+  var d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
+// Park child fee, looked up from PE_PARKS (same reference data used for
+// the datalists) — mirrors ItineraryQuoteBuilder::lookupParkChildFee()
+// server-side so this live preview matches the real saved calculation.
+function parkChildFee(parkName) {
+  for (var i=0; i<PE_PARKS.length; i++) {
+    if (PE_PARKS[i].name === parkName) return PE_PARKS[i].childFee||0;
+  }
+  return 0;
 }
 
 // ── Includes/Excludes sync ────────────────────────────────────
@@ -901,7 +1009,7 @@ function syncIncludesExcludes() {
 // increased) gets the exact same autocomplete options.
 var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person'])], $accommodations)) ?>;
 var PE_VEHS  = <?= json_encode(array_map(fn($v) => ['name'=>$v['name'],'id'=>(int)$v['id'],'rate'=>(float)$v['daily_rate']+(float)$v['fuel_cost_day']+(float)$v['driver_cost_day']], $vehicles)) ?>;
-var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee']], $parkFees)) ?>;
+var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee'],'childFee'=>(float)$p['child_fee']], $parkFees)) ?>;
 
 function peDayBlockHtml(i) {
   var accOpts  = PE_ACCS.map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-rate="'+a.rate+'">'; }).join('');
@@ -1038,7 +1146,8 @@ function fillDayPark(input, dayIdx) {
 //    admin/itineraries.php's calcItinTotal — same field roles, same
 //    once-per-property accommodation/vehicle counting) ────────────
 function calcItinTotal() {
-  var pax      = parseInt((document.getElementById('traveler_count')||{}).value)||2;
+  var pax      = (parseInt((document.getElementById('pe_adults')||{}).value)||1)
+               + (parseInt((document.getElementById('pe_children')||{}).value)||0);
   var total    = 0;
   var blocks   = document.querySelectorAll('.day-block');
   var accSeen  = {}, vehSeen = {};
@@ -1078,8 +1187,8 @@ function calcItinTotal() {
   // Keep the Quotation Live Cost Summary in sync with whatever just
   // changed in the itinerary above it — the two used to be
   // independent, so editing a day's accommodation rate here never
-  // touched the summary until the admin also (re-)touched Travelers or
-  // Service Charge.
+  // touched the summary until the admin also (re-)touched Adults or
+  // Children.
   calcTotals();
 }
 
@@ -1163,6 +1272,7 @@ async function saveNewVehicle() {
   fd.append('name',name); fd.append('capacity',cap);
   fd.append('daily_rate',rate); fd.append('fuel_cost_day',fuel);
   fd.append('driver_cost_day',driver); fd.append('level',level);
+  fd.append('_csrf', window.CSRF_TOKEN || '');
 
   try {
     var r = await fetch('<?= BASE_PATH ?>/api/vehicle_manage.php',{method:'POST',body:fd,credentials:'same-origin'});

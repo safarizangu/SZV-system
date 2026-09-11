@@ -9,7 +9,8 @@ require_once __DIR__ . '/../../app/bootstrap.php';
 
 // Only run from CLI or with a secret key
 $isCli    = php_sapi_name() === 'cli';
-$hasKey   = isset($_GET['key']) && hash_equals($_GET['key'], defined('CRON_SECRET') ? CRON_SECRET : 'szv-cron-2026');
+$cronSecret = defined('CRON_SECRET') ? CRON_SECRET : '';
+$hasKey   = $cronSecret !== '' && isset($_GET['key']) && hash_equals($cronSecret, $_GET['key']);
 if (!$isCli && !$hasKey) {
     http_response_code(403); exit('Forbidden');
 }

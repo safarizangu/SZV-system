@@ -32,4 +32,10 @@ class AuthMiddleware
     {
         return isset($_SESSION['admin_authenticated']) && $_SESSION['admin_authenticated'] === true;
     }
+
+    /** True for admin/superadmin — the roles that bypass per-record agent ownership checks. */
+    public static function isAdminRole(): bool
+    {
+        return in_array($_SESSION['admin_role'] ?? 'agent', ['admin', 'superadmin'], true);
+    }
 }

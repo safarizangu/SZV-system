@@ -8,6 +8,8 @@ header('Content-Type: application/json');
 function vrespond(array $d): void { ob_end_clean(); header('Content-Type: application/json'); echo json_encode($d); exit; }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') vrespond(['success'=>false,'message'=>'Invalid method.']);
 
+\App\Middleware\CsrfMiddleware::validateOrDie();
+
 $action = $_POST['action'] ?? '';
 $db     = \App\Models\Database::getInstance();
 

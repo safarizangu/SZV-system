@@ -7,7 +7,10 @@
   <link rel="icon" type="image/jpeg" href="<?= BASE_PATH ?>/assets/images/logo.jpeg">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= BASE_PATH ?>/admin/css/admin.css">
-<script>window.BASE_PATH = "<?= BASE_PATH ?>";</script>
+<script>
+window.BASE_PATH = "<?= BASE_PATH ?>";
+window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
+</script>
 </head>
 <body class="admin-body">
 
@@ -72,6 +75,7 @@
         ['park_fees.php',        'Park Fees',        'park-fees', ''],
         ['seasonal_rates.php',   'Seasons',          'seasons', ''],
         ['users.php',             'Users',            'users', ''],
+        ['activity_log.php',      'Activity Log',     'clock', ''],
       ],
     ];
 

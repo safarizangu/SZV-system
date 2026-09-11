@@ -10,6 +10,7 @@ $error = '';
 
 // Add/Edit
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_user'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     $id       = (int)($_POST['id'] ?? 0);
     $username = trim($_POST['username'] ?? '');
     $fullName = trim($_POST['full_name'] ?? '');
@@ -66,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_user'])) {
 
 // Delete
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     $delId = (int)$_POST['delete_id'];
     $myId  = $_SESSION['admin_user_id'] ?? 0;
     if ($delId === $myId) { $error = 'You cannot delete your own account.'; }
@@ -135,6 +137,7 @@ ob_start();
           <a href="?edit=<?= $u['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.62rem;padding:.25rem .5rem">Edit</a>
           <?php if(!$isMe): ?>
           <form method="POST" style="display:inline" onsubmit="return confirm('Delete user <?= htmlspecialchars($u['username']) ?>?')">
+            <?= \App\Middleware\CsrfMiddleware::field() ?>
             <input type="hidden" name="delete_id" value="<?= $u['id'] ?>">
             <button class="admin-btn admin-btn--danger" style="font-size:.62rem;padding:.25rem .5rem">Delete</button>
           </form>
@@ -157,6 +160,7 @@ ob_start();
     </div>
     <div class="admin-card-body">
       <form method="POST">
+        <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="save_user" value="1">
         <input type="hidden" name="id" value="<?= $editUser ? $editUser['id'] : 0 ?>">
         <div class="admin-form-group">

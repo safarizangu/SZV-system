@@ -9,6 +9,7 @@ $pageTitle = 'Email Templates';
 // ── Handle save ───────────────────────────────────────────────
 $saveMsg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_template'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     $key     = trim($_POST['template_key'] ?? '');
     $subject = trim($_POST['subject'] ?? '');
     $body    = $_POST['body_html'] ?? '';
@@ -86,6 +87,7 @@ ob_start();
   </div>
   <div class="admin-card-body" id="editor-area">
     <form method="POST">
+      <?= \App\Middleware\CsrfMiddleware::field() ?>
       <input type="hidden" name="save_template" value="1">
       <input type="hidden" name="template_key" value="<?= htmlspecialchars($editKey) ?>">
 
@@ -133,6 +135,7 @@ ob_start();
         <button type="submit" class="admin-btn admin-btn--primary">Save Template Override</button>
         <?php if (isset($customTemplates[$editKey])): ?>
         <form method="POST" style="display:inline">
+          <?= \App\Middleware\CsrfMiddleware::field() ?>
           <input type="hidden" name="reset_template" value="<?= htmlspecialchars($editKey) ?>">
           <button type="submit" class="admin-btn admin-btn--danger" onclick="return confirm('Reset to default template?')">Reset to Default</button>
         </form>

@@ -8,6 +8,7 @@ $db = \App\Models\Database::getInstance();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     ob_end_clean();
     header('Content-Type: application/json');
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     $action = $_POST['action'] ?? '';
 
     if ($action === 'update_status') {
@@ -17,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if ($ref && in_array($status, $allowed, true)) {
             $db->prepare("UPDATE bookings SET payment_status=?, updated_at=NOW() WHERE booking_ref=?")
                ->execute([$status, $ref]);
+            \App\Services\ActivityLog::record('update_status', 'booking', 0, ['booking_ref'=>$ref,'status'=>$status]);
             echo json_encode(['success'=>true]);
         } else {
             echo json_encode(['success'=>false,'message'=>'Invalid data.']);
@@ -259,6 +261,7 @@ async function updateStatus(ref, newStatus, sel) {
   fd.append('action','update_status');
   fd.append('booking_ref',ref);
   fd.append('status',newStatus);
+  fd.append('_csrf', window.CSRF_TOKEN || '');
   try {
     var r = await fetch('bookings.php',{method:'POST',body:fd});
     var d = await r.json();
@@ -276,6 +279,7 @@ async function viewBooking(ref) {
   var fd = new FormData();
   fd.append('action','get_booking');
   fd.append('booking_ref',ref);
+  fd.append('_csrf', window.CSRF_TOKEN || '');
   var r = await fetch('bookings.php',{method:'POST',body:fd});
   var b = await r.json();
   if (b.error) { toast('Not found','err'); return; }

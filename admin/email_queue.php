@@ -6,6 +6,7 @@ $db = \App\Models\Database::getInstance();
 
 // Actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     $action = $_POST['action'] ?? '';
 
     if ($action === 'retry') {
@@ -109,11 +110,13 @@ ob_start();
   </form>
   <?php if($stats['failed']>0): ?>
   <form method="POST" onsubmit="return confirm('Retry all <?= $stats['failed'] ?> failed emails?')">
+    <?= \App\Middleware\CsrfMiddleware::field() ?>
     <input type="hidden" name="action" value="retry_all_failed">
     <button class="admin-btn admin-btn--primary" style="font-size:.72rem">Retry All Failed (<?= $stats['failed'] ?>)</button>
   </form>
   <?php endif; ?>
   <form method="POST" onsubmit="return confirm('Delete sent emails older than 30 days?')">
+    <?= \App\Middleware\CsrfMiddleware::field() ?>
     <input type="hidden" name="action" value="purge_sent">
     <button class="admin-btn admin-btn--muted" style="font-size:.72rem">Purge Old Sent</button>
   </form>
@@ -158,12 +161,14 @@ ob_start();
                 class="admin-btn admin-btn--outline" style="font-size:.62rem;padding:.25rem .5rem">View</button>
         <?php if($e['status']==='failed' || ($e['status']==='pending' && $e['attempts']>0)): ?>
         <form method="POST" style="display:inline">
+          <?= \App\Middleware\CsrfMiddleware::field() ?>
           <input type="hidden" name="action" value="retry">
           <input type="hidden" name="id" value="<?= $e['id'] ?>">
           <button class="admin-btn admin-btn--primary" style="font-size:.62rem;padding:.25rem .5rem">Retry</button>
         </form>
         <?php endif; ?>
         <form method="POST" style="display:inline" onsubmit="return confirm('Delete this email?')">
+          <?= \App\Middleware\CsrfMiddleware::field() ?>
           <input type="hidden" name="action" value="delete">
           <input type="hidden" name="id" value="<?= $e['id'] ?>">
           <button class="admin-btn admin-btn--danger" style="padding:.25rem .5rem"><?= \App\Helpers\AdminIcon::render('trash', 13) ?></button>

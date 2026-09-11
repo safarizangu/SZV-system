@@ -10,6 +10,13 @@ require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
 AuthMiddleware::requireAdmin();
 
+// Only the POST form path (admin/quotations.php) carries a CSRF token —
+// the existing GET "Send Email" links (admin/quotation_new.php) predate
+// this check and stay as they were.
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
+}
+
 $id = (int)($_POST['id'] ?? $_GET['id'] ?? 0);
 if (!$id) {
     header('Location: ' . BASE_PATH . '/admin/quotations.php?msg=' . urlencode('No quotation ID.'));

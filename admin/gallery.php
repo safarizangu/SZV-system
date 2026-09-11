@@ -446,6 +446,7 @@ function setHeroImage(url, btn) {
 
   var fd = new FormData();
   fd.append('image_url', url);
+  fd.append('_csrf', window.CSRF_TOKEN || '');
 
   fetch(BASE + '/api/set_hero.php', {
     method: 'POST',
@@ -504,6 +505,7 @@ function deleteImage(url, btn) {
 
   var fd = new FormData();
   fd.append('url', url);
+  fd.append('_csrf', window.CSRF_TOKEN || '');
 
   fetch(BASE + '/api/gallery/delete.php', {
     method: 'POST',
@@ -557,6 +559,7 @@ function uploadFiles(files) {
     var fd = new FormData();
     fd.append('image', file);
     fd.append('folder', '<?= htmlspecialchars($activeFolder) ?>');
+    fd.append('_csrf', window.CSRF_TOKEN || '');
 
     fetch(BASE + '/api/gallery/upload.php', {
       method: 'POST',

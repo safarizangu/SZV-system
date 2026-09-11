@@ -39,6 +39,7 @@ if ($isLocked) {
 
 // ── Handle login ───────────────────────────────────────────
 if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     $username = trim($_POST['username'] ?? '');
     $password = trim($_POST['password'] ?? '');
 
@@ -394,6 +395,7 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
   <?php endif; ?>
 
   <form method="POST" autocomplete="on">
+    <?= \App\Middleware\CsrfMiddleware::field() ?>
     <div class="form-group">
       <label class="form-label" for="username">Username</label>
       <input class="form-input" type="text" id="username" name="username"

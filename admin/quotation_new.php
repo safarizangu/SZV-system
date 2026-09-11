@@ -3,6 +3,8 @@ require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
 AuthMiddleware::requireAdmin();
 $db = \App\Models\Database::getInstance();
+$myId        = (int)($_SESSION['admin_user_id'] ?? 0);
+$isAdminUser = AuthMiddleware::isAdminRole();
 
 $q    = null;
 $id   = (int)($_GET['id']           ?? 0);
@@ -13,12 +15,24 @@ $crId = (int)($_GET['from_request'] ?? 0);
 if ($id > 0) {
     try { $s=$db->prepare("SELECT * FROM quotations WHERE id=?"); $s->execute([$id]); $q=$s->fetch(); }
     catch(Exception $e){}
+    // Agents may only open quotations they created themselves.
+    if ($q && !$isAdminUser && (int)($q['created_by'] ?? 0) !== $myId) {
+        header('Location: quotations.php?msg='.urlencode('Permission denied.')); exit;
+    }
 }
 
 // Pre-fill from custom_safari_request
 $cr = null;
 if ($crId > 0) {
     try { $s=$db->prepare("SELECT * FROM custom_safari_requests WHERE id=?"); $s->execute([$crId]); $cr=$s->fetch(); }
+    catch(Exception $e){}
+}
+
+// Pre-fill from a lead (leads.php's "Quote" button)
+$leadId = (int)($_GET['from_lead'] ?? 0);
+$lead   = null;
+if ($leadId > 0) {
+    try { $s=$db->prepare("SELECT * FROM leads WHERE id=?"); $s->execute([$leadId]); $lead=$s->fetch(); }
     catch(Exception $e){}
 }
 
@@ -62,6 +76,17 @@ $activitiesDB  = fetchAll($db,"SELECT id,name,price,price_unit FROM activities W
 
 // ── SAVE ─────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_quote'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
+
+    // Agents may only save changes to quotations they created themselves.
+    if ($id > 0 && !$isAdminUser) {
+        $ownerCheck = $db->prepare("SELECT created_by FROM quotations WHERE id=?");
+        $ownerCheck->execute([$id]);
+        $ownerRow = $ownerCheck->fetch();
+        if (!$ownerRow || (int)($ownerRow['created_by'] ?? 0) !== $myId) {
+            header("Location: quotation_new.php?id=$id&msg=".urlencode('Permission denied.')); exit;
+        }
+    }
 
     $adults       = max(1,(int)($_POST['adults']   ?? 2));
     $children     = max(0,(int)($_POST['children'] ?? 0));
@@ -233,10 +258,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_quote'])) {
             $ref = 'SZV-Q' . strtoupper(substr(md5(uniqid()), 0, 6));
             $data['quote_ref'] = $ref;
             if ($crId) $data['custom_request_id'] = $crId;
+            if ($leadId) $data['lead_id'] = $leadId;
+            $data['created_by'] = $myId ?: null;
             $cols = implode(',', array_map(fn($k)=>"`$k`", array_keys($data)));
             $phld = implode(',', array_fill(0, count($data), '?'));
             $db->prepare("INSERT INTO quotations ($cols,created_at) VALUES ($phld,NOW())")->execute(array_values($data));
             $newId = $db->lastInsertId();
+            \App\Services\ActivityLog::record('create', 'quotation', (int)$newId, ['quote_ref'=>$ref]);
         }
         header("Location: quotation_new.php?id=$newId&msg=".urlencode('Quotation saved.')); exit;
     } catch(Exception $e) { $msg = 'Error: '.$e->getMessage(); }
@@ -340,6 +368,7 @@ ob_start();
 </div>
 <?php endif; ?>
 <form method="POST" id="quote-form">
+<?= \App\Middleware\CsrfMiddleware::field() ?>
 <input type="hidden" name="save_quote" value="1">
 <input type="hidden" name="itinerary_id" id="itinerary_id" value="<?= (int)($q['itinerary_id'] ?? 0) ?>">
 
@@ -355,37 +384,22 @@ ob_start();
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
             <div><label class="admin-label">Client Name *</label>
                 <input name="client_name" class="admin-input" required
-                       value="<?= htmlspecialchars($q['client_name']??$cr['full_name']??'') ?>"></div>
+                       value="<?= htmlspecialchars($q['client_name']??$cr['full_name']??$lead['full_name']??'') ?>"></div>
             <div><label class="admin-label">Email *</label>
                 <input name="client_email" type="email" class="admin-input" required
-                       value="<?= htmlspecialchars($q['client_email']??$cr['email']??'') ?>"></div>
+                       value="<?= htmlspecialchars($q['client_email']??$cr['email']??$lead['email']??'') ?>"></div>
             <div><label class="admin-label">Phone / WhatsApp</label>
                 <input name="client_phone" class="admin-input"
-                       value="<?= htmlspecialchars($q['client_phone']??$cr['phone']??'') ?>"></div>
+                       value="<?= htmlspecialchars($q['client_phone']??$cr['phone']??$lead['phone']??'') ?>"></div>
             <div><label class="admin-label">Country</label>
                 <input name="client_country" class="admin-input"
-                       value="<?= htmlspecialchars($q['client_country']??$cr['country']??'') ?>"></div>
+                       value="<?= htmlspecialchars($q['client_country']??$cr['country']??$lead['country']??'') ?>"></div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
-            <div><label class="admin-label">Adults</label>
-                <input name="adults" type="number" min="1" class="admin-input" id="inp_adults"
-                       value="<?= $qAdults ?>" oninput="calcTotals()"></div>
-            <div><label class="admin-label">Children</label>
-                <input name="children" type="number" min="0" class="admin-input" id="inp_children"
-                       value="<?= $qChildren ?>" oninput="calcTotals()"></div>
-            <div><label class="admin-label">Infants</label>
-                <input name="infants" type="number" min="0" class="admin-input"
-                       value="<?= (int)($q['infants']??0) ?>"></div>
-            <div><label class="admin-label">Duration (nights)</label>
-                <input name="duration_days" type="number" min="1" class="admin-input" id="inp_duration"
-                       value="<?= $qDuration ?>" oninput="syncItineraryDays(this.value)"></div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem">
             <div><label class="admin-label">Package</label>
                 <input name="package_name" class="admin-input" list="pkg-list"
-                       value="<?= htmlspecialchars($q['package_name']??$cr['package_interest']??'') ?>">
+                       value="<?= htmlspecialchars($q['package_name']??$cr['package_interest']??$lead['package_name']??'') ?>">
                 <datalist id="pkg-list">
                     <?php foreach($packages as $p): ?>
                     <option value="<?= htmlspecialchars($p['name']) ?>">
@@ -393,10 +407,13 @@ ob_start();
                 </datalist></div>
             <div><label class="admin-label">Start Date</label>
                 <input name="start_date" type="date" class="admin-input"
-                       value="<?= htmlspecialchars($q['start_date']??$cr['start_date']??'') ?>"></div>
+                       value="<?= htmlspecialchars($q['start_date']??$cr['start_date']??$lead['travel_date']??'') ?>"></div>
             <div><label class="admin-label">Destinations (comma-sep)</label>
                 <input name="destinations" class="admin-input"
                        value="<?= htmlspecialchars(is_string($q['destinations']??null) ? implode(', ', json_decode($q['destinations']??'[]',true)??[]) : '') ?>"></div>
+            <div><label class="admin-label">Duration (nights)</label>
+                <input name="duration_days" type="number" min="1" class="admin-input" id="inp_duration"
+                       value="<?= $qDuration ?>" oninput="syncItineraryDays(this.value)"></div>
         </div>
     </div>
 </div>
@@ -635,46 +652,65 @@ ob_start();
   <div class="admin-card-body">
     <div class="admin-split-summary" style="display:grid;grid-template-columns:1fr 260px;gap:1.5rem;align-items:start">
 
-      <!-- Read-only summary -->
+      <!-- Read-only summary — itemized, matching what ItineraryQuoteBuilder
+           actually computes (see calcTotals() below) -->
       <div>
         <table style="width:100%;font-size:.85rem;border-collapse:collapse">
-          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Accommodation</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-acc">$0</td></tr>
-          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Vehicle</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-veh">$0</td></tr>
-          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Park Fees</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-park">$0</td></tr>
-          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Meals</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-meals">$0</td></tr>
-          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Activities (included)</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-act">$0</td></tr>
-          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.5rem 0;color:var(--gray-500)">Other Costs</td><td style="padding:.5rem 0;text-align:right;font-weight:600" id="qs-other">$0</td></tr>
-          <tr style="border-bottom:1px solid var(--gray-200);background:var(--green-light)"><td style="padding:.5rem 0 .5rem .5rem;color:#166534">Service Charge</td><td style="padding:.5rem .5rem .5rem 0;text-align:right;font-weight:600;color:#166534" id="qs-svc">$0</td></tr>
-          <tr style="border-top:1px solid var(--gray-200)"><td style="padding:.6rem 0;font-weight:600">Subtotal</td><td style="padding:.6rem 0;text-align:right;font-weight:600" id="qs-subtotal">$0</td></tr>
-          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">Discount</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem;color:var(--green)" id="qs-discount">–$0</td></tr>
-          <tr style="border-bottom:1px solid var(--gray-100)"><td style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">VAT (18%)</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-vat">$0</td></tr>
-          <tr style="background:var(--black);color:var(--white)"><td style="padding:.75rem;font-weight:700">GRAND TOTAL</td><td style="padding:.75rem;text-align:right;font-family:Georgia,serif;font-size:1.1rem" id="qs-total">$0</td></tr>
-          <tr><td style="padding:.5rem 0;font-size:.75rem;color:var(--gray-500)" id="qs-pp-label">Per Person (÷2)</td><td style="padding:.5rem 0;text-align:right;font-size:.9rem;font-weight:700" id="qs-pp">$0</td></tr>
-          <tr><td colspan="2" style="padding:.6rem 0 0">
-            <div style="background:var(--green-light);border:1px solid var(--green-border);padding:.75rem">
-              <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:.25rem">
-                <span style="color:#166534">Deposit (30%) — due within 48h</span>
-                <span id="qs-deposit" style="font-weight:700;color:#166534">$0</span>
+          <thead>
+            <tr style="border-bottom:2px solid var(--gray-200)">
+              <th style="text-align:left;padding:.4rem 0;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-500);font-weight:600">Item</th>
+              <th style="text-align:right;padding:.4rem 0;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-500);font-weight:600">Unit Price</th>
+              <th style="text-align:left;padding:.4rem 0 .4rem .75rem;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-500);font-weight:600">Qty</th>
+              <th style="text-align:right;padding:.4rem 0;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-500);font-weight:600">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="qs-line-items"></tbody>
+          <tbody>
+            <tr style="border-top:1px solid var(--gray-200)"><td colspan="3" style="padding:.6rem 0;font-weight:600">Subtotal</td><td style="padding:.6rem 0;text-align:right;font-weight:600" id="qs-subtotal">$0</td></tr>
+            <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">Discount</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem;color:var(--green)" id="qs-discount">–$0</td></tr>
+            <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">VAT (18%)</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-vat">$0</td></tr>
+            <tr style="background:var(--black);color:var(--white)"><td colspan="3" style="padding:.75rem;font-weight:700">GRAND TOTAL</td><td style="padding:.75rem;text-align:right;font-family:Georgia,serif;font-size:1.1rem" id="qs-total">$0</td></tr>
+            <tr><td colspan="3" style="padding:.5rem 0;font-size:.75rem;color:var(--gray-500)" id="qs-pp-label">Per Person (÷2)</td><td style="padding:.5rem 0;text-align:right;font-size:.9rem;font-weight:700" id="qs-pp">$0</td></tr>
+            <tr><td colspan="4" style="padding:.6rem 0 0">
+              <div style="background:var(--green-light);border:1px solid var(--green-border);padding:.75rem">
+                <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:.25rem">
+                  <span style="color:#166534">Deposit (30%) — due within 48h</span>
+                  <span id="qs-deposit" style="font-weight:700;color:#166534">$0</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:.82rem">
+                  <span style="color:#166534">Balance (70%) — due 45 days before</span>
+                  <span id="qs-balance" style="font-weight:700;color:#166534">$0</span>
+                </div>
               </div>
-              <div style="display:flex;justify-content:space-between;font-size:.82rem">
-                <span style="color:#166534">Balance (70%) — due 45 days before</span>
-                <span id="qs-balance" style="font-weight:700;color:#166534">$0</span>
-              </div>
-            </div>
-          </td></tr>
+            </td></tr>
+          </tbody>
         </table>
       </div>
 
-      <!-- Aside: the only editable inputs -->
+      <!-- Aside: Adults/Children/Infants, then Service Charge — identical
+           field set/order to admin/package_edit.php's equivalent aside.
+           Discount is the one addition specific to a real quotation. -->
       <div style="background:var(--gray-50);border:1px solid var(--gray-200);padding:1rem">
+        <label class="admin-label">Adults</label>
+        <input name="adults" type="number" min="1" class="admin-input" id="inp_adults"
+               value="<?= $qAdults ?>" style="margin-bottom:.75rem" oninput="calcTotals()">
+
+        <label class="admin-label">Children</label>
+        <input name="children" type="number" min="0" class="admin-input" id="inp_children"
+               value="<?= $qChildren ?>" style="margin-bottom:.75rem" oninput="calcTotals()">
+
+        <label class="admin-label">Infants</label>
+        <input name="infants" type="number" min="0" class="admin-input"
+               value="<?= (int)($q['infants']??0) ?>" style="margin-bottom:.75rem">
+
         <label class="admin-label">Service Charge ($ / person)</label>
         <input name="service_charge_pax" type="number" step="0.01" class="admin-input" id="service_charge_pax"
-               value="<?= $qSvcPax ?>" oninput="calcTotals()" placeholder="e.g. 100" style="margin-bottom:1rem">
+               value="<?= $qSvcPax ?>" oninput="calcTotals()" placeholder="e.g. 100" style="margin-bottom:.75rem">
 
         <label class="admin-label">Discount (%)</label>
         <input name="discount_pct" type="number" min="0" max="50" step="0.5" class="admin-input" id="inp_discount"
-               value="<?= $qDiscountPct ?>" oninput="calcTotals()">
-        <p style="font-size:.68rem;color:var(--gray-500);margin-top:.5rem;line-height:1.5">Everything above the Service Charge and Discount comes from the Day-by-Day Itinerary.</p>
+               value="<?= $qDiscountPct ?>" oninput="calcTotals()" style="margin-bottom:1rem">
+        <p style="font-size:.68rem;color:var(--gray-500);line-height:1.5">Everything above comes from the Day-by-Day Itinerary.</p>
       </div>
 
     </div>
@@ -723,7 +759,7 @@ ob_start();
         </div>
         <div><label class="admin-label">Notes / Special Requests</label>
             <textarea name="notes" class="admin-input" rows="3"
-                      placeholder="Any special requirements, inclusions, or notes for the client…"><?= htmlspecialchars($q['notes']??$cr['message']??'') ?></textarea></div>
+                      placeholder="Any special requirements, inclusions, or notes for the client…"><?= htmlspecialchars($q['notes']??$cr['message']??$lead['notes']??'') ?></textarea></div>
     </div>
 </div>
 
@@ -761,7 +797,7 @@ ob_start();
 var fmt = function(n){ return '$'+Math.round(n).toLocaleString('en-US'); };
 var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person'])], $accommodations)) ?>;
 var PE_VEHS  = <?= json_encode(array_map(fn($v) => ['name'=>$v['name'],'id'=>(int)$v['id'],'rate'=>(float)$v['daily_rate']+(float)$v['fuel_cost_day']+(float)$v['driver_cost_day']], $vehicles)) ?>;
-var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee']], $parkFees)) ?>;
+var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee'],'childFee'=>(float)$p['child_fee']], $parkFees)) ?>;
 
 // ── Quotation Live Cost Summary ───────────────────────────────
 // Aggregates from the Day-by-Day Itinerary's day-blocks — same category
@@ -774,8 +810,8 @@ function calcTotals() {
   var children = parseInt((document.getElementById('inp_children')||{}).value) || 0;
   var pax      = adults + children;
 
-  var accT=0, vehT=0, parkT=0, mealsT=0, actT=0, otherT=0;
-  var accSeen = {}, vehSeen = {}, otherSeen = {};
+  var accSeen = {}, vehSeen = {}, parkSeen = {}, otherSeen = {}, actSeen = {};
+  var mealsPP = 0, mealsDays = 0;
 
   var dayDescriptors = Array.prototype.map.call(document.querySelectorAll('.day-block'), function(block){
     return {
@@ -784,10 +820,12 @@ function calcTotals() {
       accRooms: parseInt((block.querySelector('[name="day_acc_rooms[]"]')||{}).value)||1,
       vehName: (block.querySelector('.day-veh-name')||{}).value||'',
       vehRate: parseFloat((block.querySelector('.day-veh-rate')||{}).value)||0,
+      parkName: ((block.querySelector('[name="day_park_name[]"]')||{}).value||''),
       parkFee: parseFloat((block.querySelector('.day-park-fee')||{}).value)||0,
       meals: parseFloat((block.querySelector('[name="day_meals_pp[]"]')||{}).value)||0,
       activities: Array.prototype.map.call(block.querySelectorAll('.act-item'), function(row){
         return {
+          name: ((row.querySelector('.day-act-name')||{}).value||'').trim(),
           price: parseFloat((row.querySelector('.day-act-price')||{}).value)||0,
           type: (row.querySelector('.day-act-type')||{}).value||'included'
         };
@@ -802,41 +840,90 @@ function calcTotals() {
   });
 
   dayDescriptors.forEach(function(d){
-    if (d.accName && !accSeen[d.accName]) accSeen[d.accName] = {rate:d.accRate,rooms:d.accRooms,nights:0};
-    if (d.accName) accSeen[d.accName].nights++;
+    if (d.accName && d.accRate > 0) {
+      if (!accSeen[d.accName]) accSeen[d.accName] = {rate:d.accRate,rooms:d.accRooms,nights:0};
+      accSeen[d.accName].nights++;
+    }
+    if (d.vehName && d.vehRate > 0) {
+      if (!vehSeen[d.vehName]) vehSeen[d.vehName] = {rate:d.vehRate,days:0};
+      vehSeen[d.vehName].days++;
+    }
+    if (d.parkName && d.parkFee > 0) {
+      if (!parkSeen[d.parkName]) parkSeen[d.parkName] = {fee:d.parkFee,childFee:parkChildFee(d.parkName),entries:0};
+      parkSeen[d.parkName].entries++;
+    }
+    if (d.meals > 0) { mealsPP += d.meals; mealsDays++; }
 
-    if (d.vehName && !vehSeen[d.vehName]) vehSeen[d.vehName] = {rate:d.vehRate,days:0};
-    if (d.vehName) vehSeen[d.vehName].days++;
-
-    parkT  += d.parkFee * pax;
-    mealsT += d.meals * pax;
-
+    // Only paid included activities become a priced line item — a free
+    // included activity (price 0) has nothing to charge, so it doesn't
+    // belong in a cost table (matches ItineraryQuoteBuilder::build()'s
+    // actPaid/actFree split server-side).
     d.activities.forEach(function(a){
-      if (a.type==='included') actT += a.price * pax;
+      if (!a.name || a.type!=='included' || a.price<=0) return;
+      if (!actSeen[a.name]) actSeen[a.name] = {price:a.price,count:0};
+      actSeen[a.name].count++;
     });
 
     d.other.forEach(function(o){
       if (!o.name || o.amount <= 0) return;
-      if (!otherSeen[o.name]) otherSeen[o.name] = 0;
-      otherSeen[o.name] += o.amount;
+      if (!otherSeen[o.name]) otherSeen[o.name] = {amount:0,count:0};
+      otherSeen[o.name].amount += o.amount;
+      otherSeen[o.name].count++;
     });
   });
 
-  Object.values(accSeen).forEach(function(a){ accT += a.rate * a.nights * a.rooms; });
-  Object.values(vehSeen).forEach(function(v){ vehT += v.rate * v.days; });
+  var lineItems = [];
+
+  Object.keys(accSeen).forEach(function(name){
+    var a = accSeen[name], amount = a.rate * a.nights * a.rooms;
+    var qty = a.rooms > 1
+      ? a.rooms+' Rooms × '+a.nights+' Night'+(a.nights!==1?'s':'')
+      : a.nights+' Night'+(a.nights!==1?'s':'');
+    lineItems.push({desc:'Accommodation – '+name, unit:a.rate, qty:qty, amount:amount});
+  });
+
+  Object.keys(vehSeen).forEach(function(name){
+    var v = vehSeen[name], amount = v.rate * v.days;
+    lineItems.push({desc:name+' & Fuel', unit:v.rate, qty:v.days+' Day'+(v.days!==1?'s':''), amount:amount});
+  });
+
+  Object.keys(parkSeen).forEach(function(name){
+    var p = parkSeen[name];
+    var amount = (p.fee*adults + p.childFee*children) * p.entries;
+    var guestStr = adults+' Adult'+(adults!==1?'s':'')+(children>0?' + '+children+' Child'+(children!==1?'ren':''):'');
+    var qty = p.entries > 1 ? (guestStr+' × '+p.entries+' Days') : guestStr;
+    lineItems.push({desc:name+' Entry Fees', unit:p.fee, qty:qty, amount:amount});
+  });
+
+  Object.keys(actSeen).forEach(function(name){
+    var a = actSeen[name], amount = a.price * pax * a.count;
+    var qty = pax+' Guest'+(pax!==1?'s':'')+(a.count>1?' × '+a.count+' Days':'');
+    lineItems.push({desc:name, unit:a.price, qty:qty, amount:amount});
+  });
+
+  if (mealsPP > 0) {
+    var avgMealPP = mealsPP / Math.max(1,mealsDays);
+    lineItems.push({desc:'Meals (Full Board — '+mealsDays+' day'+(mealsDays!==1?'s':'')+')', unit:avgMealPP, qty:pax+' Guests × '+mealsDays+' Days', amount:mealsPP*pax});
+  }
 
   // Same "is this per-traveler" heuristic api/book.php's real pricing
   // uses (App\Services\ItineraryQuoteBuilder::build()).
   Object.keys(otherSeen).forEach(function(name){
-    var amt = otherSeen[name];
+    var o = otherSeen[name];
     var isPerPax = /transfer|water|contribution/i.test(name);
-    otherT += (isPerPax && pax > 1) ? amt * pax : amt;
+    var amount = (isPerPax && pax > 1) ? o.amount * pax : o.amount;
+    var qty = isPerPax && pax > 1
+      ? pax+' Guests'+(o.count>1?' × '+o.count+' Days':'')
+      : (o.count>1 ? o.count+' Times' : '1');
+    lineItems.push({desc:name, unit:o.amount, qty:qty, amount:amount});
   });
 
-  var svcPax   = +((document.getElementById('service_charge_pax')||{}).value)||0;
-  var svcTotal = svcPax * pax;
+  var svcPax = +((document.getElementById('service_charge_pax')||{}).value)||0;
+  if (svcPax > 0) {
+    lineItems.push({desc:'Service Charge', unit:svcPax, qty:pax+' Guest'+(pax!==1?'s':''), amount:svcPax*pax});
+  }
 
-  var subtotal  = accT + vehT + parkT + mealsT + actT + otherT + svcTotal;
+  var subtotal  = lineItems.reduce(function(sum,li){ return sum+li.amount; }, 0);
   var discPct   = parseFloat((document.getElementById('inp_discount')||{}).value) || 0;
   var discAmt   = subtotal * (discPct / 100);
   var afterDisc = subtotal - discAmt;
@@ -846,13 +933,16 @@ function calcTotals() {
   var deposit   = total * 0.30;
   var balance   = total - deposit;
 
-  document.getElementById('qs-acc').textContent      = fmt(accT);
-  document.getElementById('qs-veh').textContent      = fmt(vehT);
-  document.getElementById('qs-park').textContent     = fmt(parkT);
-  document.getElementById('qs-meals').textContent    = fmt(mealsT);
-  document.getElementById('qs-act').textContent      = fmt(actT);
-  document.getElementById('qs-other').textContent    = fmt(otherT);
-  document.getElementById('qs-svc').textContent      = fmt(svcTotal);
+  var tbody = document.getElementById('qs-line-items');
+  tbody.innerHTML = lineItems.length ? lineItems.map(function(li){
+    return '<tr style="border-bottom:1px solid var(--gray-100)">'
+      + '<td style="padding:.45rem 0;color:var(--gray-500)">'+escapeHtml(li.desc)+'</td>'
+      + '<td style="padding:.45rem 0;text-align:right">'+fmt(li.unit)+'</td>'
+      + '<td style="padding:.45rem 0 .45rem .75rem;font-size:.78rem;color:var(--gray-500)">'+escapeHtml(li.qty)+'</td>'
+      + '<td style="padding:.45rem 0;text-align:right;font-weight:600">'+fmt(li.amount)+'</td>'
+      + '</tr>';
+  }).join('') : '<tr><td colspan="4" style="padding:.75rem 0;color:var(--gray-500);font-size:.8rem">Add accommodation, vehicle, or other costs to the itinerary above to see line items here.</td></tr>';
+
   document.getElementById('qs-subtotal').textContent = fmt(subtotal);
   document.getElementById('qs-discount').textContent = discAmt > 0 ? '–'+fmt(discAmt) : fmt(0);
   document.getElementById('qs-vat').textContent      = fmt(vat);
@@ -861,6 +951,22 @@ function calcTotals() {
   document.getElementById('qs-pp-label').textContent = 'Per Person (÷'+pax+')';
   document.getElementById('qs-deposit').textContent  = fmt(deposit);
   document.getElementById('qs-balance').textContent  = fmt(balance);
+}
+
+function escapeHtml(s) {
+  var d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
+// Park child fee, looked up from PE_PARKS (same reference data used for
+// the datalists) — mirrors ItineraryQuoteBuilder::lookupParkChildFee()
+// server-side so this live preview matches the real saved calculation.
+function parkChildFee(parkName) {
+  for (var i=0; i<PE_PARKS.length; i++) {
+    if (PE_PARKS[i].name === parkName) return PE_PARKS[i].childFee||0;
+  }
+  return 0;
 }
 
 // ── Per-day cost badge + keep the summary in sync ─────────────

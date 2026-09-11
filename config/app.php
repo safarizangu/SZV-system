@@ -4,7 +4,8 @@
  *
  * SECRETS: Never hardcode live credentials here.
  * Load from .env (via loadEnv() below) or server environment variables.
- * This file is safe to commit — it contains no real credentials.
+ * Every secret below must come from env() with NO literal fallback —
+ * a hardcoded fallback here is a hardcoded credential, committed to git.
  */
 
 // ── Environment loader ────────────────────────────────────────
@@ -59,7 +60,7 @@ error_reporting(APP_DEBUG ? E_ALL : 0);
 // ── Database ──────────────────────────────────────────────────
 if (!defined('DB_HOST'))    define('DB_HOST',    env('DB_HOST',    'localhost'));
 if (!defined('DB_USER'))    define('DB_USER',    env('DB_USER',    $_isLocal ? 'root' : 'u662187129_admin'));
-if (!defined('DB_PASS'))    define('DB_PASS',    env('DB_PASS',    $_isLocal ? 'Sdg@201819' : ''));
+if (!defined('DB_PASS'))    define('DB_PASS',    env('DB_PASS', ''));
 if (!defined('DB_NAME'))    define('DB_NAME',    env('DB_NAME',    $_isLocal ? 'safari_zangu' : 'u662187129_safari_zangu'));
 if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
 
@@ -108,7 +109,9 @@ if (!defined('GA4_ID')) define('GA4_ID', env('GA4_ID', ''));
 if (!defined('ADMIN_PIN')) define('ADMIN_PIN', bin2hex(random_bytes(32)));
 
 // ── Cron ─────────────────────────────────────────────────────
-if (!defined('CRON_SECRET')) define('CRON_SECRET', env('CRON_SECRET', 'szv-cron-2026'));
+// Must be set in .env — no default. If unset, process_email_queue.php's
+// bearer check always fails closed rather than accepting a guessable value.
+if (!defined('CRON_SECRET')) define('CRON_SECRET', env('CRON_SECRET', ''));
 
 // ── Business rules ────────────────────────────────────────────
 if (!defined('DEPOSIT_PERCENT'))     define('DEPOSIT_PERCENT',     25);   // 25% deposit at booking

@@ -4,15 +4,26 @@ use App\Middleware\AuthMiddleware;
 use App\Mail\Mailer;
 AuthMiddleware::requireAdmin();
 $db = \App\Models\Database::getInstance();
+$myId        = (int)($_SESSION['admin_user_id'] ?? 0);
+$isAdminUser = AuthMiddleware::isAdminRole();
 
 // Handle status update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     try {
         $newStatus = $_POST['status'];
         $qId       = (int)$_POST['id'];
 
-        $db->prepare("UPDATE quotations SET status=?, updated_at=NOW() WHERE id=?")
-           ->execute([$newStatus, $qId]);
+        if ($isAdminUser) {
+            $upd = $db->prepare("UPDATE quotations SET status=?, updated_at=NOW() WHERE id=?");
+            $upd->execute([$newStatus, $qId]);
+        } else {
+            $upd = $db->prepare("UPDATE quotations SET status=?, updated_at=NOW() WHERE id=? AND created_by=?");
+            $upd->execute([$newStatus, $qId, $myId]);
+        }
+        if ($upd->rowCount() > 0) {
+            \App\Services\ActivityLog::record('update_status', 'quotation', $qId, ['status'=>$newStatus]);
+        }
 
         // ── Email: quotation_accepted ─────────────────────────────
         if ($newStatus === 'accepted') {
@@ -56,27 +67,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
 
 // Handle delete
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
-    try { $db->prepare("DELETE FROM quotations WHERE id=?")->execute([(int)$_POST['delete_id']]); }
+    \App\Middleware\CsrfMiddleware::validateOrDie();
+    try {
+        $delId = (int)$_POST['delete_id'];
+        if ($isAdminUser) {
+            $del = $db->prepare("DELETE FROM quotations WHERE id=?");
+            $del->execute([$delId]);
+        } else {
+            $del = $db->prepare("DELETE FROM quotations WHERE id=? AND created_by=?");
+            $del->execute([$delId, $myId]);
+        }
+        if ($del->rowCount() > 0) {
+            \App\Services\ActivityLog::record('delete', 'quotation', $delId);
+        }
+    }
     catch(Exception $e) { error_log($e->getMessage()); }
     header('Location: quotations.php'); exit;
 }
 
-// Filters
+// Filters + pagination
 $statusFilter = $_GET['status'] ?? '';
 $search       = trim($_GET['q'] ?? '');
+$page         = max(1, (int)($_GET['page'] ?? 1));
+$perPage      = 20;
+$offset       = ($page - 1) * $perPage;
+
 $where  = 'WHERE 1=1';
 $params = [];
+if (!$isAdminUser) { $where .= ' AND created_by=?'; $params[] = $myId; }
 if ($statusFilter) { $where .= ' AND status=?'; $params[] = $statusFilter; }
 if ($search)       { $where .= ' AND (client_name LIKE ? OR client_email LIKE ? OR quote_ref LIKE ?)'; $params = array_merge($params, ["%$search%","%$search%","%$search%"]); }
 
 $quotes = [];
 $stats  = [];
+$totalRows = 0; $totalPages = 0;
 try {
-    $s = $db->prepare("SELECT * FROM quotations $where ORDER BY created_at DESC LIMIT 100");
+    $total = $db->prepare("SELECT COUNT(*) FROM quotations $where");
+    $total->execute($params);
+    $totalRows  = (int)$total->fetchColumn();
+    $totalPages = (int)ceil($totalRows / $perPage);
+
+    $s = $db->prepare("SELECT * FROM quotations $where ORDER BY created_at DESC LIMIT $perPage OFFSET $offset");
     $s->execute($params);
     $quotes = $s->fetchAll();
-    $statRows = $db->query("SELECT status, COUNT(*) as cnt, SUM(grand_total) as rev FROM quotations GROUP BY status")->fetchAll();
-    foreach ($statRows as $r) $stats[$r['status']] = $r;
+
+    $statWhere  = $isAdminUser ? '' : 'WHERE created_by=?';
+    $statParams = $isAdminUser ? [] : [$myId];
+    $statStmt = $db->prepare("SELECT status, COUNT(*) as cnt, SUM(grand_total) as rev FROM quotations $statWhere GROUP BY status");
+    $statStmt->execute($statParams);
+    foreach ($statStmt->fetchAll() as $r) $stats[$r['status']] = $r;
 } catch(Exception $e) { error_log($e->getMessage()); }
 
 $statusColors = [
@@ -179,11 +218,13 @@ ob_start();
       <a href="../api/quotation_pdf.php?id=<?= $q['id'] ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">PDF</a>
       <!-- Email -->
       <form method="POST" action="../api/quotation_email.php" style="display:inline" target="_blank">
+        <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="id" value="<?= $q['id'] ?>">
         <button class="admin-btn admin-btn--primary" style="font-size:.65rem;padding:.3rem .6rem">Email</button>
       </form>
       <!-- Status -->
       <form method="POST" style="display:inline">
+        <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="update_status" value="1">
         <input type="hidden" name="id" value="<?= $q['id'] ?>">
         <select name="status" onchange="this.form.submit()" class="admin-input"
@@ -207,6 +248,7 @@ ob_start();
       <?php endif; ?>
       <!-- Delete -->
       <form method="POST" style="display:inline" onsubmit="return confirm('Delete quotation <?= htmlspecialchars($q['quote_ref']) ?>?')">
+        <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="delete_id" value="<?= $q['id'] ?>">
         <button class="admin-btn admin-btn--danger" style="font-size:.65rem;padding:.3rem .6rem">Del</button>
       </form>
@@ -219,6 +261,21 @@ ob_start();
 </table>
 </div>
 
+<!-- Pagination -->
+<?php if ($totalPages > 1): ?>
+<div class="pagination" style="border-top:none">
+  <span style="font-size:.75rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?></span>
+  <div class="page-btns">
+    <?php for ($i=1; $i<=$totalPages; $i++): ?>
+    <a href="?page=<?= $i ?>&status=<?= urlencode($statusFilter) ?>&q=<?= urlencode($search) ?>"
+       class="page-btn<?= $i===$page?' active':'' ?>">
+      <?= $i ?>
+    </a>
+    <?php endfor; ?>
+  </div>
+</div>
+<?php endif; ?>
+
 
 <!-- ── CONVERT TO BOOKING MODAL ─────────────────────────── -->
 <div id="convertModal" class="admin-modal-overlay">
@@ -230,6 +287,7 @@ ob_start();
     <div class="admin-modal-body">
       <div id="convert-summary" style="background:var(--gray-50);padding:1rem;margin-bottom:1.25rem;font-size:.85rem;line-height:1.8"></div>
       <form id="convert-form">
+        <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" id="convert-quote-id" name="quotation_id">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
           <div>

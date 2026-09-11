@@ -16,6 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+\App\Middleware\CsrfMiddleware::validateOrDie();
+
 $imageUrl = trim($_POST['image_url'] ?? '');
 
 if (!$imageUrl) {

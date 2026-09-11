@@ -12,6 +12,7 @@ $pageTitle = 'Commission Management';
 
 // Update commission status
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_commission'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     // Email wiring for commission status changes
     try {
         $id     = (int)$_POST['commission_id'];
@@ -65,6 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_commission']))
 
 // Update agent commission rate
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_agent_rate'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     try {
         $db->prepare("UPDATE admin_users SET commission_rate=? WHERE id=?")
            ->execute([(float)$_POST['rate'], (int)$_POST['agent_id']]);
@@ -123,6 +125,7 @@ ob_start();
         <span style="font-size:.65rem;color:var(--gray-500)">@<?= htmlspecialchars($a['username']) ?></span>
       </div>
       <form method="POST" style="display:flex;gap:.35rem;align-items:center">
+        <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="update_agent_rate" value="1">
         <input type="hidden" name="agent_id" value="<?= $a['id'] ?>">
         <input type="number" name="rate" value="<?= $a['commission_rate'] ?>" step="0.5" min="0" max="50"
@@ -203,6 +206,7 @@ ob_start();
       <td style="font-size:.72rem;color:var(--gray-500)"><?= date('d M Y',strtotime($c['created_at'])) ?></td>
       <td>
         <form method="POST" style="display:flex;gap:.3rem">
+          <?= \App\Middleware\CsrfMiddleware::field() ?>
           <input type="hidden" name="update_commission" value="1">
           <input type="hidden" name="commission_id" value="<?= $c['id'] ?>">
           <select name="status" class="admin-input" style="font-size:.65rem;padding:.22rem .4rem;width:auto">

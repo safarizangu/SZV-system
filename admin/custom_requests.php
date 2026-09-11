@@ -9,6 +9,7 @@ $db = \App\Models\Database::getInstance();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     ob_end_clean();
     header('Content-Type: application/json');
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     if ($_POST['action'] === 'update_status') {
         $id     = (int)$_POST['id'];
         $status = trim($_POST['status'] ?? '');
@@ -263,6 +264,7 @@ async function updateStatus(id, newStatus) {
   fd.append('action', 'update_status');
   fd.append('id', id);
   fd.append('status', newStatus);
+  fd.append('_csrf', window.CSRF_TOKEN || '');
   try {
     var res  = await fetch('custom_requests.php', { method:'POST', body:fd });
     var data = await res.json();

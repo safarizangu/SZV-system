@@ -10,6 +10,7 @@ ob_start();
 <?php
 $msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     $id   = (int)($_POST['id'] ?? 0);
     $key  = trim($_POST['vehicle_key'] ?? '');
     $name = trim($_POST['name'] ?? '');
@@ -33,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     header('Location: vehicles.php?msg='.urlencode($msg)); exit;
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
     try { $db->prepare("DELETE FROM vehicles WHERE id=?")->execute([(int)$_POST['delete_id']]); }
     catch(Exception $e){}
     header('Location: vehicles.php'); exit;
@@ -49,6 +51,7 @@ catch(Exception $e){}
   <div class="admin-card-header"><h3><?= $edit ? 'Edit Vehicle' : 'Add Vehicle' ?></h3></div>
   <div class="admin-card-body">
   <form method="POST" class="av-form">
+    <?= \App\Middleware\CsrfMiddleware::field() ?>
     <input type="hidden" name="save" value="1">
     <input type="hidden" name="id"   value="<?= $edit['id']??0 ?>">
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
@@ -102,6 +105,7 @@ catch(Exception $e){}
   <td>
     <a href="?edit=<?= $r['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Edit</a>
     <form method="POST" style="display:inline" onsubmit="return confirm('Delete?')">
+      <?= \App\Middleware\CsrfMiddleware::field() ?>
       <input type="hidden" name="delete_id" value="<?= $r['id'] ?>">
       <button class="admin-btn admin-btn--danger" style="font-size:.7rem">Delete</button>
     </form>
