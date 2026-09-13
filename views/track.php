@@ -73,9 +73,11 @@ $_wa = defined('WHATSAPP_NUMBER') ? WHATSAPP_NUMBER : '255663430934';
 <script>
 window.PAYPAL_CLIENT_ID  = "<?= htmlspecialchars(PAYPAL_CLIENT_ID) ?>";
 window.PAYPAL_CURRENCY   = "<?= htmlspecialchars(PAYPAL_CURRENCY) ?>";
+window.CSRF_TOKEN        = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
 window.WHATSAPP_NUMBER   = "<?= htmlspecialchars($_wa) ?>";
 window.WHATSAPP_BASE_URL = "https://wa.me/<?= htmlspecialchars($_wa) ?>";
 </script>
+<script src="<?= BASE_PATH ?>/assets/js/paypal-checkout.js"></script>
 <script>
 // ── Rate limiting (item 31) ────────────────────────────────
 // Rate limiting now handled server-side in php/track_lookup.php
@@ -124,10 +126,36 @@ document.addEventListener('DOMContentLoaded', function () {
               '<tr><td style="padding:.65rem 0;color:#6b7280">Payment Status</td><td><span style="background:' + d.status_color + '20;color:' + d.status_color + ';padding:.15rem .5rem;font-weight:700;font-size:.75rem">' + d.status_label + '</span></td></tr>' +
             '</table>' +
             (d.payment_note ? '<div style="background:#eff6ff;border:1.5px solid #bfdbfe;padding:1rem;font-size:.82rem;color:#1d4ed8;margin-bottom:1rem">' + d.payment_note + '</div>' : '') +
+            ((d.payment_status === 'pending' || d.payment_status === 'deposit_paid')
+              ? '<div style="border:1.5px solid var(--gray-2);padding:1.25rem;margin-bottom:1rem">' +
+                  '<p style="font-size:.65rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.75rem">Pay Online</p>' +
+                  '<div id="paypal-button-container"></div>' +
+                '</div>'
+              : '') +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">' +
               '<a href="https://wa.me/' + window.WHATSAPP_NUMBER + '?text=' + encodeURIComponent('Hi Safari Zangu, I am following up on booking ' + d.booking_ref + '.') + '" target="_blank" class="btn-sz-dark" style="font-size:.68rem;padding:.75rem;text-align:center;justify-content:center">WhatsApp Us</a>' +
               '<a href="contact.php" class="btn-sz-outline" style="font-size:.68rem;padding:.75rem;text-align:center;justify-content:center">Send Email</a>' +
             '</div>';
+
+          if (d.payment_status === 'pending' || d.payment_status === 'deposit_paid') {
+            SZVPayPal.render('paypal-button-container', {
+              ref: d.booking_ref,
+              travelDate: fd.get('date'),
+              csrfToken: window.CSRF_TOKEN,
+              onSuccess: function () {
+                var note = document.createElement('div');
+                note.style.cssText = 'background:#f0fdf4;border:1.5px solid #86efac;padding:1rem;color:#166534;font-size:.82rem;margin-top:.75rem';
+                note.textContent = 'Payment received — thank you! Refresh to see your updated status.';
+                document.getElementById('paypal-button-container').appendChild(note);
+              },
+              onError: function (message) {
+                var note = document.createElement('div');
+                note.style.cssText = 'background:#fef2f2;border:1.5px solid #fca5a5;padding:1rem;color:#991b1b;font-size:.82rem;margin-top:.75rem';
+                note.textContent = message;
+                document.getElementById('paypal-button-container').appendChild(note);
+              },
+            });
+          }
         }
       } catch(err) {
         result.innerHTML = '<div style="background:#fef2f2;border:1.5px solid #fca5a5;padding:1.25rem;color:#991b1b;font-size:.85rem">Network error. Please try again or contact us on WhatsApp.</div>';

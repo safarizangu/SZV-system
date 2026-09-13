@@ -20,6 +20,12 @@ if (str_contains($ua,'bot') || str_contains($ua,'crawler') || str_contains($ua,'
     ob_end_clean(); echo json_encode(['success'=>true]); exit;
 }
 
+// Generous cap — this fires multiple times per real page view (page view,
+// impressions, clicks), unlike the transactional endpoints, but an
+// unbounded anonymous write endpoint was the one public POST with no
+// limit at all.
+\App\Middleware\RateLimiter::enforceOrDie('analytics', 120, 3600);
+
 try {
     $pdo  = Database::getInstance();
     $stmt = $pdo->prepare("

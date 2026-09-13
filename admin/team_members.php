@@ -76,6 +76,16 @@ catch(Exception $e){ error_log($e->getMessage()); }
       <div><label class="admin-label">Sort Order</label>
         <input name="sort_order" data-av="integer min:0" type="number" class="admin-input" value="<?= $edit['sort_order']??0 ?>"></div>
     </div>
+    <div style="margin-top:1rem">
+      <label class="admin-label">Photo</label>
+      <input type="hidden" name="photo_url" id="tm-photo-url" value="<?= htmlspecialchars($edit['photo_url']??'') ?>">
+      <div style="display:flex;align-items:center;gap:.85rem">
+        <img id="tm-photo-preview" src="<?= htmlspecialchars(($edit['photo_url']??'') ? BASE_PATH.$edit['photo_url'] : '') ?>"
+             style="width:64px;height:64px;object-fit:cover;border:1.5px solid var(--gray-200);<?= ($edit['photo_url']??'') ? '' : 'display:none' ?>">
+        <input type="file" id="tm-photo-file" accept="image/jpeg,image/png,image/webp" class="admin-input" style="max-width:280px">
+        <span id="tm-photo-status" style="font-size:.75rem;color:var(--gray-500)"></span>
+      </div>
+    </div>
     <div style="margin-top:1rem"><label class="admin-label">Bio</label>
       <textarea name="bio" class="admin-input" rows="3"><?= htmlspecialchars($edit['bio']??'') ?></textarea></div>
     <div style="margin-top:.75rem">
@@ -118,6 +128,37 @@ catch(Exception $e){ error_log($e->getMessage()); }
 </tbody>
 </table>
 </div>
+
+<script>
+document.getElementById('tm-photo-file').addEventListener('change', async function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var status  = document.getElementById('tm-photo-status');
+  var preview = document.getElementById('tm-photo-preview');
+  status.textContent = 'Uploading…'; status.style.color = 'var(--gray-500)';
+
+  var fd = new FormData();
+  fd.append('image', file);
+  fd.append('type', 'team');
+  fd.append('_csrf', window.CSRF_TOKEN || '');
+
+  try {
+    var r = await fetch('<?= BASE_PATH ?>/api/upload_team_image.php', {method:'POST', body:fd, credentials:'same-origin'});
+    var d = await r.json();
+    if (d.success) {
+      document.getElementById('tm-photo-url').value = d.url;
+      preview.src = '<?= BASE_PATH ?>' + d.url;
+      preview.style.display = '';
+      status.textContent = 'Uploaded ✓'; status.style.color = 'var(--green)';
+    } else {
+      status.textContent = d.message || 'Upload failed'; status.style.color = 'var(--red)';
+    }
+  } catch (err) {
+    status.textContent = 'Network error'; status.style.color = 'var(--red)';
+  }
+});
+</script>
+
 <?php
 $content = ob_get_clean();
 require_once __DIR__ . '/../layouts/admin.php';

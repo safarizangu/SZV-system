@@ -278,8 +278,12 @@ class ItineraryQuoteBuilder
 
     /**
      * Given a set of line items, compute the same subtotal -> VAT(18%) ->
-     * grand total -> deposit(30%) totals used throughout the quotation
+     * grand total -> deposit totals used throughout the quotation
      * system (admin/quotation_new.php's JS, api/quotation_pdf.php).
+     * Deposit percentage comes from the single shared DEPOSIT_PERCENT
+     * constant (config/app.php) — same source api/book.php and
+     * App\Services\QuotationEngine already use, so every pricing path
+     * quotes the same deposit rate rather than each hardcoding its own.
      */
     public static function totals(array $lineItems, float $discountPct = 0): array
     {
@@ -288,7 +292,8 @@ class ItineraryQuoteBuilder
         $afterDisc  = $subtotal - $discAmt;
         $vat        = round($afterDisc * 0.18, 2);
         $grandTotal = round($afterDisc + $vat, 2);
-        $deposit    = round($grandTotal * 0.30, 2);
+        $depositPct = defined('DEPOSIT_PERCENT') ? DEPOSIT_PERCENT : 25;
+        $deposit    = round($grandTotal * ($depositPct / 100), 2);
 
         return [
             'subtotal'    => round($subtotal, 2),

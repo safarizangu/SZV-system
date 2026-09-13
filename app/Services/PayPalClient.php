@@ -73,6 +73,56 @@ class PayPalClient
     }
 
     /**
+     * Create a PayPal order for a fixed, server-computed amount and return
+     * its order ID, or null on failure. The amount is never taken from the
+     * client — callers (api/paypal_create_order.php) compute it from the
+     * booking record itself, so there is nothing for a tampered request to
+     * inflate or discount.
+     */
+    public static function createOrder(float $amount, string $currency, string $referenceId): ?string
+    {
+        $token = self::getAccessToken();
+        if (!$token) return null;
+
+        $payload = [
+            'intent' => 'CAPTURE',
+            'purchase_units' => [[
+                'reference_id' => $referenceId,
+                'custom_id'    => $referenceId,
+                'amount'       => [
+                    'currency_code' => $currency,
+                    'value'         => number_format($amount, 2, '.', ''),
+                ],
+                'description'  => 'Safari Zangu Ventures — Booking ' . $referenceId,
+            ]],
+        ];
+
+        $ch = curl_init(PAYPAL_API_BASE . '/v2/checkout/orders');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $token,
+            ],
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_TIMEOUT    => 10,
+        ]);
+        $response = curl_exec($ch);
+        $status   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error    = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false || $status !== 201) {
+            error_log("[PayPalClient] Create order failed (HTTP $status): $error $response");
+            return null;
+        }
+
+        $data = json_decode($response, true);
+        return $data['id'] ?? null;
+    }
+
+    /**
      * Verify that an order is COMPLETED and return the amount actually paid (in PAYPAL_CURRENCY),
      * or null if the order can't be verified, isn't completed, or is in the wrong currency.
      */

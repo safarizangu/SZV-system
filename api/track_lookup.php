@@ -111,18 +111,16 @@ try {
 
     // ── Build safe response — never expose passport/address/full payment amounts ──
     $statusLabels = [
-        'pending'   => 'Awaiting Deposit',
-        'deposit'   => 'Deposit Received — Balance Due',
-        'paid'      => 'Fully Paid',
-        'confirmed' => 'Confirmed',
-        'cancelled' => 'Cancelled',
+        'pending'      => 'Awaiting Deposit',
+        'deposit_paid' => 'Deposit Received — Balance Due',
+        'fully_paid'   => 'Fully Paid',
+        'cancelled'    => 'Cancelled',
     ];
     $statusColors = [
-        'pending'   => '#92400e',
-        'deposit'   => '#1d4ed8',
-        'paid'      => '#166534',
-        'confirmed' => '#166534',
-        'cancelled' => '#991b1b',
+        'pending'      => '#92400e',
+        'deposit_paid' => '#1d4ed8',
+        'fully_paid'   => '#166534',
+        'cancelled'    => '#991b1b',
     ];
 
     $ps     = $booking['payment_status'] ?? 'pending';
@@ -134,9 +132,9 @@ try {
     $paymentNote = '';
     if ($ps === 'pending') {
         $paymentNote = 'Deposit of $' . number_format($dep, 0) . ' USD is due to confirm your dates.';
-    } elseif ($ps === 'deposit') {
+    } elseif ($ps === 'deposit_paid') {
         $paymentNote = 'Deposit received. Balance of $' . number_format($balance, 0) . ' USD due 45 days before departure.';
-    } elseif (in_array($ps, ['paid', 'confirmed'])) {
+    } elseif ($ps === 'fully_paid') {
         $paymentNote = 'All payments received. You are fully confirmed.';
     }
 

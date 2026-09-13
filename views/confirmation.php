@@ -58,7 +58,7 @@ function fmt($n) { return 'USD ' . number_format($n, 0, '.', ','); }
 <section class="section">
   <div class="container-sz">
     <?php if ($booking): ?>
-    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:3rem;align-items:start">
+    <div class="confirmation-grid" style="display:grid;grid-template-columns:1.4fr 1fr;gap:3rem;align-items:start">
 
       <!-- LEFT: Details + Breakdown -->
       <div>
@@ -138,7 +138,7 @@ function fmt($n) { return 'USD ' . number_format($n, 0, '.', ','); }
             </tr>
 
             <tr style="border-bottom:1px solid var(--gray-2)">
-              <td style="padding:.6rem 0;color:var(--black);font-weight:500">Deposit Required (50%)</td>
+              <td style="padding:.6rem 0;color:var(--black);font-weight:500">Deposit Required<?= $rawTotal > 0 ? ' ('.round($rawDeposit/$rawTotal*100).'%)' : '' ?></td>
               <td style="padding:.6rem 0;text-align:right;font-weight:700;color:var(--black)"><?= fmt($rawDeposit) ?></td>
             </tr>
             <tr>
@@ -187,8 +187,15 @@ function fmt($n) { return 'USD ' . number_format($n, 0, '.', ','); }
           <div style="background:var(--black);color:var(--white);padding:1.25rem;margin-bottom:1.5rem;text-align:center">
             <p style="font-size:.65rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;margin-bottom:.4rem;opacity:.7">Deposit Due Now</p>
             <p style="font-family:var(--font-display);font-size:2rem;font-weight:500"><?= fmt($rawDeposit) ?></p>
-            <p style="font-size:.72rem;opacity:.7;margin-top:.25rem">50% of <?= fmt($rawTotal) ?></p>
+            <p style="font-size:.72rem;opacity:.7;margin-top:.25rem"><?= $rawTotal > 0 ? round($rawDeposit/$rawTotal*100) : 0 ?>% of <?= fmt($rawTotal) ?></p>
           </div>
+
+          <!-- Pay Online -->
+          <?php if (in_array($booking['payment_status'] ?? 'pending', ['pending', 'deposit_paid'], true)): ?>
+          <p style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.65rem">Pay Online</p>
+          <div id="paypal-button-container" style="margin-bottom:1.5rem"></div>
+          <div style="border-top:1px solid var(--gray-2);margin:1.1rem 0"></div>
+          <?php endif; ?>
 
           <!-- Bank Transfer -->
           <p style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.65rem">Bank Transfer</p>
@@ -244,6 +251,68 @@ function fmt($n) { return 'USD ' . number_format($n, 0, '.', ','); }
 
   </div>
 </section>
+
+<?php if ($booking): ?>
+<script>
+// Real conversion tracking, fired once per completed booking — previously
+// both GA4 and the in-house pixel only measured intent (a "Book Now" click),
+// never an actual completed booking.
+(function () {
+  var ref     = <?= json_encode($booking['booking_ref']) ?>;
+  var pkgSlug = <?= json_encode($booking['package_name'] ?? '') ?>;
+  var value   = <?= json_encode($rawTotal) ?>;
+
+  if (typeof gtag === 'function') {
+    gtag('event', 'purchase', {
+      transaction_id: ref,
+      value: value,
+      currency: 'USD',
+      items: [{ item_name: pkgSlug }]
+    });
+  }
+
+  var body = 'event=booking_complete&page=' + encodeURIComponent(window.location.pathname)
+           + '&package=' + encodeURIComponent(pkgSlug)
+           + '&ref=' + encodeURIComponent(ref);
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon('api/analytics.php', new Blob([body], {type:'application/x-www-form-urlencoded'}));
+  } else {
+    fetch('api/analytics.php', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body, keepalive:true}).catch(function(){});
+  }
+})();
+</script>
+<?php if (in_array($booking['payment_status'] ?? 'pending', ['pending', 'deposit_paid'], true)): ?>
+<script>
+window.PAYPAL_CLIENT_ID = "<?= htmlspecialchars(PAYPAL_CLIENT_ID) ?>";
+window.PAYPAL_CURRENCY  = "<?= htmlspecialchars(PAYPAL_CURRENCY) ?>";
+window.CSRF_TOKEN       = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
+</script>
+<script src="<?= BASE_PATH ?>/assets/js/paypal-checkout.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  SZVPayPal.render('paypal-button-container', {
+    ref: <?= json_encode($booking['booking_ref']) ?>,
+    travelDate: <?= json_encode($booking['travel_date']) ?>,
+    csrfToken: window.CSRF_TOKEN,
+    onSuccess: function () {
+      var el = document.getElementById('paypal-button-container');
+      var note = document.createElement('div');
+      note.style.cssText = 'background:#f0fdf4;border:1.5px solid #86efac;padding:.85rem;color:#166534;font-size:.78rem;margin-top:.6rem';
+      note.textContent = 'Payment received — thank you! Refresh this page to see your updated status.';
+      el.appendChild(note);
+    },
+    onError: function (message) {
+      var el = document.getElementById('paypal-button-container');
+      var note = document.createElement('div');
+      note.style.cssText = 'background:#fef2f2;border:1.5px solid #fca5a5;padding:.85rem;color:#991b1b;font-size:.78rem;margin-top:.6rem';
+      note.textContent = message;
+      el.appendChild(note);
+    },
+  });
+});
+</script>
+<?php endif; ?>
+<?php endif; ?>
 
 <style>
 @media (max-width: 768px) {

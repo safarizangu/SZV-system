@@ -28,7 +28,7 @@ ob_start();
        'Safari Zangu Ventures Ltd is a Tanzania-registered tour operator (Reg. 179228971, Licence 037129) based in Arusha, Tanzania. We operate safarizanguven.com and handle all bookings directly. Our contact address is: info@safarizanguven.com · +255 663 430 934.'],
 
       ['What data we collect',
-       '<strong>When you submit an enquiry or booking form</strong> we collect: your name, email address, phone number, nationality, travel dates, traveller numbers, and any special requests you include. <strong>When you visit the website</strong> we collect anonymised analytics data (pages visited, time on site, referral source) via Google Analytics 4. No identifying data is sent to Google Analytics.'],
+       '<strong>When you submit an enquiry or booking form</strong> we collect: your name, email address, phone number, nationality, travel dates, traveller numbers, and any special requests you include. <strong>When you visit the website</strong> we collect anonymised analytics data (pages visited, referral source) through our own first-party analytics, and — where enabled — through Google Analytics 4. No identifying data is sent to Google Analytics.'],
 
       ['Why we collect it',
        'We collect your personal data to: process and confirm safari bookings; send booking confirmations and pre-trip information; respond to enquiries; comply with Tanzania tourism regulations (guest registers are required by law). We do not use your data for advertising or sell it to any third party.'],
@@ -40,10 +40,10 @@ ob_start();
        'Under UK GDPR and EU GDPR you have the right to: access the personal data we hold about you; correct inaccurate data; request deletion ("right to be forgotten"); object to processing; data portability. To exercise any of these rights, email info@safarizanguven.com with the subject line "Data Request". We will respond within 30 days.'],
 
       ['Cookies',
-       'We use one first-party session cookie (required for form security) and Google Analytics cookies (anonymised). We do not use advertising cookies or tracking pixels. You can disable cookies in your browser settings — this will not affect your ability to use the website.'],
+       'We use one first-party session cookie (required for form security) and, where Google Analytics is enabled, Google Analytics cookies (anonymised). We do not use advertising cookies or tracking pixels. You can disable cookies in your browser settings — this will not affect your ability to use the website.'],
 
       ['Third parties',
-       'We use the following third-party services: <strong>Google Analytics</strong> (anonymised website analytics); <strong>PayPal</strong> (optional payment processing — their privacy policy applies to payment data); <strong>Hostinger</strong> (website hosting, servers located in Europe). We do not share your personal data with any other third party without your explicit consent.'],
+       'We use the following third-party services: <strong>Google Analytics</strong> (anonymised website analytics, where enabled); <strong>PayPal</strong> (optional payment processing — their privacy policy applies to payment data); <strong>Hostinger</strong> (website hosting, servers located in Europe). We do not share your personal data with any other third party without your explicit consent.'],
 
       ['Data security',
        'All data is transmitted over HTTPS. Form submissions are stored in a password-protected database on Hostinger\'s EU servers. Staff with access to guest data are limited to the core SZV team. In the unlikely event of a data breach we will notify affected guests within 72 hours.'],

@@ -144,7 +144,8 @@ if (!defined('VEHICLE_TYPES')) define('VEHICLE_TYPES', [
 if (!defined('ACCOMMODATION_LEVELS')) define('ACCOMMODATION_LEVELS', [
     'budget'       => 'Budget-Friendly',
     'midrange'     => 'Mid-Range',
-    'highend'      => 'High-End / Luxury',
+    'highend'      => 'High-End',
+    'luxury'       => 'Luxury',
     'ultra_luxury' => 'Ultra Luxury',
 ]);
 

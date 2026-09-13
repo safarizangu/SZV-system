@@ -64,15 +64,16 @@ test('a solo traveler still gets a valid, non-empty quote', function () {
     assertSame(1, $built['pax']);
 });
 
-test('totals(): subtotal -> 18% VAT -> grand total -> 30% deposit', function () {
+test('totals(): subtotal -> 18% VAT -> grand total -> DEPOSIT_PERCENT deposit', function () {
     $lineItems = [['amount' => 1000, 'category' => 'other']];
     $totals = ItineraryQuoteBuilder::totals($lineItems);
+    $depositPct = defined('DEPOSIT_PERCENT') ? DEPOSIT_PERCENT : 25;
 
     assertSame(1000.0, $totals['subtotal']);
     assertSame(180.0, $totals['vat']);
     assertSame(1180.0, $totals['grand_total']);
-    assertSame(354.0, $totals['deposit']);
-    assertSame(826.0, $totals['balance']);
+    assertSame(round(1180.0 * ($depositPct / 100), 2), $totals['deposit']);
+    assertSame(round(1180.0 - $totals['deposit'], 2), $totals['balance']);
 });
 
 test('totals(): a discount percentage reduces VAT and grand total accordingly', function () {

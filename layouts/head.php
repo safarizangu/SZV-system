@@ -2,7 +2,18 @@
 $pageTitle = $pageTitle ?? 'Safari Zangu Ventures';
 $pageDescription = $pageDescription ?? 'Private Tanzania Safari Experiences';
 $pageCanonical = $pageCanonical ?? '';
-$pageImage = $pageImage ?? (BASE_PATH . '/assets/images/Intro22.webp');
+// Fallback social-share image: a real, landscape-format safari photo that
+// actually exists on disk (the previous fallback, Intro22.webp, did not —
+// every page's og:image/twitter:image 404'd until a controller happened
+// to set $pageImage explicitly).
+$pageImage = $pageImage ?? (BASE_PATH . '/assets/images/packages/luxury-safari/1.jpg');
+// og:image must be an absolute URL per spec — WhatsApp/Facebook/Twitter
+// crawlers frequently fail to fetch (and so show no preview at all for)
+// a relative one, which is what every page served until this point.
+if (!preg_match('#^https?://#i', $pageImage)) {
+    $_imgScheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $pageImage  = $_imgScheme . '://' . $_SERVER['HTTP_HOST'] . $pageImage;
+}
 ?>
 
 <meta charset="UTF-8">
@@ -33,7 +44,7 @@ $_canonical = strtok($_canonical,'?'); // remove query string
 <meta name="description"
       content="<?= htmlspecialchars($pageDescription) ?>">
 
-<meta property="og:url" content="<?= htmlspecialchars(!empty($pageCanonical)?$pageCanonical:((isset($_SERVER['HTTPS'])&&$_SERVER['HTTPS']==='on'?'https':'http').' ://'.$_SERVER['HTTP_HOST'].strtok($_SERVER['REQUEST_URI'],'?'))) ?>">
+<meta property="og:url" content="<?= htmlspecialchars(!empty($pageCanonical)?$pageCanonical:((isset($_SERVER['HTTPS'])&&$_SERVER['HTTPS']==='on'?'https':'http').'://'.$_SERVER['HTTP_HOST'].strtok($_SERVER['REQUEST_URI'],'?'))) ?>">
 
 <meta property="og:type" content="website">
 

@@ -19,6 +19,7 @@ use App\Models\CustomSafariRequest;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\RateLimiter;
 use App\Helpers\Formatter;
+use App\Mail\Mailer;
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     cs_respond(['success' => false, 'message' => 'Method not allowed.']);
@@ -84,29 +85,16 @@ try {
     cs_respond(['success' => false, 'message' => 'Could not save your request. Please email us at info@safarizanguven.com.']);
 }
 
-// Auto-queue acknowledgement email
+// Auto-queue acknowledgement + admin notification — through the branded
+// template system (EmailTemplate::tpl_custom_request_ack/_admin), which
+// already existed and was documented as used here, but this handler was
+// building raw unstyled HTML strings directly into email_queue instead.
 try {
-    $name  = $data['full_name'];
-    $dests = implode(', ', $destinations ?: ['Tanzania']);
-    $body  = "<p>Dear " . htmlspecialchars($name) . ",</p>"
-           . "<p>Thank you for your custom safari enquiry! We've received your request for a private safari to <strong>" . htmlspecialchars($dests) . "</strong>.</p>"
-           . "<p>Our team will send you a fully personalised proposal — complete with itinerary, accommodation options, and transparent pricing — within <strong>24 hours</strong>.</p>"
-           . "<p>For faster response: <strong>WhatsApp +255 663 430 934</strong></p>"
-           . "<p>Safari Zangu Ventures · Arusha, Tanzania</p>";
-
-    $pdo = \App\Models\Database::getInstance();
-    $pdo->prepare("INSERT INTO email_queue (to_email, to_name, subject, body, created_at) VALUES (?,?,?,?,NOW())")
-        ->execute([$data['email'], $name, "Your Custom Safari Request — Safari Zangu Ventures", $body]);
-
-    // Notify admin
-    $adminBody = "New custom safari request from {$name} ({$data['email']})\n"
-               . "Destinations: " . implode(', ', $destinations) . "\n"
-               . "Duration: {$data['duration_days']} days · Adults: {$data['adults']} · Children: {$data['children']}\n"
-               . "Budget: {$data['total_budget']}\n"
-               . "Message: {$data['message']}";
-    $pdo->prepare("INSERT INTO email_queue (to_email, to_name, subject, body, created_at) VALUES (?,?,?,?,NOW())")
-        ->execute([ADMIN_EMAIL, 'Admin', "New Custom Safari Request — {$name}", nl2br($adminBody)]);
-
+    Mailer::queue('custom_request_ack', array_merge($data, [
+        'to_email' => $data['email'],
+        'to_name'  => $data['full_name'],
+    ]));
+    Mailer::queueAdmin('custom_request_admin', $data);
 } catch (\Exception $e) {
     error_log('[SZV CustomEmail] ' . $e->getMessage());
     // Non-fatal

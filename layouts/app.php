@@ -92,6 +92,18 @@ if ($_heroImg): ?>
 <script src="<?= BASE_PATH ?>/assets/js/form-validator.js"></script>
 <script src="<?= BASE_PATH ?>/assets/js/main.js"></script>
 <script src="<?= BASE_PATH ?>/assets/js/analytics.js"></script>
+<?php if (defined('GA4_ID') && GA4_ID !== ''): ?>
+<!-- Google Analytics 4 — only loads when GA4_ID is set in .env. The
+     privacy policy's claim of using GA4 previously had nothing behind
+     it; this block is what makes that claim actually true. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=<?= htmlspecialchars(GA4_ID) ?>"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){ dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', '<?= htmlspecialchars(GA4_ID) ?>', { anonymize_ip: true });
+</script>
+<?php endif; ?>
 
 </body>
 </html>

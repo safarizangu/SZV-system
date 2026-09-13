@@ -60,6 +60,10 @@ if (!move_uploaded_file($file['tmp_name'], $dest)) {
     grespond(['success'=>false,'message'=>'Failed to save file.']);
 }
 
+// Resize/recompress in place — uploads straight from a phone camera were
+// previously served as-is, up to the full 8MB cap, to every visitor.
+\App\Helpers\ImageOptimizer::optimize($dest, $mime === 'image/jpg' ? 'image/jpeg' : $mime);
+
 // Root-relative, WITHOUT BASE_PATH — see api/gallery/list.php for why.
 $url = '/assets/images/' . $folder . '/' . $filename;
 grespond(['success'=>true, 'url'=>$url, 'filename'=>$filename, 'folder'=>$folder]);

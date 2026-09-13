@@ -49,7 +49,7 @@ try {
       </p>
       <div class="mt-3" style="border:1.5px solid var(--black);padding:1rem 1.25rem;font-size:.82rem;line-height:1.9;color:var(--black);background:#f7f7f5">
         <strong style="font-size:.65rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;display:block;margin-bottom:.3rem">Booking Policy</strong>
-        20–30% deposit secures your dates · Full balance due 45 days before departure<br>
+        25–30% deposit secures your dates · Full balance due 45 days before departure<br>
         Confirmation email sent within minutes · 24-hour human response
       </div>
     </div>
@@ -216,7 +216,7 @@ try {
                 Special Requests
                 <span class="sz-hint">Optional</span>
               </label>
-              <textarea id="bk-special" name="special_requests"
+              <textarea id="bk-special" name="special_request"
                         class="form-control-sz"
                         style="min-height:90px"
                         placeholder="Dietary requirements, accessibility needs, birthday celebrations, specific wildlife interests…"

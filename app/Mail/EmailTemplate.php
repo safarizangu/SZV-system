@@ -188,6 +188,8 @@ HTML;
     }
 
     private static function totalBox(float $grand, float $deposit, float $balance, string $currency = 'USD'): string {
+        $depositPct = $grand > 0 ? round($deposit / $grand * 100) : 0;
+        $balancePct = 100 - $depositPct;
         return '<div style="margin-top:20px">'
              . '<div style="background:#0a0a0a;color:#ffffff;padding:14px 20px;display:flex;justify-content:space-between">'
              . '<span style="font-size:14px;font-weight:600">Grand Total</span>'
@@ -195,8 +197,8 @@ HTML;
              . '</div>'
              . '<div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:14px 20px;margin-top:1px">'
              . '<div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#166534;margin-bottom:6px">Payment Schedule</div>'
-             . '<div style="font-size:13px;color:#166534;margin-bottom:4px"><strong>Deposit (30%): $' . number_format($deposit, 0) . '</strong> — due within 48 hours</div>'
-             . '<div style="font-size:13px;color:#166534"><strong>Balance (70%): $' . number_format($balance, 0) . '</strong> — due 45 days before departure</div>'
+             . '<div style="font-size:13px;color:#166534;margin-bottom:4px"><strong>Deposit (' . $depositPct . '%): $' . number_format($deposit, 0) . '</strong> — due within 48 hours</div>'
+             . '<div style="font-size:13px;color:#166534"><strong>Balance (' . $balancePct . '%): $' . number_format($balance, 0) . '</strong> — due 45 days before departure</div>'
              . '</div></div>';
     }
 
@@ -306,7 +308,7 @@ HTML;
             'title'   => 'Booking Confirmation',
             'preview' => 'Your safari booking ' . $ref . ' has been received. Keep this email — your booking reference is inside.',
             'html'    => $html,
-            'text'    => "Dear {$name},\n\nThank you for booking with Safari Zangu Ventures!\n\nBooking Reference: {$ref}\nPackage: {$package}\nTravel Date: {$date}\nTotal: USD \$" . number_format($total, 0) . "\nDeposit Due (30%): USD \$" . number_format($deposit, 0) . "\n\nTrack your booking: {$trackUrl}\n\nSafari Zangu Ventures · " . self::CONTACT_PHONE,
+            'text'    => "Dear {$name},\n\nThank you for booking with Safari Zangu Ventures!\n\nBooking Reference: {$ref}\nPackage: {$package}\nTravel Date: {$date}\nTotal: USD \$" . number_format($total, 0) . "\nDeposit Due (" . ($total > 0 ? round($deposit / $total * 100) : 0) . "%): USD \$" . number_format($deposit, 0) . "\n\nTrack your booking: {$trackUrl}\n\nSafari Zangu Ventures · " . self::CONTACT_PHONE,
         ];
     }
 
@@ -345,7 +347,7 @@ HTML;
         return [
             'subject' => 'Deposit Due — ' . $ref . ' | Safari Zangu Ventures',
             'title'   => 'Deposit Reminder',
-            'preview' => 'Your 30% deposit is due to secure your safari dates.',
+            'preview' => 'Your deposit is due to secure your safari dates.',
             'html'    => $html,
             'text'    => "Dear {$name},\n\nYour deposit of USD \$" . number_format($deposit, 0) . " is due for booking {$ref} ({$package}).\n\nPlease arrange payment to confirm your dates.\n\nWhatsApp: " . self::CONTACT_PHONE . "\nEmail: " . self::CONTACT_EMAIL,
         ];

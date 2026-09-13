@@ -12,6 +12,9 @@ if (empty($_SESSION['admin_authenticated']) || $_SESSION['admin_authenticated'] 
 }
 
 header('Content-Type: application/json');
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
+}
 $db     = \App\Models\Database::getInstance();
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 $myId   = (int)($_SESSION['admin_user_id'] ?? 0);
@@ -165,6 +168,9 @@ if ($action === 'set_booking_value') {
         $s=$db->prepare("SELECT * FROM leads WHERE id=?"); $s->execute([$id]);
         $lead=$s->fetch();
         if (!$lead) jout(['success'=>false,'message'=>'Lead not found']);
+        if (!isAdmin($myRole) && (int)$lead['agent_id'] !== $myId) {
+            jout(['success'=>false,'message'=>'Permission denied.']);
+        }
 
         $as=$db->prepare("SELECT commission_rate FROM admin_users WHERE id=?");
         $as->execute([$lead['agent_id']]);

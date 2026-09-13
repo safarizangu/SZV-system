@@ -17,6 +17,7 @@ function pay_respond(array $d): void {
 
 require_once __DIR__ . '/../app/bootstrap.php';
 
+use App\Middleware\CsrfMiddleware;
 use App\Middleware\RateLimiter;
 use App\Helpers\Formatter;
 use App\Services\PayPalClient;
@@ -24,6 +25,8 @@ use App\Services\PayPalClient;
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     pay_respond(['success' => false, 'message' => 'Invalid request.']);
 }
+
+CsrfMiddleware::validateOrDie();
 
 // Rate-limit this endpoint (max 10 payment attempts per hour per IP)
 try {

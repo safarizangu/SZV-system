@@ -203,8 +203,22 @@ ob_start();
       <?php foreach ($team as $i => $member):
         $initial  = mb_strtoupper(mb_substr($member['name'], 0, 1));
         $delay    = $delays[$i % 4] ?? '';
-        $photoSrc = $member['photo'] ?? '';
-        $hasPhoto = $photoSrc && file_exists(__DIR__ . '/' . ltrim($photoSrc, '/'));
+        $photoRaw = $member['photo_url'] ?? $member['photo'] ?? '';
+        // Stored URLs are root-relative and BASE_PATH-free (api/upload_team_image.php's
+        // convention, matching api/gallery/upload.php) — but a row saved before
+        // that fix, or copied in from another environment, may still carry a
+        // stray BASE_PATH prefix (see admin/gallery.php's identical normalization).
+        // Strip it first so both the filesystem check and the rendered <img src>
+        // work from one canonical, BASE_PATH-free path.
+        $photoPath = $photoRaw;
+        if ($photoPath && BASE_PATH !== '' && str_starts_with($photoPath, BASE_PATH)) {
+            $photoPath = substr($photoPath, strlen(BASE_PATH));
+        }
+        if (str_starts_with($photoPath, '/safari-zangu')) {
+            $photoPath = substr($photoPath, strlen('/safari-zangu'));
+        }
+        $hasPhoto = $photoPath && file_exists(dirname(__DIR__) . '/' . ltrim($photoPath, '/'));
+        $photoSrc = BASE_PATH . $photoPath;
       ?>
       <div class="team-card fade-in<?= $delay ?>">
 

@@ -63,6 +63,7 @@ $data = [
     'accommodation_level' => Formatter::sanitize($_POST['accommodation_level']  ?? 'midrange'),
     'travel_date'         => Formatter::sanitize($_POST['travel_date']          ?? ''),
     'special_request'     => Formatter::sanitize($_POST['special_request']      ?? ''),
+    'nationality'          => Formatter::sanitize($_POST['nationality']          ?? ''),
     'payment_method'      => Formatter::sanitize($_POST['payment_method']       ?? 'bank_transfer'),
     'paypal_order_id'     => Formatter::sanitize($_POST['paypal_order_id']      ?? ''),
 ];
@@ -129,7 +130,7 @@ $ref = generateBookingRef();
 $pdo = Database::getInstance();
 $customerId = null;
 try {
-    $customerId = (new Customer())->findOrCreateByEmail($data['email'], $data['full_name'], $data['phone']);
+    $customerId = (new Customer())->findOrCreateByEmail($data['email'], $data['full_name'], $data['phone'], $data['nationality'] ?: null);
 } catch (Exception $e) {
     error_log('[SZV Booking Customer] ' . $e->getMessage());
 }

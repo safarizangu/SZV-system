@@ -329,7 +329,7 @@ $qExcludes = implode("\n", $qExcludesArr);
 
 // VAT rate
 $vatRate   = 18;
-$depositPct= 30;
+$depositPct= defined('DEPOSIT_PERCENT') ? DEPOSIT_PERCENT : 25;
 
 $pageTitle = $id ? 'Edit Quotation' : 'New Quotation';
 ob_start();
@@ -674,7 +674,7 @@ ob_start();
             <tr><td colspan="4" style="padding:.6rem 0 0">
               <div style="background:var(--green-light);border:1px solid var(--green-border);padding:.75rem">
                 <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:.25rem">
-                  <span style="color:#166534">Deposit (30%) — due within 48h</span>
+                  <span style="color:#166534">Deposit (<?= (int)$depositPct ?>%) — due within 48h</span>
                   <span id="qs-deposit" style="font-weight:700;color:#166534">$0</span>
                 </div>
                 <div style="display:flex;justify-content:space-between;font-size:.82rem">
@@ -930,7 +930,7 @@ function calcTotals() {
   var vat       = afterDisc * 0.18;
   var total     = afterDisc + vat;
   var pp        = pax > 0 ? total / pax : total;
-  var deposit   = total * 0.30;
+  var deposit   = total * (<?= (float)$depositPct ?> / 100);
   var balance   = total - deposit;
 
   var tbody = document.getElementById('qs-line-items');

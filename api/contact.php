@@ -42,14 +42,10 @@ try {
     exit;
 }
 
-if (!empty($_POST['_csrf'])) {
-    try {
-        CsrfMiddleware::validateOrDie();
-    } catch (Exception $e) {
-        contact_respond(['success' => false, 'message' => 'Security token expired. Please refresh the page.']);
-        exit;
-    }
-}
+// Unconditional — a forged cross-site submission that simply omits the
+// _csrf field must fail, not skip the check entirely (the previous
+// `if (!empty($_POST['_csrf']))` guard let exactly that through).
+CsrfMiddleware::validateOrDie();
 
 $name    = Formatter::sanitize($_POST['full_name'] ?? '');
 $email   = filter_var($_POST['email']   ?? '', FILTER_SANITIZE_EMAIL);

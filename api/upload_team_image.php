@@ -1,72 +1,76 @@
 <?php
+ob_start();
 require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
 AuthMiddleware::requireAdmin();
 
 header('Content-Type: application/json');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['success'=>false,'message'=>'POST required']);
-    exit;
+function urespond(array $d): void {
+    ob_end_clean();
+    header('Content-Type: application/json');
+    echo json_encode($d); exit;
 }
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') urespond(['success'=>false,'message'=>'POST required']);
+
+\App\Middleware\CsrfMiddleware::validateOrDie();
 
 $type = trim($_POST['type'] ?? 'team'); // team | fleet | accommodation
 $allowedTypes = ['team','fleet','accommodation'];
-if (!in_array($type, $allowedTypes)) {
-    echo json_encode(['success'=>false,'message'=>'Invalid type']);
-    exit;
+if (!in_array($type, $allowedTypes, true)) {
+    urespond(['success'=>false,'message'=>'Invalid type']);
 }
 
-if (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
-    echo json_encode(['success'=>false,'message'=>'No file uploaded or upload error']);
-    exit;
-}
-
-$file = $_FILES['image'];
-$ext  = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-$allowed = ['jpg','jpeg','png','webp'];
-if (!in_array($ext, $allowed)) {
-    echo json_encode(['success'=>false,'message'=>'Only JPG, PNG, WebP allowed']);
-    exit;
+$file = $_FILES['image'] ?? null;
+if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
+    urespond(['success'=>false,'message'=>'No file uploaded or upload error']);
 }
 
 if ($file['size'] > 5 * 1024 * 1024) {
-    echo json_encode(['success'=>false,'message'=>'File too large (max 5MB)']);
-    exit;
+    urespond(['success'=>false,'message'=>'File too large (max 5MB)']);
 }
 
-// Validate it's actually an image
-$imgInfo = @getimagesize($file['tmp_name']);
-if (!$imgInfo) {
-    echo json_encode(['success'=>false,'message'=>'File is not a valid image']);
-    exit;
+// Real content-type sniffing — not the user-supplied filename/extension —
+// matching api/gallery/upload.php's standard (the reference implementation
+// this endpoint previously fell short of: it trusted pathinfo() + getimagesize()).
+$allowedMime = ['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];
+$finfo = new finfo(FILEINFO_MIME_TYPE);
+$mime  = $finfo->file($file['tmp_name']);
+if (!isset($allowedMime[$mime])) {
+    urespond(['success'=>false,'message'=>'Only JPG, PNG, WebP allowed']);
 }
+$ext = $allowedMime[$mime];
 
-$targetDir  = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . BASE_PATH . "/assets/images/{$type}/";
-$targetUrl  = BASE_PATH . "/assets/images/{$type}/";
+$assetsRoot = realpath(rtrim($_SERVER['DOCUMENT_ROOT'], '/') . BASE_PATH . '/assets/images/');
+$targetDir  = $assetsRoot . "/{$type}/";
 
 if (!is_dir($targetDir)) {
     mkdir($targetDir, 0775, true);
 }
 
-$filename   = uniqid($type.'_', true) . '.' . $ext;
+$filename   = uniqid($type . '_', true) . '.' . $ext;
 $targetPath = $targetDir . $filename;
-$imageUrl   = $targetUrl . $filename;
 
-// Validate path stays inside assets/images/
-$realTarget = realpath($targetDir);
-$realAssets = realpath(rtrim($_SERVER['DOCUMENT_ROOT'], '/') . BASE_PATH . '/assets/images/');
-if (!$realTarget || !str_starts_with($realTarget, $realAssets)) {
-    echo json_encode(['success'=>false,'message'=>'Invalid upload path']);
-    exit;
+// Path traversal check — ensure final path is inside assets/images/
+$realTarget = realpath($targetDir) ?: $targetDir;
+if (!$assetsRoot || strpos($realTarget, $assetsRoot) !== 0) {
+    urespond(['success'=>false,'message'=>'Invalid upload path']);
 }
 
 if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
-    echo json_encode(['success'=>false,'message'=>'Failed to save file']);
-    exit;
+    urespond(['success'=>false,'message'=>'Failed to save file']);
 }
 
-echo json_encode([
+\App\Helpers\ImageOptimizer::optimize($targetPath, $mime);
+
+// Root-relative, WITHOUT BASE_PATH — matches api/gallery/upload.php's
+// convention (BASE_PATH is added at render time by the consuming view,
+// never stored — storing it here previously caused saved paths to break
+// the moment they were viewed from a different BASE_PATH environment).
+$imageUrl = "/assets/images/{$type}/{$filename}";
+
+urespond([
     'success'  => true,
     'url'      => $imageUrl,
     'filename' => $filename,
