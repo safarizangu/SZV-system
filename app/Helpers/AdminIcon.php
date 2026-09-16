@@ -17,6 +17,7 @@ class AdminIcon
         'dashboard'      => '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
         'analytics'      => '<line x1="4" y1="20" x2="20" y2="20"/><rect x="6" y="12" width="3" height="8"/><rect x="11" y="7" width="3" height="13"/><rect x="16" y="4" width="3" height="16"/>',
         'bookings'       => '<rect x="3" y="5" width="18" height="16" rx="1"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/><path d="M8 15l2.5 2.5L16 13"/>',
+        'invoices'       => '<path d="M5 3h14v16l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4V3Z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/>',
         'customers'      => '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.6 2.7-6.2 6-6.2s6 2.6 6 6.2"/><circle cx="17.5" cy="9" r="2.3"/><path d="M15.8 14c2.4.4 4.2 2.4 4.2 6"/>',
         'requests'       => '<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 13h5l2 3h4l2-3h5"/>',
         'messages'       => '<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 6l9 7 9-7"/>',

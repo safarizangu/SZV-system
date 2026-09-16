@@ -33,9 +33,25 @@ class AuthMiddleware
         return isset($_SESSION['admin_authenticated']) && $_SESSION['admin_authenticated'] === true;
     }
 
-    /** True for admin/superadmin — the roles that bypass per-record agent ownership checks. */
+    /** True for admin/superadmin — reserved for genuinely admin-only actions
+     *  (Settings pages, package pricing, deleting other people's records) —
+     *  not the same thing as "sees everything," see isAgentRole() below. */
     public static function isAdminRole(): bool
     {
         return in_array($_SESSION['admin_role'] ?? 'agent', ['admin', 'superadmin'], true);
+    }
+
+    /**
+     * True only for the 'agent' role — the one role restricted to its own
+     * records (leads, quotations, commissions, invoices) and its own
+     * dashboard. admin/superadmin/staff are all treated as "sees
+     * everything within the sections available to them"; only agent gets
+     * per-record ownership filtering. Kept as its own check (rather than
+     * reusing !isAdminRole()) specifically so staff doesn't inherit an
+     * agent's restrictions just for not being admin/superadmin.
+     */
+    public static function isAgentRole(): bool
+    {
+        return ($_SESSION['admin_role'] ?? 'agent') === 'agent';
     }
 }

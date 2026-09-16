@@ -4,7 +4,9 @@ use App\Middleware\AuthMiddleware;
 AuthMiddleware::requireAdmin();
 $db = \App\Models\Database::getInstance();
 $myId        = (int)($_SESSION['admin_user_id'] ?? 0);
-$isAdminUser = AuthMiddleware::isAdminRole();
+// Ownership scoping (own quotations only) applies to the agent role
+// alone — staff can open/save any quotation, same as admin.
+$isAgentUser = AuthMiddleware::isAgentRole();
 
 $q    = null;
 $id   = (int)($_GET['id']           ?? 0);
@@ -16,7 +18,7 @@ if ($id > 0) {
     try { $s=$db->prepare("SELECT * FROM quotations WHERE id=?"); $s->execute([$id]); $q=$s->fetch(); }
     catch(Exception $e){}
     // Agents may only open quotations they created themselves.
-    if ($q && !$isAdminUser && (int)($q['created_by'] ?? 0) !== $myId) {
+    if ($q && $isAgentUser && (int)($q['created_by'] ?? 0) !== $myId) {
         header('Location: quotations.php?msg='.urlencode('Permission denied.')); exit;
     }
 }
@@ -79,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_quote'])) {
     \App\Middleware\CsrfMiddleware::validateOrDie();
 
     // Agents may only save changes to quotations they created themselves.
-    if ($id > 0 && !$isAdminUser) {
+    if ($id > 0 && $isAgentUser) {
         $ownerCheck = $db->prepare("SELECT created_by FROM quotations WHERE id=?");
         $ownerCheck->execute([$id]);
         $ownerRow = $ownerCheck->fetch();

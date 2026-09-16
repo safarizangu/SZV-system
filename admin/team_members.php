@@ -54,53 +54,10 @@ catch(Exception $e){ error_log($e->getMessage()); }
 ?>
 <?php if($msg): ?><div class="admin-alert admin-alert--<?= str_starts_with($msg,'Error')?'error':'success' ?>"><?= $msg ?></div><?php endif; ?>
 
-<!-- Add/Edit Form -->
-<div class="admin-card" style="margin-bottom:2rem">
-  <div class="admin-card-header"><h3><?= $edit ? 'Edit Member' : 'Add Team Member' ?></h3></div>
-  <div class="admin-card-body">
-  <form method="POST" class="av-form">
-    <?= \App\Middleware\CsrfMiddleware::field() ?>
-    <input type="hidden" name="save" value="1">
-    <input type="hidden" name="id" value="<?= $edit['id'] ?? 0 ?>">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-      <div><label class="admin-label">Name *</label>
-        <input name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
-      <div><label class="admin-label">Role / Title</label>
-        <input name="role" class="admin-input" value="<?= htmlspecialchars($edit['role']??'') ?>"></div>
-      <div><label class="admin-label">Email</label>
-        <input name="email" data-av="email" type="email" class="admin-input" value="<?= htmlspecialchars($edit['email']??'') ?>"></div>
-      <div><label class="admin-label">Phone</label>
-        <input name="phone" class="admin-input" value="<?= htmlspecialchars($edit['phone']??'') ?>"></div>
-      <div><label class="admin-label">LinkedIn URL</label>
-        <input name="linkedin_url" data-av="url" class="admin-input" value="<?= htmlspecialchars($edit['linkedin_url']??'') ?>"></div>
-      <div><label class="admin-label">Sort Order</label>
-        <input name="sort_order" data-av="integer min:0" type="number" class="admin-input" value="<?= $edit['sort_order']??0 ?>"></div>
-    </div>
-    <div style="margin-top:1rem">
-      <label class="admin-label">Photo</label>
-      <input type="hidden" name="photo_url" id="tm-photo-url" value="<?= htmlspecialchars($edit['photo_url']??'') ?>">
-      <div style="display:flex;align-items:center;gap:.85rem">
-        <img id="tm-photo-preview" src="<?= htmlspecialchars(($edit['photo_url']??'') ? BASE_PATH.$edit['photo_url'] : '') ?>"
-             style="width:64px;height:64px;object-fit:cover;border:1.5px solid var(--gray-200);<?= ($edit['photo_url']??'') ? '' : 'display:none' ?>">
-        <input type="file" id="tm-photo-file" accept="image/jpeg,image/png,image/webp" class="admin-input" style="max-width:280px">
-        <span id="tm-photo-status" style="font-size:.75rem;color:var(--gray-500)"></span>
-      </div>
-    </div>
-    <div style="margin-top:1rem"><label class="admin-label">Bio</label>
-      <textarea name="bio" class="admin-input" rows="3"><?= htmlspecialchars($edit['bio']??'') ?></textarea></div>
-    <div style="margin-top:.75rem">
-      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
-        <input type="checkbox" name="is_active" value="1" <?= ($edit['is_active']??1) ? 'checked' : '' ?>>
-        <span class="admin-label" style="margin:0">Active (shows on About page)</span>
-      </label>
-    </div>
-    <div style="margin-top:1rem;display:flex;gap:.5rem">
-      <button class="admin-btn admin-btn--primary">Save Member</button>
-      <?php if($edit): ?><a href="team_members.php" class="admin-btn admin-btn--outline">Cancel</a><?php endif; ?>
-    </div>
-  </form>
+<div class="admin-card" style="margin-bottom:1.5rem">
+  <div class="admin-card-header"><h3>Team Members</h3>
+    <a href="team_members.php?new=1" class="admin-btn admin-btn--primary" style="font-size:.68rem">+ New Member</a>
   </div>
-</div>
 
 <!-- List -->
 <div class="admin-table-wrap">
@@ -127,6 +84,60 @@ catch(Exception $e){ error_log($e->getMessage()); }
 <?php if(empty($members)): ?><tr><td colspan="6" class="admin-empty">No team members yet.</td></tr><?php endif; ?>
 </tbody>
 </table>
+</div>
+</div>
+
+<!-- Add/Edit modal -->
+<div id="formModal" class="admin-modal-overlay">
+  <div class="admin-modal admin-modal--wide">
+    <div class="admin-modal-header">
+      <span class="admin-modal-title"><?= $edit ? 'Edit Member' : 'Add Team Member' ?></span>
+      <button type="button" onclick="closeFormModal()" class="admin-icon-btn admin-modal-close"><?= \App\Helpers\AdminIcon::render('close', 18) ?></button>
+    </div>
+    <div class="admin-modal-body">
+      <form method="POST" class="av-form">
+        <?= \App\Middleware\CsrfMiddleware::field() ?>
+        <input type="hidden" name="save" value="1">
+        <input type="hidden" name="id" value="<?= $edit['id'] ?? 0 ?>">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div><label class="admin-label">Name *</label>
+            <input name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
+          <div><label class="admin-label">Role / Title</label>
+            <input name="role" class="admin-input" value="<?= htmlspecialchars($edit['role']??'') ?>"></div>
+          <div><label class="admin-label">Email</label>
+            <input name="email" data-av="email" type="email" class="admin-input" value="<?= htmlspecialchars($edit['email']??'') ?>"></div>
+          <div><label class="admin-label">Phone</label>
+            <input name="phone" class="admin-input" value="<?= htmlspecialchars($edit['phone']??'') ?>"></div>
+          <div><label class="admin-label">LinkedIn URL</label>
+            <input name="linkedin_url" data-av="url" class="admin-input" value="<?= htmlspecialchars($edit['linkedin_url']??'') ?>"></div>
+          <div><label class="admin-label">Sort Order</label>
+            <input name="sort_order" data-av="integer min:0" type="number" class="admin-input" value="<?= $edit['sort_order']??0 ?>"></div>
+        </div>
+        <div style="margin-top:1rem">
+          <label class="admin-label">Photo</label>
+          <input type="hidden" name="photo_url" id="tm-photo-url" value="<?= htmlspecialchars($edit['photo_url']??'') ?>">
+          <div style="display:flex;align-items:center;gap:.85rem">
+            <img id="tm-photo-preview" src="<?= htmlspecialchars(($edit['photo_url']??'') ? BASE_PATH.$edit['photo_url'] : '') ?>"
+                 style="width:64px;height:64px;object-fit:cover;border:1.5px solid var(--gray-200);<?= ($edit['photo_url']??'') ? '' : 'display:none' ?>">
+            <input type="file" id="tm-photo-file" accept="image/jpeg,image/png,image/webp" class="admin-input" style="max-width:280px">
+            <span id="tm-photo-status" style="font-size:.75rem;color:var(--gray-500)"></span>
+          </div>
+        </div>
+        <div style="margin-top:1rem"><label class="admin-label">Bio</label>
+          <textarea name="bio" class="admin-input" rows="3"><?= htmlspecialchars($edit['bio']??'') ?></textarea></div>
+        <div style="margin-top:.75rem">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+            <input type="checkbox" name="is_active" value="1" <?= ($edit['is_active']??1) ? 'checked' : '' ?>>
+            <span class="admin-label" style="margin:0">Active (shows on About page)</span>
+          </label>
+        </div>
+        <div style="margin-top:1rem;display:flex;gap:.5rem">
+          <button class="admin-btn admin-btn--primary">Save Member</button>
+          <button type="button" onclick="closeFormModal()" class="admin-btn admin-btn--outline">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -157,6 +168,14 @@ document.getElementById('tm-photo-file').addEventListener('change', async functi
     status.textContent = 'Network error'; status.style.color = 'var(--red)';
   }
 });
+
+function openFormModal() { document.getElementById('formModal').classList.add('open'); }
+function closeFormModal() { document.getElementById('formModal').classList.remove('open'); }
+document.getElementById('formModal').addEventListener('click', function(e){ if (e.target === this) closeFormModal(); });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeFormModal(); });
+<?php if ($edit || (isset($msg) && str_starts_with($msg,'Error')) || isset($_GET['new'])): ?>
+document.addEventListener('DOMContentLoaded', openFormModal);
+<?php endif; ?>
 </script>
 
 <?php

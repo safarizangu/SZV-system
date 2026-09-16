@@ -7,6 +7,186 @@ $db = \App\Models\Database::getInstance();
 function sv($db,$sql,$p=[]){try{$s=$db->prepare($sql);$s->execute($p);return $s->fetchColumn();}catch(\Exception $e){return 0;}}
 function sa($db,$sql,$p=[]){try{$s=$db->prepare($sql);$s->execute($p);return $s->fetchAll();}catch(\Exception $e){return[];}}
 
+// Agents get their own sales-pipeline dashboard instead of the
+// business-wide one below — the same "own records only" boundary already
+// applied to leads/quotations/commissions/invoices, just summarized.
+// staff/admin/superadmin all still see the full business dashboard.
+if (AuthMiddleware::isAgentRole()) {
+    $myId = (int)($_SESSION['admin_user_id'] ?? 0);
+
+    $myLeadsTotal   = (int)sv($db,"SELECT COUNT(*) FROM leads WHERE agent_id=?",[$myId]);
+    $myLeadsWon     = (int)sv($db,"SELECT COUNT(*) FROM leads WHERE agent_id=? AND pipeline_stage IN ('booked','travelled','completed')",[$myId]);
+    $myLeadStages   = sa($db,"SELECT pipeline_stage, COUNT(*) c FROM leads WHERE agent_id=? GROUP BY pipeline_stage",[$myId]);
+
+    $myQuotesTotal  = (int)sv($db,"SELECT COUNT(*) FROM quotations WHERE created_by=?",[$myId]);
+    $myQuotesValue  = (float)sv($db,"SELECT COALESCE(SUM(grand_total),0) FROM quotations WHERE created_by=?",[$myId]);
+
+    $myCommPending  = (float)sv($db,"SELECT COALESCE(SUM(commission_amount),0) FROM commissions WHERE agent_id=? AND status='pending'",[$myId]);
+    $myCommApproved = (float)sv($db,"SELECT COALESCE(SUM(commission_amount),0) FROM commissions WHERE agent_id=? AND status='approved'",[$myId]);
+    $myCommPaid     = (float)sv($db,"SELECT COALESCE(SUM(commission_amount),0) FROM commissions WHERE agent_id=? AND status='paid'",[$myId]);
+
+    $myInvoicesTotal = (int)sv($db,"
+        SELECT COUNT(DISTINCT b.id) FROM bookings b
+        LEFT JOIN quotations oq ON oq.id=b.quotation_id
+        LEFT JOIN commissions oc ON oc.booking_ref=b.booking_ref
+        WHERE oq.created_by=? OR oc.agent_id=?",[$myId,$myId]);
+    $myInvoicesValue = (float)sv($db,"
+        SELECT COALESCE(SUM(b.total_amount),0) FROM bookings b
+        LEFT JOIN quotations oq ON oq.id=b.quotation_id
+        LEFT JOIN commissions oc ON oc.booking_ref=b.booking_ref
+        WHERE b.payment_status!='cancelled' AND (oq.created_by=? OR oc.agent_id=?)",[$myId,$myId]);
+
+    $myRecentLeads  = sa($db,"SELECT * FROM leads WHERE agent_id=? ORDER BY created_at DESC LIMIT 6",[$myId]);
+    $myRecentQuotes = sa($db,"SELECT * FROM quotations WHERE created_by=? ORDER BY created_at DESC LIMIT 5",[$myId]);
+    $myRecentComms  = sa($db,"SELECT * FROM commissions WHERE agent_id=? ORDER BY created_at DESC LIMIT 5",[$myId]);
+
+    $quoteStatusColors = ['draft'=>'gray','sent'=>'blue','accepted'=>'green','declined'=>'red'];
+    $commStatusColors  = ['pending'=>'amber','approved'=>'blue','paid'=>'green','cancelled'=>'red'];
+
+    $pageTitle = 'My Dashboard';
+    ob_start();
+    ?>
+
+    <!-- MY METRIC CARDS -->
+    <div class="admin-metrics-grid" style="margin-bottom:1.5rem">
+      <a href="leads.php" style="text-decoration:none">
+      <div class="metric-card">
+        <span class="metric-label">My Leads</span>
+        <span class="metric-value"><?= $myLeadsTotal ?></span>
+        <span class="metric-sub"><?= $myLeadsWon ?> booked</span>
+      </div></a>
+      <a href="quotations.php" style="text-decoration:none">
+      <div class="metric-card">
+        <span class="metric-label">My Quotations</span>
+        <span class="metric-value"><?= $myQuotesTotal ?></span>
+        <span class="metric-sub">$<?= number_format($myQuotesValue,0) ?> quoted</span>
+      </div></a>
+      <a href="invoices.php" style="text-decoration:none">
+      <div class="metric-card">
+        <span class="metric-label">My Invoices</span>
+        <span class="metric-value"><?= $myInvoicesTotal ?></span>
+        <span class="metric-sub">$<?= number_format($myInvoicesValue,0) ?> billed</span>
+      </div></a>
+      <div class="metric-card metric-card--dark">
+        <span class="metric-label">Commission Paid</span>
+        <span class="metric-value">$<?= number_format($myCommPaid,0) ?></span>
+        <span class="metric-sub">Lifetime</span>
+      </div>
+      <a href="commissions.php" style="text-decoration:none">
+      <div class="metric-card <?= $myCommPending>0?'metric-card--amber':'' ?>">
+        <span class="metric-label">Commission Pending</span>
+        <span class="metric-value">$<?= number_format($myCommPending,0) ?></span>
+        <span class="metric-sub">$<?= number_format($myCommApproved,0) ?> approved</span>
+      </div></a>
+    </div>
+
+    <!-- MAIN GRID -->
+    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:1.25rem;align-items:start">
+
+    <!-- My Leads -->
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <h3>My Leads</h3>
+        <a href="leads.php" class="admin-btn admin-btn--outline" style="font-size:.65rem">View All →</a>
+      </div>
+      <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead><tr><th>Name</th><th>Country</th><th>Stage</th><th>Contact</th></tr></thead>
+        <tbody>
+        <?php foreach($myRecentLeads as $l): ?>
+        <tr onclick="window.location='leads.php'" style="cursor:pointer">
+          <td>
+            <div style="font-weight:600;font-size:.82rem"><?= htmlspecialchars($l['full_name']??'') ?></div>
+            <div style="font-size:.68rem;color:var(--gray-500)"><?= htmlspecialchars($l['email']??'') ?></div>
+          </td>
+          <td style="font-size:.78rem"><?= htmlspecialchars($l['country']??'—') ?></td>
+          <td style="font-size:.75rem"><?= htmlspecialchars(str_replace('_',' ',$l['pipeline_stage']??'')) ?></td>
+          <td style="font-size:.72rem;color:var(--gray-500)"><?= date('d M Y',strtotime($l['created_at'])) ?></td>
+        </tr>
+        <?php endforeach; ?>
+        <?php if(empty($myRecentLeads)): ?><tr><td colspan="4" class="admin-empty">No leads assigned to you yet.</td></tr><?php endif; ?>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <!-- Right column -->
+    <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+      <!-- My Quotations -->
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <h3>My Quotations</h3>
+          <div style="display:flex;gap:.4rem">
+            <a href="quotation_new.php" class="admin-btn admin-btn--primary" style="font-size:.65rem">+ New</a>
+            <a href="quotations.php" class="admin-btn admin-btn--outline" style="font-size:.65rem">All →</a>
+          </div>
+        </div>
+        <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Ref</th><th>Client</th><th>Total</th><th>Status</th></tr></thead>
+          <tbody>
+          <?php foreach($myRecentQuotes as $q):
+            $qBadge = $quoteStatusColors[$q['status']??'draft'] ?? 'gray';
+          ?>
+          <tr onclick="window.location='quotation_new.php?id=<?= $q['id'] ?>'" style="cursor:pointer">
+            <td><code><?= htmlspecialchars($q['quote_ref']) ?></code></td>
+            <td style="font-size:.82rem;font-weight:600"><?= htmlspecialchars($q['client_name']) ?></td>
+            <td style="font-size:.82rem;font-weight:700">$<?= number_format((float)($q['grand_total']??0),0) ?></td>
+            <td><span class="badge-status badge-status--<?= $qBadge ?>"><?= $q['status']??'draft' ?></span></td>
+          </tr>
+          <?php endforeach; ?>
+          <?php if(empty($myRecentQuotes)): ?><tr><td colspan="4" class="admin-empty">No quotations yet.</td></tr><?php endif; ?>
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+      <!-- My Commissions -->
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <h3>My Commissions</h3>
+          <a href="commissions.php" class="admin-btn admin-btn--outline" style="font-size:.65rem">View All →</a>
+        </div>
+        <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Client</th><th>Amount</th><th>Status</th></tr></thead>
+          <tbody>
+          <?php foreach($myRecentComms as $c):
+            $cBadge = $commStatusColors[$c['status']??'pending'] ?? 'amber';
+          ?>
+          <tr onclick="window.location='commissions.php'" style="cursor:pointer">
+            <td style="font-size:.82rem;font-weight:600"><?= htmlspecialchars($c['client_name']??'') ?></td>
+            <td style="font-size:.82rem;font-weight:700">$<?= number_format((float)($c['commission_amount']??0),0) ?></td>
+            <td><span class="badge-status badge-status--<?= $cBadge ?>"><?= $c['status']??'pending' ?></span></td>
+          </tr>
+          <?php endforeach; ?>
+          <?php if(empty($myRecentComms)): ?><tr><td colspan="3" class="admin-empty">No commissions yet.</td></tr><?php endif; ?>
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="admin-card">
+        <div class="admin-card-header"><h3>Quick Actions</h3></div>
+        <div class="admin-card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+          <a href="quotation_new.php" class="admin-btn admin-btn--primary" style="justify-content:center">+ Quotation</a>
+          <a href="leads.php"         class="admin-btn admin-btn--outline" style="justify-content:center">My Leads</a>
+          <a href="commissions.php"   class="admin-btn admin-btn--outline" style="justify-content:center">Commissions</a>
+          <a href="invoices.php"      class="admin-btn admin-btn--muted"   style="justify-content:center">Invoices</a>
+        </div>
+      </div>
+
+    </div><!-- /right -->
+    </div><!-- /grid -->
+
+    <?php
+    $content = ob_get_clean();
+    require_once __DIR__ . '/../layouts/admin.php';
+    exit;
+}
+
 $totalBookings  = (int)sv($db,"SELECT COUNT(*) FROM bookings");
 $totalRevenue   = (float)sv($db,"SELECT COALESCE(SUM(total_amount),0) FROM bookings WHERE payment_status!='cancelled'");
 $totalLeads     = (int)sv($db,"SELECT COUNT(*) FROM custom_safari_requests");

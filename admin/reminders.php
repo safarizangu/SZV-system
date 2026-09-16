@@ -122,50 +122,14 @@ ob_start();
 <div style="display:grid;grid-template-columns:1fr 360px;gap:1.5rem;align-items:start">
 <div>
 
-<!-- ADD REMINDER FORM -->
-<div class="admin-card" style="margin-bottom:1.5rem">
-  <div class="admin-card-header"><h3>Schedule a Reminder</h3></div>
-  <div class="admin-card-body">
-    <form method="POST">
-      <?= \App\Middleware\CsrfMiddleware::field() ?>
-      <input type="hidden" name="add_reminder" value="1">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-        <div>
-          <label class="admin-label">Booking Ref *</label>
-          <input name="booking_ref" class="admin-input" placeholder="SZV2026…" required>
-        </div>
-        <div>
-          <label class="admin-label">Type</label>
-          <select name="type" class="admin-input">
-            <?php foreach($typeLabels as $v=>$l): ?>
-            <option value="<?= $v ?>"><?= $l ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div>
-          <label class="admin-label">Send At *</label>
-          <input name="send_at" type="datetime-local" class="admin-input" required
-                 min="<?= date('Y-m-d\TH:i') ?>">
-        </div>
-        <div>
-          <label class="admin-label">Subject</label>
-          <input name="subject" class="admin-input" placeholder="Leave blank for default…">
-        </div>
-      </div>
-      <div style="margin-bottom:.85rem">
-        <label class="admin-label">Custom Body (optional — leave blank for template)</label>
-        <textarea name="body" class="admin-input" rows="3" placeholder="Custom email body…"></textarea>
-      </div>
-      <button type="submit" class="admin-btn admin-btn--primary">Schedule Reminder</button>
-    </form>
-  </div>
-</div>
-
 <!-- PENDING TABLE -->
 <div class="admin-card" style="margin-bottom:1.5rem">
   <div class="admin-card-header">
     <h3>Pending <span style="font-size:.72rem;color:var(--gray-500)">· <?= count($pending) ?> scheduled</span></h3>
-    <a href="email_queue.php" class="admin-btn admin-btn--outline" style="font-size:.68rem">View Email Queue →</a>
+    <div style="display:flex;gap:.5rem">
+      <button type="button" onclick="openFormModal()" class="admin-btn admin-btn--primary" style="font-size:.68rem">+ Schedule Reminder</button>
+      <a href="email_queue.php" class="admin-btn admin-btn--outline" style="font-size:.68rem">View Email Queue →</a>
+    </div>
   </div>
   <div class="admin-table-wrap">
   <table class="admin-table">
@@ -313,6 +277,53 @@ ob_start();
 </div><!-- /right -->
 </div><!-- /grid -->
 
+<!-- Schedule Reminder modal -->
+<div id="formModal" class="admin-modal-overlay">
+  <div class="admin-modal admin-modal--wide">
+    <div class="admin-modal-header">
+      <span class="admin-modal-title">Schedule a Reminder</span>
+      <button type="button" onclick="closeFormModal()" class="admin-icon-btn admin-modal-close"><?= \App\Helpers\AdminIcon::render('close', 18) ?></button>
+    </div>
+    <div class="admin-modal-body">
+      <form method="POST">
+        <?= \App\Middleware\CsrfMiddleware::field() ?>
+        <input type="hidden" name="add_reminder" value="1">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+          <div>
+            <label class="admin-label">Booking Ref *</label>
+            <input name="booking_ref" class="admin-input" placeholder="SZV2026…" required>
+          </div>
+          <div>
+            <label class="admin-label">Type</label>
+            <select name="type" class="admin-input">
+              <?php foreach($typeLabels as $v=>$l): ?>
+              <option value="<?= $v ?>"><?= $l ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div>
+            <label class="admin-label">Send At *</label>
+            <input name="send_at" type="datetime-local" class="admin-input" required
+                   min="<?= date('Y-m-d\TH:i') ?>">
+          </div>
+          <div>
+            <label class="admin-label">Subject</label>
+            <input name="subject" class="admin-input" placeholder="Leave blank for default…">
+          </div>
+        </div>
+        <div style="margin-bottom:.85rem">
+          <label class="admin-label">Custom Body (optional — leave blank for template)</label>
+          <textarea name="body" class="admin-input" rows="3" placeholder="Custom email body…"></textarea>
+        </div>
+        <div style="display:flex;gap:.5rem">
+          <button type="submit" class="admin-btn admin-btn--primary">Schedule Reminder</button>
+          <button type="button" onclick="closeFormModal()" class="admin-btn admin-btn--outline">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
 function refreshReminderLog() {
     fetch(window.location.href+'?_r='+Date.now())
@@ -323,6 +334,14 @@ function refreshReminderLog() {
         });
 }
 setInterval(refreshReminderLog, 60000);
+
+function openFormModal() { document.getElementById('formModal').classList.add('open'); }
+function closeFormModal() { document.getElementById('formModal').classList.remove('open'); }
+document.getElementById('formModal').addEventListener('click', function(e){ if (e.target === this) closeFormModal(); });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeFormModal(); });
+<?php if (isset($_GET['new'])): ?>
+document.addEventListener('DOMContentLoaded', openFormModal);
+<?php endif; ?>
 </script>
 
 <?php $content=ob_get_clean(); require_once __DIR__.'/../layouts/admin.php'; ?>

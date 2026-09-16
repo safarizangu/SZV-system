@@ -48,6 +48,7 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
         ['index.php',            'Dashboard',        'dashboard', ''],
         ['analytics.php',        'Analytics',        'analytics', ''],
         ['bookings.php',         'Bookings',         'bookings', ''],
+        ['invoices.php',         'Invoices',         'invoices', ''],
         ['customers.php',        'Customers',        'customers', ''],
         ['custom_requests.php',  'Requests',         'requests', $newRequests > 0 ? $newRequests : ''],
         ['contact_messages.php', 'Messages',         'messages', $unreadCount > 0 ? $unreadCount : ''],
@@ -78,6 +79,20 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
         ['activity_log.php',      'Activity Log',     'clock', ''],
       ],
     ];
+
+    // Role-based sidebar: superadmin/admin see every group unchanged.
+    // staff loses Settings (still full access within what's left — the
+    // pages themselves aren't restricted for staff, only the nav and the
+    // Settings pages' own direct-access guard are). agent is narrowed to
+    // Operations only, where several pages additionally scope their data
+    // to the signed-in agent's own records (leads.php, quotations.php,
+    // commissions.php, invoices.php).
+    $myNavRole = $_SESSION['admin_role'] ?? 'agent';
+    if ($myNavRole === 'agent') {
+        $groups = ['Operations' => $groups['Operations']];
+    } elseif ($myNavRole === 'staff') {
+        unset($groups['Settings']);
+    }
 
     foreach ($groups as $groupLabel => $links):
     ?>

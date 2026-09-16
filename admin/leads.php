@@ -5,7 +5,10 @@ AuthMiddleware::requireAdmin();
 $db = \App\Models\Database::getInstance();
 $pageTitle = 'Leads Pipeline';
 $myId     = (int)($_SESSION['admin_user_id'] ?? 0);
-$isAdminUser = AuthMiddleware::isAdminRole();
+// Ownership scoping (own leads only) applies to the agent role alone —
+// staff sees/manages every lead, same as admin, just without Settings
+// access elsewhere in the panel.
+$isAgentUser = AuthMiddleware::isAgentRole();
 
 // ── Handle AJAX JSON responses ─────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
@@ -28,9 +31,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             'pipeline_stage'=> 'lead',
             'notes'         => trim($_POST['notes']         ?? ''),
             'assigned_to'   => !empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : null,
-            // Non-admins can only ever create leads owned by themselves —
-            // an admin may optionally hand a new lead straight to an agent.
-            'agent_id'      => $isAdminUser ? (!empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : null) : $myId,
+            // An agent can only ever create leads owned by themselves —
+            // staff/admin may optionally hand a new lead straight to an agent.
+            'agent_id'      => $isAgentUser ? $myId : (!empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : null),
         ];
         if (!$data['full_name'] || !$data['email']) {
             echo json_encode(['success'=>false,'message'=>'Name and email required.']);
@@ -57,12 +60,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if (!in_array($stage, $allowed, true)) {
             echo json_encode(['success'=>false,'message'=>'Invalid stage.']); exit;
         }
-        if ($isAdminUser) {
-            $stmt = $db->prepare("UPDATE leads SET pipeline_stage=? WHERE id=?");
-            $stmt->execute([$stage, $id]);
-        } else {
+        if ($isAgentUser) {
             $stmt = $db->prepare("UPDATE leads SET pipeline_stage=? WHERE id=? AND agent_id=?");
             $stmt->execute([$stage, $id, $myId]);
+        } else {
+            $stmt = $db->prepare("UPDATE leads SET pipeline_stage=? WHERE id=?");
+            $stmt->execute([$stage, $id]);
         }
         if ($stmt->rowCount() === 0) {
             echo json_encode(['success'=>false,'message'=>'Lead not found or not assigned to you.']); exit;
@@ -73,8 +76,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     if ($action === 'delete_lead') {
-        // Matches api/leads.php: deletion is admin/superadmin only, no agent ownership override.
-        if (!$isAdminUser) {
+        // Agent role only — staff/admin/superadmin can delete leads, same
+        // as any other Leads-page action available to them.
+        if ($isAgentUser) {
             echo json_encode(['success'=>false,'message'=>'Permission denied.']); exit;
         }
         $id = (int)($_POST['id'] ?? 0);
@@ -95,7 +99,7 @@ $offset      = ($page - 1) * $perPage;
 
 $where  = [];
 $params = [];
-if (!$isAdminUser) { $where[] = 'agent_id=?'; $params[] = $myId; }
+if ($isAgentUser) { $where[] = 'agent_id=?'; $params[] = $myId; }
 if ($stageFilter)  { $where[] = 'pipeline_stage=?'; $params[] = $stageFilter; }
 $whereSQL = $where ? 'WHERE '.implode(' AND ', $where) : '';
 
@@ -126,8 +130,8 @@ $stageColors = [
 ];
 $stageCounts = array_fill_keys($stages, 0);
 try {
-    $countWhereSQL = !$isAdminUser ? 'WHERE agent_id=?' : '';
-    $countParams   = !$isAdminUser ? [$myId] : [];
+    $countWhereSQL = $isAgentUser ? 'WHERE agent_id=?' : '';
+    $countParams   = $isAgentUser ? [$myId] : [];
     $cs = $db->prepare("SELECT pipeline_stage, COUNT(*) c FROM leads $countWhereSQL GROUP BY pipeline_stage");
     $cs->execute($countParams);
     foreach ($cs->fetchAll() as $cr) $stageCounts[$cr['pipeline_stage']] = (int)$cr['c'];
@@ -224,7 +228,7 @@ ob_start();
         <a href="../admin/quotation_new.php?from_lead=<?= $r['id'] ?>"
            class="admin-btn admin-btn--tint-blue" style="font-size:.65rem;padding:.3rem .55rem">Quote</a>
         <?php endif; ?>
-        <?php if ($isAdminUser): ?>
+        <?php if (!$isAgentUser): ?>
         <button onclick="deleteLead(<?= $r['id'] ?>)"
                 class="admin-btn admin-btn--danger" style="font-size:.65rem;padding:.3rem .55rem"><?= \App\Helpers\AdminIcon::render('trash', 12) ?></button>
         <?php endif; ?>

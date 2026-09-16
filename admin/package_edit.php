@@ -54,9 +54,11 @@ $activities_db  = fetchAll($db,"SELECT id,name,price,price_unit FROM activities 
 // SAVE
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
     \App\Middleware\CsrfMiddleware::validateOrDie();
-    // Packages are a shared catalog with no per-record owner — pricing
-    // changes are admin/superadmin only, agents may view but not edit.
-    if (!AuthMiddleware::isAdminRole()) {
+    // Packages are a shared catalog with no per-record owner. Content is a
+    // section staff has full access to (per the sidebar role model), so
+    // this blocks only the agent role — the one role restricted to its
+    // own sales-pipeline records, not general catalog/pricing management.
+    if (AuthMiddleware::isAgentRole()) {
         header("Location: package_edit.php?".($id>0?"id=$id&":"")."msg=".urlencode('Permission denied.')); exit;
     }
     $slug = preg_replace('/[^a-z0-9-]/','',strtolower(trim($_POST['slug']??'')));
@@ -687,12 +689,12 @@ ob_start();
   <!-- Save button -->
   <div class="admin-card">
     <div class="admin-card-body">
-      <?php if (AuthMiddleware::isAdminRole()): ?>
+      <?php if (!AuthMiddleware::isAgentRole()): ?>
       <button type="submit" class="admin-btn admin-btn--primary" style="width:100%;justify-content:center;padding:.85rem;margin-bottom:.5rem">
         💾 Save Package
       </button>
       <?php else: ?>
-      <div class="admin-alert" style="margin-bottom:.5rem">Package pricing is admin/superadmin only — you can view but not edit.</div>
+      <div class="admin-alert" style="margin-bottom:.5rem">Package pricing is not available to your role — you can view but not edit.</div>
       <?php endif; ?>
       <?php if($id&&!empty($pkg['slug'])): ?>
       <a href="<?= BASE_PATH ?>/packages.php#<?= htmlspecialchars($pkg['slug']) ?>" target="_blank"

@@ -2,6 +2,11 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
 AuthMiddleware::requireAdmin();
+// Settings page — admin/superadmin only, regardless of what's in the
+// sidebar (staff and agent never see the nav link, but that alone isn't
+// access control). Managing accounts/roles is exactly the kind of action
+// that shouldn't be reachable by anyone but admin/superadmin.
+if (!AuthMiddleware::isAdminRole()) { header('Location: index.php'); exit; }
 $db = \App\Models\Database::getInstance();
 $pageTitle = 'User Management';
 
@@ -19,16 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_user'])) {
     $newPw    = trim($_POST['new_password'] ?? '');
     $active   = isset($_POST['is_active']) ? 1 : 0;
 
-    // Validate current admin password to authorise changes
-    $authPw   = trim($_POST['auth_password'] ?? '');
-    $myId     = $_SESSION['admin_user_id'] ?? 0;
-    $me       = null;
-    try { $s=$db->prepare("SELECT * FROM admin_users WHERE id=?"); $s->execute([$myId]); $me=$s->fetch(); }
-    catch(Exception $e){}
-
-    if (!$me || !password_verify($authPw, $me['password_hash'])) {
-        $error = 'Your current password is incorrect. Changes not saved.';
-    } elseif (!$username) {
+    if (!$username) {
         $error = 'Username is required.';
     } elseif ($newPw) {
         if (strlen($newPw) < 10) {
@@ -94,13 +90,9 @@ ob_start();
 <?php if($msg): ?><div class="admin-alert admin-alert--success"><?= $msg ?></div><?php endif; ?>
 <?php if($error): ?><div class="admin-alert admin-alert--error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
-<div style="display:grid;grid-template-columns:1fr 380px;gap:1.5rem;align-items:start">
-
-<!-- User table -->
-<div>
-  <div class="admin-card">
+<div class="admin-card">
     <div class="admin-card-header"><h3>Admin Users</h3>
-      <a href="users.php" class="admin-btn admin-btn--primary" style="font-size:.68rem">+ New User</a>
+      <a href="users.php?new=1" class="admin-btn admin-btn--primary" style="font-size:.68rem">+ New User</a>
     </div>
     <div class="admin-table-wrap">
     <table class="admin-table">
@@ -148,17 +140,25 @@ ob_start();
       </tbody>
     </table>
     </div>
+</div>
+
+<div class="admin-card" style="margin-top:1rem">
+  <div class="admin-card-body" style="font-size:.78rem;color:var(--gray-500);line-height:1.75">
+    <strong style="color:var(--black);display:block;margin-bottom:.25rem">Security Notes</strong>
+    · Passwords hashed with bcrypt (cost 12)<br>
+    · You cannot delete your own account<br>
+    · Superadmin has full access; Staff may have limited access
   </div>
 </div>
 
-<!-- Add/Edit form -->
-<div style="position:sticky;top:calc(var(--topbar-h)+1rem)">
-  <div class="admin-card">
-    <div class="admin-card-header">
-      <h3><?= $editUser ? 'Edit User: '.htmlspecialchars($editUser['username']) : 'Add New User' ?></h3>
-      <?php if($editUser): ?><a href="users.php" class="admin-btn admin-btn--muted" style="font-size:.65rem">+ New</a><?php endif; ?>
+<!-- Add/Edit modal -->
+<div id="userModal" class="admin-modal-overlay">
+  <div class="admin-modal">
+    <div class="admin-modal-header">
+      <span class="admin-modal-title"><?= $editUser ? 'Edit User: '.htmlspecialchars($editUser['username']) : 'Add New User' ?></span>
+      <button type="button" onclick="closeUserModal()" class="admin-icon-btn admin-modal-close"><?= \App\Helpers\AdminIcon::render('close', 18) ?></button>
     </div>
-    <div class="admin-card-body">
+    <div class="admin-modal-body">
       <form method="POST">
         <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="save_user" value="1">
@@ -193,27 +193,25 @@ ob_start();
           <input type="checkbox" name="is_active" value="1" <?= ($editUser['is_active']??1)?'checked':'' ?>>
           <span class="admin-label" style="margin:0">Active (can log in)</span>
         </label>
-        <div style="border-top:1.5px solid var(--gray-100);padding-top:1rem">
-          <label class="admin-label" style="color:var(--red)">Your Current Password (to authorise) *</label>
-          <input name="auth_password" type="password" class="admin-input" required placeholder="Your password to confirm changes">
+        <div style="display:flex;gap:.5rem;margin-top:1rem">
+          <button type="submit" class="admin-btn admin-btn--primary" style="flex:1;justify-content:center">
+            <?= $editUser ? 'Update User' : '+ Create User' ?>
+          </button>
+          <button type="button" onclick="closeUserModal()" class="admin-btn admin-btn--outline">Cancel</button>
         </div>
-        <button type="submit" class="admin-btn admin-btn--primary" style="width:100%;justify-content:center;margin-top:1rem">
-          <?= $editUser ? 'Update User' : '+ Create User' ?>
-        </button>
       </form>
-    </div>
-  </div>
-  <div class="admin-card" style="margin-top:1rem">
-    <div class="admin-card-body" style="font-size:.78rem;color:var(--gray-500);line-height:1.75">
-      <strong style="color:var(--black);display:block;margin-bottom:.25rem">Security Notes</strong>
-      · Your current password required to make any changes<br>
-      · Passwords hashed with bcrypt (cost 12)<br>
-      · You cannot delete your own account<br>
-      · Superadmin has full access; Staff may have limited access
     </div>
   </div>
 </div>
 
-</div><!-- /grid -->
+<script>
+function openUserModal() { document.getElementById('userModal').classList.add('open'); }
+function closeUserModal() { document.getElementById('userModal').classList.remove('open'); }
+document.getElementById('userModal').addEventListener('click', function(e){ if (e.target === this) closeUserModal(); });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeUserModal(); });
+<?php if ($editUser || $error || isset($_GET['new'])): ?>
+document.addEventListener('DOMContentLoaded', openUserModal);
+<?php endif; ?>
+</script>
 
 <?php $content=ob_get_clean(); require_once __DIR__.'/../layouts/admin.php'; ?>

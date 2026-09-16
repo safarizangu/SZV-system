@@ -5,7 +5,9 @@ use App\Mail\Mailer;
 AuthMiddleware::requireAdmin();
 $db = \App\Models\Database::getInstance();
 $myId        = (int)($_SESSION['admin_user_id'] ?? 0);
-$isAdminUser = AuthMiddleware::isAdminRole();
+// Ownership scoping (own quotations only) applies to the agent role
+// alone — staff sees/manages every quotation, same as admin.
+$isAgentUser = AuthMiddleware::isAgentRole();
 
 // Handle status update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
@@ -14,12 +16,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
         $newStatus = $_POST['status'];
         $qId       = (int)$_POST['id'];
 
-        if ($isAdminUser) {
-            $upd = $db->prepare("UPDATE quotations SET status=?, updated_at=NOW() WHERE id=?");
-            $upd->execute([$newStatus, $qId]);
-        } else {
+        if ($isAgentUser) {
             $upd = $db->prepare("UPDATE quotations SET status=?, updated_at=NOW() WHERE id=? AND created_by=?");
             $upd->execute([$newStatus, $qId, $myId]);
+        } else {
+            $upd = $db->prepare("UPDATE quotations SET status=?, updated_at=NOW() WHERE id=?");
+            $upd->execute([$newStatus, $qId]);
         }
         if ($upd->rowCount() > 0) {
             \App\Services\ActivityLog::record('update_status', 'quotation', $qId, ['status'=>$newStatus]);
@@ -70,12 +72,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
     \App\Middleware\CsrfMiddleware::validateOrDie();
     try {
         $delId = (int)$_POST['delete_id'];
-        if ($isAdminUser) {
-            $del = $db->prepare("DELETE FROM quotations WHERE id=?");
-            $del->execute([$delId]);
-        } else {
+        if ($isAgentUser) {
             $del = $db->prepare("DELETE FROM quotations WHERE id=? AND created_by=?");
             $del->execute([$delId, $myId]);
+        } else {
+            $del = $db->prepare("DELETE FROM quotations WHERE id=?");
+            $del->execute([$delId]);
         }
         if ($del->rowCount() > 0) {
             \App\Services\ActivityLog::record('delete', 'quotation', $delId);
@@ -94,7 +96,7 @@ $offset       = ($page - 1) * $perPage;
 
 $where  = 'WHERE 1=1';
 $params = [];
-if (!$isAdminUser) { $where .= ' AND created_by=?'; $params[] = $myId; }
+if ($isAgentUser) { $where .= ' AND created_by=?'; $params[] = $myId; }
 if ($statusFilter) { $where .= ' AND status=?'; $params[] = $statusFilter; }
 if ($search)       { $where .= ' AND (client_name LIKE ? OR client_email LIKE ? OR quote_ref LIKE ?)'; $params = array_merge($params, ["%$search%","%$search%","%$search%"]); }
 
@@ -111,8 +113,8 @@ try {
     $s->execute($params);
     $quotes = $s->fetchAll();
 
-    $statWhere  = $isAdminUser ? '' : 'WHERE created_by=?';
-    $statParams = $isAdminUser ? [] : [$myId];
+    $statWhere  = $isAgentUser ? 'WHERE created_by=?' : '';
+    $statParams = $isAgentUser ? [$myId] : [];
     $statStmt = $db->prepare("SELECT status, COUNT(*) as cnt, SUM(grand_total) as rev FROM quotations $statWhere GROUP BY status");
     $statStmt->execute($statParams);
     foreach ($statStmt->fetchAll() as $r) $stats[$r['status']] = $r;
