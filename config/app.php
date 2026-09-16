@@ -29,8 +29,24 @@ function env(string $key, mixed $default = null): mixed {
 }
 
 // ── Host detection ────────────────────────────────────────────
-$_host    = $_SERVER['HTTP_HOST'] ?? 'localhost';
-$_isLocal = str_contains($_host, 'localhost') || str_contains($_host, '127.0.0.1');
+// Authoritative signal for a real web request: the Host header of the
+// request that is actually hitting this server right now. This must NOT
+// be overridable by a .env value — a stale .env (e.g. production's copy
+// still carrying APP_URL=http://localhost/safari-zangu from local setup)
+// previously won regardless of what domain the visitor was really on,
+// silently sending every booking-confirmation redirect, admin login
+// redirect, tracking-link email, and PDF logo URL to localhost in
+// production. The live Host header can't go stale like that.
+//
+// CLI runs (cron, sql/migrate.php, tests) have no Host header at all, so
+// there they fall back to .env's APP_ENV — the only signal available in
+// that context — defaulting to production if even that's unset, since a
+// misconfigured cron job should fail safe toward the real domain, not
+// toward localhost.
+$_isCli       = php_sapi_name() === 'cli';
+$_host        = $_SERVER['HTTP_HOST'] ?? '';
+$_hostIsLocal = str_contains($_host, 'localhost') || str_contains($_host, '127.0.0.1');
+$_isLocal     = $_isCli ? (strtolower((string)env('APP_ENV', 'production')) === 'local') : $_hostIsLocal;
 
 if (!defined('BASE_PATH')) {
     // Local dev on this machine serves the project as a plain subfolder of a
@@ -47,11 +63,15 @@ if (!defined('BASE_PATH')) {
 }
 
 // ── App environment ───────────────────────────────────────────
-if (!defined('APP_ENV'))   define('APP_ENV',   env('APP_ENV', $_isLocal ? 'local' : 'production'));
+// Derived only — no .env override for APP_ENV/APP_URL on a real web
+// request, for the same reason BASE_PATH above takes none. A CLI run
+// still respects .env's APP_ENV (set above, via $_isLocal) since that's
+// the only signal it has.
+if (!defined('APP_ENV'))   define('APP_ENV',   $_isLocal ? 'local' : 'production');
 if (!defined('APP_DEBUG')) define('APP_DEBUG', APP_ENV === 'local');
 if (!defined('APP_NAME'))  define('APP_NAME',  'Safari Zangu Ventures');
 if (!defined('APP_URL'))   define('APP_URL',
-    env('APP_URL', $_isLocal ? 'http://'.$_host.BASE_PATH : 'https://safarizanguven.com'));
+    $_isLocal ? 'http://' . ($_host ?: 'localhost') . BASE_PATH : 'https://safarizanguven.com');
 
 ini_set('display_errors',         APP_DEBUG ? 1 : 0);
 ini_set('display_startup_errors', APP_DEBUG ? 1 : 0);
