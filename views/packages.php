@@ -131,6 +131,34 @@ try {
             </div>
           </div>
 
+          <?php
+            // Named lodges, deduped in stay order — pulled from the same
+            // itinerary day-blocks as the collapsed breakdown below, but
+            // surfaced here so a buyer sees exactly where they'll sleep
+            // without needing to open "Day-by-Day Itinerary" first.
+            $lodgeNames = [];
+            $lodgeAlts  = [];
+            foreach ($itinDays as $d) {
+                $ln = trim($d['accommodation_name'] ?? '');
+                if ($ln && !in_array($ln, $lodgeNames, true)) {
+                    $lodgeNames[] = $ln;
+                    $lodgeAlts[$ln] = array_filter($d['accommodation_alternatives'] ?? []);
+                }
+            }
+          ?>
+          <?php if ($lodgeNames): ?>
+          <div class="mt-4">
+            <h5 class="font-display mb-3" style="font-size:.9rem;letter-spacing:.05em">Where You'll Stay</h5>
+            <ul class="includes-list">
+              <?php foreach ($lodgeNames as $ln): ?>
+                <li><?= htmlspecialchars($ln) ?><?php if (!empty($lodgeAlts[$ln])): ?>
+                  <span style="display:block;font-size:.7rem;color:var(--gray-500);font-weight:400">or similar: <?= htmlspecialchars(implode(', ', $lodgeAlts[$ln])) ?></span>
+                <?php endif; ?></li>
+              <?php endforeach; ?>
+            </ul>
+          </div>
+          <?php endif; ?>
+
           <?php if ($itinDays): ?>
           <div class="mt-4">
             <button type="button" onclick="toggleBreakdown(<?= $pkg['id'] ?>)"

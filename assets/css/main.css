@@ -2435,6 +2435,42 @@ body {
   }
 }
 
+/* ── [C4b] FOOTER — center-aligned content ───────────────────
+   Every column's text, links and buttons centered within its own
+   column (not just the columns centered on the page) — brand copy,
+   nav lists, contact rows and the bottom bar all follow. */
+.footer-grid {
+  text-align: center !important;
+  justify-items: center !important;
+}
+.footer-brand-actions {
+  align-items: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+.footer-licence {
+  justify-content: center !important;
+}
+.footer-links,
+.footer-contact-list {
+  align-items: center !important;
+}
+.footer-contact-item {
+  justify-content: center !important;
+}
+.footer-bottom {
+  justify-content: center !important;
+  text-align: center !important;
+}
+@media (max-width: 640px) {
+  .footer-brand-col {
+    text-align: center !important;
+  }
+  .footer-bottom {
+    align-items: center !important;
+  }
+}
+
 /* ── [C5] FORMS — collapse earlier ─────────────────────────── */
 @media (max-width: 680px) {
   .form-row,

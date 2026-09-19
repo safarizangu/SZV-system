@@ -236,7 +236,6 @@ ob_start();
 
         <h4 class="team-name"><?= htmlspecialchars($member['name']) ?></h4>
         <p class="team-role"><?= $member['role'] ?></p>
-        <p class="team-bio"><?= htmlspecialchars($member['bio'] ?? '') ?></p>
 
         <div class="team-social">
           <?php if (!empty($member['linkedin_url']) && $member['linkedin_url'] !== '#'): ?>

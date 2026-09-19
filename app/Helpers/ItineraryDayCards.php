@@ -36,6 +36,7 @@ class ItineraryDayCards
             $parkName = htmlspecialchars($day['park_fee_name']      ?? '');
             $acts     = $day['activities'] ?? [];
             $actNames = array_filter(array_column($acts, 'name'));
+            $accAlts  = array_filter(array_map('htmlspecialchars', $day['accommodation_alternatives'] ?? []));
 
             $accIcon  = $useEmoji ? '🏕 ' : '';
             $vehIcon  = $useEmoji ? '🚙 ' : '';
@@ -43,7 +44,8 @@ class ItineraryDayCards
 
             $boxes = '';
             if ($accName) {
-                $boxes .= '<div class="day-box box-acc"><p class="box-lbl">' . $accIcon . 'Accommodation</p><div class="box-val">' . $accName . '</div></div>';
+                $accAltHtml = $accAlts ? '<div class="box-alt">or similar: ' . implode(', ', $accAlts) . '</div>' : '';
+                $boxes .= '<div class="day-box box-acc"><p class="box-lbl">' . $accIcon . 'Accommodation</p><div class="box-val">' . $accName . '</div>' . $accAltHtml . '</div>';
             }
             if ($vehName) {
                 $boxes .= '<div class="day-box box-veh"><p class="box-lbl">' . $vehIcon . 'Vehicle</p><div class="box-val">' . $vehName . '</div></div>';
@@ -97,6 +99,7 @@ class ItineraryDayCards
         .box-veh .box-lbl{color:#166534}
         .box-park .box-lbl{color:#92400e}
         .box-val{font-size:.8rem;font-weight:700;color:#0a0a0a}
+        .box-alt{font-size:.66rem;font-weight:400;color:#6b7280;margin-top:.2rem}
         .day-activities{margin-top:.5rem;font-size:.78rem;color:#374151}
         @media screen and (max-width:480px){
           .day-hdr{padding:.55rem .7rem}
@@ -126,18 +129,23 @@ class ItineraryDayCards
             $parkName = htmlspecialchars($day['park_fee_name']      ?? '');
             $acts     = $day['activities'] ?? [];
             $actNames = array_filter(array_column($acts, 'name'));
+            $accAlts  = array_filter(array_map('htmlspecialchars', $day['accommodation_alternatives'] ?? []));
 
-            $boxCell = function (string $label, string $value, string $bg, string $labelColor): string {
+            $boxCell = function (string $label, string $value, string $bg, string $labelColor, string $sub = ''): string {
                 return '<td width="33%" valign="top" style="padding:0 4px 0 0">'
                     . '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' . $bg . ';border:1px solid #e5e7eb">'
                     . '<tr><td style="padding:8px 10px">'
                     . '<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:' . $labelColor . ';margin-bottom:4px">' . $label . '</div>'
                     . '<div style="font-size:12px;font-weight:600;color:#0a0a0a">' . $value . '</div>'
+                    . ($sub ? '<div style="font-size:9px;color:#6b7280;margin-top:2px">' . $sub . '</div>' : '')
                     . '</td></tr></table></td>';
             };
 
             $boxes = '';
-            if ($accName) $boxes .= $boxCell('Accommodation', $accName, '#eff6ff', '#1d4ed8');
+            if ($accName) {
+                $accSub = $accAlts ? 'or similar: ' . implode(', ', $accAlts) : '';
+                $boxes .= $boxCell('Accommodation', $accName, '#eff6ff', '#1d4ed8', $accSub);
+            }
             if ($vehName) $boxes .= $boxCell('Vehicle', $vehName, '#f0fdf4', '#166534');
             if ($parkName) $boxes .= $boxCell('Park', $parkName, '#fef3e2', '#92400e');
 
