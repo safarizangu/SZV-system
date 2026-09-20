@@ -90,7 +90,7 @@ try {
                this just surfaces the price sooner on a stacked mobile
                layout, before the gallery/includes/itinerary content. -->
           <div class="pkg-price-teaser">
-            <span>From $<?= number_format($startPrice) ?> <small style="opacity:.65;font-weight:500"><?= gbpApprox($startPrice) ?></small> <em>per person</em></span>
+            <span>From $<?= number_format($startPrice) ?> <small style="opacity:.65;font-weight:500"><?= approxAll($startPrice) ?></small> <em>per person</em></span>
             <a href="<?= BASE_PATH ?>/book.php?package_id=<?= $pkg['id'] ?>" class="btn-sz-dark">Book Now</a>
           </div>
 
@@ -182,7 +182,7 @@ try {
         <div>
           <div class="booking-widget">
             <p class="eyebrow mb-2">Starting From</p>
-            <p class="widget-price" id="price-<?= $pkg['id'] ?>">$<?= number_format($startPrice) ?> <small style="opacity:.6;font-weight:500;font-size:.5em"><?= gbpApprox($startPrice) ?></small></p>
+            <p class="widget-price" id="price-<?= $pkg['id'] ?>">$<?= number_format($startPrice) ?> <small style="opacity:.6;font-weight:500;font-size:.5em"><?= approxAll($startPrice) ?></small></p>
             <p class="widget-price-note">per person · solo traveler</p>
 
             <!-- Accommodation Level -->

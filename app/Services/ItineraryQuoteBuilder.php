@@ -10,13 +10,28 @@ namespace App\Services;
  * requirement) from api/book.php — the public direct-booking path needs
  * the identical adults/children-aware pricing the admin quote builder
  * already used, not a separate, potentially-inconsistent calculation.
+ *
+ * This is also the single pricing engine for the whole app — the
+ * previously-separate App\Services\QuotationEngine (season multiplier,
+ * single-supplement, resident park-fee logic, none of it ever wired to
+ * a live caller) was retired in favor of merging its useful pieces in
+ * here, so there is one calculation pathway, not two that can drift.
  */
 class ItineraryQuoteBuilder
 {
     /**
-     * @param array $itinerary Row from the `itineraries` table (days/includes/excludes as JSON strings or already-decoded arrays)
+     * Countries treated as East African Community residents for park-fee
+     * pricing. Deliberately the 5 original EAC members rather than every
+     * later-admitted state — narrow the list here if that changes.
      */
-    public static function build(array $itinerary, int $adults, int $children, bool $includeDefaultServiceFee = true): array
+    private const EAC_RESIDENT_COUNTRIES = ['tanzania', 'kenya', 'uganda', 'rwanda', 'burundi'];
+
+    /**
+     * @param array $itinerary Row from the `itineraries` table (days/includes/excludes as JSON strings or already-decoded arrays)
+     * @param string|null $travelDate  YYYY-MM-DD. When given, accommodation and vehicle costs are scaled by the season multiplier for that date.
+     * @param string|null $nationality Guest nationality/country. When it matches an EAC country, resident park-fee rates are used wherever the park has one on file (a $0.00 resident rate on file is treated as "not yet configured" and falls back to the standard rate, never charged as free).
+     */
+    public static function build(array $itinerary, int $adults, int $children, bool $includeDefaultServiceFee = true, ?string $travelDate = null, ?string $nationality = null): array
     {
         $adults   = max(1, $adults);
         $children = max(0, $children);
@@ -25,6 +40,9 @@ class ItineraryQuoteBuilder
         $days     = self::decode($itinerary['days']     ?? []);
         $includes = self::decode($itinerary['includes'] ?? []);
         $excludes = self::decode($itinerary['excludes'] ?? []);
+
+        $seasonMultiplier = $travelDate ? self::getSeasonMultiplier(self::detectSeason($travelDate)) : 1.0;
+        $isResident       = $nationality ? in_array(strtolower(trim($nationality)), self::EAC_RESIDENT_COUNTRIES, true) : false;
 
         // ── Step 1: Aggregate resources across all days ───────
         $accGroups  = [];
@@ -69,9 +87,15 @@ class ItineraryQuoteBuilder
             if ($parkName && $parkFee > 0) {
                 $key = $parkName;
                 if (!isset($parkGroups[$key])) {
+                    $rates           = self::lookupParkRates($parkName);
+                    $residentApplied = $isResident && $rates['resident_adult'] > 0;
                     $parkGroups[$key] = [
-                        'name' => $parkName, 'fee' => $parkFee, 'childFee' => self::lookupParkChildFee($parkName),
-                        'entries' => 0, 'adults' => $adults, 'children' => $children,
+                        'name'       => $parkName,
+                        'fee'        => $residentApplied ? $rates['resident_adult'] : $parkFee,
+                        'childFee'   => $residentApplied && $rates['resident_child'] > 0 ? $rates['resident_child'] : $rates['child_fee'],
+                        'vehicleFee' => $rates['vehicle_fee'],
+                        'entries'    => 0, 'adults' => $adults, 'children' => $children,
+                        'resident'   => $residentApplied,
                     ];
                 }
                 $parkGroups[$key]['entries']++;
@@ -102,6 +126,17 @@ class ItineraryQuoteBuilder
                 $otAmt  = (float)($ot['amount'] ?? 0);
                 if (!$otName || $otAmt <= 0) continue;
 
+                // An explicit "/traveler" checkbox on each Other Cost row
+                // now drives this — admin/quotation_new.php and
+                // admin/package_edit.php both save it. Older saved
+                // itinerary days from before that checkbox existed have
+                // no per_pax key at all, so they fall back to the old
+                // name-substring guess rather than silently losing the
+                // per-traveler scaling they were relying on.
+                $perPax = array_key_exists('per_pax', $ot)
+                    ? (bool)$ot['per_pax']
+                    : (bool)preg_match('/transfer|water|contribution/i', $otName);
+
                 $found = false;
                 foreach ($otherItems as &$existing) {
                     if ($existing['name'] === $otName) {
@@ -113,7 +148,7 @@ class ItineraryQuoteBuilder
                 }
                 unset($existing);
                 if (!$found) {
-                    $otherItems[] = ['name' => $otName, 'amount' => $otAmt, 'count' => 1];
+                    $otherItems[] = ['name' => $otName, 'amount' => $otAmt, 'count' => 1, 'per_pax' => $perPax];
                 }
             }
         }
@@ -123,7 +158,7 @@ class ItineraryQuoteBuilder
 
         foreach ($accGroups as $acc) {
             $n = $acc['nights']; $r = $acc['rooms'];
-            $amount = $acc['rate'] * $n * $r;
+            $amount = $acc['rate'] * $n * $r * $seasonMultiplier;
             $qtyStr = $r > 1 ? $r . ' Rooms × ' . $n . ' Night' . ($n !== 1 ? 's' : '') : $n . ' Night' . ($n !== 1 ? 's' : '');
             $lineItems[] = [
                 'description' => 'Accommodation – ' . $acc['name'],
@@ -132,17 +167,78 @@ class ItineraryQuoteBuilder
                 'amount'      => round($amount, 2),
                 'category'    => 'accommodation',
             ];
+
+            $accExtras = self::lookupAccommodationExtras($acc['name']);
+
+            // Solo travelers only — the day-by-day schema has no
+            // per-room occupancy breakdown, so a 2+-adult party that
+            // happens to book an odd number of rooms isn't safely
+            // detectable here without guessing. Solo bookings are the
+            // one unambiguous case.
+            if ($adults === 1 && $accExtras['single_supplement'] > 0) {
+                $suppAmount = $accExtras['single_supplement'] * $n * $r * $seasonMultiplier;
+                $lineItems[] = [
+                    'description' => 'Single Supplement – ' . $acc['name'],
+                    'unit_price'  => $accExtras['single_supplement'],
+                    'quantity_str'=> $qtyStr,
+                    'amount'      => round($suppAmount, 2),
+                    'category'    => 'accommodation',
+                ];
+            }
+
+            // Children sharing an existing room, at the lodge's separate
+            // child rate — flat per-child-per-night, not multiplied by
+            // room count (a child shares a room already paid for above,
+            // rather than occupying one of their own).
+            if ($children > 0 && $accExtras['child_rate'] > 0) {
+                $childAmount = $accExtras['child_rate'] * $children * $n * $seasonMultiplier;
+                $lineItems[] = [
+                    'description' => 'Child Rate – ' . $acc['name'],
+                    'unit_price'  => $accExtras['child_rate'],
+                    'quantity_str'=> $children . ' Child' . ($children !== 1 ? 'ren' : '') . ' × ' . $n . ' Night' . ($n !== 1 ? 's' : ''),
+                    'amount'      => round($childAmount, 2),
+                    'category'    => 'accommodation',
+                ];
+            }
         }
 
         foreach ($vehGroups as $veh) {
-            $amount = $veh['rate'] * $veh['days'];
-            $lineItems[] = [
-                'description' => $veh['name'] . ' & Fuel',
-                'unit_price'  => $veh['rate'],
-                'quantity_str'=> $veh['days'] . ' Day' . ($veh['days'] !== 1 ? 's' : ''),
-                'amount'      => round($amount, 2),
-                'category'    => 'transport',
-            ];
+            $dayStr = $veh['days'] . ' Day' . ($veh['days'] !== 1 ? 's' : '');
+
+            // Itemize into daily-rate/fuel/driver only when the day's
+            // entered rate matches this vehicle's current on-file total
+            // (within a cent) — if an admin typed a custom negotiated
+            // rate that doesn't match, splitting it by the DB's component
+            // ratios would present a breakdown that doesn't add up to
+            // what was actually agreed, so it stays one bundled line.
+            $components = self::lookupVehicleComponents($veh['name']);
+            $dbTotal    = $components['daily_rate'] + $components['fuel_cost_day'] + $components['driver_cost_day'];
+
+            if ($dbTotal > 0 && abs($dbTotal - $veh['rate']) < 0.01) {
+                foreach ([
+                    ['daily_rate', $veh['name']],
+                    ['fuel_cost_day', 'Fuel — ' . $veh['name']],
+                    ['driver_cost_day', 'Driver Allowance — ' . $veh['name']],
+                ] as [$field, $desc]) {
+                    if ($components[$field] <= 0) continue;
+                    $lineItems[] = [
+                        'description' => $desc,
+                        'unit_price'  => $components[$field],
+                        'quantity_str'=> $dayStr,
+                        'amount'      => round($components[$field] * $veh['days'] * $seasonMultiplier, 2),
+                        'category'    => 'transport',
+                    ];
+                }
+            } else {
+                $amount = $veh['rate'] * $veh['days'] * $seasonMultiplier;
+                $lineItems[] = [
+                    'description' => $veh['name'] . ' & Fuel',
+                    'unit_price'  => $veh['rate'],
+                    'quantity_str'=> $dayStr,
+                    'amount'      => round($amount, 2),
+                    'category'    => 'transport',
+                ];
+            }
         }
 
         foreach ($parkGroups as $park) {
@@ -151,12 +247,26 @@ class ItineraryQuoteBuilder
                 . ($park['children'] > 0 ? ' + ' . $park['children'] . ' Child' . ($park['children'] !== 1 ? 'ren' : '') : '');
             $qtyStr   = $park['entries'] > 1 ? $guestStr . ' × ' . $park['entries'] . ' Days' : $guestStr;
             $lineItems[] = [
-                'description' => $park['name'] . ' Entry Fees',
+                'description' => $park['name'] . ' Entry Fees' . ($park['resident'] ? ' (Resident Rate)' : ''),
                 'unit_price'  => $park['fee'],
                 'quantity_str'=> $qtyStr,
                 'amount'      => round($amount, 2),
                 'category'    => 'park_fee',
             ];
+
+            // Vehicle entry fee — per vehicle per entry, not per traveler
+            // (TANAPA and similar Tanzania park fee schedules charge this
+            // separately from the per-person gate fee).
+            if ($park['vehicleFee'] > 0) {
+                $vehAmount = $park['vehicleFee'] * $park['entries'];
+                $lineItems[] = [
+                    'description' => $park['name'] . ' Vehicle Entry Fee',
+                    'unit_price'  => $park['vehicleFee'],
+                    'quantity_str'=> $park['entries'] > 1 ? $park['entries'] . ' Days' : '1 Vehicle',
+                    'amount'      => round($vehAmount, 2),
+                    'category'    => 'park_fee',
+                ];
+            }
         }
 
         $actConsolidated = [];
@@ -193,9 +303,7 @@ class ItineraryQuoteBuilder
 
         foreach ($otherItems as $ot) {
             $amount   = $ot['amount'];
-            $isPerPax = stripos($ot['name'], 'transfer') !== false
-                || stripos($ot['name'], 'water') !== false
-                || stripos($ot['name'], 'contribution') !== false;
+            $isPerPax = $ot['per_pax'];
 
             if ($isPerPax && $pax > 1) {
                 $amount = $ot['amount'] * $pax;
@@ -277,26 +385,35 @@ class ItineraryQuoteBuilder
     }
 
     /**
-     * Given a set of line items, compute the same subtotal -> VAT(18%) ->
-     * grand total -> deposit totals used throughout the quotation
-     * system (admin/quotation_new.php's JS, api/quotation_pdf.php).
-     * Deposit percentage comes from the single shared DEPOSIT_PERCENT
-     * constant (config/app.php) — same source api/book.php and
-     * App\Services\QuotationEngine already use, so every pricing path
-     * quotes the same deposit rate rather than each hardcoding its own.
+     * Given a set of line items, compute subtotal -> markup -> discount ->
+     * VAT -> grand total -> deposit, used throughout the quotation system
+     * (admin/quotation_new.php's JS, api/quotation_pdf.php). Deposit
+     * percentage comes from the single shared DEPOSIT_PERCENT constant
+     * (config/app.php), and VAT from VAT_RATE — both single sources of
+     * truth rather than each caller hardcoding its own copy.
+     *
+     * $markupPct defaults to 0 — a package/quotation prices at exactly
+     * raw itemized cost + VAT unless a margin is explicitly requested,
+     * same behavior as before this parameter existed. Deciding what
+     * markup to actually charge is a business call, not something to
+     * apply silently.
      */
-    public static function totals(array $lineItems, float $discountPct = 0): array
+    public static function totals(array $lineItems, float $discountPct = 0, float $markupPct = 0): array
     {
         $subtotal   = array_sum(array_column($lineItems, 'amount'));
-        $discAmt    = $subtotal * ($discountPct / 100);
-        $afterDisc  = $subtotal - $discAmt;
-        $vat        = round($afterDisc * 0.18, 2);
+        $markupAmt  = $subtotal * ($markupPct / 100);
+        $marked     = $subtotal + $markupAmt;
+        $discAmt    = $marked * ($discountPct / 100);
+        $afterDisc  = $marked - $discAmt;
+        $vatRate    = defined('VAT_RATE') ? VAT_RATE : 0.18;
+        $vat        = round($afterDisc * $vatRate, 2);
         $grandTotal = round($afterDisc + $vat, 2);
         $depositPct = defined('DEPOSIT_PERCENT') ? DEPOSIT_PERCENT : 25;
         $deposit    = round($grandTotal * ($depositPct / 100), 2);
 
         return [
             'subtotal'    => round($subtotal, 2),
+            'markup'      => round($markupAmt, 2),
             'discount'    => round($discAmt, 2),
             'vat'         => $vat,
             'grand_total' => $grandTotal,
@@ -307,27 +424,128 @@ class ItineraryQuoteBuilder
 
     /**
      * The day-by-day itinerary only snapshots a park's adult fee
-     * (park_fee_name/park_adult_fee), not a child fee — looked up here
-     * from the park_fees table instead, so child pricing always reflects
-     * the current rate without needing to change the itinerary editor's
-     * day-JSON shape or backfill existing itinerary rows. Falls back to
-     * 0 for a free-typed park name with no matching row.
+     * (park_fee_name/park_adult_fee) — child and resident fees are
+     * looked up here from the park_fees table instead, so that pricing
+     * always reflects the current rate without needing to change the
+     * itinerary editor's day-JSON shape or backfill existing itinerary
+     * rows. Falls back to all-zero for a free-typed park name with no
+     * matching row.
      */
-    private static function lookupParkChildFee(string $parkName): float
+    private static function lookupParkRates(string $parkName): array
     {
         static $cache = [];
         if (array_key_exists($parkName, $cache)) return $cache[$parkName];
 
-        $fee = 0.0;
+        $rates = ['child_fee' => 0.0, 'resident_adult' => 0.0, 'resident_child' => 0.0, 'vehicle_fee' => 0.0];
         try {
             $db   = \App\Models\Database::getInstance();
-            $stmt = $db->prepare("SELECT child_fee FROM park_fees WHERE name = ? LIMIT 1");
+            $stmt = $db->prepare("SELECT child_fee, resident_adult, resident_child, vehicle_fee FROM park_fees WHERE name = ? LIMIT 1");
             $stmt->execute([$parkName]);
-            $fee  = (float)($stmt->fetchColumn() ?: 0);
+            $row  = $stmt->fetch();
+            if ($row) {
+                $rates = [
+                    'child_fee'      => (float)$row['child_fee'],
+                    'resident_adult' => (float)$row['resident_adult'],
+                    'resident_child' => (float)$row['resident_child'],
+                    'vehicle_fee'    => (float)$row['vehicle_fee'],
+                ];
+            }
         } catch (\Throwable $e) {
-            // No DB context (e.g. a future non-DB caller) — treat as no child fee.
+            // No DB context (e.g. a future non-DB caller) — treat as no child/resident/vehicle fee on file.
         }
-        return $cache[$parkName] = $fee;
+        return $cache[$parkName] = $rates;
+    }
+
+    /**
+     * Same snapshot-gap pattern as lookupParkRates() — single_supplement
+     * and child_rate aren't part of the itinerary day JSON, so they're
+     * looked up by name from accommodations here.
+     */
+    private static function lookupAccommodationExtras(string $accName): array
+    {
+        static $cache = [];
+        if (array_key_exists($accName, $cache)) return $cache[$accName];
+
+        $extras = ['single_supplement' => 0.0, 'child_rate' => 0.0];
+        try {
+            $db   = \App\Models\Database::getInstance();
+            $stmt = $db->prepare("SELECT single_supplement, child_rate FROM accommodations WHERE name = ? LIMIT 1");
+            $stmt->execute([$accName]);
+            $row  = $stmt->fetch();
+            if ($row) {
+                $extras = [
+                    'single_supplement' => (float)$row['single_supplement'],
+                    'child_rate'        => (float)$row['child_rate'],
+                ];
+            }
+        } catch (\Throwable $e) {
+            // No DB context — no supplement/child rate charged.
+        }
+        return $cache[$accName] = $extras;
+    }
+
+    /**
+     * Same snapshot-gap pattern again — the itinerary day only stores
+     * one pre-bundled vehicle rate, not its daily/fuel/driver components,
+     * so they're looked up by name from vehicles here to itemize the
+     * quote line (see the dbTotal-match check at the call site).
+     */
+    private static function lookupVehicleComponents(string $vehName): array
+    {
+        static $cache = [];
+        if (array_key_exists($vehName, $cache)) return $cache[$vehName];
+
+        $components = ['daily_rate' => 0.0, 'fuel_cost_day' => 0.0, 'driver_cost_day' => 0.0];
+        try {
+            $db   = \App\Models\Database::getInstance();
+            $stmt = $db->prepare("SELECT daily_rate, fuel_cost_day, driver_cost_day FROM vehicles WHERE name = ? LIMIT 1");
+            $stmt->execute([$vehName]);
+            $row  = $stmt->fetch();
+            if ($row) {
+                $components = [
+                    'daily_rate'       => (float)$row['daily_rate'],
+                    'fuel_cost_day'    => (float)$row['fuel_cost_day'],
+                    'driver_cost_day'  => (float)$row['driver_cost_day'],
+                ];
+            }
+        } catch (\Throwable $e) {
+            // No DB context — fall back to the single bundled line at the call site.
+        }
+        return $cache[$vehName] = $components;
+    }
+
+    /**
+     * Ported from the now-retired App\Services\QuotationEngine, which
+     * had this logic tested and correct but zero real callers. Pure
+     * date math — no DB, safe as a static helper.
+     */
+    public static function detectSeason(string $date): string
+    {
+        $month = (int)date('n', strtotime($date));
+        $day   = (int)date('j', strtotime($date));
+        if (in_array($month, [6, 7, 8, 9, 10], true)) return 'peak';
+        if ($month === 12 && $day >= 20) return 'peak';
+        if ($month === 1  && $day <= 5)  return 'peak';
+        if (in_array($month, [3, 4, 5], true)) return 'shoulder';
+        return 'low';
+    }
+
+    private static function getSeasonMultiplier(string $season): float
+    {
+        static $cache = [];
+        if (array_key_exists($season, $cache)) return $cache[$season];
+
+        $multiplier = 1.0;
+        try {
+            $db   = \App\Models\Database::getInstance();
+            $stmt = $db->prepare("SELECT multiplier FROM seasonal_rates WHERE season_key = ? LIMIT 1");
+            $stmt->execute([$season]);
+            $row  = $stmt->fetch();
+            if ($row) $multiplier = (float)$row['multiplier'];
+        } catch (\Throwable $e) {
+            // No DB context — price at full (unmultiplied) rate rather than guess a discount.
+        }
+        return $cache[$season] = $multiplier;
     }
 
     private static function decode($value): array

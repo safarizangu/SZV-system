@@ -190,6 +190,12 @@ ob_start();
            class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">
           PDF
         </a>
+        <!-- Voucher — supplier-facing exchange order -->
+        <a href="../api/voucher_pdf.php?ref=<?= urlencode($b['booking_ref']) ?>"
+           target="_blank"
+           class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">
+          Voucher
+        </a>
         <!-- Quotation status: + Quote creates new, view opens existing -->
         <?php if ($hasQuote): ?>
         <a href="quotations.php?search=<?= urlencode($b['booking_ref']) ?>"
@@ -320,6 +326,10 @@ async function viewBooking(ref) {
     // PDF — booking confirmation
     +'<a href="'+BASE+'/api/booking_pdf.php?ref='+encodeURIComponent(b.booking_ref)+'" '
     +'target="_blank" class="admin-btn admin-btn--outline" style="font-size:.72rem">Booking PDF</a>'
+
+    // Voucher — supplier-facing exchange order
+    +'<a href="'+BASE+'/api/voucher_pdf.php?ref='+encodeURIComponent(b.booking_ref)+'" '
+    +'target="_blank" class="admin-btn admin-btn--outline" style="font-size:.72rem">Voucher</a>'
 
     // Create / View Quotation
     +(b.has_quote

@@ -252,67 +252,29 @@ if (isset($_GET['preview'])) {
     exit;
 }
 
-// ── Send via PHPMailer ────────────────────────────────────────
+// ── Queue via the shared Mailer (near-instant send + retry, no
+//    duplicated PHPMailer setup) ─────────────────────────────
+// The email body above claims a PDF is attached — this previously sent
+// with no attachment at all despite that claim. PdfRenderer::renderBooking()
+// already exists and is proven (used by api/book.php's own confirmation
+// send); it was just never wired into this admin "resend" endpoint.
 $sent  = false;
 $error = '';
 try {
-    $vendorPath = __DIR__ . '/../vendor/autoload.php';
-    $localPath  = __DIR__ . '/../php/PHPMailer/src/';
-    if (file_exists($vendorPath)) {
-        require_once $vendorPath;
-    } elseif (file_exists($localPath.'PHPMailer.php')) {
-        require_once $localPath.'Exception.php';
-        require_once $localPath.'PHPMailer.php';
-        require_once $localPath.'SMTP.php';
-    } else {
-        throw new \Exception('PHPMailer not found');
-    }
+    $attachments = [];
+    $rendered = \App\Services\PdfRenderer::renderBooking($ref, 'Booking-' . $ref);
+    if ($rendered) $attachments[] = $rendered;
 
-    $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
-    $mail->isSMTP();
-    $mail->Host       = SMTP_HOST;
-    $mail->SMTPAuth   = true;
-    $mail->Username   = SMTP_USERNAME;
-    $mail->Password   = SMTP_PASSWORD;
-    $mail->SMTPSecure = SMTP_SECURE === 'ssl'
-        ? \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS
-        : \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port       = (int)SMTP_PORT;
-    $mail->CharSet    = 'UTF-8';
-    $mail->setFrom(MAIL_FROM_EMAIL, MAIL_FROM_NAME);
-    $mail->addAddress($toEmail, $toName);
-    $mail->addCC(ADMIN_EMAIL, 'Safari Zangu Admin');
-    $mail->addReplyTo(SITE_EMAIL, APP_NAME);
-    $mail->Subject = $subject;
-    $mail->isHTML(true);
-    $mail->Body    = $html;
-    $mail->AltBody = "SAFARI ZANGU VENTURES — BOOKING CONFIRMATION\n\n"
-                   . "Dear {$toName},\n\n"
-                   . "Booking Reference: {$ref}\n"
-                   . "Package: {$b['package_name']}\n"
-                   . "Travel Date: {$travelDt}\n"
-                   . "Guests: {$pax} adults\n"
-                   . "Total: \${$total_fmt}\n"
-                   . "Deposit Due (25%): \${$deposit_fmt}\n"
-                   . "Balance Due: \${$balance_fmt}\n\n"
-                   . "Track your booking: {$trackUrl}\n\n"
-                   . "Payment:\n"
-                   . "Bank: {$bankName} | Account: {$bankAcc} | SWIFT: {$bankSwift}\n"
-                   . "PayPal: {$paypalEmail}\n"
-                   . "Reference: {$ref}\n\n"
-                   . "Questions? Reply to this email or WhatsApp +255 663 430 934\n\n"
-                   . "Safari Zangu Ventures · Arusha, Tanzania";
-
-    $mail->send();
-    $sent = true;
-
-    // Log to email_queue as sent record
-    try {
-        $db->prepare("INSERT INTO email_queue
-            (to_email, to_name, subject, body, template, booking_ref, status, sent_at, created_at)
-            VALUES (?,?,?,?,?,?,'sent',NOW(),NOW())")
-           ->execute([$toEmail, $toName, $subject, $html, 'booking_confirmation', $ref]);
-    } catch(\Exception $e) { /* non-critical */ }
+    $queuedId = \App\Mail\Mailer::queueRaw(
+        $toEmail,
+        $toName,
+        $subject,
+        $html,
+        $attachments ?: null,
+        'booking_confirmation'
+    );
+    $sent = $queuedId !== false;
+    if (!$sent) $error = 'See error log for detail.';
 
 } catch (\Exception $e) {
     $error = $e->getMessage();

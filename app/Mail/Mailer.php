@@ -84,6 +84,48 @@ class Mailer
     }
 
     /**
+     * Queue a pre-rendered HTML email — for the admin "resend" actions
+     * (booking confirmation, quotation) that build their own HTML rather
+     * than going through EmailTemplate::render(). Same queue-and-attempt-
+     * immediate-send path as queue(), just skipping the template lookup,
+     * so these get the same near-instant delivery instead of waiting on
+     * the 2-minute cron or duplicating their own PHPMailer setup.
+     *
+     * @param array<int,array{path:string,name:string}>|null $attachments
+     */
+    public static function queueRaw(
+        string $toEmail,
+        string $toName,
+        string $subject,
+        string $body,
+        ?array $attachments = null,
+        string $templateLabel = 'manual',
+        bool $isPlainText = false
+    ): int|false
+    {
+        if (!filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
+            error_log('[SZV Mailer] queueRaw(): invalid email ' . var_export($toEmail, true));
+            return false;
+        }
+
+        try {
+            $db = Database::getInstance();
+            $db->prepare("INSERT INTO email_queue (to_email, to_name, subject, body, is_plain_text, template, attachments, status, created_at)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NOW())")
+               ->execute([$toEmail, $toName, $subject, $body, $isPlainText ? 1 : 0, $templateLabel,
+                          $attachments ? json_encode($attachments) : null]);
+
+            $id = (int)$db->lastInsertId();
+            self::attemptImmediateSend($id);
+            return $id;
+
+        } catch (\Exception $e) {
+            error_log('[SZV Mailer] queueRaw() failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Get this email out the door without making the guest's own request
      * wait for an SMTP round-trip. Prefers a detached background process
      * (api/cron/send_single_email.php via exec) — this server runs

@@ -33,9 +33,9 @@ class EmailTemplate
 {
     // ── Brand constants ───────────────────────────────────────
     private const BRAND_NAME    = 'Safari Zangu Ventures';
-    private const BRAND_TAGLINE = 'Private Tanzania Safari Specialists · Arusha';
     private const WA_NUMBER     = '255663430934';
-    private const SITE_URL      = 'https://www.safarizanguven.com';
+    private const SITE_URL      = 'https://safarizanguven.com';
+    private const LOGO_URL      = 'https://safarizanguven.com/assets/images/logo.jpeg';
     private const CONTACT_EMAIL = 'info@safarizanguven.com';
     private const CONTACT_PHONE = '+255 663 430 934';
 
@@ -96,9 +96,7 @@ class EmailTemplate
     {
         $year     = date('Y');
         $brand    = self::BRAND_NAME;
-        $tagline  = self::BRAND_TAGLINE;
-        $wa       = self::WA_NUMBER;
-        $siteUrl  = self::SITE_URL;
+        $logo     = self::LOGO_URL;
         $email    = self::CONTACT_EMAIL;
         $phone    = self::CONTACT_PHONE;
 
@@ -121,19 +119,9 @@ class EmailTemplate
 <tr><td align="center" style="padding:24px 16px">
 <table width="620" cellpadding="0" cellspacing="0" border="0" style="max-width:620px;width:100%">
 
-  <!-- HEADER -->
-  <tr><td style="background:#0a0a0a;padding:28px 40px">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-    <tr>
-      <td>
-        <div style="font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:400;color:#ffffff;letter-spacing:.04em;font-style:italic">{$brand}</div>
-        <div style="font-size:10px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-top:4px">{$tagline}</div>
-      </td>
-      <td align="right" style="vertical-align:middle">
-        <a href="{$siteUrl}" style="color:rgba(255,255,255,.35);font-size:11px;text-decoration:none;letter-spacing:.06em">{$siteUrl}</a>
-      </td>
-    </tr>
-    </table>
+  <!-- HEADER — abbreviation mark only, no tagline or URL clutter -->
+  <tr><td style="background:#0a0a0a;padding:26px 40px;text-align:center">
+    <span style="font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:400;color:#ffffff;letter-spacing:.32em">SZV</span>
   </td></tr>
 
   <!-- BODY -->
@@ -142,7 +130,8 @@ class EmailTemplate
   </td></tr>
 
   <!-- FOOTER -->
-  <tr><td style="background:#f7f7f5;border-top:1px solid #e5e7eb;padding:24px 40px;text-align:center">
+  <tr><td style="background:#f7f7f5;border-top:1px solid #e5e7eb;padding:32px 40px;text-align:center">
+    <img src="{$logo}" width="52" height="52" alt="{$brand}" style="display:block;width:52px;height:52px;margin:0 auto 16px;border-radius:50%">
     <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;line-height:1.8">
       {$brand} &middot; Njiro Road, Arusha, Tanzania<br>
       <a href="tel:{$phone}" style="color:#9ca3af;text-decoration:none">{$phone}</a>
@@ -190,11 +179,14 @@ HTML;
     private static function totalBox(float $grand, float $deposit, float $balance, string $currency = 'USD'): string {
         $depositPct = $grand > 0 ? round($deposit / $grand * 100) : 0;
         $balancePct = 100 - $depositPct;
+        // Table, not flexbox — Outlook desktop (Word rendering engine) has
+        // no flexbox support and would stack these instead of aligning
+        // them side by side.
         return '<div style="margin-top:20px">'
-             . '<div style="background:#0a0a0a;color:#ffffff;padding:14px 20px;display:flex;justify-content:space-between">'
-             . '<span style="font-size:14px;font-weight:600">Grand Total</span>'
-             . '<span style="font-family:Georgia,serif;font-size:18px">' . $currency . ' $' . number_format($grand, 0) . '</span>'
-             . '</div>'
+             . '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0a0a0a"><tr>'
+             . '<td style="padding:14px 20px;color:#ffffff;font-size:14px;font-weight:600">Grand Total</td>'
+             . '<td align="right" style="padding:14px 20px;color:#ffffff;font-family:Georgia,serif;font-size:18px">' . $currency . ' $' . number_format($grand, 0) . '</td>'
+             . '</tr></table>'
              . '<div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:14px 20px;margin-top:1px">'
              . '<div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#166534;margin-bottom:6px">Payment Schedule</div>'
              . '<div style="font-size:13px;color:#166534;margin-bottom:4px"><strong>Deposit (' . $depositPct . '%): $' . number_format($deposit, 0) . '</strong> — due within 48 hours</div>'
@@ -481,6 +473,11 @@ HTML;
         <p style='font-size:13px;line-height:1.75;color:#374151;margin:0 0 16px'>
           Your feedback helps us improve and lets future travellers know what to expect. Even a few words make a big difference.
         </p>
+
+        <div style='text-align:center;margin-bottom:16px'>
+          " . self::ctaButton('Leave Quick Feedback for Us', self::SITE_URL . '/review.php?ref=' . urlencode($ref)) . "
+        </div>
+        <p style='font-size:11px;color:#9ca3af;text-align:center;margin:0 0 20px'>Takes under 2 minutes — or use one of the public review sites below.</p>
 
         <table width='100%' cellpadding='0' cellspacing='0' border='0'><tr valign='top'>
           <td style='width:50%;padding-right:8px'>

@@ -273,26 +273,28 @@ if ($rendered) {
 }
 
 try {
-    $fromName = defined('MAIL_FROM_NAME') ? MAIL_FROM_NAME : 'Safari Zangu Ventures';
-    $db->prepare("
-        INSERT INTO email_queue (to_email, to_name, subject, template, body, is_plain_text, attachments, status, created_at)
-        VALUES (?, ?, ?, 'quotation_sent', ?, 1, ?, 'pending', NOW())
-    ")->execute([
+    // queueRaw() also makes an immediate send attempt in this same
+    // request (the plain-text body here isn't wrapped as HTML, so it
+    // goes out is_plain_text-equivalent via AltBody-only rendering —
+    // matches what this endpoint always sent).
+    $queuedId = \App\Mail\Mailer::queueRaw(
         $q['client_email'],
         $q['client_name'],
         'Your Safari Quotation ' . $q['quote_ref'] . ' — Safari Zangu Ventures',
         $emailBody,
-        $attachments ? json_encode($attachments) : null,
-    ]);
-
-    // No separate admin-copy row needed — api/cron/process_email_queue.php
-    // already CCs ADMIN_EMAIL on every queued send.
-    $queued = true;
+        $attachments ?: null,
+        'quotation_sent',
+        true
+    );
+    $queued = $queuedId !== false;
+    if (!$queued) $error = 'See error log for detail.';
 
     // Mark as sent — queuing is the point past which the admin considers
     // it dispatched; the cron's retry logic covers actual delivery.
-    $db->prepare("UPDATE quotations SET status='sent', sent_at=NOW(), updated_at=NOW() WHERE id=? AND status='draft'")
-       ->execute([$id]);
+    if ($queued) {
+        $db->prepare("UPDATE quotations SET status='sent', sent_at=NOW(), updated_at=NOW() WHERE id=? AND status='draft'")
+           ->execute([$id]);
+    }
 
 } catch (Exception $e) {
     $error = $e->getMessage();
@@ -302,8 +304,8 @@ try {
 ob_end_clean();
 
 $msg = $queued
-    ? "Quotation {$q['quote_ref']} queued for sending to {$q['client_email']} — it will go out within 2 minutes.{$pdfAttachNote}"
-    : "Could not queue the email: {$error}";
+    ? "Quotation {$q['quote_ref']} sent to {$q['client_email']}.{$pdfAttachNote}"
+    : "Could not send the email: {$error}";
 
 header('Location: ' . BASE_PATH . '/admin/quotations.php?msg=' . urlencode($msg));
 exit;

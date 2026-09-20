@@ -72,8 +72,9 @@ if ($fromBookingRef) {
 function fetchAll($db,$sql){try{return $db->query($sql)->fetchAll();}catch(Exception $e){return[];}}
 $packages      = fetchAll($db,"SELECT id,name,slug FROM packages WHERE is_active=1 ORDER BY sort_order");
 $vehicles      = fetchAll($db,"SELECT id,name,daily_rate,fuel_cost_day,driver_cost_day,capacity FROM vehicles WHERE is_active=1 ORDER BY name");
-$accommodations= fetchAll($db,"SELECT id,name,level,rate_per_room,rate_per_person FROM accommodations WHERE is_active=1 ORDER BY level,name");
-$parkFees      = fetchAll($db,"SELECT id,name,adult_fee,child_fee,vehicle_fee FROM park_fees WHERE is_active=1 ORDER BY name");
+$accommodations= fetchAll($db,"SELECT id,name,level,rate_per_room,rate_per_person,single_supplement,child_rate FROM accommodations WHERE is_active=1 ORDER BY level,name");
+$parkFees      = fetchAll($db,"SELECT id,name,adult_fee,child_fee,vehicle_fee,resident_adult,resident_child FROM park_fees WHERE is_active=1 ORDER BY name");
+$seasonalRates = fetchAll($db,"SELECT season_key,multiplier FROM seasonal_rates");
 $activitiesDB  = fetchAll($db,"SELECT id,name,price,price_unit FROM activities WHERE is_active=1 ORDER BY name");
 
 // ── SAVE ─────────────────────────────────────────────────────
@@ -139,10 +140,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_quote'])) {
 
     $serviceChargePax = (float)($_POST['service_charge_pax'] ?? 0);
     $discountPct      = (float)($_POST['discount_pct'] ?? 0);
+    $markupPct        = max(0, (float)($_POST['markup_pct'] ?? 0));
 
     // Skip ItineraryQuoteBuilder's own hardcoded $100/pax default service
     // fee — Service Charge below is the real one, entered directly.
-    $built     = \App\Services\ItineraryQuoteBuilder::build(['days' => $pricingDays], $adults, $children, false);
+    $built     = \App\Services\ItineraryQuoteBuilder::build(['days' => $pricingDays], $adults, $children, false, $_POST['start_date'] ?: null, trim($_POST['client_country'] ?? '') ?: null);
     $lineItems = $built['line_items'];
     if ($serviceChargePax > 0) {
         $lineItems[] = [
@@ -154,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_quote'])) {
         ];
     }
 
-    $totals     = \App\Services\ItineraryQuoteBuilder::totals($lineItems, $discountPct);
+    $totals     = \App\Services\ItineraryQuoteBuilder::totals($lineItems, $discountPct, $markupPct);
     $subtotal   = $totals['subtotal'];
     $vat        = $totals['vat'];
     $grandTotal = $totals['grand_total'];
@@ -240,6 +242,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_quote'])) {
         'flight_cost'         => $flightCost,
         'service_charge'      => $svcFee,
         'discount_pct'        => $discountPct,
+        'markup_pct'          => $markupPct,
         'itinerary_id'        => $itinIdPosted,
         'discount_amount'     => $totals['discount'],
         'subtotal'            => $subtotal,
@@ -313,6 +316,7 @@ $itinerary = array_slice($itinerary, 0, $qDuration);
 $qSvcTotal = (float)($q['service_charge'] ?? 0);
 $qSvcPax   = $qSvcTotal > 0 ? round($qSvcTotal / $qTotalPax, 2) : 0;
 $qDiscountPct = (float)($q['discount_pct'] ?? 0);
+$qMarkupPct   = (float)($q['markup_pct'] ?? 0);
 $qIncludesArr = $q ? (json_decode($q['includes']??'[]',true)?:[]) : [];
 $qExcludesArr = $q ? (json_decode($q['excludes']??'[]',true)?:[]) : [];
 if (empty($qIncludesArr) && empty($qExcludesArr) && !empty($q['itinerary_id'])) {
@@ -394,7 +398,7 @@ ob_start();
                 <input name="client_phone" class="admin-input"
                        value="<?= htmlspecialchars($q['client_phone']??$cr['phone']??$lead['phone']??'') ?>"></div>
             <div><label class="admin-label">Country</label>
-                <input name="client_country" class="admin-input"
+                <input name="client_country" class="admin-input" oninput="calcTotals()"
                        value="<?= htmlspecialchars($q['client_country']??$cr['country']??$lead['country']??'') ?>"></div>
         </div>
 
@@ -408,7 +412,7 @@ ob_start();
                     <?php endforeach; ?>
                 </datalist></div>
             <div><label class="admin-label">Start Date</label>
-                <input name="start_date" type="date" class="admin-input"
+                <input name="start_date" type="date" class="admin-input" onchange="calcTotals()"
                        value="<?= htmlspecialchars($q['start_date']??$cr['start_date']??$lead['travel_date']??'') ?>"></div>
             <div><label class="admin-label">Destinations (comma-sep)</label>
                 <input name="destinations" class="admin-input"
@@ -602,9 +606,12 @@ ob_start();
           </div>
           <div id="day-other-<?= $i ?>">
             <?php foreach(($day['other_items']??[]) as $oi=>$ot): ?>
-            <div class="other-item" style="display:grid;grid-template-columns:2fr 100px auto;gap:.35rem;align-items:end;margin-bottom:.4rem">
+            <div class="other-item" style="display:grid;grid-template-columns:2fr 100px auto auto;gap:.35rem;align-items:center;margin-bottom:.4rem">
               <input class="admin-input day-other-name" value="<?= htmlspecialchars($ot['name']??'') ?>" placeholder="Item name" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
               <input type="number" step="0.01" class="admin-input day-other-amount" value="<?= (float)($ot['amount']??0) ?>" placeholder="$" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
+              <label style="display:flex;align-items:center;gap:.25rem;font-size:.62rem;color:var(--gray-500);white-space:nowrap" title="Multiply this amount by the number of travelers">
+                <input type="checkbox" class="day-other-perpax" <?= !empty($ot['per_pax']) ? 'checked' : '' ?> onchange="saveDayOther(<?= $i ?>)"> /traveler
+              </label>
               <button type="button" onclick="this.closest('.other-item').remove();saveDayOther(<?= $i ?>)"
                       class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render('close', 14) ?></button>
             </div>
@@ -669,6 +676,7 @@ ob_start();
           <tbody id="qs-line-items"></tbody>
           <tbody>
             <tr style="border-top:1px solid var(--gray-200)"><td colspan="3" style="padding:.6rem 0;font-weight:600">Subtotal</td><td style="padding:.6rem 0;text-align:right;font-weight:600" id="qs-subtotal">$0</td></tr>
+            <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">Markup</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-markup">+$0</td></tr>
             <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">Discount</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem;color:var(--green)" id="qs-discount">–$0</td></tr>
             <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">VAT (18%)</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-vat">$0</td></tr>
             <tr style="background:var(--black);color:var(--white)"><td colspan="3" style="padding:.75rem;font-weight:700">GRAND TOTAL</td><td style="padding:.75rem;text-align:right;font-family:Georgia,serif;font-size:1.1rem" id="qs-total">$0</td></tr>
@@ -708,6 +716,10 @@ ob_start();
         <label class="admin-label">Service Charge ($ / person)</label>
         <input name="service_charge_pax" type="number" step="0.01" class="admin-input" id="service_charge_pax"
                value="<?= $qSvcPax ?>" oninput="calcTotals()" placeholder="e.g. 100" style="margin-bottom:.75rem">
+
+        <label class="admin-label">Markup (%) <span style="font-weight:400;color:var(--gray-500)">— applied before discount/VAT</span></label>
+        <input name="markup_pct" type="number" min="0" max="100" step="0.5" class="admin-input" id="inp_markup"
+               value="<?= $qMarkupPct ?>" oninput="calcTotals()" style="margin-bottom:.75rem">
 
         <label class="admin-label">Discount (%)</label>
         <input name="discount_pct" type="number" min="0" max="50" step="0.5" class="admin-input" id="inp_discount"
@@ -797,9 +809,25 @@ ob_start();
 
 <script>
 var fmt = function(n){ return '$'+Math.round(n).toLocaleString('en-US'); };
-var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person'])], $accommodations)) ?>;
+var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'singleSupp'=>(float)$a['single_supplement'],'childRate'=>(float)$a['child_rate']], $accommodations)) ?>;
 var PE_VEHS  = <?= json_encode(array_map(fn($v) => ['name'=>$v['name'],'id'=>(int)$v['id'],'rate'=>(float)$v['daily_rate']+(float)$v['fuel_cost_day']+(float)$v['driver_cost_day']], $vehicles)) ?>;
-var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee'],'childFee'=>(float)$p['child_fee']], $parkFees)) ?>;
+var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee'],'childFee'=>(float)$p['child_fee'],'residentAdult'=>(float)$p['resident_adult'],'residentChild'=>(float)$p['resident_child']], $parkFees)) ?>;
+// Same 5 EAC members as App\Services\ItineraryQuoteBuilder::EAC_RESIDENT_COUNTRIES.
+var PE_EAC_COUNTRIES = ['tanzania','kenya','uganda','rwanda','burundi'];
+var PE_SEASON_MULT = <?= json_encode(array_reduce($seasonalRates, function($c,$s){ $c[$s['season_key']]=(float)$s['multiplier']; return $c; }, ['peak'=>1,'shoulder'=>0.85,'low'=>0.75])) ?>;
+
+// Mirrors App\Services\ItineraryQuoteBuilder::detectSeason() exactly —
+// pure date math, same peak/shoulder/low rules.
+function peDetectSeason(dateStr) {
+  if (!dateStr) return 'peak';
+  var d = new Date(dateStr + 'T00:00:00');
+  var month = d.getMonth() + 1, day = d.getDate();
+  if ([6,7,8,9,10].indexOf(month) !== -1) return 'peak';
+  if (month === 12 && day >= 20) return 'peak';
+  if (month === 1 && day <= 5) return 'peak';
+  if ([3,4,5].indexOf(month) !== -1) return 'shoulder';
+  return 'low';
+}
 
 // ── Quotation Live Cost Summary ───────────────────────────────
 // Aggregates from the Day-by-Day Itinerary's day-blocks — same category
@@ -811,6 +839,14 @@ function calcTotals() {
   var adults   = parseInt((document.getElementById('inp_adults')||{}).value)   || 1;
   var children = parseInt((document.getElementById('inp_children')||{}).value) || 0;
   var pax      = adults + children;
+
+  // Same season/resident inputs the server reads — start_date and
+  // client_country — so this preview matches what actually gets saved.
+  var startDate  = (document.querySelector('[name="start_date"]')||{}).value || '';
+  var season     = peDetectSeason(startDate);
+  var seasonMult = PE_SEASON_MULT[season] != null ? PE_SEASON_MULT[season] : 1;
+  var country    = ((document.querySelector('[name="client_country"]')||{}).value || '').trim().toLowerCase();
+  var isResident = country && PE_EAC_COUNTRIES.indexOf(country) !== -1;
 
   var accSeen = {}, vehSeen = {}, parkSeen = {}, otherSeen = {}, actSeen = {};
   var mealsPP = 0, mealsDays = 0;
@@ -851,7 +887,16 @@ function calcTotals() {
       vehSeen[d.vehName].days++;
     }
     if (d.parkName && d.parkFee > 0) {
-      if (!parkSeen[d.parkName]) parkSeen[d.parkName] = {fee:d.parkFee,childFee:parkChildFee(d.parkName),entries:0};
+      if (!parkSeen[d.parkName]) {
+        var pLookup = peParkLookup(d.parkName) || {};
+        var residentApplied = isResident && (pLookup.residentAdult||0) > 0;
+        parkSeen[d.parkName] = {
+          fee: residentApplied ? pLookup.residentAdult : d.parkFee,
+          childFee: residentApplied && (pLookup.residentChild||0) > 0 ? pLookup.residentChild : (pLookup.childFee||0),
+          vehicleFee: pLookup.vehicleFee||0,
+          entries: 0, resident: residentApplied
+        };
+      }
       parkSeen[d.parkName].entries++;
     }
     if (d.meals > 0) { mealsPP += d.meals; mealsDays++; }
@@ -877,15 +922,28 @@ function calcTotals() {
   var lineItems = [];
 
   Object.keys(accSeen).forEach(function(name){
-    var a = accSeen[name], amount = a.rate * a.nights * a.rooms;
+    var a = accSeen[name], amount = a.rate * a.nights * a.rooms * seasonMult;
     var qty = a.rooms > 1
       ? a.rooms+' Rooms × '+a.nights+' Night'+(a.nights!==1?'s':'')
       : a.nights+' Night'+(a.nights!==1?'s':'');
     lineItems.push({desc:'Accommodation – '+name, unit:a.rate, qty:qty, amount:amount});
+
+    var accExtra = peAccLookup(name);
+    if (accExtra) {
+      if (adults === 1 && accExtra.singleSupp > 0) {
+        var suppAmt = accExtra.singleSupp * a.nights * a.rooms * seasonMult;
+        lineItems.push({desc:'Single Supplement – '+name, unit:accExtra.singleSupp, qty:qty, amount:suppAmt});
+      }
+      if (children > 0 && accExtra.childRate > 0) {
+        var childQty = children+' Child'+(children!==1?'ren':'')+' × '+a.nights+' Night'+(a.nights!==1?'s':'');
+        var childAmt = accExtra.childRate * children * a.nights * seasonMult;
+        lineItems.push({desc:'Child Rate – '+name, unit:accExtra.childRate, qty:childQty, amount:childAmt});
+      }
+    }
   });
 
   Object.keys(vehSeen).forEach(function(name){
-    var v = vehSeen[name], amount = v.rate * v.days;
+    var v = vehSeen[name], amount = v.rate * v.days * seasonMult;
     lineItems.push({desc:name+' & Fuel', unit:v.rate, qty:v.days+' Day'+(v.days!==1?'s':''), amount:amount});
   });
 
@@ -894,7 +952,12 @@ function calcTotals() {
     var amount = (p.fee*adults + p.childFee*children) * p.entries;
     var guestStr = adults+' Adult'+(adults!==1?'s':'')+(children>0?' + '+children+' Child'+(children!==1?'ren':''):'');
     var qty = p.entries > 1 ? (guestStr+' × '+p.entries+' Days') : guestStr;
-    lineItems.push({desc:name+' Entry Fees', unit:p.fee, qty:qty, amount:amount});
+    lineItems.push({desc:name+' Entry Fees'+(p.resident?' (Resident Rate)':''), unit:p.fee, qty:qty, amount:amount});
+
+    if (p.vehicleFee > 0) {
+      var vehFeeAmt = p.vehicleFee * p.entries;
+      lineItems.push({desc:name+' Vehicle Entry Fee', unit:p.vehicleFee, qty:p.entries>1?(p.entries+' Days'):'1 Vehicle', amount:vehFeeAmt});
+    }
   });
 
   Object.keys(actSeen).forEach(function(name){
@@ -926,9 +989,12 @@ function calcTotals() {
   }
 
   var subtotal  = lineItems.reduce(function(sum,li){ return sum+li.amount; }, 0);
+  var markupPct = parseFloat((document.getElementById('inp_markup')||{}).value) || 0;
+  var markupAmt = subtotal * (markupPct / 100);
+  var marked    = subtotal + markupAmt;
   var discPct   = parseFloat((document.getElementById('inp_discount')||{}).value) || 0;
-  var discAmt   = subtotal * (discPct / 100);
-  var afterDisc = subtotal - discAmt;
+  var discAmt   = marked * (discPct / 100);
+  var afterDisc = marked - discAmt;
   var vat       = afterDisc * 0.18;
   var total     = afterDisc + vat;
   var pp        = pax > 0 ? total / pax : total;
@@ -946,6 +1012,7 @@ function calcTotals() {
   }).join('') : '<tr><td colspan="4" style="padding:.75rem 0;color:var(--gray-500);font-size:.8rem">Add accommodation, vehicle, or other costs to the itinerary above to see line items here.</td></tr>';
 
   document.getElementById('qs-subtotal').textContent = fmt(subtotal);
+  document.getElementById('qs-markup').textContent   = markupAmt > 0 ? '+'+fmt(markupAmt) : fmt(0);
   document.getElementById('qs-discount').textContent = discAmt > 0 ? '–'+fmt(discAmt) : fmt(0);
   document.getElementById('qs-vat').textContent      = fmt(vat);
   document.getElementById('qs-total').textContent    = fmt(total);
@@ -969,6 +1036,14 @@ function parkChildFee(parkName) {
     if (PE_PARKS[i].name === parkName) return PE_PARKS[i].childFee||0;
   }
   return 0;
+}
+function peParkLookup(parkName) {
+  for (var i=0; i<PE_PARKS.length; i++) if (PE_PARKS[i].name === parkName) return PE_PARKS[i];
+  return null;
+}
+function peAccLookup(accName) {
+  for (var i=0; i<PE_ACCS.length; i++) if (PE_ACCS[i].name === accName) return PE_ACCS[i];
+  return null;
 }
 
 // ── Per-day cost badge + keep the summary in sync ─────────────
@@ -1072,9 +1147,10 @@ function addDayOther(dayIdx) {
   var container=document.getElementById('day-other-'+dayIdx);
   var div=document.createElement('div');
   div.className='other-item';
-  div.style.cssText='display:grid;grid-template-columns:2fr 100px auto;gap:.35rem;align-items:end;margin-bottom:.4rem';
+  div.style.cssText='display:grid;grid-template-columns:2fr 100px auto auto;gap:.35rem;align-items:center;margin-bottom:.4rem';
   div.innerHTML='<input class="admin-input day-other-name" placeholder="Item name" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
     +'<input type="number" step="0.01" class="admin-input day-other-amount" value="0" placeholder="$" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
+    +'<label style="display:flex;align-items:center;gap:.25rem;font-size:.62rem;color:var(--gray-500);white-space:nowrap" title="Multiply this amount by the number of travelers"><input type="checkbox" class="day-other-perpax" onchange="saveDayOther('+dayIdx+')"> /traveler</label>'
     +'<button type="button" onclick="this.closest(\'.other-item\').remove();saveDayOther('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render("close", 14) ?></button>';
   container.appendChild(div);
 }
@@ -1084,7 +1160,7 @@ function saveDayOther(dayIdx) {
   container.querySelectorAll('.other-item').forEach(function(row){
     var name=row.querySelector('.day-other-name').value.trim();
     if(!name) return;
-    items.push({name:name, amount:parseFloat(row.querySelector('.day-other-amount').value)||0});
+    items.push({name:name, amount:parseFloat(row.querySelector('.day-other-amount').value)||0, per_pax:row.querySelector('.day-other-perpax').checked});
   });
   document.getElementById('other-json-'+dayIdx).value=JSON.stringify(items);
   calcItinTotal();
@@ -1273,6 +1349,7 @@ async function loadItinerary() {
         var row  = rows[rows.length - 1];
         row.querySelector('.day-other-name').value   = ot.name || '';
         row.querySelector('.day-other-amount').value = ot.amount || 0;
+        row.querySelector('.day-other-perpax').checked = !!ot.per_pax;
       });
       saveDayOther(i);
     });

@@ -1022,7 +1022,7 @@ There's no PHPUnit dependency — the Hostinger deploy target has no Composer de
 php tests/run.php
 ```
 
-Each file in `tests/suites/` covers one class and needs no database: `FormatterTest.php`, `BookingValidatorTest.php`, `QuotationEngineTest.php` (the pure `detectSeason()` logic), and `RateLimiterTest.php` (against the real `/tmp` file store, using a random per-run action name so runs don't collide). `App\Services\QuotationEngine::calculate()` itself isn't covered here because it requires a live DB connection for its rate lookups — exercise it via `admin/quotation_new.php` or `api/quote.php` locally instead.
+Each file in `tests/suites/` covers one class and needs no database: `FormatterTest.php`, `BookingValidatorTest.php`, `SeasonDetectionTest.php` (the pure `ItineraryQuoteBuilder::detectSeason()` logic), and `RateLimiterTest.php` (against the real `/tmp` file store, using a random per-run action name so runs don't collide). `ItineraryQuoteBuilder::build()` itself isn't covered here because it requires a live DB connection for its rate lookups (season multiplier, resident/child park fees, single supplement) — exercise it via `admin/quotation_new.php` or `api/book.php` locally instead.
 
 To add a suite: drop a new `tests/suites/YourThing.php` file that calls `test('description', fn() => ...)` — `tests/run.php` picks it up automatically, no registration needed.
 

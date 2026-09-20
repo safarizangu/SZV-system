@@ -117,7 +117,7 @@ if (!empty($package['itinerary_id'])) {
         $itinStmt->execute([(int)$package['itinerary_id']]);
         $itinerary = $itinStmt->fetch() ?: null;
         if ($itinerary) {
-            $builtQuote  = ItineraryQuoteBuilder::build($itinerary, $adults, $children);
+            $builtQuote  = ItineraryQuoteBuilder::build($itinerary, $adults, $children, true, $data['travel_date'] ?: null, $data['nationality'] ?: null);
             $quoteTotals = ItineraryQuoteBuilder::totals($builtQuote['line_items']);
         }
     } catch (\Exception $e) {

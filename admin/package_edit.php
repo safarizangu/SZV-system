@@ -46,9 +46,9 @@ if ($id > 0 && !empty($_GET['link']) && $pkg) {
 }
 
 function fetchAll($db,$sql){try{return $db->query($sql)->fetchAll();}catch(\Exception $e){return[];}}
-$accommodations = fetchAll($db,"SELECT id,name,level,rate_per_room,rate_per_person FROM accommodations WHERE is_active=1 ORDER BY level,name");
+$accommodations = fetchAll($db,"SELECT id,name,level,rate_per_room,rate_per_person,single_supplement,child_rate FROM accommodations WHERE is_active=1 ORDER BY level,name");
 $vehicles       = fetchAll($db,"SELECT id,name,daily_rate,fuel_cost_day,driver_cost_day,capacity FROM vehicles WHERE is_active=1 ORDER BY name");
-$parkFees       = fetchAll($db,"SELECT id,name,adult_fee,child_fee FROM park_fees WHERE is_active=1 ORDER BY name");
+$parkFees       = fetchAll($db,"SELECT id,name,adult_fee,child_fee,vehicle_fee FROM park_fees WHERE is_active=1 ORDER BY name");
 $activities_db  = fetchAll($db,"SELECT id,name,price,price_unit FROM activities WHERE is_active=1 ORDER BY name");
 
 // SAVE
@@ -148,6 +148,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
     $totals = \App\Services\ItineraryQuoteBuilder::totals($lineItems);
     $computedPrice = round($totals['grand_total'], 2);
 
+    // Operational cost is entered by the admin (there's no reliable
+    // system-derived source for true internal cost — cost_breakdown is
+    // display/notes content, not a cost ledger) and defaults to 0,
+    // matching the existing vw_package_profitability convention of
+    // never fabricating a cost figure. Margin is computed the same way
+    // the view computes it, so a direct SELECT on packages matches the
+    // view without needing the join.
+    $operationalCost = max(0, (float)($_POST['operational_cost'] ?? 0));
+    $sellingPrice     = $computedPrice;
+    $profitMargin     = $sellingPrice > 0 ? round((($sellingPrice - $operationalCost) / $sellingPrice) * 100, 2) : 0;
+    $validTiers       = ['BUDGET', 'MIDRANGE', 'COMFORT', 'LUXURY', 'ULTRA_LUXURY'];
+    $packageTier      = in_array($_POST['package_tier'] ?? '', $validTiers, true) ? $_POST['package_tier'] : null;
+
     $data = [
         'slug'                => $slug,
         'name'                => trim($_POST['name']??''),
@@ -166,6 +179,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
         'excludes'            => json_encode($excludes),
         'cost_breakdown'      => json_encode($bd),
         'gallery_images'      => json_encode($galleryImages),
+        'package_tier'        => $packageTier,
+        'operational_cost'    => $operationalCost,
+        'selling_price'       => $sellingPrice,
+        'profit_margin_percent' => $profitMargin,
     ];
 
     try {
@@ -533,9 +550,12 @@ ob_start();
           </div>
           <div id="day-other-<?= $i ?>">
             <?php foreach(($day['other_items']??[]) as $oi=>$ot): ?>
-            <div class="other-item" style="display:grid;grid-template-columns:2fr 100px auto;gap:.35rem;align-items:end;margin-bottom:.4rem">
+            <div class="other-item" style="display:grid;grid-template-columns:2fr 100px auto auto;gap:.35rem;align-items:center;margin-bottom:.4rem">
               <input class="admin-input day-other-name" value="<?= htmlspecialchars($ot['name']??'') ?>" placeholder="Item name" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
               <input type="number" step="0.01" class="admin-input day-other-amount" value="<?= (float)($ot['amount']??0) ?>" placeholder="$" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
+              <label style="display:flex;align-items:center;gap:.25rem;font-size:.62rem;color:var(--gray-500);white-space:nowrap" title="Multiply this amount by the number of travelers">
+                <input type="checkbox" class="day-other-perpax" <?= !empty($ot['per_pax']) ? 'checked' : '' ?> onchange="saveDayOther(<?= $i ?>)"> /traveler
+              </label>
               <button type="button" onclick="this.closest('.other-item').remove();saveDayOther(<?= $i ?>)"
                       class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render('close', 14) ?></button>
             </div>
@@ -641,6 +661,40 @@ ob_start();
     <div style="margin-top:1.25rem"><label class="admin-label">Pricing Notes (shown to guests)</label>
       <textarea name="breakdown_notes" class="admin-input" rows="2" placeholder="e.g. Based on 2 travelers sharing."><?= htmlspecialchars($bd['notes']??'') ?></textarea></div>
 
+  </div>
+</div>
+
+<!-- Internal-only: not shown to guests. selling_price/profit_margin_percent
+     are recomputed on every save from the total above; operational_cost
+     and package_tier are the only two figures entered here, since there's
+     no system-derived source for true internal cost. Feeds
+     vw_package_profitability directly. -->
+<div class="admin-card" style="margin-bottom:1.25rem">
+  <div class="admin-card-header">
+    <h3>Profitability <span style="font-weight:400;color:var(--gray-500);font-size:.75rem">(internal only)</span></h3>
+  </div>
+  <div class="admin-card-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;align-items:end">
+      <div>
+        <label class="admin-label">Operational Cost ($, per person)</label>
+        <input type="number" step="0.01" min="0" name="operational_cost" id="pe_op_cost" class="admin-input"
+               value="<?= htmlspecialchars((string)($pkg['operational_cost'] ?? 0)) ?>" oninput="calcMargin()" placeholder="0.00">
+      </div>
+      <div>
+        <label class="admin-label">Package Tier</label>
+        <select name="package_tier" class="admin-input">
+          <option value="">— Not set —</option>
+          <?php foreach(['BUDGET','MIDRANGE','COMFORT','LUXURY','ULTRA_LUXURY'] as $t): ?>
+          <option value="<?= $t ?>" <?= ($pkg['package_tier']??'')===$t?'selected':'' ?>><?= ucwords(strtolower(str_replace('_',' ',$t))) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div>
+        <label class="admin-label">Profit Margin</label>
+        <div class="admin-input" id="pe_margin" style="background:var(--gray-50);font-weight:600">—</div>
+      </div>
+    </div>
+    <p style="font-size:.68rem;color:var(--gray-500);margin-top:.6rem">Margin = (Total above − Operational Cost) ÷ Total. Leave cost at 0 until a real figure is on file — an unset cost shows as a 100% margin on the profitability report, which is a flag to fill it in, not a claim.</p>
   </div>
 </div>
 
@@ -806,7 +860,7 @@ function calcTotals() {
           vehName: day.vehicle_name||'', vehRate: +day.vehicle_rate||0,
           parkName: day.park_fee_name||'', parkFee: +day.park_adult_fee||0, meals: +day.meals_cost_pp||0,
           activities: (day.activities||[]).map(function(a){ return {name:a.name||'', price:+a.price_pp||0, type:a.type||'included'}; }),
-          other: (day.other_items||[]).map(function(o){ return {name:o.name||'', amount:+o.amount||0}; })
+          other: (day.other_items||[]).map(function(o){ return {name:o.name||'', amount:+o.amount||0, per_pax:!!o.per_pax}; })
         };
       })
     : Array.prototype.map.call(document.querySelectorAll('.day-block'), function(block){
@@ -829,7 +883,8 @@ function calcTotals() {
           other: Array.prototype.map.call(block.querySelectorAll('.other-item'), function(row){
             return {
               name: ((row.querySelector('.day-other-name')||{}).value||'').trim(),
-              amount: parseFloat((row.querySelector('.day-other-amount')||{}).value)||0
+              amount: parseFloat((row.querySelector('.day-other-amount')||{}).value)||0,
+              per_pax: (row.querySelector('.day-other-perpax')||{}).checked||false
             };
           })
         };
@@ -845,7 +900,10 @@ function calcTotals() {
       vehSeen[d.vehName].days++;
     }
     if (d.parkName && d.parkFee > 0) {
-      if (!parkSeen[d.parkName]) parkSeen[d.parkName] = {fee:d.parkFee,childFee:parkChildFee(d.parkName),entries:0};
+      if (!parkSeen[d.parkName]) {
+        var pLookup = peParkLookup(d.parkName) || {};
+        parkSeen[d.parkName] = {fee:d.parkFee,childFee:pLookup.childFee||0,vehicleFee:pLookup.vehicleFee||0,entries:0};
+      }
       parkSeen[d.parkName].entries++;
     }
     if (d.meals > 0) { mealsPP += d.meals; mealsDays++; }
@@ -862,7 +920,7 @@ function calcTotals() {
 
     d.other.forEach(function(o){
       if (!o.name || o.amount <= 0) return;
-      if (!otherSeen[o.name]) otherSeen[o.name] = {amount:0,count:0};
+      if (!otherSeen[o.name]) otherSeen[o.name] = {amount:0,count:0,perPax:o.per_pax};
       otherSeen[o.name].amount += o.amount;
       otherSeen[o.name].count++;
     });
@@ -876,6 +934,24 @@ function calcTotals() {
       ? a.rooms+' Rooms × '+a.nights+' Night'+(a.nights!==1?'s':'')
       : a.nights+' Night'+(a.nights!==1?'s':'');
     lineItems.push({desc:'Accommodation – '+name, unit:a.rate, qty:qty, amount:amount});
+
+    // The saved price_1pax is always computed at 1 adult / 0 children
+    // server-side (see the note above this form), so this only matters
+    // when the preview is also set to 1 adult — but it's shown at
+    // whatever adults/children the preview has, same as every other
+    // line here, for a consistent "what would this many travelers pay" view.
+    var accExtra = peAccLookup(name);
+    if (accExtra) {
+      if (adults === 1 && accExtra.singleSupp > 0) {
+        var suppAmt = accExtra.singleSupp * a.nights * a.rooms;
+        lineItems.push({desc:'Single Supplement – '+name, unit:accExtra.singleSupp, qty:qty, amount:suppAmt});
+      }
+      if (children > 0 && accExtra.childRate > 0) {
+        var childQty = children+' Child'+(children!==1?'ren':'')+' × '+a.nights+' Night'+(a.nights!==1?'s':'');
+        var childAmt = accExtra.childRate * children * a.nights;
+        lineItems.push({desc:'Child Rate – '+name, unit:accExtra.childRate, qty:childQty, amount:childAmt});
+      }
+    }
   });
 
   Object.keys(vehSeen).forEach(function(name){
@@ -889,6 +965,10 @@ function calcTotals() {
     var guestStr = adults+' Adult'+(adults!==1?'s':'')+(children>0?' + '+children+' Child'+(children!==1?'ren':''):'');
     var qty = p.entries > 1 ? (guestStr+' × '+p.entries+' Days') : guestStr;
     lineItems.push({desc:name+' Entry Fees', unit:p.fee, qty:qty, amount:amount});
+
+    if (p.vehicleFee > 0) {
+      lineItems.push({desc:name+' Vehicle Entry Fee', unit:p.vehicleFee, qty:p.entries>1?(p.entries+' Days'):'1 Vehicle', amount:p.vehicleFee*p.entries});
+    }
   });
 
   Object.keys(actSeen).forEach(function(name){
@@ -902,18 +982,15 @@ function calcTotals() {
     lineItems.push({desc:'Meals (Full Board — '+mealsDays+' day'+(mealsDays!==1?'s':'')+')', unit:avgMealPP, qty:travelers+' Guests × '+mealsDays+' Days', amount:mealsPP*travelers});
   }
 
-  // Same "is this per-traveler" heuristic api/book.php's real pricing
-  // uses (App\Services\ItineraryQuoteBuilder::build()) — anything named
-  // like a transfer/water/contribution scales with travelers, everything
-  // else (crater service fees, vehicle fees, etc.) is a flat one-time
-  // cost regardless of party size. Keeping this identical to the server
-  // logic is what keeps the live preview honest against what's actually
-  // saved as the listed price.
+  // Per-traveler is now an explicit checkbox on each Other Cost row
+  // (day-other-perpax), not a name-substring guess — matches
+  // App\Services\ItineraryQuoteBuilder::build()'s server-side logic
+  // exactly, which is what keeps this live preview honest against what's
+  // actually saved as the listed price.
   Object.keys(otherSeen).forEach(function(name){
     var o = otherSeen[name];
-    var isPerPax = /transfer|water|contribution/i.test(name);
-    var amount = (isPerPax && travelers > 1) ? o.amount * travelers : o.amount;
-    var qty = isPerPax && travelers > 1
+    var amount = (o.perPax && travelers > 1) ? o.amount * travelers : o.amount;
+    var qty = o.perPax && travelers > 1
       ? travelers+' Guests'+(o.count>1?' × '+o.count+' Days':'')
       : (o.count>1 ? o.count+' Times' : '1');
     lineItems.push({desc:name, unit:o.amount, qty:qty, amount:amount});
@@ -944,6 +1021,19 @@ function calcTotals() {
   document.getElementById('qs-total').textContent    = fmt(total);
   document.getElementById('qs-pp').textContent       = fmt(pp);
   document.getElementById('qs-pp-label').textContent = 'Per Person (÷'+travelers+')';
+
+  window._qsTotal = total;
+  calcMargin();
+}
+
+function calcMargin() {
+  var total = window._qsTotal || 0;
+  var cost  = parseFloat(document.getElementById('pe_op_cost').value) || 0;
+  var el    = document.getElementById('pe_margin');
+  if (total <= 0) { el.textContent = '—'; return; }
+  var margin = ((total - cost) / total) * 100;
+  el.textContent = margin.toFixed(1) + '%';
+  el.style.color = margin < 20 ? '#dc2626' : (margin < 40 ? '#b45309' : '#16a34a');
 }
 
 function escapeHtml(s) {
@@ -960,6 +1050,10 @@ function parkChildFee(parkName) {
     if (PE_PARKS[i].name === parkName) return PE_PARKS[i].childFee||0;
   }
   return 0;
+}
+function peParkLookup(parkName) {
+  for (var i=0; i<PE_PARKS.length; i++) if (PE_PARKS[i].name === parkName) return PE_PARKS[i];
+  return null;
 }
 
 // ── Includes/Excludes sync ────────────────────────────────────
@@ -1009,9 +1103,13 @@ function syncIncludesExcludes() {
 // same accommodations/vehicles/park fees the PHP-rendered day-blocks
 // already use, output once here so a freshly-added day (when Nights is
 // increased) gets the exact same autocomplete options.
-var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person'])], $accommodations)) ?>;
+var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'singleSupp'=>(float)$a['single_supplement'],'childRate'=>(float)$a['child_rate']], $accommodations)) ?>;
+function peAccLookup(accName) {
+  for (var i=0; i<PE_ACCS.length; i++) if (PE_ACCS[i].name === accName) return PE_ACCS[i];
+  return null;
+}
 var PE_VEHS  = <?= json_encode(array_map(fn($v) => ['name'=>$v['name'],'id'=>(int)$v['id'],'rate'=>(float)$v['daily_rate']+(float)$v['fuel_cost_day']+(float)$v['driver_cost_day']], $vehicles)) ?>;
-var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee'],'childFee'=>(float)$p['child_fee']], $parkFees)) ?>;
+var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee'],'childFee'=>(float)$p['child_fee'],'vehicleFee'=>(float)$p['vehicle_fee']], $parkFees)) ?>;
 
 function peDayBlockHtml(i) {
   var accOpts  = PE_ACCS.map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-rate="'+a.rate+'">'; }).join('');
@@ -1233,9 +1331,10 @@ function addDayOther(dayIdx) {
   var container=document.getElementById('day-other-'+dayIdx);
   var div=document.createElement('div');
   div.className='other-item';
-  div.style.cssText='display:grid;grid-template-columns:2fr 100px auto;gap:.35rem;align-items:end;margin-bottom:.4rem';
+  div.style.cssText='display:grid;grid-template-columns:2fr 100px auto auto;gap:.35rem;align-items:center;margin-bottom:.4rem';
   div.innerHTML='<input class="admin-input day-other-name" placeholder="Item name" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
     +'<input type="number" step="0.01" class="admin-input day-other-amount" value="0" placeholder="$" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
+    +'<label style="display:flex;align-items:center;gap:.25rem;font-size:.62rem;color:var(--gray-500);white-space:nowrap" title="Multiply this amount by the number of travelers"><input type="checkbox" class="day-other-perpax" onchange="saveDayOther('+dayIdx+')"> /traveler</label>'
     +'<button type="button" onclick="this.closest(\'.other-item\').remove();saveDayOther('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render("close", 14) ?></button>';
   container.appendChild(div);
 }
@@ -1246,7 +1345,7 @@ function saveDayOther(dayIdx) {
   container.querySelectorAll('.other-item').forEach(function(row){
     var name=row.querySelector('.day-other-name').value.trim();
     if(!name) return;
-    items.push({name:name, amount:parseFloat(row.querySelector('.day-other-amount').value)||0});
+    items.push({name:name, amount:parseFloat(row.querySelector('.day-other-amount').value)||0, per_pax:row.querySelector('.day-other-perpax').checked});
   });
   document.getElementById('other-json-'+dayIdx).value=JSON.stringify(items);
 }
@@ -1539,6 +1638,7 @@ async function loadPkgItinerary() {
         var row  = rows[rows.length - 1];
         row.querySelector('.day-other-name').value   = ot.name || '';
         row.querySelector('.day-other-amount').value = ot.amount || 0;
+        row.querySelector('.day-other-perpax').checked = !!ot.per_pax;
       });
       saveDayOther(i);
     });

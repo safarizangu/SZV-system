@@ -129,7 +129,7 @@ try {
 
         <p class="pkg-duration">5 Days · 4 Nights</p>
         <p class="pkg-desc">Serengeti plains, Ngorongoro Crater, Tarangire. The quintessential Tanzania experience — and the Big Five await.</p>
-        <p class="pkg-price"><?php $__p=$pkgMap['classic-safari'] ?? null; $__price=$__p?(float)$__p['price_1pax']:1650; echo 'From $'.number_format($__price,0).' <small style="opacity:.6;font-weight:500">'.gbpApprox($__price).'</small>'; ?></p>
+        <p class="pkg-price"><?php $__p=$pkgMap['classic-safari'] ?? null; $__price=$__p?(float)$__p['price_1pax']:1650; echo 'From $'.number_format($__price,0).' <small style="opacity:.6;font-weight:500">'.approxAll($__price).'</small>'; ?></p>
         <p class="pkg-price-label">per person · solo traveler</p>
         <a href="packages.php#classic-safari" class="btn-sz-outline" style="font-size:.65rem;padding:.6rem 1.25rem;min-height:40px">View & Book</a>
       </div>
@@ -161,7 +161,7 @@ try {
 
         <p class="pkg-duration">6 Days · 5 Nights</p>
         <p class="pkg-desc">Private game drives, exclusive lodges, and a sunrise balloon flight over the Serengeti that you will never forget.</p>
-        <p class="pkg-price"><?php $__p=$pkgMap['luxury-safari'] ?? null; $__price=$__p?(float)$__p['price_1pax']:2900; echo 'From $'.number_format($__price,0).' <small style="opacity:.6;font-weight:500">'.gbpApprox($__price).'</small>'; ?></p>
+        <p class="pkg-price"><?php $__p=$pkgMap['luxury-safari'] ?? null; $__price=$__p?(float)$__p['price_1pax']:2900; echo 'From $'.number_format($__price,0).' <small style="opacity:.6;font-weight:500">'.approxAll($__price).'</small>'; ?></p>
         <p class="pkg-price-label">per person · solo traveler</p>
         <a href="packages.php#luxury-safari" class="btn-sz-outline" style="font-size:.65rem;padding:.6rem 1.25rem;min-height:40px">View & Book</a>
       </div>
@@ -193,7 +193,7 @@ try {
 
         <p class="pkg-duration">5 Days · 4 Nights</p>
         <p class="pkg-desc">A refined mid-range circuit through Manyara, Serengeti and Ngorongoro — comfortable private lodges, experienced guide, zero compromise on wildlife time.</p>
-        <p class="pkg-price"><?php $__p=$pkgMap['comfort-safari'] ?? null; $__price=$__p?(float)$__p['price_1pax']:750; echo 'From $'.number_format($__price,0).' <small style="opacity:.6;font-weight:500">'.gbpApprox($__price).'</small>'; ?></p>
+        <p class="pkg-price"><?php $__p=$pkgMap['comfort-safari'] ?? null; $__price=$__p?(float)$__p['price_1pax']:750; echo 'From $'.number_format($__price,0).' <small style="opacity:.6;font-weight:500">'.approxAll($__price).'</small>'; ?></p>
         <p class="pkg-price-label">per person · solo traveler</p>
         <a href="packages.php#comfort-safari" class="btn-sz-outline" style="font-size:.65rem;padding:.6rem 1.25rem;min-height:40px">View & Book</a>
       </div>
@@ -225,7 +225,7 @@ try {
 
         <p class="pkg-duration">7 Days · 6 Nights</p>
         <p class="pkg-desc">Three days of wildlife majesty on the mainland, then four days of Indian Ocean paradise. The definitive Tanzania journey.</p>
-        <p class="pkg-price"><?php $__p=$pkgMap['safari-zanzibar'] ?? null; $__price=$__p?(float)$__p['price_1pax']:2200; echo 'From $'.number_format($__price,0).' <small style="opacity:.6;font-weight:500">'.gbpApprox($__price).'</small>'; ?></p>
+        <p class="pkg-price"><?php $__p=$pkgMap['safari-zanzibar'] ?? null; $__price=$__p?(float)$__p['price_1pax']:2200; echo 'From $'.number_format($__price,0).' <small style="opacity:.6;font-weight:500">'.approxAll($__price).'</small>'; ?></p>
         <p class="pkg-price-label">per person · solo traveler</p>
         <a href="packages.php#safari-zanzibar" class="btn-sz-outline" style="font-size:.65rem;padding:.6rem 1.25rem;min-height:40px">View & Book</a>
       </div>
@@ -257,7 +257,7 @@ try {
 
         <p class="pkg-duration">4 Days · 3 Nights</p>
         <p class="pkg-desc">Maasai villages, coffee farms, local markets — an authentic connection to Tanzania's living cultures and ancient ways.</p>
-        <p class="pkg-price"><?php $__p=$pkgMap['cultural-safari'] ?? null; $__price=$__p?(float)$__p['price_1pax']:1100; echo 'From $'.number_format($__price,0).' <small style="opacity:.6;font-weight:500">'.gbpApprox($__price).'</small>'; ?></p>
+        <p class="pkg-price"><?php $__p=$pkgMap['cultural-safari'] ?? null; $__price=$__p?(float)$__p['price_1pax']:1100; echo 'From $'.number_format($__price,0).' <small style="opacity:.6;font-weight:500">'.approxAll($__price).'</small>'; ?></p>
         <p class="pkg-price-label">per person · solo traveler</p>
         <a href="packages.php#cultural-safari" class="btn-sz-outline" style="font-size:.65rem;padding:.6rem 1.25rem;min-height:40px">View & Book</a>
       </div>
@@ -289,7 +289,7 @@ try {
 
         <p class="pkg-duration">3 Days · 2 Nights</p>
         <p class="pkg-desc">A compact, high-impact introduction to Tanzania's wildlife. Perfect for stopovers, first-timers, and tight itineraries.</p>
-        <p class="pkg-price"><?php $__p=$pkgMap['short-safari'] ?? null; $__price=$__p?(float)$__p['price_1pax']:850; echo 'From $'.number_format($__price,0).' <small style="opacity:.6;font-weight:500">'.gbpApprox($__price).'</small>'; ?></p>
+        <p class="pkg-price"><?php $__p=$pkgMap['short-safari'] ?? null; $__price=$__p?(float)$__p['price_1pax']:850; echo 'From $'.number_format($__price,0).' <small style="opacity:.6;font-weight:500">'.approxAll($__price).'</small>'; ?></p>
         <p class="pkg-price-label">per person · solo traveler</p>
         <a href="packages.php#short-safari" class="btn-sz-outline" style="font-size:.65rem;padding:.6rem 1.25rem;min-height:40px">View & Book</a>
       </div>
@@ -585,11 +585,11 @@ try {
                 <label class="form-label" for="cs-budget">Total Budget (USD)</label>
                 <select id="cs-budget" name="total_budget" class="form-control-sz">
                   <option value="">— Prefer not to say —</option>
-                  <option value="Under $1,500/pp">Under $1,500 (<?= gbpApprox(1500) ?>) per person</option>
-                  <option value="$1,500-$2,500/pp">$1,500 – $2,500 (<?= gbpApprox(1500) ?>–<?= gbpApprox(2500) ?>) per person</option>
-                  <option value="$2,500-$4,000/pp">$2,500 – $4,000 (<?= gbpApprox(2500) ?>–<?= gbpApprox(4000) ?>) per person</option>
-                  <option value="$4,000-$7,000/pp">$4,000 – $7,000 (<?= gbpApprox(4000) ?>–<?= gbpApprox(7000) ?>) per person</option>
-                  <option value="$7,000+/pp">$7,000+ (<?= gbpApprox(7000) ?>+) per person (ultra luxury)</option>
+                  <option value="Under $1,500/pp">Under $1,500 (<?= approxAll(1500) ?>) per person</option>
+                  <option value="$1,500-$2,500/pp">$1,500 – $2,500 (<?= approxAll(1500) ?>–<?= approxAll(2500) ?>) per person</option>
+                  <option value="$2,500-$4,000/pp">$2,500 – $4,000 (<?= approxAll(2500) ?>–<?= approxAll(4000) ?>) per person</option>
+                  <option value="$4,000-$7,000/pp">$4,000 – $7,000 (<?= approxAll(4000) ?>–<?= approxAll(7000) ?>) per person</option>
+                  <option value="$7,000+/pp">$7,000+ (<?= approxAll(7000) ?>+) per person (ultra luxury)</option>
                   <option value="Flexible">Flexible — show me options</option>
                 </select>
               </div>

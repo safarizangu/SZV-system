@@ -29,6 +29,12 @@ class PdfRenderer
         return self::render(__DIR__ . '/../../api/booking_pdf.php', ['ref' => $bookingRef], $fileName);
     }
 
+    /** @return array{path:string,name:string}|null */
+    public static function renderVoucher(string $bookingRef, string $fileName): ?array
+    {
+        return self::render(__DIR__ . '/../../api/voucher_pdf.php', ['ref' => $bookingRef], $fileName);
+    }
+
     private static function render(string $file, array $getParams, string $fileName): ?array
     {
         if (!class_exists('\Dompdf\Dompdf')) {

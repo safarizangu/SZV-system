@@ -144,6 +144,11 @@ if (!function_exists('gbpApprox')) {
         return \App\Helpers\Formatter::gbpApprox($usdAmount);
     }
 }
+if (!function_exists('approxAll')) {
+    function approxAll(float $usdAmount): string {
+        return \App\Helpers\Formatter::approxAll($usdAmount);
+    }
+}
 if (!function_exists('generateBookingRef')) {
     function generateBookingRef(): string {
         return \App\Helpers\Formatter::generateRef();

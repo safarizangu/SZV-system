@@ -143,8 +143,18 @@ ob_start();
 <tr>
   <td>
     <strong style="font-size:.85rem"><?= htmlspecialchars($c['full_name']) ?></strong>
-    <?php if ((int)$c['booking_count'] > 1): ?>
-      <span class="badge-status badge-status--green" style="margin-left:.35rem">Repeat</span>
+    <?php
+    // Informational only, not a formal points/discount program — a
+    // quick "who's a VIP" signal for sales staff, computed from data
+    // already on the row (no new schema). Thresholds are a starting
+    // point; adjust here if the business wants different cutoffs.
+    $spend = (float)$c['total_spent'];
+    $bookings = (int)$c['booking_count'];
+    if ($bookings >= 3 || $spend >= 10000) { $tier = ['Gold', '#92400e', '#fef3e2']; }
+    elseif ($bookings >= 2 || $spend >= 4000) { $tier = ['Silver', '#374151', '#f3f4f6']; }
+    else { $tier = null; }
+    if ($tier): ?>
+      <span style="background:<?= $tier[2] ?>;color:<?= $tier[1] ?>;font-size:.62rem;font-weight:700;letter-spacing:.04em;padding:.1rem .45rem;margin-left:.35rem;border-radius:2px" title="Informational loyalty tier — based on booking count / total spend"><?= $tier[0] ?></span>
     <?php endif; ?>
   </td>
   <td style="font-size:.78rem">

@@ -44,9 +44,18 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
     } catch(Exception $e) {}
 
     $groups = [
+      'Dashboards' => [
+        ['index.php',            'Overview',         'dashboard', ''],
+        ['dashboard_sales.php',       'Sales &amp; Pipeline', 'analytics', ''],
+        ['dashboard_operations.php',  'Operations',       'calendar', ''],
+        ['dashboard_profitability.php','Profitability',  'currency', ''],
+        ['dashboard_customer_experience.php', 'Customer Experience', 'star', ''],
+        ['dashboard_agents.php',      'Agent Performance','guide', ''],
+        ['dashboard_fleet.php',       'Suppliers &amp; Fleet', 'suppliers', ''],
+      ],
       'Operations' => [
-        ['index.php',            'Dashboard',        'dashboard', ''],
-        ['analytics.php',        'Analytics',        'analytics', ''],
+        ['analytics.php',        'Web Analytics',    'analytics', ''],
+        ['operations_calendar.php', 'Ops Calendar',  'calendar', ''],
         ['bookings.php',         'Bookings',         'bookings', ''],
         ['invoices.php',         'Invoices',         'invoices', ''],
         ['customers.php',        'Customers',        'customers', ''],
@@ -55,6 +64,7 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
         ['leads.php',            'Leads',            'leads', ''],
         ['commissions.php',    'Commissions',      'commissions', ''],
         ['quotations.php',       'Quotations',       'quotations', ''],
+        ['reviews.php',          'Reviews',          'star', ''],
       ],
       'Comms' => [
         ['email_templates.php', 'Email Templates',   'email-template', ''],
@@ -69,12 +79,16 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
         ['package_edit.php',      'New Package',      'plus', ''],
         ['team_members.php',     'Team',             'team', ''],
         ['accommodations.php',   'Accommodations',   'accommodations', ''],
+        ['suppliers.php',        'Suppliers',        'suppliers', ''],
         ['activities.php',       'Activities',       'activities', ''],
         ['vehicles.php',         'Fleet',            'fleet', ''],
+        ['staff.php',            'Guides &amp; Drivers', 'guide', ''],
+        ['emergency_contacts.php', 'Emergency Contacts', 'alert', ''],
       ],
       'Settings' => [
         ['park_fees.php',        'Park Fees',        'park-fees', ''],
         ['seasonal_rates.php',   'Seasons',          'seasons', ''],
+        ['currency_rates.php',   'Currencies',       'currency', ''],
         ['users.php',             'Users',            'users', ''],
         ['activity_log.php',      'Activity Log',     'clock', ''],
       ],
@@ -88,8 +102,15 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
     // to the signed-in agent's own records (leads.php, quotations.php,
     // commissions.php, invoices.php).
     $myNavRole = $_SESSION['admin_role'] ?? 'agent';
+    // Profitability and Agent Performance carry margin/cross-agent data
+    // that admin/dashboard_profitability.php and admin/dashboard_agents.php
+    // already gate server-side (isAdminRole()) — hidden here too so the
+    // nav never shows a link a non-admin/superadmin can't actually open.
+    if ($myNavRole !== 'admin' && $myNavRole !== 'superadmin') {
+        $groups['Dashboards'] = array_values(array_filter($groups['Dashboards'], fn($l) => !in_array($l[0], ['dashboard_profitability.php', 'dashboard_agents.php'], true)));
+    }
     if ($myNavRole === 'agent') {
-        $groups = ['Operations' => $groups['Operations']];
+        $groups = ['Dashboards' => [$groups['Dashboards'][0]], 'Operations' => $groups['Operations']];
     } elseif ($myNavRole === 'staff') {
         unset($groups['Settings']);
     }

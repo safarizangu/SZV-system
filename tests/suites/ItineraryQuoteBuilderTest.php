@@ -85,3 +85,30 @@ test('totals(): a discount percentage reduces VAT and grand total accordingly', 
     assertSame(162.0, $totals['vat']);          // 900 * 0.18
     assertSame(1062.0, $totals['grand_total']); // 900 + 162
 });
+
+test('totals(): markup defaults to 0 — no behavior change unless explicitly requested', function () {
+    $lineItems = [['amount' => 1000, 'category' => 'other']];
+    $totals = ItineraryQuoteBuilder::totals($lineItems);
+    assertSame(0.0, $totals['markup']);
+    assertSame(1180.0, $totals['grand_total']);
+});
+
+test('totals(): a markup percentage increases the subtotal before VAT', function () {
+    $lineItems = [['amount' => 1000, 'category' => 'other']];
+    $totals = ItineraryQuoteBuilder::totals($lineItems, 0, 20); // 20% markup, no discount
+
+    assertSame(200.0, $totals['markup']);
+    assertSame(216.0, $totals['vat']);          // (1000+200) * 0.18
+    assertSame(1416.0, $totals['grand_total']); // 1200 + 216
+});
+
+test('totals(): markup applies before discount, not after', function () {
+    $lineItems = [['amount' => 1000, 'category' => 'other']];
+    $totals = ItineraryQuoteBuilder::totals($lineItems, 10, 20); // 20% markup, then 10% off
+
+    // 1000 -> +20% = 1200 -> -10% = 1080 -> +18% VAT = 1274.40
+    assertSame(200.0, $totals['markup']);
+    assertSame(120.0, $totals['discount']);
+    assertSame(194.4, $totals['vat']);
+    assertSame(1274.4, $totals['grand_total']);
+});

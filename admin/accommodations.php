@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     $lev  = $_POST['level'] ?? 'midrange';
     $loc  = trim($_POST['location'] ?? '');
     $park = trim($_POST['park_key'] ?? '');
+    $supp = (int)($_POST['supplier_id'] ?? 0) ?: null;
     $rr   = (float)($_POST['rate_per_room'] ?? 0);
     $rp   = (float)($_POST['rate_per_person'] ?? 0);
     $ss   = (float)($_POST['single_supplement'] ?? 0);
@@ -27,11 +28,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     $images  = $imgUrls ? json_encode($imgUrls) : null;
     try {
         if ($id > 0) {
-            $db->prepare("UPDATE accommodations SET name=?,level=?,location=?,park_key=?,rate_per_room=?,rate_per_person=?,single_supplement=?,child_rate=?,meal_plan=?,is_active=?,notes=?,images_json=? WHERE id=?")
-               ->execute([$name,$lev,$loc,$park,$rr,$rp,$ss,$cr,$mp,$act,$notes,$images,$id]);
+            $db->prepare("UPDATE accommodations SET name=?,level=?,location=?,park_key=?,supplier_id=?,rate_per_room=?,rate_per_person=?,single_supplement=?,child_rate=?,meal_plan=?,is_active=?,notes=?,images_json=? WHERE id=?")
+               ->execute([$name,$lev,$loc,$park,$supp,$rr,$rp,$ss,$cr,$mp,$act,$notes,$images,$id]);
         } else {
-            $db->prepare("INSERT INTO accommodations(name,level,location,park_key,rate_per_room,rate_per_person,single_supplement,child_rate,meal_plan,is_active,notes,images_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
-               ->execute([$name,$lev,$loc,$park,$rr,$rp,$ss,$cr,$mp,$act,$notes,$images]);
+            $db->prepare("INSERT INTO accommodations(name,level,location,park_key,supplier_id,rate_per_room,rate_per_person,single_supplement,child_rate,meal_plan,is_active,notes,images_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)")
+               ->execute([$name,$lev,$loc,$park,$supp,$rr,$rp,$ss,$cr,$mp,$act,$notes,$images]);
         }
         $msg = 'Saved.';
     } catch(Exception $e){ $msg = 'Error: '.$e->getMessage(); }
@@ -108,6 +109,18 @@ $galleryImgs = $edit ? (json_decode($edit['images_json'] ?? '[]', true) ?: []) :
             <input name="location" class="admin-input" value="<?= htmlspecialchars($edit['location']??'') ?>"></div>
           <div><label class="admin-label">Park Key</label>
             <input name="park_key" class="admin-input" value="<?= htmlspecialchars($edit['park_key']??'') ?>"></div>
+          <div><label class="admin-label">Supplier</label>
+            <select name="supplier_id" class="admin-input">
+              <option value="0">— None linked —</option>
+              <?php
+              try { $__suppliers = $db->query("SELECT id, name FROM suppliers WHERE is_active=1 ORDER BY name")->fetchAll(); }
+              catch (\Exception $e) { $__suppliers = []; }
+              foreach ($__suppliers as $__sup): ?>
+              <option value="<?= $__sup['id'] ?>" <?= (int)($edit['supplier_id']??0)===(int)$__sup['id']?'selected':'' ?>><?= htmlspecialchars($__sup['name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <p style="font-size:.65rem;color:var(--gray-500);margin-top:.25rem">Manage suppliers on the <a href="suppliers.php" target="_blank">Suppliers</a> page.</p>
+          </div>
           <div><label class="admin-label">Rate/Room (USD)</label>
             <input name="rate_per_room" data-av="min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['rate_per_room']??0 ?>"></div>
           <div><label class="admin-label">Rate/Person (USD)</label>

@@ -16,16 +16,16 @@ $msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     \App\Middleware\CsrfMiddleware::validateOrDie();
     $id  = (int)($_POST['id'] ?? 0);
-    $fields = ['park_key','name','country','adult_fee','child_fee','resident_adult','resident_child','fee_unit','notes'];
+    $fields = ['park_key','name','country','adult_fee','child_fee','vehicle_fee','resident_adult','resident_child','fee_unit','notes'];
     $vals = [];
     foreach($fields as $f) $vals[] = trim($_POST[$f] ?? '');
     $vals[] = isset($_POST['is_active']) ? 1 : 0;
     try {
         if ($id > 0) {
-            $db->prepare("UPDATE park_fees SET park_key=?,name=?,country=?,adult_fee=?,child_fee=?,resident_adult=?,resident_child=?,fee_unit=?,notes=?,is_active=? WHERE id=?")
+            $db->prepare("UPDATE park_fees SET park_key=?,name=?,country=?,adult_fee=?,child_fee=?,vehicle_fee=?,resident_adult=?,resident_child=?,fee_unit=?,notes=?,is_active=? WHERE id=?")
                ->execute(array_merge($vals,[$id]));
         } else {
-            $db->prepare("INSERT INTO park_fees(park_key,name,country,adult_fee,child_fee,resident_adult,resident_child,fee_unit,notes,is_active) VALUES(?,?,?,?,?,?,?,?,?,?)")
+            $db->prepare("INSERT INTO park_fees(park_key,name,country,adult_fee,child_fee,vehicle_fee,resident_adult,resident_child,fee_unit,notes,is_active) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
                ->execute($vals);
         }
         $msg = 'Saved.';
@@ -46,7 +46,7 @@ catch(Exception $e){}
   </div>
 <div class="admin-table-wrap">
 <table class="admin-table">
-<thead><tr><th>Key</th><th>Park</th><th>Country</th><th>Non-Res Adult</th><th>Non-Res Child</th><th>Res Adult</th><th>Active</th><th>Edit</th></tr></thead>
+<thead><tr><th>Key</th><th>Park</th><th>Country</th><th>Non-Res Adult</th><th>Non-Res Child</th><th>Vehicle</th><th>Res Adult</th><th>Active</th><th>Edit</th></tr></thead>
 <tbody>
 <?php foreach ($rows as $r): ?>
 <tr>
@@ -55,6 +55,7 @@ catch(Exception $e){}
   <td><?= htmlspecialchars($r['country']) ?></td>
   <td>$<?= number_format($r['adult_fee'],0) ?></td>
   <td>$<?= number_format($r['child_fee'],0) ?></td>
+  <td>$<?= number_format($r['vehicle_fee'],0) ?></td>
   <td>$<?= number_format($r['resident_adult'],0) ?></td>
   <td><?= $r['is_active'] ? '<span class="badge-status badge-status--green">Active</span>' : '<span class="badge-status badge-status--gray">Inactive</span>' ?></td>
   <td><a href="?edit=<?= $r['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Edit</a></td>
@@ -86,6 +87,8 @@ catch(Exception $e){}
             <input name="adult_fee" data-av="required min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['adult_fee']??0 ?>"></div>
           <div><label class="admin-label">Non-Resident Child (USD)</label>
             <input name="child_fee" data-av="min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['child_fee']??0 ?>"></div>
+          <div><label class="admin-label">Vehicle Entry Fee (USD)</label>
+            <input name="vehicle_fee" data-av="min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['vehicle_fee']??0 ?>"></div>
           <div><label class="admin-label">Resident Adult (USD)</label>
             <input name="resident_adult" type="number" step="0.01" class="admin-input" value="<?= $edit['resident_adult']??0 ?>"></div>
           <div><label class="admin-label">Resident Child (USD)</label>
