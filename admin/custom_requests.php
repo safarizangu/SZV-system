@@ -16,8 +16,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $allowed = ['new','in_review','quoted','converted','closed'];
         if ($id && in_array($status, $allowed, true)) {
             try {
-                $db->prepare("UPDATE custom_safari_requests SET status=? WHERE id=?")
-                   ->execute([$status, $id]);
+                // first_response_at is set once, the first time a request
+                // moves off "new" — the proxy we have for "staff actually
+                // acted on this," used to measure the under-1-hour promise.
+                if ($status !== 'new') {
+                    $db->prepare("UPDATE custom_safari_requests SET status=?, first_response_at=COALESCE(first_response_at, NOW()) WHERE id=?")
+                       ->execute([$status, $id]);
+                } else {
+                    $db->prepare("UPDATE custom_safari_requests SET status=? WHERE id=?")
+                       ->execute([$status, $id]);
+                }
                 echo json_encode(['success' => true]);
             } catch (\Exception $e) {
                 echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -68,10 +76,12 @@ try {
     error_log('[SZV CustomReqs] ' . $e->getMessage());
 }
 
-// Auto-mark new → in_review when listing all
+// Auto-mark new → in_review when listing all — in practice this is the
+// dominant way a request stops being "new" (an admin just opens the
+// list), so it's also where first_response_at is set for most requests.
 if (!$search && !$statusFilter) {
     try {
-        $db->exec("UPDATE custom_safari_requests SET status='in_review' WHERE status='new'");
+        $db->exec("UPDATE custom_safari_requests SET status='in_review', first_response_at=COALESCE(first_response_at, NOW()) WHERE status='new'");
     } catch (\Exception $e) {}
 }
 

@@ -1,9 +1,16 @@
 <?php
 /**
- * Email Queue Processor
+ * Email Queue Processor — the retry/fallback path.
  * Run via cron every 2 minutes:
  * crontab -e
  * Cron schedule: every 2 minutes
+ *
+ * Most emails no longer wait for this: App\Mail\Mailer::queue() makes an
+ * immediate send attempt in the same request that creates them. This
+ * script exists to catch whatever that attempt didn't manage — a slow
+ * SMTP handshake, a transient network blip, or a request that errored
+ * out before the immediate attempt ran — using the exact same send logic
+ * (Mailer::sendRow()) so success/failure is handled identically either way.
  */
 require_once __DIR__ . '/../../app/bootstrap.php';
 
@@ -15,27 +22,10 @@ if (!$isCli && !$hasKey) {
     http_response_code(403); exit('Forbidden');
 }
 
-// PHPMailer — try vendor/autoload first (Hostinger), then local path
-$_vendorPath = __DIR__ . '/../../vendor/autoload.php';
-$_localPath  = __DIR__ . '/../../php/PHPMailer/src/';
-if (file_exists($_vendorPath)) {
-    require_once $_vendorPath;
-} elseif (file_exists($_localPath . 'PHPMailer.php')) {
-    require_once $_localPath . 'Exception.php';
-    require_once $_localPath . 'PHPMailer.php';
-    require_once $_localPath . 'SMTP.php';
-} else {
-    error_log('[Email Queue] PHPMailer not found');
-    exit(1);
-}
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception as MailerException;
+use App\Mail\Mailer;
 
 $db     = \App\Models\Database::getInstance();
 $maxPer = 20; // max emails per run
-$sent   = 0;
-$failed = 0;
 
 // Get pending emails (max 3 attempts)
 try {
@@ -49,72 +39,22 @@ try {
     exit(1);
 }
 
+$sent = 0;
+$failed = 0;
+
 foreach ($rows as $row) {
-    // Mark as in-progress
     try {
         $db->prepare("UPDATE email_queue SET attempts=attempts+1 WHERE id=?")
            ->execute([$row['id']]);
     } catch (\Exception $e) { continue; }
+    $row['attempts'] = (int)$row['attempts'] + 1;
 
-    // Send
-    $mail = new PHPMailer(true);
-    try {
-        $mail->isSMTP();
-        $mail->Host       = SMTP_HOST;
-        $mail->SMTPAuth   = true;
-        $mail->Username   = SMTP_USERNAME;
-        $mail->Password   = SMTP_PASSWORD;
-        $mail->SMTPSecure = SMTP_SECURE === 'ssl'
-            ? PHPMailer::ENCRYPTION_SMTPS : PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = SMTP_PORT;
-        $mail->CharSet    = 'UTF-8';
-        $mail->setFrom(MAIL_FROM_EMAIL, MAIL_FROM_NAME);
-        if ($row['to_name']) {
-            $mail->addAddress($row['to_email'], $row['to_name']);
-        } else {
-            $mail->addAddress($row['to_email']);
-        }
-        $mail->addCC(ADMIN_EMAIL, 'Safari Zangu Admin');
-        $mail->Subject = $row['subject'];
-
-        if (!empty($row['is_plain_text'])) {
-            $mail->isHTML(false);
-            $mail->Body = $row['body'];
-        } else {
-            $mail->isHTML(true);
-            $mail->Body    = $row['body'];
-            $mail->AltBody = strip_tags($row['body']);
-        }
-
-        // Attach any files queued alongside this email (e.g. a quotation PDF).
-        // A missing file logs a warning but never blocks the send — the
-        // client still gets the email itself.
-        if (!empty($row['attachments'])) {
-            $files = json_decode($row['attachments'], true) ?: [];
-            foreach ($files as $file) {
-                if (!empty($file['path']) && is_file($file['path'])) {
-                    $mail->addAttachment($file['path'], $file['name'] ?? basename($file['path']));
-                } else {
-                    error_log('[Email Queue] Missing attachment for email_queue id ' . $row['id'] . ': ' . ($file['path'] ?? '?'));
-                }
-            }
-        }
-
-        $mail->send();
-
-        $db->prepare("UPDATE email_queue SET status='sent', sent_at=NOW() WHERE id=?")
-           ->execute([$row['id']]);
+    if (Mailer::sendRow($row, 20)) {
         $sent++;
         echo '[' . date('Y-m-d H:i:s') . '] SENT: ' . $row['to_email'] . ' — ' . $row['subject'] . "\n";
-
-    } catch (MailerException $e) {
-        $err = $e->getMessage();
-        $db->prepare("UPDATE email_queue SET status='failed', last_error=? WHERE id=? AND attempts >= 3")
-           ->execute([$err, $row['id']]);
-        $db->prepare("UPDATE email_queue SET last_error=? WHERE id=? AND attempts < 3")
-           ->execute([$err, $row['id']]);
+    } else {
         $failed++;
-        echo '[' . date('Y-m-d H:i:s') . '] FAILED: ' . $row['to_email'] . ' — ' . $err . "\n";
+        echo '[' . date('Y-m-d H:i:s') . '] FAILED: ' . $row['to_email'] . "\n";
     }
 }
 

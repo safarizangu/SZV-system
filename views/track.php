@@ -132,6 +132,7 @@ document.addEventListener('DOMContentLoaded', function () {
                   '<div id="paypal-button-container"></div>' +
                 '</div>'
               : '') +
+            '<a href="' + 'api/track_booking_pdf.php?ref=' + encodeURIComponent(d.booking_ref) + '&date=' + encodeURIComponent(fd.get('date')) + '" target="_blank" rel="noopener" class="btn-sz-outline w-100 justify-content-center" style="font-size:.68rem;padding:.75rem;margin-bottom:.75rem">&#8681; Download PDF Confirmation</a>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">' +
               '<a href="https://wa.me/' + window.WHATSAPP_NUMBER + '?text=' + encodeURIComponent('Hi Safari Zangu, I am following up on booking ' + d.booking_ref + '.') + '" target="_blank" class="btn-sz-dark" style="font-size:.68rem;padding:.75rem;text-align:center;justify-content:center">WhatsApp Us</a>' +
               '<a href="contact.php" class="btn-sz-outline" style="font-size:.68rem;padding:.75rem;text-align:center;justify-content:center">Send Email</a>' +

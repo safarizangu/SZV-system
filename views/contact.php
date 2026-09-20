@@ -25,6 +25,10 @@ $_csrf = generateCsrfToken();
         <h3 class="font-display mb-4" style="font-size:1.3rem">Send a Message</h3>
         <form id="contact-form" data-action="api/contact.php" data-validate-form novalidate>
           <input type="hidden" name="_csrf" value="<?= htmlspecialchars($_csrf) ?>">
+          <div class="hp-field" aria-hidden="true">
+            <label for="ct-website">Website</label>
+            <input type="text" id="ct-website" name="website" tabindex="-1" autocomplete="off">
+          </div>
 
           <div class="form-row">
             <div class="form-group">

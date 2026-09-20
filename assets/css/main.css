@@ -374,6 +374,15 @@ body.nav-open { overflow: hidden; }
   text-transform: uppercase;
   margin-bottom: 2.5rem;
 }
+.hero-hook {
+  font-size: clamp(0.95rem, 1.8vw, 1.15rem);
+  font-weight: 400;
+  color: rgba(255,255,255,.88);
+  line-height: 1.6;
+  max-width: 480px;
+  margin-bottom: 2.25rem;
+  text-shadow: 0 1px 20px rgba(0,0,0,0.25);
+}
 .hero-actions { display: flex; flex-wrap: wrap; gap: 0.85rem; align-items: center; }
 .hero-scroll {
   position: absolute;
@@ -545,6 +554,48 @@ body.nav-open { overflow: hidden; }
   margin-bottom: 0.5rem;
   line-height: 1;
 }
+/* Honeypot — off-screen, not display:none (some bots specifically skip
+   display:none/visibility:hidden fields but still fill this). Real
+   visitors and screen readers never encounter it. */
+.hp-field {
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+}
+
+/* Country-suggestions autocomplete (item 29) */
+.autocomplete-wrap { position: relative; }
+.autocomplete-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background: var(--white);
+  border: 1.5px solid var(--black);
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+}
+.autocomplete-item {
+  padding: .6rem .85rem;
+  font-size: .85rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--gray-2, #e5e5e5);
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:hover,
+.autocomplete-item.active { background: #f7f7f5; }
+.autocomplete-item mark {
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  padding: 0;
+}
+
 .form-control-sz {
   width: 100%;
   background: var(--white);
@@ -1175,6 +1226,7 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
   .hero           { min-height: 580px; }
   .hero-title     { font-size: clamp(2.2rem, 8vw, 3rem); }
   .hero-sub       { font-size: 0.66rem; letter-spacing: 0.2em; }
+  .hero-hook      { font-size: 0.9rem; margin-bottom: 1.75rem; max-width: 100%; }
   .hero-actions   { flex-direction: column; align-items: flex-start; }
   .hero-actions .btn-sz-primary,
   .hero-actions .btn-sz-ghost { width: 100%; max-width: 320px; }

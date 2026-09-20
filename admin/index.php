@@ -199,6 +199,52 @@ $failedEmails   = (int)sv($db,"SELECT COUNT(*) FROM email_queue WHERE status='fa
 $pendingRem     = (int)sv($db,"SELECT COUNT(*) FROM booking_reminders WHERE status='pending'");
 $dueRem         = (int)sv($db,"SELECT COUNT(*) FROM booking_reminders WHERE status='pending' AND send_at<=DATE_ADD(NOW(),INTERVAL 24 HOUR)");
 
+// Item 30 — "only keep the under-1-hour promise if you can hit it."
+// WhatsApp replies happen outside this codebase, so the closest honest
+// proxy is: time from a guest inquiry landing here to the first time
+// staff acted on it in the admin panel (contact_messages.first_response_at
+// / custom_safari_requests.first_response_at, set in contact_messages.php
+// and custom_requests.php). Last 30 days, both inquiry sources combined.
+$avgResponseMin = sv($db, "
+    SELECT AVG(TIMESTAMPDIFF(MINUTE, created_at, first_response_at)) FROM (
+        SELECT created_at, first_response_at FROM contact_messages
+            WHERE first_response_at IS NOT NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        UNION ALL
+        SELECT created_at, first_response_at FROM custom_safari_requests
+            WHERE first_response_at IS NOT NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    ) t
+");
+$avgResponseMin = $avgResponseMin !== null ? (float)$avgResponseMin : null;
+
+$respondedCount30d = (int)sv($db, "
+    SELECT COUNT(*) FROM (
+        SELECT id FROM contact_messages WHERE first_response_at IS NOT NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        UNION ALL
+        SELECT id FROM custom_safari_requests WHERE first_response_at IS NOT NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    ) t
+");
+$withinHourCount30d = (int)sv($db, "
+    SELECT COUNT(*) FROM (
+        SELECT created_at, first_response_at FROM contact_messages
+            WHERE first_response_at IS NOT NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        UNION ALL
+        SELECT created_at, first_response_at FROM custom_safari_requests
+            WHERE first_response_at IS NOT NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    ) t WHERE TIMESTAMPDIFF(MINUTE, created_at, first_response_at) <= 60
+");
+$withinHourPct = $respondedCount30d > 0 ? round(($withinHourCount30d / $respondedCount30d) * 100) : null;
+
+// Still unanswered right now (no first_response_at yet) and already past
+// the 1-hour mark — the number that matters most for "are we keeping the
+// promise today," not just historically.
+$overdueUnanswered = (int)sv($db, "
+    SELECT COUNT(*) FROM (
+        SELECT created_at FROM contact_messages WHERE first_response_at IS NULL
+        UNION ALL
+        SELECT created_at FROM custom_safari_requests WHERE first_response_at IS NULL
+    ) t WHERE created_at <= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+");
+
 $recentBookings = sa($db,"SELECT * FROM bookings ORDER BY created_at DESC LIMIT 8");
 $recentQuotes   = sa($db,"SELECT * FROM quotations ORDER BY created_at DESC LIMIT 5");
 $newLeadRows    = sa($db,"SELECT * FROM custom_safari_requests WHERE status='new' ORDER BY created_at DESC LIMIT 5");
@@ -288,6 +334,27 @@ ob_start();
     <span class="admin-stat-label">Due 24h</span>
     <span class="admin-stat-value"><?= $dueRem ?></span>
     <span class="admin-stat-sub">Firing soon</span>
+  </div></a>
+</div>
+
+<!-- RESPONSE TIME — item 30: is the "WhatsApp under 1 hour" promise
+     actually being kept? Contact + Custom Safari inquiries, last 30 days. -->
+<div class="admin-stats-grid" style="margin-bottom:1.5rem">
+  <div class="admin-stat-card">
+    <span class="admin-stat-label">Avg. Response Time</span>
+    <span class="admin-stat-value"><?= $avgResponseMin === null ? '—' : ($avgResponseMin < 60 ? round($avgResponseMin) . 'm' : round($avgResponseMin / 60, 1) . 'h') ?></span>
+    <span class="admin-stat-sub">Last 30 days</span>
+  </div>
+  <div class="admin-stat-card <?= ($withinHourPct !== null && $withinHourPct < 80) ? 'admin-stat-card--amber' : '' ?>">
+    <span class="admin-stat-label">Within 1 Hour</span>
+    <span class="admin-stat-value"><?= $withinHourPct === null ? '—' : $withinHourPct . '%' ?></span>
+    <span class="admin-stat-sub"><?= $respondedCount30d ?> responded</span>
+  </div>
+  <a href="contact_messages.php" style="text-decoration:none">
+  <div class="admin-stat-card <?= $overdueUnanswered>0?'admin-stat-card--red':'' ?>">
+    <span class="admin-stat-label">Overdue Now</span>
+    <span class="admin-stat-value"><?= $overdueUnanswered ?></span>
+    <span class="admin-stat-sub">Unanswered 1h+</span>
   </div></a>
 </div>
 

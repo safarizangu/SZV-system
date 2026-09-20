@@ -139,6 +139,11 @@ if (!function_exists('formatCurrency')) {
         return \App\Helpers\Formatter::currency($amount, $currency);
     }
 }
+if (!function_exists('gbpApprox')) {
+    function gbpApprox(float $usdAmount): string {
+        return \App\Helpers\Formatter::gbpApprox($usdAmount);
+    }
+}
 if (!function_exists('generateBookingRef')) {
     function generateBookingRef(): string {
         return \App\Helpers\Formatter::generateRef();

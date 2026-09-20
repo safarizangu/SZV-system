@@ -11,6 +11,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
 
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\RateLimiter;
+use App\Middleware\Honeypot;
 use App\Validators\BookingValidator;
 use App\Helpers\Formatter;
 use App\Mail\Mailer;
@@ -45,6 +46,13 @@ if (($_POST['payment_method'] ?? '') !== 'paypal_callback') {
     } catch (Exception $e) {
         respond(['success' => false, 'message' => 'Security token expired. Please refresh the page and try again.']);
     }
+}
+
+// Honeypot — silently pretend success (no redirect field, so the
+// frontend just shows the message) rather than tip off a spam script.
+// Nothing is saved or emailed.
+if (Honeypot::caught()) {
+    respond(['success' => true, 'message' => 'Thanks! We’ll be in touch shortly to confirm your dates.']);
 }
 
 // ── Collect & sanitize ────────────────────────────────────
@@ -83,6 +91,15 @@ $package = (new \App\Models\Package())->findById($data['package_id']);
 if (!$package) {
     respond(['success' => false, 'message' => 'Selected package not found.']);
 }
+
+// Trip extension — only trust a code that's actually one of THIS
+// package's offered options (matches views/book.php's own dropdown,
+// built from the same TripExtensions source). A stray/tampered value
+// is dropped rather than saved as free text.
+$extCode = Formatter::sanitize($_POST['trip_extension'] ?? '');
+$data['trip_extension'] = $extCode !== ''
+    ? \App\Helpers\TripExtensions::labelFor($package['slug'] ?? '', $extCode)
+    : null;
 
 // ── Calculate price ───────────────────────────────────────
 // Packages linked to a real itinerary get a proper itemised quotation,
@@ -141,13 +158,13 @@ try {
         INSERT INTO bookings
             (booking_ref, customer_id, full_name, email, phone, travelers, adults, children,
              package_id, package_name, accommodation_level,
-             travel_date, special_request,
+             travel_date, special_request, trip_extension,
              total_amount, deposit_amount,
              payment_status, payment_method, created_at)
         VALUES
             (:ref, :customer_id, :name, :email, :phone, :travelers, :adults, :children,
              :pkg_id, :pkg_name, :acc_level,
-             :travel_date, :special_request,
+             :travel_date, :special_request, :trip_extension,
              :total, :deposit,
              'pending', :method, NOW())
     ");
@@ -165,6 +182,7 @@ try {
         'acc_level'      => $data['accommodation_level'],
         'travel_date'    => $data['travel_date'],
         'special_request'=> $data['special_request'],
+        'trip_extension' => $data['trip_extension'],
         'total'          => $data['total_amount'],
         'deposit'        => $data['deposit_amount'],
         'method'         => $data['payment_method'],

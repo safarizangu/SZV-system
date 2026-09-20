@@ -66,6 +66,10 @@ try {
           <input type="hidden" name="_csrf" value="<?= generateCsrfToken() ?>">
           <input type="hidden" name="travelers" id="travelers-hidden" value="">
           <input type="hidden" name="package_name" id="package-name-hidden">
+          <div class="hp-field" aria-hidden="true">
+            <label for="bk-website">Website</label>
+            <input type="text" id="bk-website" name="website" tabindex="-1" autocomplete="off">
+          </div>
 
           <!-- Step 1: Your Details -->
           <div class="sz-form-section">
@@ -143,6 +147,7 @@ try {
                 <option value="<?= $pkg['id'] ?>"
                   data-name="<?= htmlspecialchars($pkg['name']) ?>"
                   data-days="<?= (int)$pkg['duration_days'] ?>"
+                  data-slug="<?= htmlspecialchars($pkg['slug']) ?>"
                   data-acc="<?= htmlspecialchars(strtolower($pkg['accommodation_level'] ?? 'midrange')) ?>"
                   data-acc-label="<?= htmlspecialchars($pkg['accommodation_level'] ?? 'Mid-Range') ?>"
                   <?= (!empty($quoteData['package_name']) && $pkg['name']===$quoteData['package_name']) ? 'selected' : '' ?>>
@@ -209,6 +214,19 @@ try {
                   Select a package above to see accommodation.
                 </p>
               </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="trip-extension">
+                Extend Your Trip?
+                <span class="sz-hint">Optional</span>
+              </label>
+              <select id="trip-extension" name="trip_extension" class="form-control-sz" style="display:none">
+                <option value="">No extension — book as shown</option>
+              </select>
+              <p id="trip-extension-placeholder" style="font-size:.8rem;color:#9ca3af;font-style:italic;padding:.5rem 0">
+                Select a package above to see extension options.
+              </p>
             </div>
 
             <div class="form-group">
@@ -279,3 +297,72 @@ try {
     </div>
   </div>
 </section>
+
+<script>
+(function () {
+  var TRIP_EXTENSIONS = <?= \App\Helpers\TripExtensions::allOptionsJson() ?>;
+
+  var pkgSelect  = document.getElementById('package-select');
+  var extSelect  = document.getElementById('trip-extension');
+  var extPlaceholder = document.getElementById('trip-extension-placeholder');
+  var accDisplay = document.getElementById('acc-display');
+  var accLabel   = document.getElementById('acc-label');
+  var accPlaceholder = document.getElementById('acc-placeholder');
+  if (!pkgSelect) return;
+
+  pkgSelect.addEventListener('change', function () {
+    var opt = pkgSelect.options[pkgSelect.selectedIndex];
+    var slug = opt ? opt.getAttribute('data-slug') : '';
+
+    // Accommodation summary — reflects the package's included tier, and
+    // actually checks the matching hidden radio (previously hardcoded to
+    // "midrange" and never updated, so every booking silently saved
+    // midrange regardless of the package actually chosen).
+    if (accDisplay && accLabel && accPlaceholder) {
+      var accLbl = opt ? opt.getAttribute('data-acc-label') : '';
+      var accKey = opt ? opt.getAttribute('data-acc') : '';
+      if (slug && accLbl) {
+        accLabel.textContent = accLbl;
+        accDisplay.style.display = 'block';
+        accPlaceholder.style.display = 'none';
+        var accRadio = accKey ? document.getElementById('acc-' + accKey) : null;
+        if (accRadio) accRadio.checked = true;
+      } else {
+        accDisplay.style.display = 'none';
+        accPlaceholder.style.display = 'block';
+      }
+    }
+
+    // Trip-extension options — package-specific, so Zanzibar is never
+    // offered as an "extension" on the one package that already includes it.
+    if (extSelect && extPlaceholder) {
+      while (extSelect.options.length > 1) extSelect.remove(1);
+      var opts = slug ? (TRIP_EXTENSIONS[slug] || {}) : {};
+      var hasOpts = false;
+      for (var code in opts) {
+        if (!opts.hasOwnProperty(code)) continue;
+        hasOpts = true;
+        var o = document.createElement('option');
+        o.value = code;
+        o.textContent = opts[code];
+        extSelect.appendChild(o);
+      }
+      if (hasOpts) {
+        extSelect.style.display = 'block';
+        extPlaceholder.style.display = 'none';
+      } else {
+        extSelect.value = '';
+        extSelect.style.display = 'none';
+        extPlaceholder.style.display = 'block';
+      }
+    }
+  });
+
+  // Pre-selected package (e.g. arrived via packages.php?package_id=X or a
+  // saved quotation) — fire once on load so the form isn't left showing
+  // placeholders for a package that's already chosen.
+  if (pkgSelect.value) {
+    pkgSelect.dispatchEvent(new Event('change'));
+  }
+})();
+</script>

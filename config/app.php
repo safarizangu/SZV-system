@@ -140,6 +140,13 @@ if (!defined('VAT_RATE'))            define('VAT_RATE',            0.18);
 if (!defined('SERVICE_CHARGE_RATE')) define('SERVICE_CHARGE_RATE', 0.05);
 if (!defined('CONSERVATION_FEE'))    define('CONSERVATION_FEE',    20);
 
+// Display-only USD→GBP rate for showing "~£X" next to package/homepage
+// prices, for UK visitors who convert in their heads. All actual charging,
+// invoicing and quotation math stays in USD — this never touches payment
+// amounts. Rounded rather than fetched live, and needs a manual update
+// occasionally (checked against openexchangerates 20 Sep 2026: ~0.748).
+if (!defined('GBP_RATE')) define('GBP_RATE', 0.75);
+
 // ── Park fees ─────────────────────────────────────────────────
 if (!defined('PARK_FEES')) define('PARK_FEES', [
     'serengeti'    => ['adult'=>70,  'child'=>20, 'name'=>'Serengeti National Park'],

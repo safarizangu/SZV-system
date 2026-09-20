@@ -8,6 +8,13 @@ class Formatter
         return $currency . ' ' . number_format($amount, 0, '.', ',');
     }
 
+    /** "~£X" — an approximate GBP figure for display next to a USD price. */
+    public static function gbpApprox(float $usdAmount): string
+    {
+        $rate = defined('GBP_RATE') ? GBP_RATE : 0.75;
+        return '~£' . number_format($usdAmount * $rate, 0, '.', ',');
+    }
+
     public static function date(string $date, string $format = 'd F Y'): string
     {
         $ts = strtotime($date);

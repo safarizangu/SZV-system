@@ -20,13 +20,13 @@ class Booking
             INSERT INTO bookings
                 (booking_ref, full_name, email, phone, travelers,
                  package_id, package_name, accommodation_level,
-                 travel_date, special_request,
+                 travel_date, special_request, trip_extension,
                  total_amount, deposit_amount,
                  payment_status, payment_method, created_at)
             VALUES
                 (:ref, :name, :email, :phone, :travelers,
                  :pkg_id, :pkg_name, :acc_level,
-                 :travel_date, :special_request,
+                 :travel_date, :special_request, :trip_extension,
                  :total, :deposit,
                  'pending', :method, NOW())
         ");
@@ -41,6 +41,7 @@ class Booking
             'acc_level'      => $data['accommodation_level'] ?? 'midrange',
             'travel_date'    => $data['travel_date'],
             'special_request'=> $data['special_request'] ?? '',
+            'trip_extension' => $data['trip_extension'] ?? null,
             'total'          => $data['total_amount'],
             'deposit'        => $data['deposit_amount'],
             'method'         => $data['payment_method'] ?? null,

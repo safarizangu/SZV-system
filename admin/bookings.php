@@ -306,7 +306,8 @@ async function viewBooking(ref) {
     ['Payment Status', '<span class="badge-status badge-status--'+(meta.badge||'gray')+'">'+(meta.label||b.payment_status)+'</span>'],
     ['Booked On',      bookedDate],
   ];
-  if (b.special_requests) rows.push(['Special Requests', b.special_requests]);
+  if (b.special_request)  rows.push(['Special Requests', b.special_request]);
+  if (b.trip_extension)   rows.push(['Trip Extension', b.trip_extension]);
   if (b.admin_notes)      rows.push(['Admin Notes', b.admin_notes]);
 
   var html = rows.map(function(r){

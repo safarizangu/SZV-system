@@ -432,3 +432,105 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 }());
+
+/* ── Country autocomplete (type-ahead suggestions) ───────────
+   A free-text field with live suggestions rather than a long native
+   <select> a UK/US/AU/etc. visitor has to scroll through. Reuses the
+   COUNTRY_DIAL_CODES list already loaded for the phone code picker —
+   one country dataset for the whole site, not a second copy. */
+(function () {
+  'use strict';
+
+  function initCountryAutocomplete(inputId, listId) {
+    var input = document.getElementById(inputId);
+    var list  = document.getElementById(listId);
+    if (!input || !list || typeof COUNTRY_DIAL_CODES === 'undefined') return;
+
+    var names = COUNTRY_DIAL_CODES.map(function (c) { return c.name; });
+    var activeIndex = -1;
+    var currentMatches = [];
+
+    function close() {
+      list.hidden = true;
+      list.innerHTML = '';
+      input.setAttribute('aria-expanded', 'false');
+      activeIndex = -1;
+      currentMatches = [];
+    }
+
+    function highlight(name, query) {
+      var i = name.toLowerCase().indexOf(query.toLowerCase());
+      if (i === -1) return name;
+      return name.slice(0, i) + '<mark>' + name.slice(i, i + query.length) + '</mark>' + name.slice(i + query.length);
+    }
+
+    function render(matches, query) {
+      currentMatches = matches;
+      activeIndex = -1;
+      if (!matches.length) { close(); return; }
+      list.innerHTML = matches.map(function (name, i) {
+        return '<div class="autocomplete-item" role="option" id="' + inputId + '-opt-' + i + '" data-value="' + name.replace(/"/g, '&quot;') + '">' + highlight(name, query) + '</div>';
+      }).join('');
+      list.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+    }
+
+    function updateActive() {
+      var items = list.querySelectorAll('.autocomplete-item');
+      items.forEach(function (el, i) { el.classList.toggle('active', i === activeIndex); });
+      if (activeIndex >= 0 && items[activeIndex]) {
+        items[activeIndex].scrollIntoView({ block: 'nearest' });
+        input.setAttribute('aria-activedescendant', items[activeIndex].id);
+      } else {
+        input.removeAttribute('aria-activedescendant');
+      }
+    }
+
+    input.addEventListener('input', function () {
+      var q = input.value.trim();
+      if (!q) { close(); return; }
+      var starts = names.filter(function (n) { return n.toLowerCase().indexOf(q.toLowerCase()) === 0; });
+      var contains = names.filter(function (n) {
+        return n.toLowerCase().indexOf(q.toLowerCase()) > 0;
+      });
+      render(starts.concat(contains).slice(0, 8), q);
+    });
+
+    input.addEventListener('keydown', function (e) {
+      if (list.hidden) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIndex = Math.min(activeIndex + 1, currentMatches.length - 1);
+        updateActive();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, 0);
+        updateActive();
+      } else if (e.key === 'Enter') {
+        if (activeIndex >= 0) {
+          e.preventDefault();
+          input.value = currentMatches[activeIndex];
+          close();
+        }
+      } else if (e.key === 'Escape') {
+        close();
+      }
+    });
+
+    list.addEventListener('mousedown', function (e) {
+      var item = e.target.closest('.autocomplete-item');
+      if (!item) return;
+      e.preventDefault(); // keep focus in the input, fires before blur
+      input.value = item.getAttribute('data-value');
+      close();
+    });
+
+    input.addEventListener('blur', function () {
+      setTimeout(close, 120); // let a pending mousedown selection land first
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    initCountryAutocomplete('cs-country', 'cs-country-suggestions');
+  });
+}());

@@ -18,6 +18,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
 use App\Models\CustomSafariRequest;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\RateLimiter;
+use App\Middleware\Honeypot;
 use App\Helpers\Formatter;
 use App\Mail\Mailer;
 
@@ -32,6 +33,12 @@ try {
 }
 
 CsrfMiddleware::validateOrDie();
+
+// Honeypot — silently pretend success so a spam script has no signal to
+// adapt against. Nothing is saved or emailed.
+if (Honeypot::caught()) {
+    cs_respond(['success' => true, 'message' => "Thank you! We've received your request and will send a personalised proposal within 24 hours."]);
+}
 
 // Collect & sanitize destinations (array of strings)
 $rawDests = $_POST['destinations'] ?? [];

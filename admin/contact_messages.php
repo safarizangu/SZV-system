@@ -9,11 +9,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     \App\Middleware\CsrfMiddleware::validateOrDie();
     $action = $_POST['action'] ?? '';
     if ($action === 'mark_read') {
-        try { $db->prepare("UPDATE contact_messages SET is_read=1 WHERE id=?")->execute([(int)$_POST['id']]); }
+        // first_response_at is set once, on the first mark-as-read — the
+        // closest proxy we have for "staff actually looked at this," used
+        // to measure whether the under-1-hour promise is being kept.
+        try { $db->prepare("UPDATE contact_messages SET is_read=1, first_response_at=COALESCE(first_response_at, NOW()) WHERE id=?")->execute([(int)$_POST['id']]); }
         catch(Exception $e){}
         header('Location: contact_messages.php'); exit;
     }
     if ($action === 'mark_unread') {
+        // Only the read flag toggles back — first_response_at is a
+        // permanent record of when it was first touched, not undone here.
         try { $db->prepare("UPDATE contact_messages SET is_read=0 WHERE id=?")->execute([(int)$_POST['id']]); }
         catch(Exception $e){}
         header('Location: contact_messages.php'); exit;
@@ -24,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: contact_messages.php'); exit;
     }
     if ($action === 'mark_all_read') {
-        try { $db->exec("UPDATE contact_messages SET is_read=1 WHERE is_read=0"); }
+        try { $db->exec("UPDATE contact_messages SET is_read=1, first_response_at=COALESCE(first_response_at, NOW()) WHERE is_read=0"); }
         catch(Exception $e){}
         header('Location: contact_messages.php'); exit;
     }

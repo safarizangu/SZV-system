@@ -24,6 +24,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
 
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\RateLimiter;
+use App\Middleware\Honeypot;
 use App\Helpers\Formatter;
 use App\Mail\Mailer;
 
@@ -46,6 +47,13 @@ try {
 // _csrf field must fail, not skip the check entirely (the previous
 // `if (!empty($_POST['_csrf']))` guard let exactly that through).
 CsrfMiddleware::validateOrDie();
+
+// Honeypot — silently pretend success so a spam script has no signal to
+// adapt against. Nothing is saved or emailed.
+if (Honeypot::caught()) {
+    contact_respond(['success' => true, 'message' => "Thanks! We’ll be in touch."]);
+    exit;
+}
 
 $name    = Formatter::sanitize($_POST['full_name'] ?? '');
 $email   = filter_var($_POST['email']   ?? '', FILTER_SANITIZE_EMAIL);
