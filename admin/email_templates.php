@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_template'])) {
 // ── Load custom overrides from DB ─────────────────────────────
 $customTemplates = [];
 try {
-    $rows = $db->query("SELECT * FROM email_templates WHERE is_custom=1")->fetchAll();
+    $rows = $db->query("SELECT * FROM email_templates WHERE is_custom=1 LIMIT 200")->fetchAll();
     foreach ($rows as $row) $customTemplates[$row['template_key']] = $row;
 } catch(\Exception $e) {}
 

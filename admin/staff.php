@@ -52,7 +52,7 @@ if (isset($_GET['edit'])) {
     catch (\Exception $e) {}
 }
 $rows = [];
-try { $rows = $db->query("SELECT * FROM staff ORDER BY is_active DESC, full_name")->fetchAll(); }
+try { $rows = $db->query("SELECT * FROM staff ORDER BY is_active DESC, full_name LIMIT 200")->fetchAll(); }
 catch (\Exception $e) {}
 
 $roleLabels = ['guide_driver' => 'Guide-Driver', 'guide' => 'Guide Only', 'driver' => 'Driver Only'];

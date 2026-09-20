@@ -63,16 +63,4 @@ class CustomSafariRequest
         ]);
         return (int)$this->db->lastInsertId();
     }
-
-    public function all(): array
-    {
-        return $this->db->query(
-            "SELECT * FROM custom_safari_requests ORDER BY created_at DESC"
-        )->fetchAll();
-    }
-
-    public function count(): int
-    {
-        return (int)$this->db->query("SELECT COUNT(*) FROM custom_safari_requests")->fetchColumn();
-    }
 }

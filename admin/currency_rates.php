@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_code'])) {
 
 $msg  = htmlspecialchars($_GET['msg'] ?? '');
 $rows = [];
-try { $rows = $db->query("SELECT * FROM currency_rates ORDER BY code='USD' DESC, code")->fetchAll(); }
+try { $rows = $db->query("SELECT * FROM currency_rates ORDER BY code='USD' DESC, code LIMIT 200")->fetchAll(); }
 catch (\Exception $e) {}
 
 ob_start();

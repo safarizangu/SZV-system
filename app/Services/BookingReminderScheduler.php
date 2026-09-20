@@ -2,7 +2,7 @@
 namespace App\Services;
 
 /**
- * Schedules the 4 standard reminder emails for a new booking.
+ * Schedules the 5 standard reminder emails for a new booking.
  * Was previously duplicated verbatim in api/book.php and
  * api/convert_quotation.php — extracted so both booking paths
  * schedule reminders identically.
@@ -51,6 +51,18 @@ class BookingReminderScheduler
                 'type'    => 'post_trip',
                 'send_at' => $postTrip->format('Y-m-d 10:00:00'),
                 'subject' => "How Was Your Safari? — $ref",
+            ];
+
+            // Win-back — 6 months after travel. The cron that sends this
+            // (api/cron/process_reminders.php) checks at send time whether
+            // this customer has booked again since, and skips it without
+            // sending if they have — scheduling it now is safe regardless
+            // of what happens between now and then.
+            $winBack = (clone $travel)->modify('+180 days');
+            $reminders[] = [
+                'type'    => 'win_back',
+                'send_at' => $winBack->format('Y-m-d 10:00:00'),
+                'subject' => "We'd Love to Welcome You Back — Safari Zangu Ventures",
             ];
 
             $stmt = $pdo->prepare("

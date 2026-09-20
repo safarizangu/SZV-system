@@ -27,9 +27,10 @@
 19. [Users](#19-users)
 20. [Analytics](#20-analytics)
 21. [Cron Jobs & Automation](#21-cron-jobs--automation)
-22. [Common Workflows](#22-common-workflows)
-23. [Security Notes](#23-security-notes)
-24. [Troubleshooting](#24-troubleshooting)
+22. [New Since September 2026](#22-new-since-september-2026)
+23. [Common Workflows](#23-common-workflows)
+24. [Security Notes](#24-security-notes)
+25. [Troubleshooting](#25-troubleshooting)
 
 ---
 
@@ -480,7 +481,34 @@ Every time a booking is created or a quotation is converted to a booking, 4 remi
 
 ---
 
-## 22. Common Workflows
+## 22. New Since September 2026
+
+A large operations/quotation upgrade landed in September 2026. The sections above still describe every page that existed before it; this section covers what's new.
+
+**Pricing engine.** There is now only one — `App\Services\ItineraryQuoteBuilder`. It applies seasonal pricing, resident/EAC park-fee rates, single-supplement and child accommodation rates, itemized vehicle fuel/driver costs, and an optional markup step, all sourced from the same DB tables the forms already write to. Nothing here needs separate configuration beyond the fields already on Accommodations / Park Fees / Vehicles / Seasons.
+
+| Page | Purpose |
+|------|---------|
+| Operations Calendar | Month view of confirmed departures and reminders due; assign a guide/driver + vehicle per booking directly from a day's detail panel, with same-day conflict-blocking |
+| Guides & Drivers | Roster of guide-drivers (the business treats these as one combined role) |
+| Suppliers | Contracted lodges/operators, linkable to individual Accommodations records |
+| Room Availability | Set an "Available Rooms" allotment on any Accommodation to see 60-day utilization and get flagged if a property is over-committed |
+| Reviews | Guest-submitted ratings/NPS (public link sent in the post-trip email), with publish/unpublish moderation |
+| Incidents | Log and resolve trip issues (vehicle breakdown, medical, weather, etc.), optionally linked to a booking |
+| Emergency Contacts | Editable reference info (24h line, hospital, evacuation provider) that prints on every Service Voucher |
+| Currency Rates | Manages the "~£X" style approximate-price hints shown next to USD prices — display only, all real charges stay in USD |
+
+**New documents**, both generated from a booking/date the same way Booking PDFs already are:
+- **Service Voucher** (`api/voucher_pdf.php?ref=...`) — supplier-facing, states the trip is prepaid, lists the day-by-day itinerary and assigned guide/vehicle
+- **Departure Manifest** (`api/manifest_pdf.php?date=...`) — every departure on one date in a single printable list, linked from the Operations Calendar
+
+**6 new dashboards** (sidebar → Dashboards): Sales & Pipeline, Operations, Profitability, Customer Experience, Agent Performance, Suppliers & Fleet. Profitability and Agent Performance are admin/superadmin only.
+
+**Automated win-back email.** Every booking now also schedules a 6-months-after-travel "we'd love to have you back" email, alongside the existing deposit/balance/departure/post-trip reminders — it's automatically skipped if the guest has already rebooked by the time it's due to send.
+
+---
+
+## 23. Common Workflows
 
 ### Workflow A: New Enquiry → Quotation → Booking
 
@@ -551,7 +579,7 @@ If emails stop sending:
 
 ---
 
-## 23. Security Notes
+## 24. Security Notes
 
 | Item | Detail |
 |------|--------|
@@ -563,6 +591,8 @@ If emails stop sending:
 | .env file | DB/SMTP secrets — never commit to git |
 | Admin URL | `/admin/login.php` — not publicly linked |
 | .git folder | Blocked by .htaccess |
+| Encryption at rest | **Not verified from inside this codebase — it depends on Hostinger's storage layer, which application code can't inspect or control.** Confirm directly with Hostinger support whether the MySQL data directory sits on encrypted storage; if self-managing in the future, enable disk/volume encryption at the OS level. |
+| API rate limiting | Every public POST endpoint (contact, book, custom-safari, track, review) is individually rate-limited by IP. There's no single blanket gateway throttle in front of all of `api/` — that's normally a reverse-proxy/WAF concern rather than application code, and isn't something to bolt on speculatively without a specific abuse pattern to defend against. |
 
 **Before going live:**
 1. Change default admin password
@@ -575,7 +605,7 @@ If emails stop sending:
 
 ---
 
-## 24. Troubleshooting
+## 25. Troubleshooting
 
 | Problem | Solution |
 |---------|----------|

@@ -18,6 +18,7 @@ namespace App\Mail;
  *   booking_reminder_balance   — php/process_reminders.php
  *   booking_reminder_departure — php/process_reminders.php
  *   booking_reminder_posttrip  — php/process_reminders.php
+ *   booking_reminder_winback   — php/process_reminders.php
  *   quotation_sent             — php/quotation_email.php
  *   quotation_accepted         — admin/quotations.php (on accept)
  *   quotation_expired          — cron/scheduled job
@@ -511,6 +512,47 @@ HTML;
             'preview' => 'We hope you\'re home safely! We\'d love to hear about your Tanzania safari experience.',
             'html'    => $html,
             'text'    => "Dear {$name},\n\nWe hope you're home safely after your Tanzania safari ({$ref})!\n\nWe'd love your feedback. Please leave a Google or TripAdvisor review — it takes 2 minutes and helps future travellers enormously.\n\nThank you for travelling with Safari Zangu Ventures. We hope to see you again.\n\n" . self::CONTACT_PHONE,
+        ];
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // TEMPLATE: booking_reminder_winback
+    // Used by: api/cron/process_reminders.php (type='win_back')
+    // Sent to: guest, 6 months after their last trip — only if the
+    // cron's own repeat-booking check confirms they haven't already
+    // booked again (see process_reminders.php for that check).
+    // ══════════════════════════════════════════════════════════
+    private static function tpl_booking_reminder_winback(array $v): array
+    {
+        $name    = htmlspecialchars($v['client_name']  ?? 'Guest');
+        $ref     = $v['booking_ref']  ?? '';
+        $package = htmlspecialchars($v['package_name'] ?? 'Tanzania Safari');
+
+        $html = "
+        <p style='font-size:15px;margin:0 0 8px'>Dear {$name},</p>
+        <p style='font-size:14px;line-height:1.8;color:#374151;margin:0 0 20px'>
+          It's been a while since your {$package} with us ({$ref}) — we hope Tanzania has stayed with you as much as it's stayed with us. Returning guests hold a special place with Safari Zangu, and we'd love to help you plan the next trip.
+        </p>
+
+        " . self::sectionTitle('Returning Guest Benefits') . "
+        <p style='font-size:13px;line-height:1.75;color:#374151;margin:0 0 16px'>
+          As someone who's already travelled with us, you're eligible for returning-guest pricing on your next booking — reply to this email or get in touch and we'll talk you through it.
+        </p>
+
+        " . self::ctaButton('Explore New Itineraries', self::SITE_URL . '/packages.php') . "
+        " . self::waButton('Chat About My Next Trip', 'Hi Safari Zangu, I travelled with you before (' . $ref . ') and I\'d like to plan another safari.') . "
+
+        " . self::divider() . "
+        <p style='font-size:12px;color:#9ca3af;margin-top:8px'>
+          If you'd rather not hear about future trips, just reply and let us know — we'll only ever reach out about this once.
+        </p>";
+
+        return [
+            'subject' => "We'd Love to Welcome You Back — Safari Zangu Ventures",
+            'title'   => 'Welcome Back',
+            'preview' => 'It\'s been a while — returning-guest pricing is waiting whenever you\'re ready for your next safari.',
+            'html'    => $html,
+            'text'    => "Dear {$name},\n\nIt's been a while since your {$package} with us ({$ref}). As a returning guest, you're eligible for returning-guest pricing on your next booking — reply to this email or get in touch and we'll talk you through it.\n\nExplore itineraries: " . self::SITE_URL . "/packages.php\n\n" . self::CONTACT_PHONE,
         ];
     }
 

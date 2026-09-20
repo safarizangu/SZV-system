@@ -107,7 +107,7 @@ $accommodations = fetchAll($db,"SELECT id,name,level,rate_per_room,rate_per_pers
 $vehicles       = fetchAll($db,"SELECT id,name,daily_rate,fuel_cost_day,driver_cost_day FROM vehicles WHERE is_active=1 ORDER BY name");
 $parkFees       = fetchAll($db,"SELECT id,name,adult_fee,child_fee FROM park_fees WHERE is_active=1 ORDER BY name");
 $activitiesDB   = fetchAll($db,"SELECT id,name,price,price_unit FROM activities WHERE is_active=1 ORDER BY name");
-$itineraries    = fetchAll($db,"SELECT id,name,duration_days,base_price_pax,is_active FROM itineraries ORDER BY sort_order,name");
+$itineraries    = fetchAll($db,"SELECT id,name,duration_days,base_price_pax,is_active FROM itineraries ORDER BY sort_order,name LIMIT 200");
 
 $editId = (int)($_GET['id'] ?? 0);
 $itin   = null;

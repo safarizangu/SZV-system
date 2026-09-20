@@ -49,7 +49,7 @@ if (isset($_GET['edit'])) {
     try { $stmt=$db->prepare("SELECT * FROM team_members WHERE id=?"); $stmt->execute([(int)$_GET['edit']]); $edit=$stmt->fetch(); } catch(Exception $e){}
 }
 $members = [];
-try { $members = $db->query("SELECT * FROM team_members ORDER BY sort_order ASC, id ASC")->fetchAll(); }
+try { $members = $db->query("SELECT * FROM team_members ORDER BY sort_order ASC, id ASC LIMIT 200")->fetchAll(); }
 catch(Exception $e){ error_log($e->getMessage()); }
 ?>
 <?php if($msg): ?><div class="admin-alert admin-alert--<?= str_starts_with($msg,'Error')?'error':'success' ?>"><?= $msg ?></div><?php endif; ?>

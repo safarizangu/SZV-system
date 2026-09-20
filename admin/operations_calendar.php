@@ -216,7 +216,10 @@ ob_start();
 <div class="admin-card">
   <div class="admin-card-header">
     <h3><?= date('l, j F Y', strtotime($selectedDay)) ?></h3>
-    <a href="?month=<?= date('Y-m', $monthTs) ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Close</a>
+    <div style="display:flex;gap:.5rem">
+      <a href="../api/manifest_pdf.php?date=<?= $selectedDay ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.7rem">Print Manifest</a>
+      <a href="?month=<?= date('Y-m', $monthTs) ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Close</a>
+    </div>
   </div>
   <div class="admin-card-body">
 

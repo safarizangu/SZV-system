@@ -45,14 +45,21 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
       $openIncidents = (int)$db_nav->query("SELECT COUNT(*) FROM incidents WHERE status='open'")->fetchColumn();
     } catch(Exception $e) {}
 
+    // Grouped by how often you'd actually reach for each page, not by
+    // data type — Operations is everything touched daily; Catalog,
+    // Field Ops, People & Partners and Settings are the lower-frequency
+    // reference/configuration pages, split by subject instead of dumped
+    // into one long list. Operations' exact membership (and Settings') is
+    // load-bearing for the role filter below — see the comment there
+    // before adding/removing anything from either.
     $groups = [
       'Dashboards' => [
         ['index.php',            'Overview',         'dashboard', ''],
         ['dashboard_sales.php',       'Sales &amp; Pipeline', 'analytics', ''],
         ['dashboard_operations.php',  'Operations',       'calendar', ''],
-        ['dashboard_profitability.php','Profitability',  'currency', ''],
+        ['dashboard_profitability.php','Profitability',  'trending', ''],
         ['dashboard_customer_experience.php', 'Customer Experience', 'star', ''],
-        ['dashboard_agents.php',      'Agent Performance','guide', ''],
+        ['dashboard_agents.php',      'Agent Performance','target', ''],
         ['dashboard_fleet.php',       'Suppliers &amp; Fleet', 'suppliers', ''],
       ],
       'Operations' => [
@@ -68,26 +75,30 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
         ['quotations.php',       'Quotations',       'quotations', ''],
         ['reviews.php',          'Reviews',          'star', ''],
       ],
-      'Comms' => [
+      'Communications' => [
         ['email_templates.php', 'Email Templates',   'email-template', ''],
-    ['email_queue.php',      'Email Queue',      'email-queue', $queuePending > 0 ? $queuePending : ''],
+        ['email_queue.php',      'Email Queue',      'email-queue', $queuePending > 0 ? $queuePending : ''],
         ['reminders.php',        'Reminders',        'reminders', $remindersDue > 0 ? $remindersDue : ''],
       ],
-      'Content' => [
-        ['poster_maker.php',       'Poster Maker',        'poster', ''],
-    ['gallery.php',          'Image Gallery',    'gallery', ''],
-        ['itineraries.php',      'Itineraries',      'itineraries', ''],
+      'Catalog' => [
         ['packages.php',         'Packages',         'packages', ''],
         ['package_edit.php',      'New Package',      'plus', ''],
-        ['team_members.php',     'Team',             'team', ''],
+        ['itineraries.php',      'Itineraries',      'itineraries', ''],
         ['accommodations.php',   'Accommodations',   'accommodations', ''],
-        ['room_availability.php', 'Room Availability', 'inventory', ''],
-        ['suppliers.php',        'Suppliers',        'suppliers', ''],
         ['activities.php',       'Activities',       'activities', ''],
         ['vehicles.php',         'Fleet',            'fleet', ''],
-        ['staff.php',            'Guides &amp; Drivers', 'guide', ''],
-        ['emergency_contacts.php', 'Emergency Contacts', 'alert', ''],
+        ['poster_maker.php',       'Poster Maker',        'poster', ''],
+        ['gallery.php',          'Image Gallery',    'gallery', ''],
+      ],
+      'Field Operations' => [
+        ['room_availability.php', 'Room Availability', 'inventory', ''],
         ['incidents.php',         'Incidents',        'incident', $openIncidents > 0 ? $openIncidents : ''],
+        ['emergency_contacts.php', 'Emergency Contacts', 'alert', ''],
+      ],
+      'People &amp; Partners' => [
+        ['team_members.php',     'Team',             'team', ''],
+        ['suppliers.php',        'Suppliers',        'suppliers', ''],
+        ['staff.php',            'Guides &amp; Drivers', 'guide', ''],
       ],
       'Settings' => [
         ['park_fees.php',        'Park Fees',        'park-fees', ''],

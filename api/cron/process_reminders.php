@@ -13,19 +13,20 @@ if (!$isCli && !$hasKey) { http_response_code(403); exit('Forbidden'); }
 
 $db = \App\Models\Database::getInstance();
 
-// Only the 4 reminder types have a matching EmailTemplate method —
+// Only these 5 reminder types have a matching EmailTemplate method —
 // booking_reminders.type also allows 'custom', which has none.
 $templateForType = [
     'deposit_due' => 'booking_reminder_deposit',
     'balance_due' => 'booking_reminder_balance',
     'departure'   => 'booking_reminder_departure',
     'post_trip'   => 'booking_reminder_posttrip',
+    'win_back'    => 'booking_reminder_winback',
 ];
 
 // Get reminders due in the next hour that haven't been sent
 try {
     $due = $db->query(
-        "SELECT r.*, b.email, b.full_name, b.travel_date, b.total_amount, b.deposit_amount, b.package_name
+        "SELECT r.*, b.email, b.full_name, b.travel_date, b.total_amount, b.deposit_amount, b.package_name, b.created_at AS booking_created_at
          FROM booking_reminders r
          JOIN bookings b ON b.booking_ref = r.booking_ref COLLATE utf8mb4_unicode_ci
          WHERE r.status = 'pending'
@@ -43,6 +44,25 @@ foreach ($due as $r) {
         // than silently dropping it, and move on.
         echo '[' . date('H:i:s') . '] Skipped reminder id ' . $r['id'] . ' — no template for type "' . $r['type'] . '"' . "\n";
         continue;
+    }
+
+    // Win-back specifically: skip it if this guest has already booked
+    // again since — checked here at send time (not when it was
+    // scheduled, 6 months earlier) since that's the only point where the
+    // answer is actually current. This is what makes it a real win-back
+    // flow rather than a blanket "come back" blast to everyone.
+    if ($r['type'] === 'win_back') {
+        $rebooked = $db->prepare("
+            SELECT 1 FROM bookings
+            WHERE email = ? AND booking_ref != ? AND payment_status != 'cancelled'
+              AND created_at > ? LIMIT 1
+        ");
+        $rebooked->execute([$r['email'], $r['booking_ref'], $r['booking_created_at']]);
+        if ($rebooked->fetchColumn()) {
+            $db->prepare("UPDATE booking_reminders SET status='cancelled' WHERE id=?")->execute([$r['id']]);
+            echo '[' . date('H:i:s') . '] Skipped win_back for ' . $r['booking_ref'] . ' — guest already rebooked' . "\n";
+            continue;
+        }
     }
 
     try {

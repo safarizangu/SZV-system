@@ -61,7 +61,7 @@ $rows = [];
 try {
     $rows = $db->query("
         SELECT s.*, (SELECT COUNT(*) FROM accommodations a WHERE a.supplier_id = s.id) AS linked_accommodations
-        FROM suppliers s ORDER BY s.is_active DESC, s.name
+        FROM suppliers s ORDER BY s.is_active DESC, s.name LIMIT 200
     ")->fetchAll();
 } catch (\Exception $e) {}
 

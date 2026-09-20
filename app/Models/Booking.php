@@ -58,23 +58,9 @@ class Booking
         return $stmt->fetch() ?: null;
     }
 
-    public function all(int $limit = 50, int $offset = 0): array
-    {
-        return $this->db->query(
-            "SELECT * FROM bookings ORDER BY created_at DESC LIMIT $limit OFFSET $offset"
-        )->fetchAll();
-    }
-
     public function count(): int
     {
         return (int)$this->db->query("SELECT COUNT(*) FROM bookings")->fetchColumn();
-    }
-
-    public function totalRevenue(): float
-    {
-        return (float)$this->db->query(
-            "SELECT COALESCE(SUM(total_amount),0) FROM bookings WHERE payment_status != 'cancelled'"
-        )->fetchColumn();
     }
 
     public function updatePaymentStatus(string $ref, string $status, ?string $paypalId = null): void

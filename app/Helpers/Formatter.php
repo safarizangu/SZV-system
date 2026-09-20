@@ -73,16 +73,27 @@ class Formatter
         return ACCOMMODATION_LEVELS[$level] ?? ucfirst($level);
     }
 
-    public static function bookingStatusBadge(string $status): string
+    /**
+     * Travel-execution status computed from travel_date + a known trip
+     * duration — no separate manual status field to keep in sync.
+     * $durationDays is nullable (package/itinerary link can be missing on
+     * older bookings); a null duration falls back to a single-day trip,
+     * which only affects the Upcoming/In Progress boundary, never
+     * Completed vs not.
+     */
+    public static function tripStatus(?string $travelDate, ?int $durationDays = null): array
     {
-        $map = [
-            'pending'       => ['Pending',        'badge-pending'],
-            'deposit_paid'  => ['Deposit Paid',   'badge-deposit_paid'],
-            'fully_paid'    => ['Fully Paid',      'badge-fully_paid'],
-            'cancelled'     => ['Cancelled',       'badge-cancelled'],
-        ];
-        [$label, $class] = $map[$status] ?? [$status, 'badge-pending'];
-        return "<span class=\"badge $class\">$label</span>";
+        if (!$travelDate) {
+            return ['label' => 'Unscheduled', 'color' => '#6b7280', 'bg' => '#f3f4f6'];
+        }
+        $today   = date('Y-m-d');
+        $start   = date('Y-m-d', strtotime($travelDate));
+        $nights  = max(1, $durationDays ?? 1) - 1;
+        $end     = date('Y-m-d', strtotime($travelDate . ' +' . $nights . ' days'));
+
+        if ($today < $start) return ['label' => 'Upcoming', 'color' => '#1e40af', 'bg' => '#eff6ff'];
+        if ($today > $end)   return ['label' => 'Completed', 'color' => '#374151', 'bg' => '#f3f4f6'];
+        return ['label' => 'In Progress', 'color' => '#166534', 'bg' => '#f0fdf4'];
     }
 
     public static function sanitize(string $input): string

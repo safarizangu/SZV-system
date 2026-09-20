@@ -1476,26 +1476,21 @@ function copyToClipboard() {
   });
 }
 
-/* ── AI Caption ─────────────────────────────────────────────── */
-var captionTonePrompts = {
-  premium: 'Write an evocative, aspirational Instagram caption (160-220 words) for a luxury safari audience. Open with a sensory hook — no questions, no clichés. Weave in specific wildlife and landscape details. Include the price naturally. End with a subtle invitation. Use 3-4 tasteful emojis.',
-  urgent:  'Write a compelling urgency-driven Instagram caption (100-140 words). Create FOMO around limited availability or seasonal timing. Mention price and the specific experience. Use 2-3 emojis. Direct call to action at end.',
-  story:   'Write a personal, narrative-style Instagram caption (150-200 words) as if sharing a memory. Use "I" or "we". Describe one specific magical moment from this type of safari. End by inviting others to have their own story.',
-  minimal: 'Write a minimalist, sophisticated Instagram caption (40-70 words max). Sparse. Evocative. No hashtags in the text. Just the essence of the experience and one clear action.',
-};
-
+/* ── AI Caption — prompt is built server-side in api/generate_caption.php,
+   which also owns the real package data and the API key. ────────────── */
 async function generateCaption() {
   var pkg=PKGS[S.pkg], btn=document.getElementById('aibtn'), sp=document.getElementById('spinner');
   btn.disabled=true; sp.style.display='inline-block';
   document.getElementById('captionOut').textContent='Generating...';
-  var days=(pkg.itin_days_arr||pkg.itin_arr||[]).map(function(d){return 'Day '+(d.day||'')+(d.title?': '+d.title:'')+(d.location?' ('+d.location+')':'');}).join('\n');
-  var tonePrompt=captionTonePrompts[S.captionTone]||captionTonePrompts.premium;
-  var prompt=tonePrompt+'\n\nPackage: '+pkg.name+'\nDuration: '+pkg.duration_days+' nights\nPrice: from $'+pkg.price_1pax+' per person\nAccommodation: '+ucw(pkg.accommodation_level||'')+'\nDescription: '+(pkg.short_description||pkg.itin_overview||'')+'\nItinerary:\n'+days+'\nKey inclusions: '+(pkg.itin_inc_arr||pkg.includes_arr||[]).slice(0,5).join(', ')+'\n\nEnd with: safarizanguven.com\nReturn ONLY the caption.';
   try {
-    var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:600,messages:[{role:'user',content:prompt}]})});
+    var r=await fetch((window.BASE_PATH||'')+'/api/generate_caption.php',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':window.CSRF_TOKEN||''},
+      body:new URLSearchParams({package_id:pkg.id, tone:S.captionTone||'premium'})
+    });
     var d=await r.json();
-    document.getElementById('captionOut').textContent=(d.content&&d.content[0]?d.content[0].text:'Error generating caption.');
-    refreshHashtags();
+    document.getElementById('captionOut').textContent = d.success ? d.caption : ('Error: '+(d.message||'Could not generate caption.'));
+    if (d.success) refreshHashtags();
   } catch(e){ document.getElementById('captionOut').textContent='Error: '+e.message; }
   btn.disabled=false; sp.style.display='none';
 }

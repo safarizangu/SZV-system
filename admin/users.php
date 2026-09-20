@@ -82,7 +82,7 @@ if ($editId) {
 }
 
 $users = [];
-try { $users = $db->query("SELECT * FROM admin_users ORDER BY id ASC")->fetchAll(); }
+try { $users = $db->query("SELECT * FROM admin_users ORDER BY id ASC LIMIT 200")->fetchAll(); }
 catch(Exception $e){ $error = $e->getMessage(); }
 
 ob_start();

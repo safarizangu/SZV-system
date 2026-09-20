@@ -11,21 +11,30 @@ try {
     // field), so guests see the same day cards admins build in the
     // Itinerary Manager, not a degraded version of them.
     $pkgItinDays = [];
+
+    // One query for every linked itinerary's days, instead of one query
+    // per package in the loop below — same result, no N+1.
+    $itinIds = array_values(array_unique(array_filter(array_column($packages, 'itinerary_id'))));
+    $itinDaysById = [];
+    if ($itinIds) {
+        try {
+            $placeholders = implode(',', array_fill(0, count($itinIds), '?'));
+            $is = $db->prepare("SELECT id, days FROM itineraries WHERE id IN ($placeholders) AND is_active=1");
+            $is->execute($itinIds);
+            foreach ($is->fetchAll() as $row) {
+                $itinDaysById[$row['id']] = json_decode($row['days'] ?? '[]', true) ?: [];
+            }
+        } catch (\Exception $e) {}
+    }
+
     foreach ($packages as &$p) {
         $p["gallery"]       = json_decode($p["gallery_images"] ?? "[]", true) ?: [];
         $p["includes_arr"]  = json_decode($p["includes"]       ?? "[]", true) ?: [];
         $p["excludes_arr"]  = json_decode($p["excludes"]       ?? "[]", true) ?: [];
         $pkgMap[$p["slug"]] = $p;
 
-        if (!empty($p['itinerary_id'])) {
-            try {
-                $is = $db->prepare("SELECT days FROM itineraries WHERE id=? AND is_active=1 LIMIT 1");
-                $is->execute([$p['itinerary_id']]);
-                $itinRow = $is->fetch();
-                if ($itinRow) {
-                    $pkgItinDays[$p['id']] = json_decode($itinRow['days'] ?? '[]', true) ?: [];
-                }
-            } catch (\Exception $e) {}
+        if (!empty($p['itinerary_id']) && isset($itinDaysById[$p['itinerary_id']])) {
+            $pkgItinDays[$p['id']] = $itinDaysById[$p['itinerary_id']];
         }
     }
     unset($p);

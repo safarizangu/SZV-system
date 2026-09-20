@@ -74,6 +74,7 @@ try {
         LEFT JOIN admin_users a ON a.id = i.reported_by
         $where
         ORDER BY i.severity='critical' DESC, i.severity='high' DESC, i.occurred_at DESC
+        LIMIT 200
     ")->fetchAll();
 } catch (\Exception $e) {}
 

@@ -36,7 +36,7 @@ $msg  = htmlspecialchars($_GET['msg'] ?? '');
 $edit = null;
 if (isset($_GET['edit'])) { try { $s=$db->prepare("SELECT * FROM park_fees WHERE id=?"); $s->execute([(int)$_GET['edit']]); $edit=$s->fetch(); } catch(Exception $e){} }
 $rows = [];
-try { $rows = $db->query("SELECT * FROM park_fees ORDER BY name")->fetchAll(); }
+try { $rows = $db->query("SELECT * FROM park_fees ORDER BY name LIMIT 200")->fetchAll(); }
 catch(Exception $e){}
 ?>
 <?php if($msg): ?><div class="admin-alert admin-alert--<?= str_starts_with($msg,'Error')?'error':'success' ?>"><?= $msg ?></div><?php endif; ?>

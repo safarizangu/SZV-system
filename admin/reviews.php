@@ -27,7 +27,7 @@ if ($filter === 'published') $where = 'WHERE is_published=1';
 elseif ($filter === 'unpublished') $where = 'WHERE is_published=0';
 
 $rows = [];
-try { $rows = $db->query("SELECT * FROM reviews $where ORDER BY submitted_at DESC")->fetchAll(); }
+try { $rows = $db->query("SELECT * FROM reviews $where ORDER BY submitted_at DESC LIMIT 200")->fetchAll(); }
 catch (\Exception $e) {}
 
 $summary = ['avg_rating' => 0, 'avg_nps' => 0, 'total' => 0, 'published' => 0];

@@ -35,6 +35,27 @@ try { $activeVehicleCount = (int)$db->query("SELECT COUNT(*) FROM vehicles WHERE
 $openIncidents = 0;
 try { $openIncidents = (int)$db->query("SELECT COUNT(*) FROM incidents WHERE status='open'")->fetchColumn(); } catch (\Exception $e) {}
 
+// ── Trips currently in progress ─────────────────────────────────
+// Computed the same way as Formatter::tripStatus() — no separate status
+// field, so this can never drift out of sync with what a booking's own
+// page shows.
+$inProgressCount = 0;
+try {
+    $inProgress = $db->query("
+        SELECT b.travel_date, COALESCE(p.duration_days, i.duration_days) AS trip_duration
+        FROM bookings b
+        LEFT JOIN packages p ON p.id = b.package_id
+        LEFT JOIN itineraries i ON i.id = b.itinerary_id
+        WHERE b.payment_status != 'cancelled'
+          AND b.travel_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 21 DAY) AND CURDATE()
+    ")->fetchAll();
+    foreach ($inProgress as $row) {
+        if (\App\Helpers\Formatter::tripStatus($row['travel_date'], $row['trip_duration'] ? (int)$row['trip_duration'] : null)['label'] === 'In Progress') {
+            $inProgressCount++;
+        }
+    }
+} catch (\Exception $e) {}
+
 ob_start();
 ?>
 <p style="color:var(--gray-500);font-size:.85rem;margin:-.5rem 0 1.25rem">
@@ -61,6 +82,10 @@ ob_start();
   <div class="admin-card"><div class="admin-card-body">
     <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:<?= $openIncidents ? '#991b1b' : 'var(--gray-500)' ?>">Open Incidents</div>
     <div style="font-family:var(--font-disp);font-size:1.8rem;margin-top:.25rem;color:<?= $openIncidents ? '#991b1b' : 'inherit' ?>"><?= $openIncidents ?></div>
+  </div></div>
+  <div class="admin-card"><div class="admin-card-body">
+    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500)">Trips In Progress</div>
+    <div style="font-family:var(--font-disp);font-size:1.8rem;margin-top:.25rem;color:#166534"><?= $inProgressCount ?></div>
   </div></div>
 </div>
 

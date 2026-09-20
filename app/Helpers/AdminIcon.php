@@ -61,6 +61,8 @@ class AdminIcon
         'suppliers'      => '<path d="M3 9l9-6 9 6"/><path d="M5 9v10h14V9"/><line x1="9" y1="21" x2="9" y2="13"/><line x1="15" y1="21" x2="15" y2="13"/>',
         'inventory'      => '<rect x="3" y="7" width="18" height="14" rx="1"/><path d="M3 7l2-4h14l2 4"/><line x1="9" y1="11" x2="15" y2="11"/>',
         'incident'       => '<path d="M4 3v18"/><path d="M4 4h13l-3 4 3 4H4"/>',
+        'trending'       => '<polyline points="3,17 9,11 13,15 21,6"/><polyline points="15,6 21,6 21,12"/>',
+        'target'         => '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
     ];
 
     /**

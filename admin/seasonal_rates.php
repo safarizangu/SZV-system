@@ -38,7 +38,7 @@ $msg  = htmlspecialchars($_GET['msg'] ?? '');
 $edit = null;
 if (isset($_GET['edit'])) { try { $s=$db->prepare("SELECT * FROM seasonal_rates WHERE id=?"); $s->execute([(int)$_GET['edit']]); $edit=$s->fetch(); } catch(Exception $e){} }
 $rows = [];
-try { $rows = $db->query("SELECT * FROM seasonal_rates ORDER BY start_month")->fetchAll(); }
+try { $rows = $db->query("SELECT * FROM seasonal_rates ORDER BY start_month LIMIT 200")->fetchAll(); }
 catch(Exception $e){}
 $months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 ?>

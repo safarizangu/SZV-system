@@ -110,6 +110,11 @@ if (!defined('PAYPAL_API_BASE'))    define('PAYPAL_API_BASE',    PAYPAL_MODE ===
     ? 'https://api-m.paypal.com'
     : 'https://api-m.sandbox.paypal.com');
 
+// ── Anthropic (admin/poster_maker.php's AI Caption feature) ────
+// Set ANTHROPIC_API_KEY in .env to enable — the feature degrades to a
+// clear "not configured" message rather than failing silently when unset.
+if (!defined('ANTHROPIC_API_KEY')) define('ANTHROPIC_API_KEY', env('ANTHROPIC_API_KEY', ''));
+
 // ── Bank details ──────────────────────────────────────────────
 // Set real account details in .env — never hardcode live banking here
 if (!defined('BANK_NAME'))         define('BANK_NAME',         env('BANK_NAME',         'ABSA Bank Tanzania'));
@@ -138,7 +143,6 @@ if (!defined('DEPOSIT_PERCENT'))     define('DEPOSIT_PERCENT',     25);   // 25%
 if (!defined('BALANCE_DAYS'))        define('BALANCE_DAYS',        45);   // balance due 45 days before travel
 if (!defined('VAT_RATE'))            define('VAT_RATE',            0.18);
 if (!defined('SERVICE_CHARGE_RATE')) define('SERVICE_CHARGE_RATE', 0.05);
-if (!defined('CONSERVATION_FEE'))    define('CONSERVATION_FEE',    20);
 
 // Display-only USD→GBP rate for showing "~£X" next to package/homepage
 // prices, for UK visitors who convert in their heads. All actual charging,
@@ -146,26 +150,6 @@ if (!defined('CONSERVATION_FEE'))    define('CONSERVATION_FEE',    20);
 // amounts. Rounded rather than fetched live, and needs a manual update
 // occasionally (checked against openexchangerates 20 Sep 2026: ~0.748).
 if (!defined('GBP_RATE')) define('GBP_RATE', 0.75);
-
-// ── Park fees ─────────────────────────────────────────────────
-if (!defined('PARK_FEES')) define('PARK_FEES', [
-    'serengeti'    => ['adult'=>70,  'child'=>20, 'name'=>'Serengeti National Park'],
-    'ngorongoro'   => ['adult'=>70,  'child'=>20, 'name'=>'Ngorongoro Conservation Area'],
-    'tarangire'    => ['adult'=>53,  'child'=>18, 'name'=>'Tarangire National Park'],
-    'lake_manyara' => ['adult'=>53,  'child'=>18, 'name'=>'Lake Manyara National Park'],
-    'arusha_np'    => ['adult'=>53,  'child'=>18, 'name'=>'Arusha National Park'],
-    'ruaha'        => ['adult'=>53,  'child'=>18, 'name'=>'Ruaha National Park'],
-    'nyerere'      => ['adult'=>50,  'child'=>15, 'name'=>'Nyerere National Park'],
-    'zanzibar'     => ['adult'=>0,   'child'=>0,  'name'=>'Zanzibar Island'],
-]);
-
-// ── Vehicles ─────────────────────────────────────────────────
-if (!defined('VEHICLE_TYPES')) define('VEHICLE_TYPES', [
-    'land_cruiser'     => ['name'=>'Toyota Land Cruiser',          'capacity'=>6,  'daily_rate'=>250],
-    'extended_cruiser' => ['name'=>'Extended Toyota Land Cruiser', 'capacity'=>7,  'daily_rate'=>300],
-    'luxury_cruiser'   => ['name'=>'Luxury Land Cruiser (A/C)',    'capacity'=>6,  'daily_rate'=>380],
-    'minivan'          => ['name'=>'Safari Minivan',               'capacity'=>12, 'daily_rate'=>220],
-]);
 
 // ── Accommodation levels ──────────────────────────────────────
 if (!defined('ACCOMMODATION_LEVELS')) define('ACCOMMODATION_LEVELS', [
@@ -176,40 +160,13 @@ if (!defined('ACCOMMODATION_LEVELS')) define('ACCOMMODATION_LEVELS', [
     'ultra_luxury' => 'Ultra Luxury',
 ]);
 
-// ── Seasonal rates ────────────────────────────────────────────
-if (!defined('SEASONAL_RATES')) define('SEASONAL_RATES', [
-    'peak'=>1.0, 'shoulder'=>0.85, 'low'=>0.75,
-]);
-
-// ── Activity prices ───────────────────────────────────────────
-if (!defined('ACTIVITY_PRICES')) define('ACTIVITY_PRICES', [
-    'balloon_safari'  => ['name'=>'Hot Air Balloon Safari',     'price'=>599, 'unit'=>'per_person'],
-    'walking_safari'  => ['name'=>'Walking Safari (2h)',        'price'=>75,  'unit'=>'per_person'],
-    'night_drive'     => ['name'=>'Night Game Drive',           'price'=>80,  'unit'=>'per_person'],
-    'dhow_cruise'     => ['name'=>'Zanzibar Dhow Cruise',       'price'=>65,  'unit'=>'per_person'],
-    'maasai_visit'    => ['name'=>'Maasai Village Visit',       'price'=>45,  'unit'=>'per_person'],
-    'stone_town_tour' => ['name'=>'Stone Town Walking Tour',    'price'=>55,  'unit'=>'per_person'],
-    'spice_tour'      => ['name'=>'Zanzibar Spice Farm Tour',   'price'=>40,  'unit'=>'per_person'],
-    'snorkeling'      => ['name'=>'Snorkeling at Mnemba Atoll', 'price'=>85,  'unit'=>'per_person'],
-    'coffee_tour'     => ['name'=>'Coffee Farm & Culture Tour', 'price'=>35,  'unit'=>'per_person'],
-    'crater_hike'     => ['name'=>'Ngorongoro Crater Rim Hike', 'price'=>50,  'unit'=>'per_person'],
-]);
-
-// ── Guide languages ───────────────────────────────────────────
-if (!defined('GUIDE_LANGUAGES')) define('GUIDE_LANGUAGES', [
-    'english'=>['name'=>'English',          'daily_rate'=>120],
-    'french' =>['name'=>'French',           'daily_rate'=>150],
-    'german' =>['name'=>'German',           'daily_rate'=>150],
-    'italian'=>['name'=>'Italian',          'daily_rate'=>150],
-    'spanish'=>['name'=>'Spanish',          'daily_rate'=>150],
-    'chinese'=>['name'=>'Mandarin Chinese', 'daily_rate'=>180],
-    'swahili'=>['name'=>'Swahili',          'daily_rate'=>100],
-]);
-
-// ── Meal plans ────────────────────────────────────────────────
-if (!defined('MEAL_PLAN_RATES')) define('MEAL_PLAN_RATES', [
-    'fb'=>['name'=>'Full Board (B+L+D)', 'rate'=>95],
-    'hb'=>['name'=>'Half Board (B+D)',   'rate'=>65],
-    'bb'=>['name'=>'Bed & Breakfast',    'rate'=>30],
-    'ai'=>['name'=>'All Inclusive',      'rate'=>140],
-]);
+// PARK_FEES, VEHICLE_TYPES, SEASONAL_RATES, ACTIVITY_PRICES, GUIDE_LANGUAGES,
+// MEAL_PLAN_RATES, and CONSERVATION_FEE were removed here — they existed
+// solely as a DB-unavailable fallback inside the now-deleted
+// App\Services\QuotationEngine (see git history), which had zero real
+// callers and was superseded by App\Services\ItineraryQuoteBuilder, the
+// live pricing engine. ItineraryQuoteBuilder reads park_fees, vehicles,
+// seasonal_rates, and activities directly from the database with no
+// config-array fallback, so these had been dead weight — and a real
+// drift risk (the DB park_fees table had moved on to different rates
+// than this file still had hardcoded) — since that deletion.

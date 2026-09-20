@@ -67,7 +67,13 @@ try {
     $total->execute($params);
     $totalRows  = (int)$total->fetchColumn();
     $totalPages = (int)ceil($totalRows/$perPage);
-    $stmt = $db->prepare("SELECT * FROM bookings $whereSQL ORDER BY created_at DESC LIMIT $perPage OFFSET $offset");
+    $stmt = $db->prepare("
+        SELECT bookings.*, COALESCE(p.duration_days, i.duration_days) AS trip_duration
+        FROM bookings
+        LEFT JOIN packages p ON p.id = bookings.package_id
+        LEFT JOIN itineraries i ON i.id = bookings.itinerary_id
+        $whereSQL ORDER BY bookings.created_at DESC LIMIT $perPage OFFSET $offset
+    ");
     $stmt->execute($params);
     $bookings = $stmt->fetchAll();
 } catch(\Exception $e) {
@@ -133,6 +139,7 @@ ob_start();
       <th>Package</th>
       <th style="text-align:center">Guests</th>
       <th>Travel Date</th>
+      <th>Trip</th>
       <th>Total / Deposit</th>
       <th>Status</th>
       <th>Actions</th>
@@ -163,6 +170,13 @@ ob_start();
       <td style="text-align:center;font-weight:600"><?= (int)$b['travelers'] ?></td>
       <td style="white-space:nowrap;font-size:.82rem">
         <?= date('d M Y', strtotime($b['travel_date'])) ?>
+      </td>
+      <td style="white-space:nowrap">
+        <?php if ($b['payment_status'] !== 'cancelled'): $ts = \App\Helpers\Formatter::tripStatus($b['travel_date'], $b['trip_duration'] ? (int)$b['trip_duration'] : null); ?>
+        <span style="background:<?= $ts['bg'] ?>;color:<?= $ts['color'] ?>;font-size:.68rem;font-weight:600;padding:.15rem .5rem;border-radius:2px"><?= $ts['label'] ?></span>
+        <?php else: ?>
+        <span style="color:var(--gray-400);font-size:.72rem">—</span>
+        <?php endif; ?>
       </td>
       <td style="white-space:nowrap">
         <div style="font-weight:700"><?= $b['total_amount'] ? '$'.number_format($b['total_amount'],0) : '—' ?></div>
@@ -224,7 +238,7 @@ ob_start();
     </tr>
     <?php endforeach; ?>
     <?php if(empty($bookings)): ?>
-    <tr><td colspan="8" class="admin-empty">No bookings found.</td></tr>
+    <tr><td colspan="9" class="admin-empty">No bookings found.</td></tr>
     <?php endif; ?>
   </tbody>
 </table>
