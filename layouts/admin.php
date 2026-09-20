@@ -35,12 +35,14 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
     $queuePending = 0;
     $remindersDue = 0;
     $newRequests  = 0;
+    $openIncidents = 0;
     try {
       $db_nav       = \App\Models\Database::getInstance();
       $unreadCount  = (int)$db_nav->query("SELECT COUNT(*) FROM contact_messages WHERE is_read=0")->fetchColumn();
       $queuePending = (int)$db_nav->query("SELECT COUNT(*) FROM email_queue WHERE status='pending'")->fetchColumn();
       $remindersDue = (int)$db_nav->query("SELECT COUNT(*) FROM booking_reminders WHERE status='pending' AND send_at<=DATE_ADD(NOW(),INTERVAL 24 HOUR)")->fetchColumn();
       $newRequests  = (int)$db_nav->query("SELECT COUNT(*) FROM custom_safari_requests WHERE status='new'")->fetchColumn();
+      $openIncidents = (int)$db_nav->query("SELECT COUNT(*) FROM incidents WHERE status='open'")->fetchColumn();
     } catch(Exception $e) {}
 
     $groups = [
@@ -79,11 +81,13 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
         ['package_edit.php',      'New Package',      'plus', ''],
         ['team_members.php',     'Team',             'team', ''],
         ['accommodations.php',   'Accommodations',   'accommodations', ''],
+        ['room_availability.php', 'Room Availability', 'inventory', ''],
         ['suppliers.php',        'Suppliers',        'suppliers', ''],
         ['activities.php',       'Activities',       'activities', ''],
         ['vehicles.php',         'Fleet',            'fleet', ''],
         ['staff.php',            'Guides &amp; Drivers', 'guide', ''],
         ['emergency_contacts.php', 'Emergency Contacts', 'alert', ''],
+        ['incidents.php',         'Incidents',        'incident', $openIncidents > 0 ? $openIncidents : ''],
       ],
       'Settings' => [
         ['park_fees.php',        'Park Fees',        'park-fees', ''],

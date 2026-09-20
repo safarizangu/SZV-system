@@ -32,6 +32,9 @@ $activeVehicleCount  = 0;
 try { $activeStaffCount   = (int)$db->query("SELECT COUNT(*) FROM staff WHERE is_active=1")->fetchColumn(); } catch (\Exception $e) {}
 try { $activeVehicleCount = (int)$db->query("SELECT COUNT(*) FROM vehicles WHERE is_active=1")->fetchColumn(); } catch (\Exception $e) {}
 
+$openIncidents = 0;
+try { $openIncidents = (int)$db->query("SELECT COUNT(*) FROM incidents WHERE status='open'")->fetchColumn(); } catch (\Exception $e) {}
+
 ob_start();
 ?>
 <p style="color:var(--gray-500);font-size:.85rem;margin:-.5rem 0 1.25rem">
@@ -54,6 +57,10 @@ ob_start();
   <div class="admin-card"><div class="admin-card-body">
     <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500)">Active Roster</div>
     <div style="font-family:var(--font-disp);font-size:1.8rem;margin-top:.25rem"><?= $activeStaffCount ?> <span style="font-size:1rem;color:var(--gray-500)">guides · <?= $activeVehicleCount ?> vehicles</span></div>
+  </div></div>
+  <div class="admin-card"><div class="admin-card-body">
+    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:<?= $openIncidents ? '#991b1b' : 'var(--gray-500)' ?>">Open Incidents</div>
+    <div style="font-family:var(--font-disp);font-size:1.8rem;margin-top:.25rem;color:<?= $openIncidents ? '#991b1b' : 'inherit' ?>"><?= $openIncidents ?></div>
   </div></div>
 </div>
 

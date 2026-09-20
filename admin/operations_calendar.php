@@ -248,6 +248,7 @@ ob_start();
           <div style="font-size:.72rem;color:var(--gray-500)">
             <?= htmlspecialchars($bk['package_name']) ?><?= $returnEst ? ' · back ~' . $returnEst : '' ?>
             · <a href="../api/voucher_pdf.php?ref=<?= urlencode($bk['booking_ref']) ?>" target="_blank">Voucher</a>
+            · <a href="incidents.php?new=1&booking_ref=<?= urlencode($bk['booking_ref']) ?>">Report Incident</a>
           </div>
         </td>
         <td style="padding:.5rem 0"><?= (int)$bk['adults'] ?>A<?= $bk['children'] ? '+' . (int)$bk['children'] . 'C' : '' ?></td>

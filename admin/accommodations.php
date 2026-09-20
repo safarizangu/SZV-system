@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     $rp   = (float)($_POST['rate_per_person'] ?? 0);
     $ss   = (float)($_POST['single_supplement'] ?? 0);
     $cr   = (float)($_POST['child_rate'] ?? 0);
+    $avr  = trim($_POST['available_rooms'] ?? '') === '' ? null : max(0, (int)$_POST['available_rooms']);
     $mp   = trim($_POST['meal_plan'] ?? 'fb');
     $act  = isset($_POST['is_active']) ? 1 : 0;
     $notes= trim($_POST['notes'] ?? '');
@@ -28,11 +29,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     $images  = $imgUrls ? json_encode($imgUrls) : null;
     try {
         if ($id > 0) {
-            $db->prepare("UPDATE accommodations SET name=?,level=?,location=?,park_key=?,supplier_id=?,rate_per_room=?,rate_per_person=?,single_supplement=?,child_rate=?,meal_plan=?,is_active=?,notes=?,images_json=? WHERE id=?")
-               ->execute([$name,$lev,$loc,$park,$supp,$rr,$rp,$ss,$cr,$mp,$act,$notes,$images,$id]);
+            $db->prepare("UPDATE accommodations SET name=?,level=?,location=?,park_key=?,supplier_id=?,rate_per_room=?,rate_per_person=?,single_supplement=?,child_rate=?,available_rooms=?,meal_plan=?,is_active=?,notes=?,images_json=? WHERE id=?")
+               ->execute([$name,$lev,$loc,$park,$supp,$rr,$rp,$ss,$cr,$avr,$mp,$act,$notes,$images,$id]);
         } else {
-            $db->prepare("INSERT INTO accommodations(name,level,location,park_key,supplier_id,rate_per_room,rate_per_person,single_supplement,child_rate,meal_plan,is_active,notes,images_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)")
-               ->execute([$name,$lev,$loc,$park,$supp,$rr,$rp,$ss,$cr,$mp,$act,$notes,$images]);
+            $db->prepare("INSERT INTO accommodations(name,level,location,park_key,supplier_id,rate_per_room,rate_per_person,single_supplement,child_rate,available_rooms,meal_plan,is_active,notes,images_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+               ->execute([$name,$lev,$loc,$park,$supp,$rr,$rp,$ss,$cr,$avr,$mp,$act,$notes,$images]);
         }
         $msg = 'Saved.';
     } catch(Exception $e){ $msg = 'Error: '.$e->getMessage(); }
@@ -129,6 +130,8 @@ $galleryImgs = $edit ? (json_decode($edit['images_json'] ?? '[]', true) ?: []) :
             <input name="single_supplement" type="number" step="0.01" class="admin-input" value="<?= $edit['single_supplement']??0 ?>"></div>
           <div><label class="admin-label">Child Rate</label>
             <input name="child_rate" type="number" step="0.01" class="admin-input" value="<?= $edit['child_rate']??0 ?>"></div>
+          <div><label class="admin-label">Available Rooms <span style="font-weight:400;color:var(--gray-500)">(allotment, optional)</span></label>
+            <input name="available_rooms" type="number" min="0" step="1" class="admin-input" placeholder="Leave blank if not tracked" value="<?= $edit['available_rooms'] ?? '' ?>"></div>
           <div><label class="admin-label">Meal Plan</label>
             <select name="meal_plan" class="admin-input">
               <?php foreach(['fb'=>'Full Board','hb'=>'Half Board','bb'=>'B&B','ai'=>'All Inclusive'] as $v=>$l): ?>
