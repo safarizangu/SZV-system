@@ -6,7 +6,7 @@
   <title><?= $pageTitle ?? 'Admin — Safari Zangu Ventures' ?></title>
   <link rel="icon" type="image/jpeg" href="<?= BASE_PATH ?>/assets/images/logo.jpeg">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="<?= BASE_PATH ?>/admin/css/admin.css">
+  <link rel="stylesheet" href="<?= BASE_PATH ?>/admin/css/admin.css?v=<?= @filemtime(__DIR__ . '/../admin/css/admin.css') ?: time() ?>">
 <script>
 window.BASE_PATH = "<?= BASE_PATH ?>";
 window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
@@ -131,8 +131,15 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
     }
 
     foreach ($groups as $groupLabel => $links):
+      $groupKey = preg_replace('/[^a-z0-9]+/', '-', strtolower(strip_tags($groupLabel)));
+      $groupHasActive = false;
+      foreach ($links as [$href]) { if ($cur === $href) { $groupHasActive = true; break; } }
     ?>
-    <span class="admin-nav-group"><?= $groupLabel ?></span>
+    <button type="button" class="admin-nav-group" data-group="<?= $groupKey ?>" aria-expanded="true">
+      <span><?= $groupLabel ?></span>
+      <span class="admin-nav-group-chevron"><?= \App\Helpers\AdminIcon::render('chevron-down', 11) ?></span>
+    </button>
+    <div class="admin-nav-items" data-group-items="<?= $groupKey ?>"<?= $groupHasActive ? ' data-has-active="1"' : '' ?>>
     <?php foreach ($links as [$href, $label, $icon, $badge]):
       $active = ($cur === $href) ? ' active' : '';
     ?>
@@ -143,7 +150,9 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
         <span class="nav-badge"><?= $badge ?></span>
       <?php endif; ?>
     </a>
-    <?php endforeach; endforeach; ?>
+    <?php endforeach; ?>
+    </div>
+    <?php endforeach; ?>
   </nav>
 
   <div class="admin-sidebar-footer">
@@ -215,6 +224,57 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
       });
     });
   }
+})();
+
+// ── Collapsible nav groups ───────────────────────────────────
+// Per-group state remembered across page loads (this is a classic
+// multi-page app, not an SPA, so without this every navigation would
+// reset every group back open). The group containing the current page
+// is always forced open regardless of saved state — collapsing the
+// section you're currently in would hide where you are.
+//
+// Default (no saved preference yet) is COLLAPSED, not expanded: with
+// 7 groups and dozens of links, having them all open at once is taller
+// than the viewport, so the lower groups end up scrolled out of view
+// with no visible scrollbar hint — they look missing, not just hidden
+// below the fold. Starting collapsed means everything on screen is
+// fully visible; the user opens only the section(s) they need.
+(function () {
+  var STORE_KEY = 'szv_admin_nav_collapsed';
+
+  function readState() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); }
+    catch (e) { return {}; }
+  }
+  function writeState(state) {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+    catch (e) { /* private-window / storage blocked — collapsing just won't persist */ }
+  }
+
+  var state = readState();
+
+  document.querySelectorAll('.admin-nav-group').forEach(function (btn) {
+    var key   = btn.getAttribute('data-group');
+    var items = document.querySelector('.admin-nav-items[data-group-items="' + key + '"]');
+    if (!items) return;
+
+    var hasActive = items.getAttribute('data-has-active') === '1';
+    var saved     = Object.prototype.hasOwnProperty.call(state, key) ? state[key] : true;
+    var collapsed = !hasActive && saved === true;
+
+    if (collapsed) {
+      items.classList.add('collapsed');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+
+    btn.addEventListener('click', function () {
+      if (hasActive) return; // never let the current page's own group be hidden
+      var nowCollapsed = items.classList.toggle('collapsed');
+      btn.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
+      state[key] = nowCollapsed;
+      writeState(state);
+    });
+  });
 })();
 </script>
 </body>
