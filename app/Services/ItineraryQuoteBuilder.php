@@ -157,48 +157,94 @@ class ItineraryQuoteBuilder
         $lineItems = [];
 
         foreach ($accGroups as $acc) {
-            $n = $acc['nights']; $r = $acc['rooms'];
-            $amount = $acc['rate'] * $n * $r * $seasonMultiplier;
-            $qtyStr = $r > 1 ? $r . ' Rooms × ' . $n . ' Night' . ($n !== 1 ? 's' : '') : $n . ' Night' . ($n !== 1 ? 's' : '');
-            $lineItems[] = [
-                'description' => 'Accommodation – ' . $acc['name'],
-                'unit_price'  => $acc['rate'],
-                'quantity_str'=> $qtyStr,
-                'amount'      => round($amount, 2),
-                'category'    => 'accommodation',
-            ];
-
+            $n = $acc['nights'];
             $accExtras = self::lookupAccommodationExtras($acc['name']);
 
-            // Solo travelers only — the day-by-day schema has no
-            // per-room occupancy breakdown, so a 2+-adult party that
-            // happens to book an odd number of rooms isn't safely
-            // detectable here without guessing. Solo bookings are the
-            // one unambiguous case.
-            if ($adults === 1 && $accExtras['single_supplement'] > 0) {
-                $suppAmount = $accExtras['single_supplement'] * $n * $r * $seasonMultiplier;
-                $lineItems[] = [
-                    'description' => 'Single Supplement – ' . $acc['name'],
-                    'unit_price'  => $accExtras['single_supplement'],
-                    'quantity_str'=> $qtyStr,
-                    'amount'      => round($suppAmount, 2),
-                    'category'    => 'accommodation',
-                ];
-            }
+            if ($accExtras['rate_per_person'] > 0) {
+                // ── Per-person-sharing model — the real convention at
+                // 35 of the 60 accommodations currently on file (verified
+                // directly against the table before building this).
+                // A genuine room allocation: adults pair into twin/double
+                // rooms, one leftover adult (an odd count) pays the
+                // single supplement instead of a guessed flat rate,
+                // children are charged the lodge's own child rate rather
+                // than the adult per-person rate.
+                $personRate = $accExtras['rate_per_person'];
+                $pairs      = intdiv($adults, 2);
+                $soloAdult  = $adults % 2;
+                $roomsUsed  = $pairs + $soloAdult;
 
-            // Children sharing an existing room, at the lodge's separate
-            // child rate — flat per-child-per-night, not multiplied by
-            // room count (a child shares a room already paid for above,
-            // rather than occupying one of their own).
-            if ($children > 0 && $accExtras['child_rate'] > 0) {
-                $childAmount = $accExtras['child_rate'] * $children * $n * $seasonMultiplier;
+                $baseAmount = $personRate * $adults * $n * $seasonMultiplier;
+                $qtyStr = $adults . ' Adult' . ($adults !== 1 ? 's' : '') . ' × ' . $n . ' Night' . ($n !== 1 ? 's' : '')
+                    . ' (' . $roomsUsed . ' Room' . ($roomsUsed !== 1 ? 's' : '') . ')';
                 $lineItems[] = [
-                    'description' => 'Child Rate – ' . $acc['name'],
-                    'unit_price'  => $accExtras['child_rate'],
-                    'quantity_str'=> $children . ' Child' . ($children !== 1 ? 'ren' : '') . ' × ' . $n . ' Night' . ($n !== 1 ? 's' : ''),
-                    'amount'      => round($childAmount, 2),
+                    'description' => 'Accommodation – ' . $acc['name'] . ' (Per Person Sharing)',
+                    'unit_price'  => $personRate,
+                    'quantity_str'=> $qtyStr,
+                    'amount'      => round($baseAmount, 2),
                     'category'    => 'accommodation',
                 ];
+
+                if ($soloAdult === 1 && $accExtras['single_supplement'] > 0) {
+                    $suppAmount = $accExtras['single_supplement'] * $n * $seasonMultiplier;
+                    $lineItems[] = [
+                        'description' => 'Single Supplement – ' . $acc['name'],
+                        'unit_price'  => $accExtras['single_supplement'],
+                        'quantity_str'=> '1 Guest × ' . $n . ' Night' . ($n !== 1 ? 's' : ''),
+                        'amount'      => round($suppAmount, 2),
+                        'category'    => 'accommodation',
+                    ];
+                }
+
+                if ($children > 0 && $accExtras['child_rate'] > 0) {
+                    $childAmount = $accExtras['child_rate'] * $children * $n * $seasonMultiplier;
+                    $lineItems[] = [
+                        'description' => 'Child Rate – ' . $acc['name'],
+                        'unit_price'  => $accExtras['child_rate'],
+                        'quantity_str'=> $children . ' Child' . ($children !== 1 ? 'ren' : '') . ' × ' . $n . ' Night' . ($n !== 1 ? 's' : ''),
+                        'amount'      => round($childAmount, 2),
+                        'category'    => 'accommodation',
+                    ];
+                }
+            } else {
+                // ── Flat per-room model — unchanged from before. 23 of
+                // 60 accommodations only have rate_per_room populated;
+                // a flat room rate has no single "correct" occupancy to
+                // derive automatically the way a per-person rate does,
+                // so the admin's own room count (set per day) still
+                // drives this, same as it always has.
+                $r = $acc['rooms'];
+                $amount = $acc['rate'] * $n * $r * $seasonMultiplier;
+                $qtyStr = $r > 1 ? $r . ' Rooms × ' . $n . ' Night' . ($n !== 1 ? 's' : '') : $n . ' Night' . ($n !== 1 ? 's' : '');
+                $lineItems[] = [
+                    'description' => 'Accommodation – ' . $acc['name'],
+                    'unit_price'  => $acc['rate'],
+                    'quantity_str'=> $qtyStr,
+                    'amount'      => round($amount, 2),
+                    'category'    => 'accommodation',
+                ];
+
+                if ($adults === 1 && $accExtras['single_supplement'] > 0) {
+                    $suppAmount = $accExtras['single_supplement'] * $n * $r * $seasonMultiplier;
+                    $lineItems[] = [
+                        'description' => 'Single Supplement – ' . $acc['name'],
+                        'unit_price'  => $accExtras['single_supplement'],
+                        'quantity_str'=> $qtyStr,
+                        'amount'      => round($suppAmount, 2),
+                        'category'    => 'accommodation',
+                    ];
+                }
+
+                if ($children > 0 && $accExtras['child_rate'] > 0) {
+                    $childAmount = $accExtras['child_rate'] * $children * $n * $seasonMultiplier;
+                    $lineItems[] = [
+                        'description' => 'Child Rate – ' . $acc['name'],
+                        'unit_price'  => $accExtras['child_rate'],
+                        'quantity_str'=> $children . ' Child' . ($children !== 1 ? 'ren' : '') . ' × ' . $n . ' Night' . ($n !== 1 ? 's' : ''),
+                        'amount'      => round($childAmount, 2),
+                        'category'    => 'accommodation',
+                    ];
+                }
             }
         }
 
@@ -457,29 +503,33 @@ class ItineraryQuoteBuilder
     }
 
     /**
-     * Same snapshot-gap pattern as lookupParkRates() — single_supplement
-     * and child_rate aren't part of the itinerary day JSON, so they're
-     * looked up by name from accommodations here.
+     * Same snapshot-gap pattern as lookupParkRates() — single_supplement,
+     * child_rate, and rate_per_person aren't part of the itinerary day
+     * JSON (it only snapshots the one resolved flat rate), so they're
+     * looked up by name from accommodations here. rate_per_person is
+     * what decides which occupancy model applies in the caller — see
+     * the per-person-sharing branch above.
      */
     private static function lookupAccommodationExtras(string $accName): array
     {
         static $cache = [];
         if (array_key_exists($accName, $cache)) return $cache[$accName];
 
-        $extras = ['single_supplement' => 0.0, 'child_rate' => 0.0];
+        $extras = ['single_supplement' => 0.0, 'child_rate' => 0.0, 'rate_per_person' => 0.0];
         try {
             $db   = \App\Models\Database::getInstance();
-            $stmt = $db->prepare("SELECT single_supplement, child_rate FROM accommodations WHERE name = ? LIMIT 1");
+            $stmt = $db->prepare("SELECT single_supplement, child_rate, rate_per_person FROM accommodations WHERE name = ? LIMIT 1");
             $stmt->execute([$accName]);
             $row  = $stmt->fetch();
             if ($row) {
                 $extras = [
                     'single_supplement' => (float)$row['single_supplement'],
                     'child_rate'        => (float)$row['child_rate'],
+                    'rate_per_person'   => (float)$row['rate_per_person'],
                 ];
             }
         } catch (\Throwable $e) {
-            // No DB context — no supplement/child rate charged.
+            // No DB context — no supplement/child rate charged, falls back to flat per-room.
         }
         return $cache[$accName] = $extras;
     }

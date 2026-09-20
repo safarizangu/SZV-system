@@ -112,3 +112,59 @@ test('totals(): markup applies before discount, not after', function () {
     assertSame(194.4, $totals['vat']);
     assertSame(1274.4, $totals['grand_total']);
 });
+
+// ── Room-occupancy engine ───────────────────────────────────────
+// Tied to real seed data (Tarangire River Camp: rate_per_person=55,
+// single_supplement=10, child_rate=25 — a genuine per-person-sharing
+// property; Arusha Planet Lodge: rate_per_room=250, rate_per_person=0 —
+// a genuine flat-per-room property), same tradeoff the existing park-fee
+// tests above already make. If these seed values change, update the
+// expected totals here to match, don't just delete the test.
+
+function perPersonItinerary(int $nights = 1): array
+{
+    $days = [];
+    for ($i = 1; $i <= $nights; $i++) {
+        $days[] = ['day' => $i, 'accommodation_name' => 'Tarangire River Camp', 'accommodation_rate' => 55, 'accommodation_rooms' => 1];
+    }
+    return ['days' => json_encode($days)];
+}
+
+test('occupancy engine: an even adult count pairs into rooms with no single supplement', function () {
+    $built = ItineraryQuoteBuilder::build(perPersonItinerary(1), 4, 0, false);
+    $accLine = array_values(array_filter($built['line_items'], fn($i) => str_contains($i['description'], 'Per Person Sharing')))[0] ?? null;
+    assertTrue($accLine !== null, 'Expected a per-person-sharing accommodation line');
+    assertSame(220.0, (float)$accLine['amount']); // 55 * 4 adults * 1 night
+    assertTrue(str_contains($accLine['quantity_str'], '2 Rooms'), 'Expected 4 adults to allocate into 2 rooms');
+    $suppLine = array_filter($built['line_items'], fn($i) => str_contains($i['description'], 'Single Supplement'));
+    assertTrue(count($suppLine) === 0, 'An even adult count should never trigger a single supplement');
+});
+
+test('occupancy engine: an odd adult count leaves exactly one paying the single supplement', function () {
+    $built = ItineraryQuoteBuilder::build(perPersonItinerary(2), 3, 0, false);
+    $accLine  = array_values(array_filter($built['line_items'], fn($i) => str_contains($i['description'], 'Per Person Sharing')))[0] ?? null;
+    $suppLine = array_values(array_filter($built['line_items'], fn($i) => str_contains($i['description'], 'Single Supplement')))[0] ?? null;
+    assertSame(330.0, (float)$accLine['amount']);  // 55 * 3 adults * 2 nights
+    assertTrue(str_contains($accLine['quantity_str'], '2 Rooms'), 'Expected 3 adults to allocate into 2 rooms (one shared, one solo)');
+    assertTrue($suppLine !== null, 'Expected exactly one single-supplement line for the odd adult out');
+    assertSame(20.0, (float)$suppLine['amount']); // 10 * 2 nights — charged once, not per adult
+});
+
+test('occupancy engine: children are charged the child rate, not the adult per-person rate', function () {
+    $built = ItineraryQuoteBuilder::build(perPersonItinerary(1), 2, 2, false);
+    $childLine = array_values(array_filter($built['line_items'], fn($i) => str_contains($i['description'], 'Child Rate')))[0] ?? null;
+    assertTrue($childLine !== null, 'Expected a child-rate line');
+    assertSame(50.0, (float)$childLine['amount']); // 25 * 2 children * 1 night
+});
+
+test('occupancy engine: a flat-per-room property is unaffected (no rate_per_person on file)', function () {
+    $itin = ['days' => json_encode([
+        ['day' => 1, 'accommodation_name' => 'Arusha Planet Lodge', 'accommodation_rate' => 250, 'accommodation_rooms' => 1],
+        ['day' => 2, 'accommodation_name' => 'Arusha Planet Lodge', 'accommodation_rate' => 250, 'accommodation_rooms' => 1],
+    ])];
+    $built = ItineraryQuoteBuilder::build($itin, 2, 0, false);
+    $accLine = array_values(array_filter($built['line_items'], fn($i) => str_contains($i['description'], 'Arusha Planet Lodge')))[0] ?? null;
+    assertTrue($accLine !== null);
+    assertTrue(!str_contains($accLine['description'], 'Per Person Sharing'), 'A room-rate-only property must not switch to per-person pricing');
+    assertSame(500.0, (float)$accLine['amount']); // 250 * 1 room * 2 nights — occupancy-independent, unchanged
+});

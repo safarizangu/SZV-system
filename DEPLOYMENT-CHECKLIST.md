@@ -43,6 +43,19 @@ Upload all files EXCEPT:
 ### STEP 3 — Run DB migrations in phpMyAdmin
 Import any new SQL migration files from sql/
 
+**20 Sep 2026 session**: 11 new migrations, already combined in order into
+`sql/2026_09_PRODUCTION_DEPLOY_COMBINED.sql` — paste that one file into
+phpMyAdmin's SQL tab instead of hunting through sql/ individually. If a
+single statement in it errors with "Duplicate column" or "table already
+exists", that piece is already on production — delete just that line and
+re-run the rest; every CREATE TABLE already uses IF NOT EXISTS so those
+are always safe to re-run as-is. Verified by test-running the whole file
+against a fresh copy of the schema before writing it here.
+
+Optional: add `ANTHROPIC_API_KEY=` to .env to enable the Poster Maker's
+AI Caption feature (admin/poster_maker.php) — it degrades to a clear
+"not configured" message without one, nothing breaks either way.
+
 ### STEP 4 — Set permissions
 chmod -R 755 /home/u662187129/domains/safarizanguven.com/public_html/
 chmod -R 775 /home/u662187129/domains/safarizanguven.com/public_html/assets/images/

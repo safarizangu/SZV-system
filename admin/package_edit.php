@@ -928,28 +928,46 @@ function calcTotals() {
 
   var lineItems = [];
 
+  // Mirrors App\Services\ItineraryQuoteBuilder::build()'s two accommodation
+  // branches exactly — per-person-sharing (real room allocation) when the
+  // property has a rate_per_person on file, flat per-room otherwise. The
+  // saved price_1pax is always computed at 1 adult / 0 children server-side
+  // (see the note above this form), so this only matters when the preview
+  // is also set to 1 adult — shown at whatever the preview has regardless,
+  // same as every other line here, for a consistent "what would this many
+  // travelers pay" view.
   Object.keys(accSeen).forEach(function(name){
-    var a = accSeen[name], amount = a.rate * a.nights * a.rooms;
-    var qty = a.rooms > 1
-      ? a.rooms+' Rooms × '+a.nights+' Night'+(a.nights!==1?'s':'')
-      : a.nights+' Night'+(a.nights!==1?'s':'');
-    lineItems.push({desc:'Accommodation – '+name, unit:a.rate, qty:qty, amount:amount});
-
-    // The saved price_1pax is always computed at 1 adult / 0 children
-    // server-side (see the note above this form), so this only matters
-    // when the preview is also set to 1 adult — but it's shown at
-    // whatever adults/children the preview has, same as every other
-    // line here, for a consistent "what would this many travelers pay" view.
+    var a = accSeen[name];
     var accExtra = peAccLookup(name);
-    if (accExtra) {
-      if (adults === 1 && accExtra.singleSupp > 0) {
-        var suppAmt = accExtra.singleSupp * a.nights * a.rooms;
-        lineItems.push({desc:'Single Supplement – '+name, unit:accExtra.singleSupp, qty:qty, amount:suppAmt});
+
+    if (accExtra && accExtra.ratePerPerson > 0) {
+      var personRate = accExtra.ratePerPerson;
+      var pairs = Math.floor(adults / 2), soloAdult = adults % 2, roomsUsed = pairs + soloAdult;
+      var qty = adults+' Adult'+(adults!==1?'s':'')+' × '+a.nights+' Night'+(a.nights!==1?'s':'')+' ('+roomsUsed+' Room'+(roomsUsed!==1?'s':'')+')';
+      lineItems.push({desc:'Accommodation – '+name+' (Per Person Sharing)', unit:personRate, qty:qty, amount:personRate*adults*a.nights});
+
+      if (soloAdult === 1 && accExtra.singleSupp > 0) {
+        lineItems.push({desc:'Single Supplement – '+name, unit:accExtra.singleSupp, qty:'1 Guest × '+a.nights+' Night'+(a.nights!==1?'s':''), amount:accExtra.singleSupp*a.nights});
       }
       if (children > 0 && accExtra.childRate > 0) {
         var childQty = children+' Child'+(children!==1?'ren':'')+' × '+a.nights+' Night'+(a.nights!==1?'s':'');
-        var childAmt = accExtra.childRate * children * a.nights;
-        lineItems.push({desc:'Child Rate – '+name, unit:accExtra.childRate, qty:childQty, amount:childAmt});
+        lineItems.push({desc:'Child Rate – '+name, unit:accExtra.childRate, qty:childQty, amount:accExtra.childRate*children*a.nights});
+      }
+    } else {
+      var amount = a.rate * a.nights * a.rooms;
+      var qty2 = a.rooms > 1
+        ? a.rooms+' Rooms × '+a.nights+' Night'+(a.nights!==1?'s':'')
+        : a.nights+' Night'+(a.nights!==1?'s':'');
+      lineItems.push({desc:'Accommodation – '+name, unit:a.rate, qty:qty2, amount:amount});
+
+      if (accExtra) {
+        if (adults === 1 && accExtra.singleSupp > 0) {
+          lineItems.push({desc:'Single Supplement – '+name, unit:accExtra.singleSupp, qty:qty2, amount:accExtra.singleSupp*a.nights*a.rooms});
+        }
+        if (children > 0 && accExtra.childRate > 0) {
+          var childQty2 = children+' Child'+(children!==1?'ren':'')+' × '+a.nights+' Night'+(a.nights!==1?'s':'');
+          lineItems.push({desc:'Child Rate – '+name, unit:accExtra.childRate, qty:childQty2, amount:accExtra.childRate*children*a.nights});
+        }
       }
     }
   });
@@ -1103,7 +1121,7 @@ function syncIncludesExcludes() {
 // same accommodations/vehicles/park fees the PHP-rendered day-blocks
 // already use, output once here so a freshly-added day (when Nights is
 // increased) gets the exact same autocomplete options.
-var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'singleSupp'=>(float)$a['single_supplement'],'childRate'=>(float)$a['child_rate']], $accommodations)) ?>;
+var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'ratePerPerson'=>(float)$a['rate_per_person'],'singleSupp'=>(float)$a['single_supplement'],'childRate'=>(float)$a['child_rate']], $accommodations)) ?>;
 function peAccLookup(accName) {
   for (var i=0; i<PE_ACCS.length; i++) if (PE_ACCS[i].name === accName) return PE_ACCS[i];
   return null;

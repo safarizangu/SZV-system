@@ -809,7 +809,7 @@ ob_start();
 
 <script>
 var fmt = function(n){ return '$'+Math.round(n).toLocaleString('en-US'); };
-var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'singleSupp'=>(float)$a['single_supplement'],'childRate'=>(float)$a['child_rate']], $accommodations)) ?>;
+var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'ratePerPerson'=>(float)$a['rate_per_person'],'singleSupp'=>(float)$a['single_supplement'],'childRate'=>(float)$a['child_rate']], $accommodations)) ?>;
 var PE_VEHS  = <?= json_encode(array_map(fn($v) => ['name'=>$v['name'],'id'=>(int)$v['id'],'rate'=>(float)$v['daily_rate']+(float)$v['fuel_cost_day']+(float)$v['driver_cost_day']], $vehicles)) ?>;
 var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee'],'childFee'=>(float)$p['child_fee'],'residentAdult'=>(float)$p['resident_adult'],'residentChild'=>(float)$p['resident_child']], $parkFees)) ?>;
 // Same 5 EAC members as App\Services\ItineraryQuoteBuilder::EAC_RESIDENT_COUNTRIES.
@@ -921,23 +921,44 @@ function calcTotals() {
 
   var lineItems = [];
 
+  // Mirrors App\Services\ItineraryQuoteBuilder::build()'s two accommodation
+  // branches exactly — per-person-sharing (real room allocation) when the
+  // property has a rate_per_person on file, flat per-room otherwise.
   Object.keys(accSeen).forEach(function(name){
-    var a = accSeen[name], amount = a.rate * a.nights * a.rooms * seasonMult;
-    var qty = a.rooms > 1
-      ? a.rooms+' Rooms × '+a.nights+' Night'+(a.nights!==1?'s':'')
-      : a.nights+' Night'+(a.nights!==1?'s':'');
-    lineItems.push({desc:'Accommodation – '+name, unit:a.rate, qty:qty, amount:amount});
-
+    var a = accSeen[name];
     var accExtra = peAccLookup(name);
-    if (accExtra) {
-      if (adults === 1 && accExtra.singleSupp > 0) {
-        var suppAmt = accExtra.singleSupp * a.nights * a.rooms * seasonMult;
-        lineItems.push({desc:'Single Supplement – '+name, unit:accExtra.singleSupp, qty:qty, amount:suppAmt});
+
+    if (accExtra && accExtra.ratePerPerson > 0) {
+      var personRate = accExtra.ratePerPerson;
+      var pairs = Math.floor(adults / 2), soloAdult = adults % 2, roomsUsed = pairs + soloAdult;
+      var baseAmt = personRate * adults * a.nights * seasonMult;
+      var qty = adults+' Adult'+(adults!==1?'s':'')+' × '+a.nights+' Night'+(a.nights!==1?'s':'')+' ('+roomsUsed+' Room'+(roomsUsed!==1?'s':'')+')';
+      lineItems.push({desc:'Accommodation – '+name+' (Per Person Sharing)', unit:personRate, qty:qty, amount:baseAmt});
+
+      if (soloAdult === 1 && accExtra.singleSupp > 0) {
+        var suppAmt = accExtra.singleSupp * a.nights * seasonMult;
+        lineItems.push({desc:'Single Supplement – '+name, unit:accExtra.singleSupp, qty:'1 Guest × '+a.nights+' Night'+(a.nights!==1?'s':''), amount:suppAmt});
       }
       if (children > 0 && accExtra.childRate > 0) {
         var childQty = children+' Child'+(children!==1?'ren':'')+' × '+a.nights+' Night'+(a.nights!==1?'s':'');
-        var childAmt = accExtra.childRate * children * a.nights * seasonMult;
-        lineItems.push({desc:'Child Rate – '+name, unit:accExtra.childRate, qty:childQty, amount:childAmt});
+        lineItems.push({desc:'Child Rate – '+name, unit:accExtra.childRate, qty:childQty, amount:accExtra.childRate*children*a.nights*seasonMult});
+      }
+    } else {
+      var amount = a.rate * a.nights * a.rooms * seasonMult;
+      var qty2 = a.rooms > 1
+        ? a.rooms+' Rooms × '+a.nights+' Night'+(a.nights!==1?'s':'')
+        : a.nights+' Night'+(a.nights!==1?'s':'');
+      lineItems.push({desc:'Accommodation – '+name, unit:a.rate, qty:qty2, amount:amount});
+
+      if (accExtra) {
+        if (adults === 1 && accExtra.singleSupp > 0) {
+          var suppAmt2 = accExtra.singleSupp * a.nights * a.rooms * seasonMult;
+          lineItems.push({desc:'Single Supplement – '+name, unit:accExtra.singleSupp, qty:qty2, amount:suppAmt2});
+        }
+        if (children > 0 && accExtra.childRate > 0) {
+          var childQty2 = children+' Child'+(children!==1?'ren':'')+' × '+a.nights+' Night'+(a.nights!==1?'s':'');
+          lineItems.push({desc:'Child Rate – '+name, unit:accExtra.childRate, qty:childQty2, amount:accExtra.childRate*children*a.nights*seasonMult});
+        }
       }
     }
   });

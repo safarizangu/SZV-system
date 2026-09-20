@@ -103,3 +103,24 @@ if (!$nodeAvailable) {
         }
     }
 }
+
+/**
+ * The room-occupancy engine's JS mirror lives inside calcTotals() rather
+ * than a standalone named function, so it can't be extracted and run
+ * under Node the way peDetectSeason() is above. This is a lighter,
+ * structural check instead: both admin pages' JS must contain the same
+ * pairs/solo-adult formula ItineraryQuoteBuilder::build() actually uses
+ * (Math.floor(adults/2) rooms, adults%2 determining the single
+ * supplement) — catches the realistic failure mode of the PHP formula
+ * changing without the JS mirror being updated to match, even without a
+ * live cross-execution.
+ */
+foreach (['admin/quotation_new.php', 'admin/package_edit.php'] as $file) {
+    test("{$file}: JS still mirrors the pairs/solo-adult occupancy formula", function () use ($file) {
+        $src = file_get_contents(__DIR__ . '/../../' . $file);
+        assertTrue($src !== false, "Could not read {$file}");
+        assertTrue(str_contains($src, 'Math.floor(adults / 2)'), "{$file} is missing the room-pairing formula (Math.floor(adults / 2)) — has the occupancy engine's JS mirror been removed or rewritten?");
+        assertTrue(str_contains($src, 'adults % 2'), "{$file} is missing the solo-adult detection (adults % 2) — single supplement logic may have drifted from the server.");
+        assertTrue(str_contains($src, 'ratePerPerson'), "{$file}'s PE_ACCS no longer carries ratePerPerson — the JS preview would silently fall back to flat per-room pricing for every accommodation.");
+    });
+}
