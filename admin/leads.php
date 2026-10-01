@@ -25,8 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             'country'       => trim($_POST['country']       ?? ''),
             'budget_range'  => trim($_POST['budget_range']  ?? ''),
             'source'        => trim($_POST['source']        ?? 'website'),
-            'package_interest' => trim($_POST['package_interest'] ?? ''),
-            'adults'        => (int)($_POST['adults']       ?? 2),
+            'package_name'  => trim($_POST['package_name']  ?? ''),
+            'party_size'    => (int)($_POST['adults']       ?? 2),
             'travel_date'   => !empty($_POST['travel_date']) ? $_POST['travel_date'] : null,
             'pipeline_stage'=> 'lead',
             'notes'         => trim($_POST['notes']         ?? ''),
@@ -60,18 +60,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if (!in_array($stage, $allowed, true)) {
             echo json_encode(['success'=>false,'message'=>'Invalid stage.']); exit;
         }
-        if ($isAgentUser) {
-            $stmt = $db->prepare("UPDATE leads SET pipeline_stage=? WHERE id=? AND agent_id=?");
-            $stmt->execute([$stage, $id, $myId]);
-        } else {
-            $stmt = $db->prepare("UPDATE leads SET pipeline_stage=? WHERE id=?");
-            $stmt->execute([$stage, $id]);
+
+        // Commission creation on a genuine transition into 'booked' (and the
+        // agent email that goes with it) lives in PipelineSync — shared with
+        // the automatic advance api/convert_quotation.php triggers, so that
+        // logic exists exactly once. This manual path additionally allows
+        // ANY stage (including backward corrections or 'lost'), unlike the
+        // automatic advance-only one.
+        $result = \App\Services\PipelineSync::setLeadStageManual($db, $id, $stage, $isAgentUser, $myId);
+        if (!$result['ok']) {
+            echo json_encode(['success'=>false,'message'=>$result['message']]); exit;
         }
-        if ($stmt->rowCount() === 0) {
-            echo json_encode(['success'=>false,'message'=>'Lead not found or not assigned to you.']); exit;
-        }
-        \App\Services\ActivityLog::record('update_stage', 'lead', $id, ['stage'=>$stage]);
-        echo json_encode(['success'=>true]);
+        echo json_encode(['success'=>true, 'commission_created'=>$result['commission_created']]);
         exit;
     }
 
@@ -205,7 +205,7 @@ ob_start();
         <?php endif; ?>
       </td>
       <td style="font-size:.82rem"><?= htmlspecialchars($r['country'] ?? '—') ?></td>
-      <td style="font-size:.78rem"><?= htmlspecialchars($r['package_interest'] ?? '—') ?></td>
+      <td style="font-size:.78rem"><?= htmlspecialchars($r['package_name'] ?: '—') ?></td>
       <td style="white-space:nowrap;font-size:.82rem">
         <?= !empty($r['travel_date']) ? date('d/m/Y', strtotime($r['travel_date'])) : '—' ?>
       </td>
@@ -394,7 +394,7 @@ async function submitAddLead() {
     fd.append('country',          document.getElementById('lf-country').value);
     fd.append('travel_date',      document.getElementById('lf-travel-date').value);
     fd.append('adults',           document.getElementById('lf-adults').value);
-    fd.append('package_interest', document.getElementById('lf-package').value);
+    fd.append('package_name', document.getElementById('lf-package').value);
     fd.append('budget_range',     document.getElementById('lf-budget').value);
     fd.append('source',           document.getElementById('lf-source').value);
     fd.append('assigned_to',      document.getElementById('lf-assigned').value);
@@ -429,7 +429,9 @@ async function updateStage(id, stage, sel) {
         if (d.success) {
             var sc = STAGE_COLORS[stage] || {bg:'var(--gray-100)',text:'var(--gray-700)'};
             sel.style.background = sc.bg; sel.style.color = sc.text;
-            toast('Stage → '+stage,'ok');
+            toast(d.commission_created ? 'Stage → '+stage+' — commission created' : 'Stage → '+stage,'ok');
+        } else {
+            toast(d.message || 'Failed','err');
         }
     } catch(e) { toast('Failed','err'); }
 }

@@ -270,6 +270,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_quote'])) {
             $db->prepare("INSERT INTO quotations ($cols,created_at) VALUES ($phld,NOW())")->execute(array_values($data));
             $newId = $db->lastInsertId();
             \App\Services\ActivityLog::record('create', 'quotation', (int)$newId, ['quote_ref'=>$ref]);
+            if ($leadId) \App\Services\PipelineSync::advanceLead($db, $leadId, 'quoted');
+            if ($crId)   \App\Services\PipelineSync::advanceCustomRequest($db, $crId, 'quoted');
         }
         header("Location: quotation_new.php?id=$newId&msg=".urlencode('Quotation saved.')); exit;
     } catch(Exception $e) { $msg = 'Error: '.$e->getMessage(); }
@@ -408,7 +410,7 @@ ob_start();
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem">
             <div><label class="admin-label">Package</label>
                 <input name="package_name" class="admin-input" list="pkg-list"
-                       value="<?= htmlspecialchars($q['package_name']??$cr['package_interest']??$lead['package_name']??'') ?>">
+                       value="<?= htmlspecialchars($q['package_name']??$lead['package_name']??'') ?>">
                 <datalist id="pkg-list">
                     <?php foreach($packages as $p): ?>
                     <option value="<?= htmlspecialchars($p['name']) ?>">

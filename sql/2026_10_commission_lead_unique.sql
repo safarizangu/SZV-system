@@ -1,0 +1,12 @@
+-- Prevent duplicate commission rows per lead.
+--
+-- api/leads.php's commission upsert (INSERT ... ON DUPLICATE KEY UPDATE)
+-- relied on commissions.lead_id being unique, but it only ever had a plain
+-- index — so the "upsert" never actually upserted, it would have silently
+-- inserted a new duplicate commission row every time a lead was re-saved
+-- as 'booked'. Caught before this logic was reconnected to the live
+-- admin/leads.php conversion path (it had been dead code until now).
+--
+-- NULL-safe: MySQL unique indexes allow multiple NULLs, so commissions
+-- not tied to a lead (booking_ref-based ones) are unaffected.
+ALTER TABLE commissions ADD UNIQUE KEY uniq_commissions_lead (lead_id);

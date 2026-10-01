@@ -215,7 +215,16 @@ class Mailer
             } else {
                 $mail->addAddress($row['to_email']);
             }
-            $mail->addCC(ADMIN_EMAIL, 'Safari Zangu Admin');
+            // No blanket admin CC — every transactional email (reminders,
+            // invoices, acceptance notices) used to copy ADMIN_EMAIL
+            // unconditionally, which doesn't scale past a handful of
+            // bookings a month. Internal awareness of what actually needs
+            // attention (new lead, new booking, new request, unread
+            // message) now runs through the admin panel's notification
+            // bell (layouts/admin.php) instead. Emails that are genuinely
+            // addressed to admin (custom_request_admin, review notification,
+            // etc.) already go there directly via Mailer::queueAdmin(), so
+            // nothing admin-relevant is lost.
             $mail->Subject = $row['subject'];
 
             if (!empty($row['is_plain_text'])) {

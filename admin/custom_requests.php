@@ -34,6 +34,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             echo json_encode(['success' => false]);
         }
     }
+
+    // Real action replacing the old page-load bulk transition: fired once
+    // from viewRequest() the moment staff actually opens a request's detail
+    // modal — not when the list merely renders. first_response_at is the
+    // dashboard's own proxy for "staff responded," so stamping it on a page
+    // load (which could be an automated refresh, a filter click, or nobody
+    // actually reading anything) made that metric meaningless.
+    if ($_POST['action'] === 'mark_viewed') {
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id) {
+            try {
+                $db->prepare("UPDATE custom_safari_requests SET status='in_review', first_response_at=COALESCE(first_response_at, NOW()) WHERE id=? AND status='new'")
+                   ->execute([$id]);
+            } catch (\Exception $e) {}
+        }
+        echo json_encode(['success' => true]);
+    }
     exit;
 }
 
@@ -74,15 +91,6 @@ try {
     $totalRows  = 0;
     $totalPages = 1;
     error_log('[SZV CustomReqs] ' . $e->getMessage());
-}
-
-// Auto-mark new → in_review when listing all — in practice this is the
-// dominant way a request stops being "new" (an admin just opens the
-// list), so it's also where first_response_at is set for most requests.
-if (!$search && !$statusFilter) {
-    try {
-        $db->exec("UPDATE custom_safari_requests SET status='in_review', first_response_at=COALESCE(first_response_at, NOW()) WHERE status='new'");
-    } catch (\Exception $e) {}
 }
 
 // Status helpers — one status→color config (bg/color match the shared
@@ -196,7 +204,7 @@ ob_start();
     </td>
     <td style="font-size:.78rem"><?= htmlspecialchars($r['total_budget'] ?? '—') ?: '—' ?></td>
     <td>
-      <select class="status-select" onchange="updateStatus(<?= $r['id'] ?>, this.value)"
+      <select id="cr-status-<?= $r['id'] ?>" class="status-select" onchange="updateStatus(<?= $r['id'] ?>, this.value)"
               style="font-size:.72rem;padding:.3rem .5rem;border:1.5px solid var(--gray-200);background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>;font-weight:700;cursor:pointer">
         <?php foreach ($statusColors as $sv => $sl): ?>
         <option value="<?= $sv ?>" <?= $r['status']===$sv?'selected':'' ?>><?= $sl['label'] ?></option>
@@ -283,8 +291,31 @@ async function updateStatus(id, newStatus) {
 }
 
 /* ── View request modal ─────────────────────────────────── */
+var STATUS_META = <?= json_encode($statusColors) ?>;
+
 function viewRequest(r) {
   document.getElementById('crModalTitle').textContent = 'Request #' + r.id + ' — ' + r.full_name;
+
+  // Real trigger for new → in_review (replacing the old page-load bulk
+  // transition): staff is genuinely looking at this request right now.
+  // Fire-and-forget — the modal doesn't wait on it — but update locally
+  // so the modal and the row's status dropdown both reflect it immediately
+  // instead of showing stale "New" until the next full page load.
+  if (r.status === 'new') {
+    var fd = new FormData();
+    fd.append('action', 'mark_viewed');
+    fd.append('id', r.id);
+    fd.append('_csrf', window.CSRF_TOKEN || '');
+    fetch('custom_requests.php', { method: 'POST', body: fd }).catch(function(){});
+
+    r.status = 'in_review';
+    var sel = document.getElementById('cr-status-' + r.id);
+    if (sel) {
+      sel.value = 'in_review';
+      var meta = STATUS_META['in_review'];
+      if (meta) { sel.style.background = meta.bg; sel.style.color = meta.color; }
+    }
+  }
 
   // Parse JSON arrays
   function parseList(val) {

@@ -26,7 +26,7 @@ $templateForType = [
 // Get reminders due in the next hour that haven't been sent
 try {
     $due = $db->query(
-        "SELECT r.*, b.email, b.full_name, b.travel_date, b.total_amount, b.deposit_amount, b.package_name, b.created_at AS booking_created_at
+        "SELECT r.*, b.email, b.full_name, b.travel_date, b.total_amount, b.deposit_amount, b.package_name, b.quotation_id, b.created_at AS booking_created_at
          FROM booking_reminders r
          JOIN bookings b ON b.booking_ref = r.booking_ref COLLATE utf8mb4_unicode_ci
          WHERE r.status = 'pending'
@@ -66,6 +66,18 @@ foreach ($due as $r) {
     }
 
     try {
+        // Departure (T-7 days) is the one reminder where re-attaching a
+        // document makes sense — the standard "here are your final travel
+        // documents" moment. The other four are payment/post-trip notices
+        // with nothing new to attach.
+        $attachments = null;
+        if ($r['type'] === 'departure') {
+            $itinFile = !empty($r['quotation_id'])
+                ? \App\Services\PdfRenderer::renderQuotationItinerary((int)$r['quotation_id'], 'Itinerary-' . $r['booking_ref'])
+                : \App\Services\PdfRenderer::renderBookingItinerary($r['booking_ref'], 'Itinerary-' . $r['booking_ref']);
+            if ($itinFile) $attachments = [$itinFile];
+        }
+
         $queued = Mailer::queue($template, [
             'to_email'       => $r['email'],
             'to_name'        => $r['full_name'],
@@ -76,7 +88,7 @@ foreach ($due as $r) {
             'total_amount'   => (float)$r['total_amount'],
             'deposit_amount' => (float)$r['deposit_amount'],
             'balance_due'    => (float)$r['total_amount'] - (float)$r['deposit_amount'],
-        ]);
+        ], null, null, $attachments);
 
         if (!$queued) {
             throw new \Exception('Mailer::queue returned false — check the recipient email address.');

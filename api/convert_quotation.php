@@ -129,6 +129,13 @@ try {
     // Auto-schedule all standard reminders — same scheduler the direct-booking path uses
     BookingReminderScheduler::schedule($db, $ref, $travelDate);
 
+    // If this quotation originated from a lead or a custom request, advance
+    // that record's status now that it has genuinely become a booking —
+    // same linkage used when the quotation itself was created, just read
+    // back instead of requiring a human to update it separately.
+    if (!empty($q['lead_id'])) \App\Services\PipelineSync::advanceLead($db, (int)$q['lead_id'], 'booked');
+    if (!empty($q['custom_request_id'])) \App\Services\PipelineSync::advanceCustomRequest($db, (int)$q['custom_request_id'], 'converted');
+
     // Mark quotation as converted
     $db->prepare("
         UPDATE quotations

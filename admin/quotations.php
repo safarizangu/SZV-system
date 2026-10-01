@@ -36,13 +36,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
                 $q->execute([$qId]);
                 $quot = $q->fetch();
                 if ($quot && $quot['client_email']) {
+                    // They just agreed to specific pricing — send a copy of
+                    // exactly what they accepted, not just a notice that it
+                    // happened.
+                    $attachments = [];
+                    $pdf = \App\Services\PdfRenderer::renderQuotation($qId, 'Quotation-' . $quot['quote_ref']);
+                    if ($pdf) $attachments[] = $pdf;
+                    $itin = \App\Services\PdfRenderer::renderQuotationItinerary($qId, 'Itinerary-' . $quot['quote_ref']);
+                    if ($itin) $attachments[] = $itin;
+
                     Mailer::queue('quotation_accepted', [
                         'client_name'    => $quot['client_name'],
                         'quote_ref'      => $quot['quote_ref'],
                         'deposit_amount' => (float)($quot['deposit_amount'] ?? round($quot['grand_total'] * 0.25, 2)),
                         'to_email'       => $quot['client_email'],
                         'to_name'        => $quot['client_name'],
-                    ]);
+                    ], null, null, $attachments ?: null);
                 }
             } catch(\Exception $e) { error_log('[Quotation Accepted Email] '.$e->getMessage()); }
         }

@@ -316,8 +316,9 @@ ob_start();
       <?php foreach($newLeadRows as $l): ?>
       <tr onclick="window.location='custom_requests.php'" style="cursor:pointer">
         <td>
+          <?php $lDest = implode(', ', json_decode($l['destinations'] ?? '[]', true) ?: []); ?>
           <div style="font-weight:600;font-size:.82rem"><?= htmlspecialchars($l['full_name']??'') ?></div>
-          <div style="font-size:.68rem;color:var(--gray-500)"><?= htmlspecialchars($l['package_interest']??'') ?></div>
+          <div style="font-size:.68rem;color:var(--gray-500)"><?= htmlspecialchars($lDest ?: (($l['duration_days'] ?? null) ? $l['duration_days'].' days' : '')) ?></div>
         </td>
         <td style="font-size:.78rem"><?= htmlspecialchars($l['country']??'—') ?></td>
         <td style="font-size:.72rem;color:var(--gray-500)"><?= date('d M H:i',strtotime($l['created_at'])) ?></td>

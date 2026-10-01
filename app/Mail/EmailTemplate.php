@@ -26,7 +26,7 @@ namespace App\Mail;
  *   contact_admin_notification — php/contact.php (to admin)
  *   custom_request_ack         — php/custom_safari.php (to guest)
  *   custom_request_admin       — php/custom_safari.php (to admin)
- *   lead_converted             — php/leads_api.php (to agent)
+ *   lead_converted             — app/Services/PipelineSync.php (to agent)
  *   commission_approved        — admin/commissions.php (to agent)
  *   commission_paid            — admin/commissions.php (to agent)
  */
@@ -936,7 +936,7 @@ HTML;
 
     // ══════════════════════════════════════════════════════════
     // TEMPLATE: lead_converted
-    // Used by: php/leads_api.php (when lead.pipeline_stage = 'booked')
+    // Used by: app/Services/PipelineSync.php (when a lead transitions to 'booked')
     // Sent to: agent
     // ══════════════════════════════════════════════════════════
     private static function tpl_lead_converted(array $v): array
