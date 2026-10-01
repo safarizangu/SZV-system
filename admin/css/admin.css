@@ -259,8 +259,49 @@ html, body { height: 100%; }
 .admin-topbar-left   { display: flex; align-items: center; gap: .85rem; min-width: 0; }
 .admin-page-title    { font-family: var(--font-disp); font-size: 1.05rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .admin-topbar-right  { display: flex; align-items: center; gap: .75rem; flex-shrink: 0; }
-.admin-env-badge     { font-size: .5rem; font-weight: 700; letter-spacing: .15em; padding: .2rem .5rem; background: var(--black); color: var(--white); text-transform: uppercase; }
-.admin-user          { font-size: .72rem; font-weight: 600; color: var(--gray-500); }
+
+/* Notification bell + dropdown */
+.admin-notif         { position: relative; }
+.admin-notif-toggle  { position: relative; }
+.admin-notif-badge   {
+  position: absolute; top: 0; right: 0; transform: translate(35%, -35%);
+  background: var(--red); color: var(--white); font-size: .58rem; font-weight: 700;
+  line-height: 1; padding: .22rem .34rem; border-radius: 999px; min-width: 1.1rem; text-align: center;
+}
+.admin-notif-panel {
+  display: none; position: absolute; top: calc(100% + .6rem); right: 0; z-index: 300;
+  width: 320px; max-height: 420px; overflow-y: auto;
+  background: var(--white); border: 1.5px solid var(--gray-200); box-shadow: var(--shadow-md);
+}
+.admin-notif.open .admin-notif-panel { display: block; }
+.admin-notif-panel-header {
+  font-size: .62rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--gray-500); padding: .85rem 1rem .5rem;
+}
+.admin-notif-empty { padding: 1.5rem 1rem; text-align: center; font-size: .8rem; color: var(--gray-500); font-style: italic; }
+.admin-notif-group { border-top: 1px solid var(--gray-100); padding: .4rem 0; }
+.admin-notif-group-title {
+  display: block; font-size: .6rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--black); padding: .4rem 1rem; text-decoration: none;
+}
+.admin-notif-group-title:hover { text-decoration: underline; }
+.admin-notif-item {
+  display: flex; flex-direction: column; gap: .1rem; padding: .45rem 1rem;
+  text-decoration: none; color: inherit; transition: background var(--transition);
+}
+.admin-notif-item:hover { background: var(--gray-50); }
+.admin-notif-item strong { font-size: .78rem; font-weight: 600; color: var(--black); }
+.admin-notif-item span   { font-size: .72rem; color: var(--gray-500); }
+
+/* Profile avatar link */
+.admin-profile-link { display: inline-flex; text-decoration: none; }
+.admin-profile-avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%; background: var(--black); color: var(--white);
+  font-size: .68rem; font-weight: 700; letter-spacing: .02em;
+  transition: opacity var(--transition);
+}
+.admin-profile-link:hover .admin-profile-avatar { opacity: .8; }
 
 /* Hamburger button */
 .admin-hamburger {
@@ -557,7 +598,7 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
   /* Topbar */
   .admin-topbar { padding: 0 1rem; }
   .admin-page-title { font-size: .9rem; }
-  .admin-env-badge { display: none; }
+  .admin-notif-panel { width: calc(100vw - 2rem); right: -1rem; }
 
   /* Modals */
   .admin-modal, .modal-box { padding: 1.25rem; margin: 0; max-height: 95vh; border-radius: 0; }

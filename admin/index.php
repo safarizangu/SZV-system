@@ -187,63 +187,12 @@ if (AuthMiddleware::isAgentRole()) {
     exit;
 }
 
-$totalBookings  = (int)sv($db,"SELECT COUNT(*) FROM bookings");
-$totalRevenue   = (float)sv($db,"SELECT COALESCE(SUM(total_amount),0) FROM bookings WHERE payment_status!='cancelled'");
-$totalLeads     = (int)sv($db,"SELECT COUNT(*) FROM custom_safari_requests");
-$totalQuotes    = (int)sv($db,"SELECT COUNT(*) FROM quotations");
-$convRate       = ($totalLeads+$totalBookings)>0 ? round(($totalBookings/($totalLeads+$totalBookings))*100,1) : 0;
-$newRequests    = (int)sv($db,"SELECT COUNT(*) FROM custom_safari_requests WHERE status='new'");
-$unreadMsgs     = (int)sv($db,"SELECT COUNT(*) FROM contact_messages WHERE is_read=0");
-$pendingEmails  = (int)sv($db,"SELECT COUNT(*) FROM email_queue WHERE status='pending'");
-$failedEmails   = (int)sv($db,"SELECT COUNT(*) FROM email_queue WHERE status='failed'");
-$pendingRem     = (int)sv($db,"SELECT COUNT(*) FROM booking_reminders WHERE status='pending'");
-$dueRem         = (int)sv($db,"SELECT COUNT(*) FROM booking_reminders WHERE status='pending' AND send_at<=DATE_ADD(NOW(),INTERVAL 24 HOUR)");
-
-// Item 30 — "only keep the under-1-hour promise if you can hit it."
-// WhatsApp replies happen outside this codebase, so the closest honest
-// proxy is: time from a guest inquiry landing here to the first time
-// staff acted on it in the admin panel (contact_messages.first_response_at
-// / custom_safari_requests.first_response_at, set in contact_messages.php
-// and custom_requests.php). Last 30 days, both inquiry sources combined.
-$avgResponseMin = sv($db, "
-    SELECT AVG(TIMESTAMPDIFF(MINUTE, created_at, first_response_at)) FROM (
-        SELECT created_at, first_response_at FROM contact_messages
-            WHERE first_response_at IS NOT NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        UNION ALL
-        SELECT created_at, first_response_at FROM custom_safari_requests
-            WHERE first_response_at IS NOT NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    ) t
-");
-$avgResponseMin = $avgResponseMin !== null ? (float)$avgResponseMin : null;
-
-$respondedCount30d = (int)sv($db, "
-    SELECT COUNT(*) FROM (
-        SELECT id FROM contact_messages WHERE first_response_at IS NOT NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        UNION ALL
-        SELECT id FROM custom_safari_requests WHERE first_response_at IS NOT NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    ) t
-");
-$withinHourCount30d = (int)sv($db, "
-    SELECT COUNT(*) FROM (
-        SELECT created_at, first_response_at FROM contact_messages
-            WHERE first_response_at IS NOT NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        UNION ALL
-        SELECT created_at, first_response_at FROM custom_safari_requests
-            WHERE first_response_at IS NOT NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    ) t WHERE TIMESTAMPDIFF(MINUTE, created_at, first_response_at) <= 60
-");
-$withinHourPct = $respondedCount30d > 0 ? round(($withinHourCount30d / $respondedCount30d) * 100) : null;
-
-// Still unanswered right now (no first_response_at yet) and already past
-// the 1-hour mark — the number that matters most for "are we keeping the
-// promise today," not just historically.
-$overdueUnanswered = (int)sv($db, "
-    SELECT COUNT(*) FROM (
-        SELECT created_at FROM contact_messages WHERE first_response_at IS NULL
-        UNION ALL
-        SELECT created_at FROM custom_safari_requests WHERE first_response_at IS NULL
-    ) t WHERE created_at <= DATE_SUB(NOW(), INTERVAL 1 HOUR)
-");
+$monthlyBookings = (int)sv($db,"SELECT COUNT(*) FROM bookings WHERE created_at >= DATE_FORMAT(NOW(),'%Y-%m-01')");
+$totalLeads      = (int)sv($db,"SELECT COUNT(*) FROM custom_safari_requests");
+$pendingQuotes   = (int)sv($db,"SELECT COUNT(*) FROM quotations WHERE status IN ('draft','sent')");
+$newRequests     = (int)sv($db,"SELECT COUNT(*) FROM custom_safari_requests WHERE status='new'");
+$unreadMsgs      = (int)sv($db,"SELECT COUNT(*) FROM contact_messages WHERE is_read=0");
+$pendingRem      = (int)sv($db,"SELECT COUNT(*) FROM booking_reminders WHERE status='pending'");
 
 $recentBookings = sa($db,"SELECT * FROM bookings ORDER BY created_at DESC LIMIT 8");
 $recentQuotes   = sa($db,"SELECT * FROM quotations ORDER BY created_at DESC LIMIT 5");
@@ -273,22 +222,17 @@ ob_start();
 
 <!-- METRIC CARDS -->
 <div class="admin-metrics-grid" style="margin-bottom:1.5rem">
-  <div class="metric-card metric-card--dark">
-    <span class="metric-label">Total Revenue</span>
-    <span class="metric-value">$<?= number_format($totalRevenue,0) ?></span>
-    <span class="metric-sub">Confirmed bookings</span>
-  </div>
   <a href="bookings.php" style="text-decoration:none">
   <div class="metric-card">
     <span class="metric-label">Bookings</span>
-    <span class="metric-value"><?= $totalBookings ?></span>
-    <span class="metric-sub">All time</span>
+    <span class="metric-value"><?= $monthlyBookings ?></span>
+    <span class="metric-sub">This month</span>
   </div></a>
   <a href="quotations.php" style="text-decoration:none">
-  <div class="metric-card">
-    <span class="metric-label">Quotations</span>
-    <span class="metric-value"><?= $totalQuotes ?></span>
-    <span class="metric-sub">Created</span>
+  <div class="metric-card <?= $pendingQuotes>0?'metric-card--amber':'' ?>">
+    <span class="metric-label">Pending Quotations</span>
+    <span class="metric-value"><?= $pendingQuotes ?></span>
+    <span class="metric-sub">Awaiting client response</span>
   </div></a>
   <a href="custom_requests.php" style="text-decoration:none">
   <div class="metric-card <?= $newRequests>0?'metric-card--amber':'' ?>">
@@ -302,59 +246,11 @@ ob_start();
     <span class="metric-value"><?= $unreadMsgs ?></span>
     <span class="metric-sub">Awaiting reply</span>
   </div></a>
+  <a href="reminders.php" style="text-decoration:none">
   <div class="metric-card">
-    <span class="metric-label">Conversion</span>
-    <span class="metric-value"><?= $convRate ?>%</span>
-    <span class="metric-sub">Requests → bookings</span>
-  </div>
-</div>
-
-<!-- COMMS HEALTH -->
-<div class="admin-stats-grid" style="margin-bottom:1.5rem">
-  <a href="email_queue.php" style="text-decoration:none">
-  <div class="admin-stat-card <?= $pendingEmails>0?'admin-stat-card--amber':'' ?>">
-    <span class="admin-stat-label">Emails Queued</span>
-    <span class="admin-stat-value"><?= $pendingEmails ?></span>
-    <span class="admin-stat-sub">Pending</span>
-  </div></a>
-  <a href="email_queue.php" style="text-decoration:none">
-  <div class="admin-stat-card <?= $failedEmails>0?'admin-stat-card--red':'' ?>">
-    <span class="admin-stat-label">Emails Failed</span>
-    <span class="admin-stat-value"><?= $failedEmails ?></span>
-    <span class="admin-stat-sub">Need retry</span>
-  </div></a>
-  <a href="reminders.php" style="text-decoration:none">
-  <div class="admin-stat-card">
-    <span class="admin-stat-label">Reminders</span>
-    <span class="admin-stat-value"><?= $pendingRem ?></span>
-    <span class="admin-stat-sub">Scheduled</span>
-  </div></a>
-  <a href="reminders.php" style="text-decoration:none">
-  <div class="admin-stat-card <?= $dueRem>0?'admin-stat-card--blue':'' ?>">
-    <span class="admin-stat-label">Due 24h</span>
-    <span class="admin-stat-value"><?= $dueRem ?></span>
-    <span class="admin-stat-sub">Firing soon</span>
-  </div></a>
-</div>
-
-<!-- RESPONSE TIME — item 30: is the "WhatsApp under 1 hour" promise
-     actually being kept? Contact + Custom Safari inquiries, last 30 days. -->
-<div class="admin-stats-grid" style="margin-bottom:1.5rem">
-  <div class="admin-stat-card">
-    <span class="admin-stat-label">Avg. Response Time</span>
-    <span class="admin-stat-value"><?= $avgResponseMin === null ? '—' : ($avgResponseMin < 60 ? round($avgResponseMin) . 'm' : round($avgResponseMin / 60, 1) . 'h') ?></span>
-    <span class="admin-stat-sub">Last 30 days</span>
-  </div>
-  <div class="admin-stat-card <?= ($withinHourPct !== null && $withinHourPct < 80) ? 'admin-stat-card--amber' : '' ?>">
-    <span class="admin-stat-label">Within 1 Hour</span>
-    <span class="admin-stat-value"><?= $withinHourPct === null ? '—' : $withinHourPct . '%' ?></span>
-    <span class="admin-stat-sub"><?= $respondedCount30d ?> responded</span>
-  </div>
-  <a href="contact_messages.php" style="text-decoration:none">
-  <div class="admin-stat-card <?= $overdueUnanswered>0?'admin-stat-card--red':'' ?>">
-    <span class="admin-stat-label">Overdue Now</span>
-    <span class="admin-stat-value"><?= $overdueUnanswered ?></span>
-    <span class="admin-stat-sub">Unanswered 1h+</span>
+    <span class="metric-label">Reminders</span>
+    <span class="metric-value"><?= $pendingRem ?></span>
+    <span class="metric-sub">Scheduled</span>
   </div></a>
 </div>
 

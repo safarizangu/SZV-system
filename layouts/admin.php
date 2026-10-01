@@ -36,6 +36,16 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
     $remindersDue = 0;
     $newRequests  = 0;
     $openIncidents = 0;
+    // Topbar notification bell — same "new/unactioned" counts as the nav
+    // badges above, plus new leads and recent bookings, which don't have
+    // their own nav badge. Small preview rows (LIMIT 5 each) so the
+    // dropdown shows what's new, not just a number.
+    $newLeadsCount    = 0;
+    $newBookingsCount = 0;
+    $notifMessages    = [];
+    $notifRequests    = [];
+    $notifLeads       = [];
+    $notifBookings    = [];
     try {
       $db_nav       = \App\Models\Database::getInstance();
       $unreadCount  = (int)$db_nav->query("SELECT COUNT(*) FROM contact_messages WHERE is_read=0")->fetchColumn();
@@ -43,7 +53,15 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
       $remindersDue = (int)$db_nav->query("SELECT COUNT(*) FROM booking_reminders WHERE status='pending' AND send_at<=DATE_ADD(NOW(),INTERVAL 24 HOUR)")->fetchColumn();
       $newRequests  = (int)$db_nav->query("SELECT COUNT(*) FROM custom_safari_requests WHERE status='new'")->fetchColumn();
       $openIncidents = (int)$db_nav->query("SELECT COUNT(*) FROM incidents WHERE status='open'")->fetchColumn();
+      $newLeadsCount    = (int)$db_nav->query("SELECT COUNT(*) FROM leads WHERE pipeline_stage='lead'")->fetchColumn();
+      $newBookingsCount = (int)$db_nav->query("SELECT COUNT(*) FROM bookings WHERE created_at>=DATE_SUB(NOW(),INTERVAL 24 HOUR)")->fetchColumn();
+
+      $notifMessages = $db_nav->query("SELECT id, full_name, message, created_at FROM contact_messages WHERE is_read=0 ORDER BY created_at DESC LIMIT 5")->fetchAll();
+      $notifRequests = $db_nav->query("SELECT id, full_name, created_at FROM custom_safari_requests WHERE status='new' ORDER BY created_at DESC LIMIT 5")->fetchAll();
+      $notifLeads    = $db_nav->query("SELECT id, full_name, created_at FROM leads WHERE pipeline_stage='lead' ORDER BY created_at DESC LIMIT 5")->fetchAll();
+      $notifBookings = $db_nav->query("SELECT booking_ref, full_name, created_at FROM bookings WHERE created_at>=DATE_SUB(NOW(),INTERVAL 24 HOUR) ORDER BY created_at DESC LIMIT 5")->fetchAll();
     } catch(Exception $e) {}
+    $notifTotal = $unreadCount + $newRequests + $newLeadsCount + $newBookingsCount;
 
     // Regrouped per an explicit admin request — Dashboard is now just the
     // one overview page; former Dashboards widgets (Sales & Pipeline,
@@ -181,10 +199,50 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
       <h1 class="admin-page-title"><?= $pageTitle ?? '' ?></h1>
     </div>
     <div class="admin-topbar-right">
-      <span class="admin-env-badge"><?= defined('APP_ENV') && APP_ENV === 'local' ? 'LOCAL' : 'LIVE' ?></span>
-      <span class="admin-user">
-        <?= htmlspecialchars($_SESSION['admin_full_name'] ?? $_SESSION['admin_username'] ?? 'Admin') ?>
-      </span>
+      <?php
+        $notifGroups = [
+          ['label' => 'Unread Messages', 'count' => $unreadCount,    'href' => 'contact_messages.php', 'rows' => $notifMessages, 'nameKey' => 'full_name', 'subKey' => 'message'],
+          ['label' => 'New Requests',    'count' => $newRequests,    'href' => 'custom_requests.php',  'rows' => $notifRequests, 'nameKey' => 'full_name', 'subKey' => null],
+          ['label' => 'New Leads',       'count' => $newLeadsCount,  'href' => 'leads.php',             'rows' => $notifLeads,    'nameKey' => 'full_name', 'subKey' => null],
+          ['label' => 'New Bookings',    'count' => $newBookingsCount,'href' => 'bookings.php',         'rows' => $notifBookings, 'nameKey' => 'full_name', 'subKey' => 'booking_ref'],
+        ];
+      ?>
+      <div class="admin-notif" id="adminNotif">
+        <button type="button" class="admin-icon-btn admin-notif-toggle" id="notifToggle" aria-label="Notifications" aria-expanded="false">
+          <?= \App\Helpers\AdminIcon::render('bell', 19) ?>
+          <?php if ($notifTotal > 0): ?><span class="admin-notif-badge"><?= $notifTotal > 99 ? '99+' : $notifTotal ?></span><?php endif; ?>
+        </button>
+        <div class="admin-notif-panel" id="notifPanel">
+          <div class="admin-notif-panel-header">Notifications</div>
+          <?php if ($notifTotal === 0): ?>
+          <div class="admin-notif-empty">You're all caught up.</div>
+          <?php else: foreach ($notifGroups as $g): if (empty($g['rows'])) continue; ?>
+          <div class="admin-notif-group">
+            <a href="<?= $g['href'] ?>" class="admin-notif-group-title"><?= htmlspecialchars($g['label']) ?> (<?= $g['count'] ?>)</a>
+            <?php foreach ($g['rows'] as $r): ?>
+            <a href="<?= $g['href'] ?>" class="admin-notif-item">
+              <strong><?= htmlspecialchars($r[$g['nameKey']] ?? '') ?></strong>
+              <?php if ($g['subKey'] && !empty($r[$g['subKey']])): ?>
+              <span><?= htmlspecialchars(mb_strlen($r[$g['subKey']]) > 60 ? mb_substr($r[$g['subKey']], 0, 60) . '…' : $r[$g['subKey']]) ?></span>
+              <?php endif; ?>
+            </a>
+            <?php endforeach; ?>
+          </div>
+          <?php endforeach; endif; ?>
+        </div>
+      </div>
+
+      <?php
+        $adminDisplayName = $_SESSION['admin_full_name'] ?? $_SESSION['admin_username'] ?? 'Admin';
+        $adminInitials    = '';
+        foreach (preg_split('/\s+/', trim($adminDisplayName)) as $part) {
+          if ($part !== '') $adminInitials .= mb_strtoupper(mb_substr($part, 0, 1));
+          if (mb_strlen($adminInitials) >= 2) break;
+        }
+      ?>
+      <a href="profile.php" class="admin-profile-link" title="<?= htmlspecialchars($adminDisplayName) ?>">
+        <span class="admin-profile-avatar"><?= htmlspecialchars($adminInitials ?: 'A') ?></span>
+      </a>
       <a href="logout.php" class="admin-btn admin-btn--muted" style="font-size:.62rem;padding:.28rem .65rem">Sign Out</a>
     </div>
   </header>
@@ -234,6 +292,34 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
       });
     });
   }
+})();
+
+// ── Notification bell dropdown ───────────────────────────────
+(function () {
+  var wrap  = document.getElementById('adminNotif');
+  var toggle = document.getElementById('notifToggle');
+  var panel  = document.getElementById('notifPanel');
+  if (!wrap || !toggle || !panel) return;
+
+  function open() {
+    wrap.classList.add('open');
+    toggle.setAttribute('aria-expanded', 'true');
+  }
+  function close() {
+    wrap.classList.remove('open');
+    toggle.setAttribute('aria-expanded', 'false');
+  }
+
+  toggle.addEventListener('click', function (e) {
+    e.stopPropagation();
+    wrap.classList.contains('open') ? close() : open();
+  });
+  document.addEventListener('click', function (e) {
+    if (!wrap.contains(e.target)) close();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') close();
+  });
 })();
 
 // ── Collapsible nav groups ───────────────────────────────────

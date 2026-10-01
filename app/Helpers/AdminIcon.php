@@ -63,6 +63,7 @@ class AdminIcon
         'incident'       => '<path d="M4 3v18"/><path d="M4 4h13l-3 4 3 4H4"/>',
         'trending'       => '<polyline points="3,17 9,11 13,15 21,6"/><polyline points="15,6 21,6 21,12"/>',
         'target'         => '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
+        'bell'           => '<path d="M6 8a6 6 0 0 1 12 0c0 5.2 1.5 7.4 2.2 8.3.3.4 0 1-.5 1H4.3c-.5 0-.8-.6-.5-1C4.5 15.4 6 13.2 6 8Z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
     ];
 
     /**
