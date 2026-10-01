@@ -237,14 +237,21 @@ if ($builtQuote && $quoteTotals) {
     }
 }
 
-// ── Render the combined itinerary+quotation PDF (or a plain booking
-//    summary if there's no itinerary) to attach to the confirmation email ──
+// ── Render two separate PDFs — Quotation (pricing) and Itinerary
+//    (day-by-day) — to attach to the confirmation email, instead of one
+//    long combined document ──
 $attachments = [];
 $pdfFile = $quotationId
     ? PdfRenderer::renderQuotation($quotationId, 'Quotation-' . $ref)
     : PdfRenderer::renderBooking($ref, 'Booking-' . $ref);
 if ($pdfFile) {
     $attachments[] = $pdfFile;
+}
+$itinFile = $quotationId
+    ? PdfRenderer::renderQuotationItinerary($quotationId, 'Itinerary-' . $ref)
+    : PdfRenderer::renderBookingItinerary($ref, 'Itinerary-' . $ref);
+if ($itinFile) {
+    $attachments[] = $itinFile;
 }
 
 // ── Send confirmation email via the queue (silent — never crash the response) ──

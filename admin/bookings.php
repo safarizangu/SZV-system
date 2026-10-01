@@ -16,10 +16,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $status  = trim($_POST['status'] ?? '');
         $allowed = ['pending','deposit_paid','fully_paid','cancelled'];
         if ($ref && in_array($status, $allowed, true)) {
+            $prevStatus = $db->prepare("SELECT payment_status FROM bookings WHERE booking_ref=? LIMIT 1");
+            $prevStatus->execute([$ref]);
+            $wasFullyPaid = $prevStatus->fetchColumn() === 'fully_paid';
+
             $db->prepare("UPDATE bookings SET payment_status=?, updated_at=NOW() WHERE booking_ref=?")
                ->execute([$status, $ref]);
             \App\Services\ActivityLog::record('update_status', 'booking', 0, ['booking_ref'=>$ref,'status'=>$status]);
-            echo json_encode(['success'=>true]);
+
+            $invoiceEmailSent = false;
+            // Fires once per genuine transition INTO fully_paid — not on
+            // every save of an already-paid booking — converting the
+            // Quotation/Booking PDF into its Invoice form (PdfRenderer's
+            // *Invoice() methods re-verify payment_status themselves) and
+            // emailing it straight to the client, no admin action needed.
+            if ($status === 'fully_paid' && !$wasFullyPaid) {
+                try {
+                    $bs = $db->prepare("SELECT * FROM bookings WHERE booking_ref=? LIMIT 1");
+                    $bs->execute([$ref]);
+                    $bRow = $bs->fetch();
+                    if ($bRow) {
+                        $invoiceEmailSent = \App\Services\InvoiceMailer::sendForBooking($bRow);
+                    }
+                } catch (\Throwable $e) {
+                    error_log('[SZV Invoice] ' . $e->getMessage());
+                }
+            }
+
+            echo json_encode(['success'=>true, 'invoice_email_sent'=>$invoiceEmailSent]);
         } else {
             echo json_encode(['success'=>false,'message'=>'Invalid data.']);
         }
@@ -30,16 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $s = $db->prepare("SELECT * FROM bookings WHERE booking_ref=?");
         $s->execute([$ref]);
         $b = $s->fetch();
-        // Also check if a quotation exists for this booking
-        $hasQuote = false;
-        if ($b) {
-            try {
-                $qs = $db->prepare("SELECT id FROM quotations WHERE booking_ref=? OR id=? LIMIT 1");
-                $qs->execute([$ref, $b['quotation_id'] ?? 0]);
-                $hasQuote = (bool)$qs->fetch();
-            } catch(\Exception $e) {}
-        }
-        if ($b) $b['has_quote'] = $hasQuote;
         echo json_encode($b ?: ['error'=>'Not found']);
         exit;
     }
@@ -148,8 +162,6 @@ ob_start();
   <tbody>
     <?php foreach ($bookings as $b):
       $sc = $statusColors[$b['payment_status']] ?? $statusColors['pending'];
-      // Check if quotation exists
-      $hasQuote = !empty($b['quotation_id']);
     ?>
     <tr id="row-<?= htmlspecialchars($b['booking_ref']) ?>"
         class="<?= ($viewRef && $viewRef===$b['booking_ref']) ? 'highlighted-row' : '' ?>">
@@ -193,35 +205,13 @@ ob_start();
         </select>
       </td>
       <td style="white-space:nowrap">
-        <!-- View detail modal -->
+        <!-- View detail modal — Quotation/Itinerary downloads, Voucher,
+             Quote and Track links all live inside the modal now, so this
+             row stays to just the 3 most-used actions. -->
         <button onclick="viewBooking('<?= htmlspecialchars($b['booking_ref']) ?>')"
                 class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">
           View
         </button>
-        <!-- PDF — booking confirmation print page -->
-        <a href="../api/booking_pdf.php?ref=<?= urlencode($b['booking_ref']) ?>"
-           target="_blank"
-           class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">
-          PDF
-        </a>
-        <!-- Voucher — supplier-facing exchange order -->
-        <a href="../api/voucher_pdf.php?ref=<?= urlencode($b['booking_ref']) ?>"
-           target="_blank"
-           class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">
-          Voucher
-        </a>
-        <!-- Quotation status: + Quote creates new, view opens existing -->
-        <?php if ($hasQuote): ?>
-        <a href="quotations.php?search=<?= urlencode($b['booking_ref']) ?>"
-           class="admin-btn admin-btn--tint-green" style="font-size:.6rem;padding:.3rem .6rem">
-          Quote
-        </a>
-        <?php else: ?>
-        <a href="quotation_new.php?from_booking=<?= urlencode($b['booking_ref']) ?>"
-           class="admin-btn admin-btn--tint-blue" style="font-size:.6rem;padding:.3rem .6rem">
-          + Quote
-        </a>
-        <?php endif; ?>
         <!-- Email booking confirmation -->
         <a href="../api/booking_email.php?ref=<?= urlencode($b['booking_ref']) ?>"
            onclick="return confirm('Send booking confirmation email to <?= htmlspecialchars(addslashes($b['email'])) ?>?')"
@@ -286,7 +276,7 @@ async function updateStatus(ref, newStatus, sel) {
     var r = await fetch('bookings.php',{method:'POST',body:fd});
     var d = await r.json();
     if (d.success) {
-      toast('Status updated: '+newStatus,'ok');
+      toast(d.invoice_email_sent ? 'Status updated — Invoice emailed to client' : 'Status updated: '+newStatus,'ok');
       var meta = STATUS_META[newStatus];
       if (meta) { sel.style.background = meta.bg; sel.style.color = meta.color; }
     } else {
@@ -334,37 +324,34 @@ async function viewBooking(ref) {
     return '<div class="detail-row"><span class="detail-label">'+r[0]+'</span><span>'+r[1]+'</span></div>';
   }).join('');
 
+  // Quotation/Itinerary PDFs — when a quotation is linked, these must be
+  // the real itemized quotation_pdf.php / quotation_itinerary_pdf.php
+  // (full cost breakdown), not booking_pdf.php's flat total-only summary,
+  // so what the admin previews here matches what api/booking_email.php
+  // actually attaches when it sends to the client. Once the booking is
+  // fully paid, the same documents auto-relabel as an Invoice (the
+  // backend re-verifies payment_status itself before honoring invoice=1,
+  // so this flag is just a request, not the source of truth).
+  var isPaid = b.payment_status === 'fully_paid';
+  var quotePdfUrl = b.quotation_id
+    ? BASE+'/api/quotation_pdf.php?id='+encodeURIComponent(b.quotation_id)+(isPaid?'&invoice=1':'')
+    : BASE+'/api/booking_pdf.php?ref='+encodeURIComponent(b.booking_ref)+(isPaid?'&invoice=1':'');
+  var itinPdfUrl = b.quotation_id
+    ? BASE+'/api/quotation_itinerary_pdf.php?id='+encodeURIComponent(b.quotation_id)
+    : BASE+'/api/booking_itinerary_pdf.php?ref='+encodeURIComponent(b.booking_ref);
+
   // Action buttons
   html += '<div style="padding:1.25rem 1.5rem;display:flex;gap:.5rem;flex-wrap:wrap">'
 
-    // PDF — booking confirmation
-    +'<a href="'+BASE+'/api/booking_pdf.php?ref='+encodeURIComponent(b.booking_ref)+'" '
-    +'target="_blank" class="admin-btn admin-btn--outline" style="font-size:.72rem">Booking PDF</a>'
+    // Quotation PDF (or Invoice PDF once fully paid) — pricing/guest
+    // confirmation, full cost breakdown, Print/Save PDF built into the
+    // page itself, same as the Voucher
+    +'<a href="'+quotePdfUrl+'" '
+    +'target="_blank" class="admin-btn admin-btn--outline" style="font-size:.72rem">'+(isPaid?'Invoice PDF':'Quotation PDF')+'</a>'
 
-    // Voucher — supplier-facing exchange order
-    +'<a href="'+BASE+'/api/voucher_pdf.php?ref='+encodeURIComponent(b.booking_ref)+'" '
-    +'target="_blank" class="admin-btn admin-btn--outline" style="font-size:.72rem">Voucher</a>'
-
-    // Create / View Quotation
-    +(b.has_quote
-      ? '<a href="'+BASE+'/admin/quotations.php?search='+encodeURIComponent(b.booking_ref)+'" '
-        +'class="admin-btn admin-btn--tint-green" style="font-size:.72rem">View Quotation</a>'
-      : '<a href="'+BASE+'/admin/quotation_new.php?from_booking='+encodeURIComponent(b.booking_ref)+'" '
-        +'class="admin-btn admin-btn--tint-blue" style="font-size:.72rem">+ Create Quotation</a>'
-    )
-
-    // Resend confirmation email
-    +'<a href="'+BASE+'/api/booking_email.php?ref='+encodeURIComponent(b.booking_ref)+'" '
-    +'onclick="return confirm(\'Resend booking confirmation to '+b.email+'?\')" '
-    +'class="admin-btn admin-btn--outline" style="font-size:.72rem">Resend Email</a>'
-
-    // Track page
-    +'<a href="'+BASE+'/track.php?ref='+encodeURIComponent(b.booking_ref)+'&date='+(b.travel_date||'')+'" '
-    +'target="_blank" class="admin-btn admin-btn--outline" style="font-size:.72rem">Track Page</a>'
-
-    // WhatsApp
-    +'<a href="https://wa.me/'+(b.phone||'').replace(/[^0-9]/g,'')+'?text='+encodeURIComponent('Hi '+b.full_name+', this is Safari Zangu Ventures regarding your booking '+b.booking_ref+'.')+'" '
-    +'target="_blank" class="admin-btn admin-btn--success" style="font-size:.72rem">WhatsApp</a>'
+    // Itinerary — day-by-day companion PDF
+    +'<a href="'+itinPdfUrl+'" '
+    +'target="_blank" class="admin-btn admin-btn--outline" style="font-size:.72rem">Itinerary PDF</a>'
 
     +'</div>';
 
@@ -389,6 +376,19 @@ function toast(msg, type) {
   document.getElementById('toastContainer').appendChild(t);
   setTimeout(function(){ t.remove(); }, 3500);
 }
+
+// api/voucher_email.php and api/booking_email.php redirect back here with
+// ?msg=... (their send result) — surface it instead of silently dropping
+// it, then strip it from the URL so a refresh doesn't re-show it.
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var msg = params.get('msg');
+  if (!msg) return;
+  toast(msg, msg.charAt(0) === '✓' ? 'ok' : msg.charAt(0) === '✗' ? 'err' : null);
+  params.delete('msg');
+  var qs = params.toString();
+  history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
+})();
 
 <?php if ($viewRef): ?>
 window.addEventListener('load', function() {

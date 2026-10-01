@@ -29,56 +29,18 @@ try {
 
 $lineItems    = json_decode($q['line_items']    ?? '[]', true) ?: [];
 $destinations = json_decode($q['destinations']  ?? '[]', true) ?: [];
-
-// Load the FULL itinerary (days + overview + includes/excludes) so the
-// Quotation PDF is one combined document, not split across two files.
-//
-// Priority matches what admin/quotation_new.php's save handler actually
-// priced the quotation with: its own itinerary/includes/excludes
-// columns always win when present, because the Day-by-Day Itinerary
-// editor stays editable even when itinerary_id is set (unlike
-// admin/package_edit.php) — pricing is always computed from exactly
-// what's in those columns, never re-fetched live from itineraries.days.
-// itinerary_id is only a fallback for older quotations saved before
-// this snapshot existed; package_name is a last-resort legacy fallback
-// for quotations older still.
-$itinDays     = [];
-$itinOverview = '';
-$itinIncludes = [];
-$itinExcludes = [];
-try {
-    $itinRow = null;
-    if (!empty($q['itinerary'])) {
-        $itinDays     = json_decode($q['itinerary'], true) ?: [];
-        $itinIncludes = json_decode($q['includes']  ?? '[]', true) ?: [];
-        $itinExcludes = json_decode($q['excludes']  ?? '[]', true) ?: [];
-    } elseif (!empty($q['itinerary_id'])) {
-        $is = $db->prepare("SELECT * FROM itineraries WHERE id=? LIMIT 1");
-        $is->execute([$q['itinerary_id']]);
-        $itinRow = $is->fetch() ?: null;
-    }
-    if ($itinRow) {
-        $itinDays     = json_decode($itinRow['days']     ?? '[]', true) ?: [];
-        $itinOverview = $itinRow['overview'] ?? '';
-        $itinIncludes = json_decode($itinRow['includes'] ?? '[]', true) ?: [];
-        $itinExcludes = json_decode($itinRow['excludes'] ?? '[]', true) ?: [];
-    } elseif (empty($itinDays) && !empty($q['package_name'])) {
-        // Legacy fallback: an older quotation with neither of the above,
-        // typed a package name that happens to still exist.
-        $ps = $db->prepare("SELECT i.* FROM packages p
-                            JOIN itineraries i ON i.id = p.itinerary_id
-                            WHERE p.name = ? AND p.is_active = 1 LIMIT 1");
-        $ps->execute([$q['package_name']]);
-        $itinRow = $ps->fetch() ?: null;
-        if ($itinRow) {
-            $itinDays     = json_decode($itinRow['days']     ?? '[]', true) ?: [];
-            $itinOverview = $itinRow['overview'] ?? '';
-            $itinIncludes = json_decode($itinRow['includes'] ?? '[]', true) ?: [];
-            $itinExcludes = json_decode($itinRow['excludes'] ?? '[]', true) ?: [];
-        }
-    }
-} catch(Exception $e) { $itinDays = []; $itinOverview = ''; $itinIncludes = []; $itinExcludes = []; }
 $isDownload   = isset($_GET['download']);
+
+// Invoice mode — same document, relabeled once the linked booking is
+// actually fully paid. The ?invoice=1 flag only ever REQUESTS this; the
+// real payment status is looked up fresh so the URL itself can't be used
+// to misrepresent a booking as paid when it isn't.
+$isInvoice = false;
+if (isset($_GET['invoice']) && $_GET['invoice'] == '1' && !empty($q['booking_ref'])) {
+    $bps = $db->prepare("SELECT payment_status FROM bookings WHERE booking_ref=? LIMIT 1");
+    $bps->execute([$q['booking_ref']]);
+    $isInvoice = $bps->fetchColumn() === 'fully_paid';
+}
 
 // Recalculate from line items (server authoritative)
 $subtotal  = array_sum(array_column($lineItems, 'amount'));
@@ -103,7 +65,7 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Quotation <?= htmlspecialchars($q['quote_ref']) ?> — Safari Zangu Ventures</title>
+<title><?= $isInvoice ? 'Invoice' : 'Quotation' ?> <?= htmlspecialchars($q['quote_ref']) ?> — Safari Zangu Ventures</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500;600;700&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -150,18 +112,6 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
   .cost-tbl tr:last-child td{border-bottom:none}
   .cost-tbl .cat-badge{font-size:.56rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
                         padding:.12rem .35rem;margin-right:.4rem;opacity:.7}
-
-  /* Itinerary day cards + includes/excludes (merged into this document) */
-  .overview{font-size:.88rem;line-height:1.8;color:#374151}
-  <?= \App\Helpers\ItineraryDayCards::css() ?>
-  .two-col-list{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
-  .list-title{font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
-              margin-bottom:.5rem}
-  .list-title.inc{color:#166534}
-  .list-title.exc{color:#991b1b}
-  .list-items{list-style:none;font-size:.82rem;line-height:1.9;color:#374151}
-  .list-items li::before{content:'\2713 ';color:#16a34a;font-weight:700;margin-right:.2rem}
-  .list-items.exc li::before{content:'\2717 ';color:#dc2626}
 
   /* Totals */
   .totals{margin-left:auto;width:340px}
@@ -215,11 +165,16 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
     <div style="margin-top:.5rem;font-size:.72rem;color:#9ca3af">TALA Licence No. 037129 · Reg. No. 179228971</div>
   </div>
   <div class="qref">
-    <div style="font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af">QUOTATION</div>
+    <div style="font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af"><?= $isInvoice ? 'INVOICE' : 'QUOTATION' ?></div>
     <div class="qref-num"><?= htmlspecialchars($q['quote_ref']) ?></div>
+    <?php if ($isInvoice): ?>
+    <div class="qref-date">Issued: <?= date('d F Y') ?></div>
+    <div class="badge" style="background:#166534">PAID IN FULL</div>
+    <?php else: ?>
     <div class="qref-date">Issued: <?= date('d F Y') ?></div>
     <div class="qref-date">Valid until: <strong><?= $validStr ?></strong></div>
     <div class="badge"><?= strtoupper($q['status'] ?? 'draft') ?></div>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -260,47 +215,6 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
 <!-- ── COST BREAKDOWN TABLE — matches PDF exactly ────────── -->
 <div class="sec">
   <div class="sec-title">Cost Breakdown</div>
-  <!-- ── Itinerary Overview, Day-by-Day, Includes/Excludes ── -->
-  <?php if (!empty($itinOverview) || !empty($itinDays)): ?>
-  <div class="sec">
-    <?php if (!empty($itinOverview)): ?>
-    <div class="sec-title">Itinerary Overview</div>
-    <div class="overview" style="margin-bottom:1rem"><?= nl2br(htmlspecialchars($itinOverview)) ?></div>
-    <?php endif; ?>
-
-    <?php if (!empty($itinDays)): ?>
-    <div class="sec-title">Day-by-Day Itinerary</div>
-    <?= \App\Helpers\ItineraryDayCards::render($itinDays) ?>
-    <?php endif; ?>
-
-    <?php if (!empty($itinIncludes) || !empty($itinExcludes)): ?>
-    <div class="two-col-list" style="margin-top:1.25rem">
-      <?php if (!empty($itinIncludes)): ?>
-      <div>
-        <div class="list-title inc">What's Included</div>
-        <ul class="list-items">
-          <?php foreach ($itinIncludes as $inc): ?>
-          <li><?= htmlspecialchars($inc) ?></li>
-          <?php endforeach; ?>
-        </ul>
-      </div>
-      <?php endif; ?>
-      <?php if (!empty($itinExcludes)): ?>
-      <div>
-        <div class="list-title exc">What's Not Included</div>
-        <ul class="list-items exc">
-          <?php foreach ($itinExcludes as $exc): ?>
-          <li><?= htmlspecialchars($exc) ?></li>
-          <?php endforeach; ?>
-        </ul>
-      </div>
-      <?php endif; ?>
-    </div>
-    <?php endif; ?>
-  </div>
-  <?php endif; ?>
-
-  <!-- ── Cost Breakdown ──────────────────────────────────────── -->
   <table class="cost-tbl">
     <thead>
       <tr>
@@ -370,6 +284,13 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
       <span style="color:#6b7280">USD per person (<?= $pax ?> guest<?= $pax!==1?'s':'' ?>)</span>
       <span class="val">USD <?= number_format($perPerson,2) ?></span>
     </div>
+    <?php if ($isInvoice): ?>
+    <div class="deposit-box">
+      <div class="title">Payment Status</div>
+      <div class="dep-row"><span>Amount Paid</span><span class="val">USD <?= number_format($grand,2) ?></span></div>
+      <div class="dep-row"><span>Balance Due</span><span class="val">USD 0.00</span></div>
+    </div>
+    <?php else: ?>
     <div class="deposit-box">
       <div class="title">To Confirm Your Booking</div>
       <div class="dep-row"><span>Deposit (30%) — due within 48 hours</span><span class="val">USD <?= number_format($deposit,2) ?></span></div>
@@ -383,7 +304,12 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
       <?php if ($bankSwift): ?><div class="payment-row">SWIFT: <strong><?= htmlspecialchars($bankSwift) ?></strong></div><?php endif; ?>
       <div class="payment-row">PayPal: <strong><?= htmlspecialchars($paypalEmail) ?></strong></div>
     </div>
+    <?php endif; ?>
   </div>
+</div>
+
+<div class="sec" style="font-size:.8rem;color:#6b7280;background:#f9f9f8;border:1px solid #e5e7eb;padding:.85rem 1rem">
+  Your full day-by-day itinerary is attached as a separate PDF alongside this quotation.
 </div>
 
 <?php if(!empty($q['notes'])): ?>
@@ -410,8 +336,12 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
   </div>
   <div>
     <strong>Payment</strong>
+    <?php if ($isInvoice): ?>
+    Paid in full — thank you for<br>travelling with Safari Zangu Ventures.
+    <?php else: ?>
     Bank transfer or PayPal — see Payment Details above.<br>
     This quotation is valid until <?= $validStr ?>
+    <?php endif; ?>
   </div>
 </div>
 

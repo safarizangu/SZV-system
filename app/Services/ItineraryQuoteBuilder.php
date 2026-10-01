@@ -249,7 +249,12 @@ class ItineraryQuoteBuilder
         }
 
         foreach ($vehGroups as $veh) {
-            $dayStr = $veh['days'] . ' Day' . ($veh['days'] !== 1 ? 's' : '');
+            // There's no multi-vehicle-per-day concept in this schema (one
+            // vehicle_name/vehicle_rate per day, grouped across days by
+            // name) — always exactly 1 vehicle, stated explicitly so the
+            // client sees the same "quantity × days" multiplication the
+            // accommodation lines already show, not just a bare day count.
+            $dayStr = '1 Vehicle × ' . $veh['days'] . ' Day' . ($veh['days'] !== 1 ? 's' : '');
 
             // Itemize into daily-rate/fuel/driver only when the day's
             // entered rate matches this vehicle's current on-file total

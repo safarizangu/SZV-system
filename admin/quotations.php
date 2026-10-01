@@ -218,6 +218,8 @@ ob_start();
       <a href="quotation_new.php?id=<?= $q['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">Edit</a>
       <!-- PDF -->
       <a href="../api/quotation_pdf.php?id=<?= $q['id'] ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">PDF</a>
+      <!-- Itinerary — day-by-day companion PDF -->
+      <a href="../api/quotation_itinerary_pdf.php?id=<?= $q['id'] ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">Itinerary</a>
       <!-- Email -->
       <form method="POST" action="../api/quotation_email.php" style="display:inline" target="_blank">
         <?= \App\Middleware\CsrfMiddleware::field() ?>

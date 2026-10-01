@@ -45,35 +45,28 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
       $openIncidents = (int)$db_nav->query("SELECT COUNT(*) FROM incidents WHERE status='open'")->fetchColumn();
     } catch(Exception $e) {}
 
-    // Grouped by how often you'd actually reach for each page, not by
-    // data type — Operations is everything touched daily; Catalog,
-    // Field Ops, People & Partners and Settings are the lower-frequency
-    // reference/configuration pages, split by subject instead of dumped
-    // into one long list. Operations' exact membership (and Settings') is
-    // load-bearing for the role filter below — see the comment there
-    // before adding/removing anything from either.
+    // Regrouped per an explicit admin request — Dashboard is now just the
+    // one overview page; former Dashboards widgets (Sales & Pipeline,
+    // Profitability, Customer Experience, Agent Performance) moved into
+    // Analytics/Agent below instead of sharing a group with the overview.
+    // analytics.php (Web Analytics), operations_calendar.php (Ops
+    // Calendar) and dashboard_operations.php (Operations dashboard
+    // widget) and dashboard_fleet.php (Suppliers & Fleet widget) were
+    // deliberately left out of the requested structure — the pages still
+    // exist and work, they're just not linked from the sidebar anymore.
+    // Group membership here is load-bearing for the role filter below —
+    // see the comment there before adding/removing anything.
     $groups = [
-      'Dashboards' => [
+      'Dashboard' => [
         ['index.php',            'Overview',         'dashboard', ''],
-        ['dashboard_sales.php',       'Sales &amp; Pipeline', 'analytics', ''],
-        ['dashboard_operations.php',  'Operations',       'calendar', ''],
-        ['dashboard_profitability.php','Profitability',  'trending', ''],
-        ['dashboard_customer_experience.php', 'Customer Experience', 'star', ''],
-        ['dashboard_agents.php',      'Agent Performance','target', ''],
-        ['dashboard_fleet.php',       'Suppliers &amp; Fleet', 'suppliers', ''],
       ],
       'Operations' => [
-        ['analytics.php',        'Web Analytics',    'analytics', ''],
-        ['operations_calendar.php', 'Ops Calendar',  'calendar', ''],
         ['bookings.php',         'Bookings',         'bookings', ''],
+        ['custom_requests.php',  'Requests',         'requests', $newRequests > 0 ? $newRequests : ''],
+        ['quotations.php',       'Quotations',       'quotations', ''],
         ['invoices.php',         'Invoices',         'invoices', ''],
         ['customers.php',        'Customers',        'customers', ''],
-        ['custom_requests.php',  'Requests',         'requests', $newRequests > 0 ? $newRequests : ''],
         ['contact_messages.php', 'Messages',         'messages', $unreadCount > 0 ? $unreadCount : ''],
-        ['leads.php',            'Leads',            'leads', ''],
-        ['commissions.php',    'Commissions',      'commissions', ''],
-        ['quotations.php',       'Quotations',       'quotations', ''],
-        ['reviews.php',          'Reviews',          'star', ''],
       ],
       'Communications' => [
         ['email_templates.php', 'Email Templates',   'email-template', ''],
@@ -82,13 +75,10 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
       ],
       'Catalog' => [
         ['packages.php',         'Packages',         'packages', ''],
-        ['package_edit.php',      'New Package',      'plus', ''],
         ['itineraries.php',      'Itineraries',      'itineraries', ''],
         ['accommodations.php',   'Accommodations',   'accommodations', ''],
         ['activities.php',       'Activities',       'activities', ''],
         ['vehicles.php',         'Fleet',            'fleet', ''],
-        ['poster_maker.php',       'Poster Maker',        'poster', ''],
-        ['gallery.php',          'Image Gallery',    'gallery', ''],
       ],
       'Field Operations' => [
         ['room_availability.php', 'Room Availability', 'inventory', ''],
@@ -99,6 +89,21 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
         ['team_members.php',     'Team',             'team', ''],
         ['suppliers.php',        'Suppliers',        'suppliers', ''],
         ['staff.php',            'Guides &amp; Drivers', 'guide', ''],
+      ],
+      'Analytics' => [
+        ['dashboard_profitability.php','Profitability',  'trending', ''],
+        ['dashboard_customer_experience.php', 'Customer Experience', 'star', ''],
+        ['reviews.php',          'Reviews',          'star', ''],
+        ['dashboard_sales.php',  'Sales &amp; Pipeline', 'analytics', ''],
+      ],
+      'Agent' => [
+        ['leads.php',            'Leads',            'leads', ''],
+        ['dashboard_agents.php', 'Agent Performance','target', ''],
+        ['commissions.php',      'Commissions',      'commissions', ''],
+      ],
+      'Gallery' => [
+        ['poster_maker.php',     'Poster Maker',     'poster', ''],
+        ['gallery.php',          'Image Gallery',    'gallery', ''],
       ],
       'Settings' => [
         ['park_fees.php',        'Park Fees',        'park-fees', ''],
@@ -113,19 +118,24 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
     // staff loses Settings (still full access within what's left — the
     // pages themselves aren't restricted for staff, only the nav and the
     // Settings pages' own direct-access guard are). agent is narrowed to
-    // Operations only, where several pages additionally scope their data
-    // to the signed-in agent's own records (leads.php, quotations.php,
-    // commissions.php, invoices.php).
+    // Dashboard + Operations + Agent, where several pages additionally
+    // scope their data to the signed-in agent's own records (leads.php,
+    // quotations.php, commissions.php, invoices.php).
     $myNavRole = $_SESSION['admin_role'] ?? 'agent';
     // Profitability and Agent Performance carry margin/cross-agent data
     // that admin/dashboard_profitability.php and admin/dashboard_agents.php
     // already gate server-side (isAdminRole()) — hidden here too so the
     // nav never shows a link a non-admin/superadmin can't actually open.
     if ($myNavRole !== 'admin' && $myNavRole !== 'superadmin') {
-        $groups['Dashboards'] = array_values(array_filter($groups['Dashboards'], fn($l) => !in_array($l[0], ['dashboard_profitability.php', 'dashboard_agents.php'], true)));
+        $groups['Analytics'] = array_values(array_filter($groups['Analytics'], fn($l) => $l[0] !== 'dashboard_profitability.php'));
+        $groups['Agent']     = array_values(array_filter($groups['Agent'], fn($l) => $l[0] !== 'dashboard_agents.php'));
     }
     if ($myNavRole === 'agent') {
-        $groups = ['Dashboards' => [$groups['Dashboards'][0]], 'Operations' => $groups['Operations']];
+        $groups = [
+            'Dashboard'  => $groups['Dashboard'],
+            'Operations' => $groups['Operations'],
+            'Agent'      => $groups['Agent'],
+        ];
     } elseif ($myNavRole === 'staff') {
         unset($groups['Settings']);
     }

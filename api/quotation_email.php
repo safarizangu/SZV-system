@@ -247,19 +247,18 @@ $emailBody = "Dear {$q['client_name']},\n\n"
     . "Njiro Road, Arusha, Tanzania\n"
     . "+255 663 430 934 · {$replyTo} · www.safarizanguven.com";
 
-// ── Render the quotation PDF and queue the email ────────────────
+// ── Render the Quotation and Itinerary PDFs and queue the email ──
 // Previously this sent synchronously via PHPMailer inside the request —
 // no retry on failure, no record in admin/email_queue.php, and the
 // admin's browser blocked on however long SMTP took. It now renders
-// the PDF once (reusing the exact same capture-and-strip approach that
-// already worked), saves it to storage/uploads/, and queues the email
+// the PDFs once (reusing the exact same capture-and-strip approach that
+// already worked), saves them to storage/uploads/, and queues the email
 // like every other email in the system — the cron sends it within 2
 // minutes with 3 retries.
 //
-// The itinerary is deliberately NOT attached as a second PDF here:
-// api/quotation_pdf.php already merges the linked itinerary's days
-// into the same document when itinerary_id is set, so a separate
-// Itinerary.pdf attachment was duplicate content in every email sent.
+// Sent as two separate PDFs (Quotation + Itinerary) rather than one
+// combined document, so the client can open pricing and the day-by-day
+// plan independently.
 $queued        = false;
 $error         = '';
 $pdfAttachNote = '';
@@ -270,6 +269,10 @@ if ($rendered) {
     $attachments[] = $rendered;
 } else {
     $pdfAttachNote = ' (PDF attachment failed — check the error log)';
+}
+$renderedItin = \App\Services\PdfRenderer::renderQuotationItinerary($id, 'Itinerary-' . $q['quote_ref']);
+if ($renderedItin) {
+    $attachments[] = $renderedItin;
 }
 
 try {

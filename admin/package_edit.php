@@ -974,7 +974,7 @@ function calcTotals() {
 
   Object.keys(vehSeen).forEach(function(name){
     var v = vehSeen[name], amount = v.rate * v.days;
-    lineItems.push({desc:name+' & Fuel', unit:v.rate, qty:v.days+' Day'+(v.days!==1?'s':''), amount:amount});
+    lineItems.push({desc:name+' & Fuel', unit:v.rate, qty:'1 Vehicle × '+v.days+' Day'+(v.days!==1?'s':''), amount:amount});
   });
 
   Object.keys(parkSeen).forEach(function(name){

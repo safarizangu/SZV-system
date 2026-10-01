@@ -136,13 +136,15 @@ try {
         WHERE id=?
     ")->execute([$ref, $id]);
 
-    // Render the quotation the client already saw (merged with its
-    // itinerary) to attach to the confirmation email — same PDF, same
-    // numbers, no surprises between what they were quoted and what
-    // they're now being sent as their booking's cost breakdown.
+    // Render the quotation the client already saw, plus its itinerary as
+    // a separate PDF, to attach to the confirmation email — same numbers,
+    // no surprises between what they were quoted and what they're now
+    // being sent as their booking's cost breakdown.
     $attachments = [];
     $pdfFile = PdfRenderer::renderQuotation($id, 'Quotation-' . $ref);
     if ($pdfFile) $attachments[] = $pdfFile;
+    $itinFile = PdfRenderer::renderQuotationItinerary($id, 'Itinerary-' . $ref);
+    if ($itinFile) $attachments[] = $itinFile;
 
     // Queue confirmation email — same branded template the direct-booking path uses
     try {

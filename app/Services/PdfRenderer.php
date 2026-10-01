@@ -3,14 +3,19 @@ namespace App\Services;
 
 /**
  * Renders quotation/booking PDFs to a file on disk by capturing the exact
- * HTML api/quotation_pdf.php and api/booking_pdf.php already produce for
- * their browser-print view — via an isolated-scope include (their own
- * $_GET, wrapped in a closure, so local variables can't collide with the
- * caller's) — then running it through dompdf. One implementation shared by
+ * HTML their *_pdf.php counterparts already produce for their browser-print
+ * view — via an isolated-scope include (their own $_GET, wrapped in a
+ * closure, so local variables can't collide with the caller's) — then
+ * running it through dompdf. One implementation shared by
  * api/quotation_email.php, api/book.php, and api/convert_quotation.php,
- * instead of three copies of the same capture-and-strip logic.
+ * instead of repeated copies of the same capture-and-strip logic.
  *
- * Both target files define SZV_PDF_INTERNAL_RENDER before including them,
+ * Pricing (quotation_pdf.php / booking_pdf.php) and the day-by-day
+ * itinerary (quotation_itinerary_pdf.php / booking_itinerary_pdf.php) are
+ * deliberately separate documents — two focused PDFs the client can open
+ * independently, rather than one long combined one.
+ *
+ * All target files define SZV_PDF_INTERNAL_RENDER before including them,
  * which skips their normal admin-session requirement — safe here because
  * this class is only ever invoked from trusted server-side code, never
  * from a value an HTTP request controls.
@@ -24,9 +29,44 @@ class PdfRenderer
     }
 
     /** @return array{path:string,name:string}|null */
+    public static function renderQuotationItinerary(int $quotationId, string $fileName): ?array
+    {
+        return self::render(__DIR__ . '/../../api/quotation_itinerary_pdf.php', ['id' => $quotationId], $fileName);
+    }
+
+    /**
+     * Same document as renderQuotation(), relabeled INVOICE/PAID IN FULL —
+     * quotation_pdf.php itself re-verifies the linked booking is actually
+     * fully_paid before honoring this, so it can't be used to misrepresent
+     * an unpaid booking.
+     * @return array{path:string,name:string}|null
+     */
+    public static function renderQuotationInvoice(int $quotationId, string $fileName): ?array
+    {
+        return self::render(__DIR__ . '/../../api/quotation_pdf.php', ['id' => $quotationId, 'invoice' => 1], $fileName);
+    }
+
+    /** @return array{path:string,name:string}|null */
     public static function renderBooking(string $bookingRef, string $fileName): ?array
     {
         return self::render(__DIR__ . '/../../api/booking_pdf.php', ['ref' => $bookingRef], $fileName);
+    }
+
+    /**
+     * Same document as renderBooking(), relabeled INVOICE/PAID IN FULL —
+     * booking_pdf.php itself re-verifies payment_status is fully_paid
+     * before honoring this.
+     * @return array{path:string,name:string}|null
+     */
+    public static function renderBookingInvoice(string $bookingRef, string $fileName): ?array
+    {
+        return self::render(__DIR__ . '/../../api/booking_pdf.php', ['ref' => $bookingRef, 'invoice' => 1], $fileName);
+    }
+
+    /** @return array{path:string,name:string}|null */
+    public static function renderBookingItinerary(string $bookingRef, string $fileName): ?array
+    {
+        return self::render(__DIR__ . '/../../api/booking_itinerary_pdf.php', ['ref' => $bookingRef], $fileName);
     }
 
     /** @return array{path:string,name:string}|null */

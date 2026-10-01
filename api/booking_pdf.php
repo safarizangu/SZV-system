@@ -24,38 +24,51 @@ try {
     if (!$b) { http_response_code(404); die('Booking not found.'); }
 } catch (\Exception $e) { die('DB error: '.$e->getMessage()); }
 
-// Load the linked itinerary — prefer the booking's own itinerary_id (a
-// direct FK, reliable) and only fall back to matching by package name
-// (fragile — breaks if the package was ever renamed) for bookings made
-// before bookings.itinerary_id existed.
-$itinDays = []; $itinIncludes = []; $itinExcludes = [];
-try {
-    $pr = null;
-    if (!empty($b['itinerary_id'])) {
-        $is = $db->prepare("SELECT days, includes, excludes, name as itin_name FROM itineraries WHERE id=? LIMIT 1");
-        $is->execute([$b['itinerary_id']]);
-        $pr = $is->fetch() ?: null;
-    }
-    if (!$pr) {
-        $ps = $db->prepare("SELECT i.days, i.includes, i.excludes, i.name as itin_name
-                            FROM packages p JOIN itineraries i ON i.id=p.itinerary_id
-                            WHERE p.name=? AND p.is_active=1 LIMIT 1");
-        $ps->execute([$b['package_name']]);
-        $pr = $ps->fetch() ?: null;
-    }
-    if ($pr) {
-        $itinDays     = json_decode($pr['days']     ?? '[]', true) ?: [];
-        $itinIncludes = json_decode($pr['includes'] ?? '[]', true) ?: [];
-        $itinExcludes = json_decode($pr['excludes'] ?? '[]', true) ?: [];
-    }
-} catch (\Exception $e) {}
-
 $pax       = (int)($b['travelers'] ?? $b['adults'] ?? 2);
 $adults    = (int)($b['adults'] ?? 2);
 $children  = (int)($b['children'] ?? 0);
 $total     = (float)($b['total_amount'] ?? 0);
 $deposit   = (float)($b['deposit_amount'] ?? round($total * 0.25, 2));
 $balance   = round($total - $deposit, 2);
+
+// Invoice mode — same document, relabeled once this booking is actually
+// fully paid. ?invoice=1 only ever REQUESTS this; $b['payment_status'] is
+// the real, freshly-queried source of truth, so the URL itself can't be
+// used to misrepresent a booking as paid when it isn't.
+$isInvoice = isset($_GET['invoice']) && $_GET['invoice'] == '1' && $b['payment_status'] === 'fully_paid';
+
+// ── Itemized cost breakdown ─────────────────────────────────
+// Most bookings have no linked quotations row (it's only created when
+// the booking went through the quotation-aware path in api/book.php and
+// that insert succeeded) — those would otherwise show only the flat
+// Total/Deposit/Balance summary below, with no line-item detail at all.
+// Rebuilding it live from the booking's own resolved itinerary, the same
+// way api/book.php originally priced it, gives every booking a real
+// breakdown (rooms × nights, vehicle × days, etc.) instead of just the
+// ones that happen to have a quotations row.
+$lineItems = [];
+try {
+    $pr = null;
+    if (!empty($b['itinerary_id'])) {
+        $is = $db->prepare("SELECT days FROM itineraries WHERE id=? LIMIT 1");
+        $is->execute([$b['itinerary_id']]);
+        $pr = $is->fetch() ?: null;
+    }
+    if (!$pr) {
+        $ps = $db->prepare("SELECT i.days FROM packages p JOIN itineraries i ON i.id=p.itinerary_id
+                            WHERE p.name=? AND p.is_active=1 LIMIT 1");
+        $ps->execute([$b['package_name']]);
+        $pr = $ps->fetch() ?: null;
+    }
+    if ($pr) {
+        $breakdownDays = json_decode($pr['days'] ?? '[]', true) ?: [];
+        if ($breakdownDays) {
+            $built     = \App\Services\ItineraryQuoteBuilder::build(['days' => $breakdownDays], $adults, $children, false, $b['travel_date'] ?: null);
+            $lineItems = $built['line_items'] ?? [];
+        }
+    }
+} catch (\Throwable $e) { $lineItems = []; }
+$costSubtotal = array_sum(array_column($lineItems, 'amount'));
 $travelDt  = $b['travel_date'] ? date('d F Y', strtotime($b['travel_date'])) : '—';
 $bookedDt  = date('d F Y', strtotime($b['created_at']));
 $logoPath  = BASE_PATH . '/assets/images/logo.jpeg';
@@ -66,7 +79,7 @@ header('Content-Type: text/html; charset=UTF-8');
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Booking <?= htmlspecialchars($ref) ?> — Safari Zangu Ventures</title>
+<title><?= $isInvoice ? 'Invoice' : 'Booking' ?> <?= htmlspecialchars($ref) ?> — Safari Zangu Ventures</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 /* 'DejaVu Sans' is dompdf's own bundled font — without it as a fallback,
@@ -85,11 +98,20 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
 .four-col{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem}
 .field label{display:block;font-size:.56rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#9ca3af;margin-bottom:.2rem}
 .field span{font-size:.88rem;font-weight:500}
-<?= \App\Helpers\ItineraryDayCards::css() ?>
 .pay-tbl{width:100%;border-collapse:collapse}
 .pay-tbl th{font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:#0a0a0a;padding:5px 8px;text-align:left}
 .pay-tbl td{padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:.82rem}
 .pay-tbl td.r{text-align:right;font-weight:600}
+.cost-tbl{width:100%;border-collapse:collapse;margin-bottom:.5rem}
+.cost-tbl th{font-size:.58rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:#0a0a0a;padding:.6rem .75rem;text-align:left}
+.cost-tbl th.r{text-align:right}
+.cost-tbl th.c{text-align:center}
+.cost-tbl td{padding:.55rem .75rem;border-bottom:1px solid #f3f4f6;font-size:.82rem;vertical-align:middle}
+.cost-tbl td.r{text-align:right;font-weight:600}
+.cost-tbl td.c{text-align:center;color:#6b7280}
+.cost-tbl tr:last-child td{border-bottom:none}
+.cost-tbl .cat-badge{font-size:.56rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.12rem .35rem;margin-right:.4rem;opacity:.7}
+.cost-subtotal{display:flex;justify-content:flex-end;gap:.75rem;padding:.5rem .75rem;font-size:.85rem;font-weight:700;border-top:2px solid #0a0a0a}
 .total-block{background:#f7f7f5;border:1px solid #e5e7eb;padding:1.25rem;margin-top:1rem}
 .grand{font-size:1.8rem;font-weight:700}
 .pay-box{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:.75rem}
@@ -97,12 +119,6 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
 .pay-method h4{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.65rem;color:#0a0a0a}
 .pay-method p{font-size:.8rem;line-height:1.8;color:#374151}
 .pay-method strong{color:#0a0a0a}
-.incl-list{columns:2;column-gap:1rem;margin:0;padding:0;list-style:none}
-.incl-list li{font-size:.8rem;padding:.2rem 0;color:#374151}
-.incl-list li::before{content:'✓ ';color:#166534;font-weight:700}
-.excl-list{columns:2;column-gap:1rem;margin:0;padding:0;list-style:none}
-.excl-list li{font-size:.8rem;padding:.2rem 0;color:#374151}
-.excl-list li::before{content:'✗ ';color:#dc2626;font-weight:700}
 .notice{background:#fffbeb;border-left:3px solid #c8963e;padding:.85rem 1rem;font-size:.8rem;line-height:1.65;margin-top:1.5rem}
 .footer{text-align:center;margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid #e5e7eb;font-size:.72rem;color:#9ca3af}
 @media print{body{font-size:11pt}@page{margin:1.5cm}.no-print{display:none}}
@@ -136,10 +152,11 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
       </div>
     </div>
     <div>
+      <div style="font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;text-align:right"><?= $isInvoice ? 'INVOICE' : '' ?></div>
       <div class="bref-num"><?= htmlspecialchars($ref) ?></div>
       <div class="bref-date">Booked <?= $bookedDt ?></div>
       <div style="text-align:right">
-        <span class="badge"><?= strtoupper(str_replace('_',' ',$b['payment_status'] ?? 'Pending')) ?></span>
+        <span class="badge" style="<?= $isInvoice ? 'background:#166534' : '' ?>"><?= $isInvoice ? 'PAID IN FULL' : strtoupper(str_replace('_',' ',$b['payment_status'] ?? 'Pending')) ?></span>
       </div>
     </div>
   </div>
@@ -166,38 +183,52 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
     </div>
   </div>
 
-  <!-- Day-by-day itinerary -->
-  <?php if (!empty($itinDays)): ?>
+  <!-- Cost breakdown -->
+  <?php if (!empty($lineItems)): ?>
   <div class="sec">
-    <div class="sec-title">Day-by-Day Itinerary</div>
-    <?= \App\Helpers\ItineraryDayCards::render($itinDays) ?>
-  </div>
-  <?php endif; ?>
-
-  <!-- Includes / Excludes -->
-  <?php if ($itinIncludes || $itinExcludes): ?>
-  <div class="sec">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
-      <?php if ($itinIncludes): ?>
-      <div>
-        <div class="sec-title">What's Included</div>
-        <ul class="incl-list">
-          <?php foreach ($itinIncludes as $inc): ?>
-          <li><?= htmlspecialchars($inc) ?></li>
-          <?php endforeach; ?>
-        </ul>
-      </div>
-      <?php endif; ?>
-      <?php if ($itinExcludes): ?>
-      <div>
-        <div class="sec-title">Not Included</div>
-        <ul class="excl-list">
-          <?php foreach ($itinExcludes as $exc): ?>
-          <li><?= htmlspecialchars($exc) ?></li>
-          <?php endforeach; ?>
-        </ul>
-      </div>
-      <?php endif; ?>
+    <div class="sec-title">Cost Breakdown</div>
+    <table class="cost-tbl">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="r">Unit Price (USD)</th>
+          <th class="c">Quantity</th>
+          <th class="r">Amount (USD)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($lineItems as $item):
+          $catColors = [
+            'accommodation'=>['#eff6ff','#1d4ed8'],
+            'transport'    =>['#f0fdf4','#166534'],
+            'park_fee'     =>['#fef3e2','#92400e'],
+            'activity'     =>['#fdf4ff','#7e22ce'],
+            'flight'       =>['#f0f9ff','#0369a1'],
+            'service_fee'  =>['#f9fafb','#374151'],
+            'other'        =>['#f9fafb','#6b7280'],
+          ];
+          $catBg    = $catColors[$item['category']??'other'][0] ?? '#f9fafb';
+          $catCol   = $catColors[$item['category']??'other'][1] ?? '#6b7280';
+          $catLabel = ['accommodation'=>'Acc','transport'=>'Veh','park_fee'=>'Park',
+                       'activity'=>'Act','flight'=>'Flight','service_fee'=>'Svc','other'=>''][$item['category']??'other'] ?? '';
+        ?>
+        <tr>
+          <td>
+            <?php if ($catLabel): ?>
+            <span class="cat-badge" style="background:<?= $catBg ?>;color:<?= $catCol ?>"><?= $catLabel ?></span>
+            <?php endif; ?>
+            <?= htmlspecialchars($item['description'] ?? '') ?>
+          </td>
+          <td class="r"><?= number_format((float)($item['unit_price']??0),0) ?></td>
+          <td class="c"><?= htmlspecialchars($item['quantity_str'] ?? '') ?></td>
+          <td class="r"><?= number_format((float)($item['amount']??0),0) ?></td>
+        </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+    <div class="cost-subtotal">
+      <span style="color:#6b7280;font-weight:600">SUBTOTAL</span>
+      <span>USD <?= number_format($costSubtotal,2) ?></span>
     </div>
   </div>
   <?php endif; ?>
@@ -209,8 +240,13 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
       <thead><tr><th>Description</th><th class="r">Amount (USD)</th></tr></thead>
       <tbody>
         <tr><td>Total Safari Cost</td><td class="r">$<?= number_format($total,2) ?></td></tr>
+        <?php if ($isInvoice): ?>
+        <tr><td>Amount Paid</td><td class="r">$<?= number_format($total,2) ?></td></tr>
+        <tr><td><strong>Balance Due</strong></td><td class="r"><strong>$0.00</strong></td></tr>
+        <?php else: ?>
         <tr><td>Deposit Due (25%) — payable within 48 hours to secure dates</td><td class="r">$<?= number_format($deposit,2) ?></td></tr>
         <tr><td><strong>Balance Due</strong> — 45 days before departure</td><td class="r"><strong>$<?= number_format($balance,2) ?></strong></td></tr>
+        <?php endif; ?>
       </tbody>
     </table>
     <div class="total-block">
@@ -222,6 +258,7 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
     </div>
   </div>
 
+  <?php if (!$isInvoice): ?>
   <!-- Payment Details -->
   <div class="sec">
     <div class="sec-title">Payment Details</div>
@@ -256,13 +293,19 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
       </div>
     </div>
   </div>
+  <?php endif; ?>
 
   <!-- Notice -->
   <div class="notice">
+    <strong>Your full day-by-day itinerary</strong> is attached as a separate PDF alongside this document.<br><br>
+    <?php if ($isInvoice): ?>
+    <strong>Thank you for your payment.</strong> This invoice confirms your safari is paid in full — we look forward to welcoming you.
+    <?php else: ?>
     <strong>Cancellation Policy:</strong> Full refund for cancellations 60+ days before departure.
     50% refund for cancellations 30–59 days before departure.
     Cancellations within 30 days forfeit the deposit.
     All cancellations must be made in writing to info@safarizanguven.com.
+    <?php endif; ?>
   </div>
 
   <!-- Footer -->

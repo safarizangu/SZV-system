@@ -224,7 +224,7 @@ $html .= <<<HTML2
     </div>
 
     <p style="font-size:12px;color:#9ca3af;margin-top:20px;text-align:center">
-      A printable PDF of this booking is attached to this email.<br>
+      Your Quotation and Itinerary PDFs are attached to this email.<br>
       Questions? Reply to this email or WhatsApp us on +255 663 430 934
     </p>
   </div>
@@ -258,12 +258,30 @@ if (isset($_GET['preview'])) {
 // with no attachment at all despite that claim. PdfRenderer::renderBooking()
 // already exists and is proven (used by api/book.php's own confirmation
 // send); it was just never wired into this admin "resend" endpoint.
+// Sent as two separate PDFs (Quotation + Itinerary), not one combined one.
+//
+// When the booking has a linked quotation (the normal case — $lineItems
+// above is already pulled from it for the email body's own breakdown
+// table), the PDF attachment must be the real quotation_pdf.php with its
+// itemized cost table, not booking_pdf.php's flat total-only summary —
+// otherwise the email body shows a line-item breakdown the attached PDF
+// doesn't. renderBooking()/renderBookingItinerary() stay as the fallback
+// for bookings with no linked quotation at all.
 $sent  = false;
 $error = '';
 try {
     $attachments = [];
-    $rendered = \App\Services\PdfRenderer::renderBooking($ref, 'Booking-' . $ref);
-    if ($rendered) $attachments[] = $rendered;
+    if (!empty($b['quotation_id'])) {
+        $rendered = \App\Services\PdfRenderer::renderQuotation((int)$b['quotation_id'], 'Quotation-' . $ref);
+        if ($rendered) $attachments[] = $rendered;
+        $renderedItin = \App\Services\PdfRenderer::renderQuotationItinerary((int)$b['quotation_id'], 'Itinerary-' . $ref);
+        if ($renderedItin) $attachments[] = $renderedItin;
+    } else {
+        $rendered = \App\Services\PdfRenderer::renderBooking($ref, 'Booking-' . $ref);
+        if ($rendered) $attachments[] = $rendered;
+        $renderedItin = \App\Services\PdfRenderer::renderBookingItinerary($ref, 'Itinerary-' . $ref);
+        if ($renderedItin) $attachments[] = $renderedItin;
+    }
 
     $queuedId = \App\Mail\Mailer::queueRaw(
         $toEmail,

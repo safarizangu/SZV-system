@@ -350,6 +350,8 @@ ob_start();
     <a href="../api/quotation_email.php?id=<?= $id ?>" style="font-weight:700">Send Email</a>
     &nbsp;·&nbsp;
     <a href="../api/quotation_pdf.php?id=<?= $id ?>" target="_blank" style="font-weight:700">PDF <?= \App\Helpers\AdminIcon::render('external-link', 12) ?></a>
+    &nbsp;·&nbsp;
+    <a href="../api/quotation_itinerary_pdf.php?id=<?= $id ?>" target="_blank" style="font-weight:700">Itinerary PDF <?= \App\Helpers\AdminIcon::render('external-link', 12) ?></a>
     <?php endif; ?>
 </div>
 <?php endif; ?>
@@ -357,6 +359,7 @@ ob_start();
 <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-bottom:1.25rem;flex-wrap:wrap">
     <?php if($id): ?>
     <a href="../api/quotation_pdf.php?id=<?= $id ?>" target="_blank" class="admin-btn admin-btn--outline">PDF <?= \App\Helpers\AdminIcon::render('external-link', 13) ?></a>
+    <a href="../api/quotation_itinerary_pdf.php?id=<?= $id ?>" target="_blank" class="admin-btn admin-btn--outline">Itinerary PDF <?= \App\Helpers\AdminIcon::render('external-link', 13) ?></a>
     <a href="../api/quotation_email.php?id=<?= $id ?>" class="admin-btn admin-btn--primary">Send Email</a>
     <?php endif; ?>
     <a href="quotations.php" class="admin-btn admin-btn--muted">← All Quotations</a>
@@ -794,6 +797,10 @@ ob_start();
                class="admin-btn admin-btn--outline" style="width:100%;justify-content:center;margin-bottom:.5rem">
                 PDF Preview <?= \App\Helpers\AdminIcon::render('external-link', 13) ?>
             </a>
+            <a href="../api/quotation_itinerary_pdf.php?id=<?= $id ?>" target="_blank"
+               class="admin-btn admin-btn--outline" style="width:100%;justify-content:center;margin-bottom:.5rem">
+                Itinerary PDF Preview <?= \App\Helpers\AdminIcon::render('external-link', 13) ?>
+            </a>
             <a href="../api/quotation_email.php?id=<?= $id ?>"
                class="admin-btn admin-btn--success" style="width:100%;justify-content:center">
                 Send to Client
@@ -965,7 +972,7 @@ function calcTotals() {
 
   Object.keys(vehSeen).forEach(function(name){
     var v = vehSeen[name], amount = v.rate * v.days * seasonMult;
-    lineItems.push({desc:name+' & Fuel', unit:v.rate, qty:v.days+' Day'+(v.days!==1?'s':''), amount:amount});
+    lineItems.push({desc:name+' & Fuel', unit:v.rate, qty:'1 Vehicle × '+v.days+' Day'+(v.days!==1?'s':''), amount:amount});
   });
 
   Object.keys(parkSeen).forEach(function(name){
