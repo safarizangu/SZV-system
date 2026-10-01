@@ -28,7 +28,7 @@ try {
     <span class="hero-tag">Arusha, Tanzania · Est. 2024</span>
     <h1 class="hero-title">Private Tanzania<br><em>Safari Experiences</em></h1>
     <p class="hero-sub">Serengeti &nbsp;·&nbsp; Ngorongoro &nbsp;·&nbsp; Zanzibar</p>
-    <p class="hero-hook">Locally owned. Personally guided. Every safari planned by the team you'll actually meet.</p>
+    <!-- <p class="hero-hook">Locally owned. Personally guided. Every safari planned by the team you'll actually meet.</p> -->
     <div class="hero-actions">
       <a href="<?= BASE_PATH ?>/packages.php" class="btn-sz-primary">Explore Packages</a>
       <a href="<?= BASE_PATH ?>/#customize" class="btn-sz-ghost">Design Your Own</a>
