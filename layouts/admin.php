@@ -243,7 +243,6 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
       <a href="profile.php" class="admin-profile-link" title="<?= htmlspecialchars($adminDisplayName) ?>">
         <span class="admin-profile-avatar"><?= htmlspecialchars($adminInitials ?: 'A') ?></span>
       </a>
-      <a href="logout.php" class="admin-btn admin-btn--muted" style="font-size:.62rem;padding:.28rem .65rem">Sign Out</a>
     </div>
   </header>
 

@@ -39,7 +39,7 @@
   --amber-light:  #fef3e2;
 
   --sidebar-w:   240px;
-  --topbar-h:    60px;
+  --topbar-h:    72px;
   --font-body:   'Jost', system-ui, sans-serif;
   --font-disp:   'Playfair Display', Georgia, serif;
   --radius:      2px;
@@ -246,7 +246,7 @@ html, body { height: 100%; }
 .admin-topbar {
   background: var(--white);
   border-bottom: 1px solid var(--gray-200);
-  padding: 0 1.5rem;
+  padding: 0 2rem;
   height: var(--topbar-h);
   display: flex;
   align-items: center;
@@ -258,7 +258,7 @@ html, body { height: 100%; }
 }
 .admin-topbar-left   { display: flex; align-items: center; gap: .85rem; min-width: 0; }
 .admin-page-title    { font-family: var(--font-disp); font-size: 1.05rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.admin-topbar-right  { display: flex; align-items: center; gap: .75rem; flex-shrink: 0; }
+.admin-topbar-right  { display: flex; align-items: center; gap: 1.1rem; flex-shrink: 0; }
 
 /* Notification bell + dropdown */
 .admin-notif         { position: relative; }
@@ -324,7 +324,7 @@ html, body { height: 100%; }
 }
 
 /* ── CONTENT AREA ───────────────────────────────────────────── */
-.admin-content { padding: 1.5rem 2rem; flex: 1; min-width: 0; }
+.admin-content { padding: 2.25rem 2rem 1.5rem; flex: 1; min-width: 0; }
 
 /* ── METRICS GRID ───────────────────────────────────────────── */
 .metrics-grid {
