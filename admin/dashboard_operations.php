@@ -61,11 +61,76 @@ try {
     }
 } catch (\Exception $e) {}
 
+// ── Command centre — today's movements, from the same booking dates the
+//    rest of the system uses. Trip end = travel_date + duration nights.
+$cc = ['arrivals' => [], 'departures' => [], 'inSafari' => [], 'guests' => 0, 'guideIds' => [], 'vehicleIds' => []];
+try {
+    $rows = $db->query("
+        SELECT b.booking_ref, b.full_name, b.travelers, b.travel_date,
+               COALESCE(p.duration_days, i.duration_days, 0) AS nights,
+               ba.staff_id, ba.vehicle_id
+        FROM bookings b
+        LEFT JOIN packages p ON p.id = b.package_id
+        LEFT JOIN itineraries i ON i.id = b.itinerary_id
+        LEFT JOIN booking_assignments ba ON ba.booking_ref = b.booking_ref
+        WHERE b.payment_status != 'cancelled'
+          AND (b.travel_date = CURDATE()
+               OR DATE_ADD(b.travel_date, INTERVAL COALESCE(p.duration_days, i.duration_days, 0) DAY) = CURDATE()
+               OR (b.travel_date <= CURDATE() AND DATE_ADD(b.travel_date, INTERVAL COALESCE(p.duration_days, i.duration_days, 0) DAY) > CURDATE()))
+    ")->fetchAll();
+    foreach ($rows as $r) {
+        $end = date('Y-m-d', strtotime($r['travel_date'] . ' +' . (int)$r['nights'] . ' days'));
+        $today = date('Y-m-d');
+        if ($r['travel_date'] === $today) $cc['arrivals'][] = $r;
+        if ($end === $today)              $cc['departures'][] = $r;
+        if ($r['travel_date'] <= $today && $end > $today) {
+            $cc['inSafari'][] = $r;
+            $cc['guests'] += (int)$r['travelers'];
+            if (!empty($r['staff_id']))   $cc['guideIds'][(int)$r['staff_id']] = true;
+            if (!empty($r['vehicle_id'])) $cc['vehicleIds'][(int)$r['vehicle_id']] = true;
+        }
+    }
+} catch (\Exception $e) { error_log('[ops command centre] ' . $e->getMessage()); }
+$pendingTasks = count($unassigned) + $overdueReminders;
+
 ob_start();
 ?>
 <p style="color:var(--gray-500);font-size:.85rem;margin:-.5rem 0 1.25rem">
   What needs attention on the ground in the next 30 days — unassigned departures, overdue reminders, and roster capacity.
 </p>
+
+<div class="admin-stats-grid" style="margin-bottom:1.25rem">
+  <div class="admin-card"><div class="admin-card-body">
+    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500)">Today's Arrivals</div>
+    <div style="font-family:var(--font-disp);font-size:1.8rem;margin-top:.25rem"><?= count($cc['arrivals']) ?></div>
+    <div style="font-size:.75rem;color:var(--gray-500)"><?= $cc['arrivals'] ? htmlspecialchars(implode(', ', array_column($cc['arrivals'], 'full_name'))) : 'None today' ?></div>
+  </div></div>
+  <div class="admin-card"><div class="admin-card-body">
+    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500)">Today's Departures</div>
+    <div style="font-family:var(--font-disp);font-size:1.8rem;margin-top:.25rem"><?= count($cc['departures']) ?></div>
+    <div style="font-size:.75rem;color:var(--gray-500)"><?= $cc['departures'] ? htmlspecialchars(implode(', ', array_column($cc['departures'], 'full_name'))) : 'None today' ?></div>
+  </div></div>
+  <div class="admin-card"><div class="admin-card-body">
+    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500)">Guests In Safari</div>
+    <div style="font-family:var(--font-disp);font-size:1.8rem;margin-top:.25rem"><?= $cc['guests'] ?></div>
+    <div style="font-size:.75rem;color:var(--gray-500)"><?= count($cc['inSafari']) ?> active trips</div>
+  </div></div>
+  <div class="admin-card"><div class="admin-card-body">
+    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500)">Guides / Vehicles Assigned</div>
+    <div style="font-family:var(--font-disp);font-size:1.8rem;margin-top:.25rem"><?= count($cc['guideIds']) ?> <span style="font-size:1rem;color:var(--gray-500)">/ <?= count($cc['vehicleIds']) ?></span></div>
+    <div style="font-size:.75rem;color:var(--gray-500)">on trips in safari now</div>
+  </div></div>
+  <div class="admin-card"><div class="admin-card-body">
+    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500)">Pending Tasks</div>
+    <div style="font-family:var(--font-disp);font-size:1.8rem;margin-top:.25rem"><?= $pendingTasks ?></div>
+    <div style="font-size:.75rem;color:var(--gray-500)">unassigned trips + overdue reminders</div>
+  </div></div>
+  <div class="admin-card"><div class="admin-card-body">
+    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500)">Airport Transfers</div>
+    <div style="font-family:var(--font-disp);font-size:1.1rem;margin-top:.5rem;color:var(--gray-500)">Not tracked yet</div>
+    <div style="font-size:.75rem;color:var(--gray-500)">no transfer schedule in the data model</div>
+  </div></div>
+</div>
 
 <div class="admin-stats-grid">
   <div class="admin-card"><div class="admin-card-body">

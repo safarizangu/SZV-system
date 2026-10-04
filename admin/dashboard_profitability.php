@@ -66,10 +66,14 @@ try {
         }
         $supplier = array_sum($cats);
         $price    = (float)$p['price_1pax'];
+        // price_1pax includes VAT, which is not revenue. Margin is measured on
+        // the VAT-exclusive price, otherwise the tax is counted as profit.
+        $vatRate = defined('VAT_RATE') ? VAT_RATE : 0.18;
+        $net     = $price / (1 + $vatRate);
         $breakdown[] = [
-            'id' => (int)$p['id'], 'name' => $p['name'], 'price' => $price,
+            'id' => (int)$p['id'], 'name' => $p['name'], 'price' => $price, 'net' => $net,
             'cats' => $cats, 'supplier' => $supplier, 'service' => $service,
-            'margin' => $price > 0 && $supplier > 0 ? round(($price - $supplier) / $price * 100, 1) : null,
+            'margin' => $net > 0 && $supplier > 0 ? round(($net - $supplier) / $net * 100, 1) : null,
         ];
     }
 } catch (\Exception $e) { error_log('[profitability breakdown] ' . $e->getMessage()); }
@@ -173,10 +177,10 @@ ob_start();
 
 <div class="admin-card" style="margin-top:1.25rem">
   <div class="admin-card-header"><h3>Cost Breakdown by Category (per adult)</h3></div>
-  <p style="font-size:.78rem;color:var(--gray-500);padding:0 1.25rem .5rem">Built live from each package's itinerary using the same pricing engine. Supplier categories are cost; the service fee is retained margin. Packages without an itinerary show no breakdown.</p>
+  <p style="font-size:.78rem;color:var(--gray-500);padding:0 1.25rem .5rem">Built live from each package's itinerary using the same pricing engine. Supplier categories are cost; the service fee is retained margin. Margin is measured on the VAT-exclusive price (VAT is collected for the government, not earned). Packages without an itinerary show no breakdown.</p>
   <div class="admin-table-wrap">
   <table class="admin-table">
-  <thead><tr><th>Package</th><?php foreach ($catLabels as $cl): ?><th><?= $cl ?></th><?php endforeach; ?><th>Supplier Cost</th><th>Service Fee</th><th>Price</th><th>Margin</th></tr></thead>
+  <thead><tr><th>Package</th><?php foreach ($catLabels as $cl): ?><th><?= $cl ?></th><?php endforeach; ?><th>Supplier Cost</th><th>Service Fee</th><th>Price (incl. VAT)</th><th>Margin (ex-VAT)</th></tr></thead>
   <tbody>
   <?php if (empty($breakdown)): ?><tr><td colspan="10" class="admin-empty">No packages.</td></tr><?php endif; ?>
   <?php foreach ($breakdown as $b): ?>
