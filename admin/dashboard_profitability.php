@@ -43,6 +43,55 @@ try {
 } catch (\Exception $e) {}
 $realizedProfit = $realizedRevenue - $realizedCost;
 
+// ── Cost breakdown by category, from the same pricing engine that prices
+//    each package. Supplier categories are cost; the service fee is the
+//    margin retained. Engine output is per 1 adult, matching price_1pax.
+$catLabels = ['accommodation'=>'Accommodation','transport'=>'Transport','park_fee'=>'Park Fees','activity'=>'Activities','other'=>'Other Supplier'];
+$breakdown = [];
+try {
+    $pk = $db->query("SELECT p.id, p.name, p.price_1pax, p.itinerary, p.itinerary_id, i.days AS linked_days
+                      FROM packages p LEFT JOIN itineraries i ON i.id = p.itinerary_id")->fetchAll();
+    foreach ($pk as $p) {
+        $days = $p['itinerary_id'] ? json_decode($p['linked_days'] ?? '[]', true) : json_decode($p['itinerary'] ?? '[]', true);
+        $cats = array_fill_keys(array_keys($catLabels), 0.0);
+        $service = 0.0;
+        if (!empty($days)) {
+            $built = \App\Services\ItineraryQuoteBuilder::build(['days' => $days], 1, 0, false);
+            foreach ($built['line_items'] as $li) {
+                $c = $li['category'] ?? 'other';
+                if (isset($cats[$c])) $cats[$c] += (float)$li['amount'];
+                elseif (in_array($c, ['service_fee','service_charge'], true)) $service += (float)$li['amount'];
+                else $cats['other'] += (float)$li['amount'];
+            }
+        }
+        $supplier = array_sum($cats);
+        $price    = (float)$p['price_1pax'];
+        $breakdown[] = [
+            'id' => (int)$p['id'], 'name' => $p['name'], 'price' => $price,
+            'cats' => $cats, 'supplier' => $supplier, 'service' => $service,
+            'margin' => $price > 0 && $supplier > 0 ? round(($price - $supplier) / $price * 100, 1) : null,
+        ];
+    }
+} catch (\Exception $e) { error_log('[profitability breakdown] ' . $e->getMessage()); }
+
+// Rankings. Best seller counts non-cancelled bookings in the last 365 days.
+$sales = [];
+try {
+    $sr = $db->query("SELECT package_id, COUNT(*) c FROM bookings
+                      WHERE payment_status != 'cancelled' AND created_at >= DATE_SUB(NOW(), INTERVAL 365 DAY)
+                      GROUP BY package_id")->fetchAll();
+    foreach ($sr as $r) $sales[(int)$r['package_id']] = (int)$r['c'];
+} catch (\Exception $e) {}
+$rankable = array_values(array_filter($breakdown, fn($b) => $b['margin'] !== null));
+usort($rankable, fn($a, $b) => $b['margin'] <=> $a['margin']);
+$highestMargin = $rankable[0] ?? null;
+$lowestMargin  = $rankable ? $rankable[count($rankable) - 1] : null;
+$bestSeller = null;
+foreach ($breakdown as $b) {
+    $n = $sales[$b['id']] ?? 0;
+    if ($n > 0 && ($bestSeller === null || $n > $bestSeller['sales'])) $bestSeller = $b + ['sales' => $n];
+}
+
 ob_start();
 ?>
 <p style="color:var(--gray-500);font-size:.85rem;margin:-.5rem 0 1.25rem">
@@ -102,6 +151,44 @@ ob_start();
     <td><?= $costed ? '$'.number_format($r['operational_cost'],0) : '<span style="color:#991b1b">Not set</span>' ?></td>
     <td>$<?= number_format($r['profit_amount'],0) ?></td>
     <td style="color:<?= $mColor ?>;font-weight:700"><?= $costed ? number_format($margin,1).'%' : '—' ?></td>
+  </tr>
+  <?php endforeach; ?>
+  </tbody></table></div>
+</div>
+
+<div class="admin-card" style="margin-top:1.25rem">
+  <div class="admin-card-header"><h3>Rankings</h3></div>
+  <div class="admin-card-body" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem">
+    <div><div style="font-size:.65rem;text-transform:uppercase;color:var(--gray-500)">Best Selling (365 days)</div>
+      <div style="font-weight:700"><?= $bestSeller ? htmlspecialchars($bestSeller['name']) : '—' ?></div>
+      <div style="font-size:.78rem;color:var(--gray-500)"><?= $bestSeller ? $bestSeller['sales'].' bookings' : 'No bookings yet' ?></div></div>
+    <div><div style="font-size:.65rem;text-transform:uppercase;color:var(--gray-500)">Highest Margin (Engine)</div>
+      <div style="font-weight:700"><?= $highestMargin ? htmlspecialchars($highestMargin['name']) : '—' ?></div>
+      <div style="font-size:.78rem;color:var(--gray-500)"><?= $highestMargin ? $highestMargin['margin'].'%' : '' ?></div></div>
+    <div><div style="font-size:.65rem;text-transform:uppercase;color:var(--gray-500)">Least Profitable (Engine)</div>
+      <div style="font-weight:700"><?= $lowestMargin ? htmlspecialchars($lowestMargin['name']) : '—' ?></div>
+      <div style="font-size:.78rem;color:var(--gray-500)"><?= $lowestMargin ? $lowestMargin['margin'].'%' : '' ?></div></div>
+  </div>
+</div>
+
+<div class="admin-card" style="margin-top:1.25rem">
+  <div class="admin-card-header"><h3>Cost Breakdown by Category (per adult)</h3></div>
+  <p style="font-size:.78rem;color:var(--gray-500);padding:0 1.25rem .5rem">Built live from each package's itinerary using the same pricing engine. Supplier categories are cost; the service fee is retained margin. Packages without an itinerary show no breakdown.</p>
+  <div class="admin-table-wrap">
+  <table class="admin-table">
+  <thead><tr><th>Package</th><?php foreach ($catLabels as $cl): ?><th><?= $cl ?></th><?php endforeach; ?><th>Supplier Cost</th><th>Service Fee</th><th>Price</th><th>Margin</th></tr></thead>
+  <tbody>
+  <?php if (empty($breakdown)): ?><tr><td colspan="10" class="admin-empty">No packages.</td></tr><?php endif; ?>
+  <?php foreach ($breakdown as $b): ?>
+  <tr>
+    <td><a href="package_edit.php?id=<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></a></td>
+    <?php foreach (array_keys($catLabels) as $k): ?>
+    <td>$<?= number_format($b['cats'][$k], 0) ?></td>
+    <?php endforeach; ?>
+    <td style="font-weight:600">$<?= number_format($b['supplier'], 0) ?></td>
+    <td>$<?= number_format($b['service'], 0) ?></td>
+    <td>$<?= number_format($b['price'], 0) ?></td>
+    <td><?= $b['margin'] === null ? '—' : $b['margin'].'%' ?></td>
   </tr>
   <?php endforeach; ?>
   </tbody></table></div>

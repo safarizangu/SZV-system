@@ -11,6 +11,11 @@
 ob_start();
 header('Content-Type: application/json');
 require_once __DIR__ . '/../app/bootstrap.php';
+
+if (\App\Middleware\AuthMiddleware::isAgentRole()) {
+    \App\Services\AccessGuard::denyJson('api', 'generate_caption.php', 'agent_access');
+}
+
 use App\Middleware\AuthMiddleware;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\RateLimiter;

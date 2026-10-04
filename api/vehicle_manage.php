@@ -1,6 +1,11 @@
 <?php
 ob_start();
 require_once __DIR__ . '/../app/bootstrap.php';
+
+if (\App\Middleware\AuthMiddleware::isAgentRole()) {
+    \App\Services\AccessGuard::denyJson('api', 'vehicle_manage.php', 'agent_access');
+}
+
 use App\Middleware\AuthMiddleware;
 AuthMiddleware::requireAdmin();
 header('Content-Type: application/json');

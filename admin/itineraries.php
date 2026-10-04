@@ -2,6 +2,11 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
 AuthMiddleware::requireAdmin();
+// Agents have no access to this section (see the sidebar role filter in
+// layouts/admin.php); the nav hiding alone isn't enforcement, so block here too.
+if (\App\Middleware\AuthMiddleware::isAgentRole()) {
+    \App\Services\AccessGuard::denyRedirect('index.php', 'page', 'itineraries.php', 'agent_access');
+}
 $db = \App\Models\Database::getInstance();
 $pageTitle = 'Itinerary Manager';
 
@@ -94,9 +99,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_itin'])) {
     } catch(\Exception $e) { $msg = 'Error: '.$e->getMessage(); }
 }
 
-// DELETE
-if (isset($_GET['delete'])) {
-    try { $db->prepare("DELETE FROM itineraries WHERE id=?")->execute([(int)$_GET['delete']]); }
+// DELETE — POST + CSRF only. A GET-triggered delete could be fired by any
+// page the admin visits (cross-site request forgery via a plain link).
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
+    \App\Middleware\CsrfMiddleware::validateOrDie();
+    try { $db->prepare("DELETE FROM itineraries WHERE id=?")->execute([(int)$_POST['delete']]); }
     catch(\Exception $e){}
     header('Location: itineraries.php?msg='.urlencode('Deleted.')); exit;
 }
@@ -190,8 +197,19 @@ ob_start();
   <div class="admin-card-header">
     <h3><?= $editId ? 'Edit: '.htmlspecialchars($itin['name']??'') : 'New Itinerary' ?></h3>
     <?php if($editId): ?>
-    <a href="?delete=<?= $editId ?>" class="admin-btn admin-btn--danger" style="font-size:.65rem"
-       onclick="return confirm('Delete this itinerary?')">Delete</a>
+    <button type="button" class="admin-btn admin-btn--danger" style="font-size:.65rem"
+       onclick="deleteItinerary(<?= $editId ?>)">Delete</button>
+    <script>
+    function deleteItinerary(id) {
+      if (!confirm('Delete this itinerary?')) return;
+      var f = document.createElement('form');
+      f.method = 'POST'; f.action = 'itineraries.php';
+      [['delete', id], ['_csrf', window.CSRF_TOKEN || '']].forEach(function (p) {
+        var i = document.createElement('input'); i.type = 'hidden'; i.name = p[0]; i.value = p[1]; f.appendChild(i);
+      });
+      document.body.appendChild(f); f.submit();
+    }
+    </script>
     <?php endif; ?>
   </div>
   <div class="admin-card-body">

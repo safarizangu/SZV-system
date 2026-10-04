@@ -199,6 +199,14 @@ if (!empty($q['itinerary']) || !empty($q['itinerary_id'])) {
     }
 }
 
+// Client-facing view link — token-only, never the numeric id. Created once
+// per quotation and reused on resends so older emails keep working.
+if (empty($q['public_token'])) {
+    $q['public_token'] = bin2hex(random_bytes(24));
+    $db->prepare("UPDATE quotations SET public_token=? WHERE id=?")->execute([$q['public_token'], $id]);
+}
+$viewUrl = rtrim(APP_URL, '/') . '/api/quote_view.php?t=' . $q['public_token'];
+
 // ── Email body ────────────────────────────────────────────────
 $wa      = defined('WHATSAPP_NUMBER') ? WHATSAPP_NUMBER : '255663430934';
 $waLink  = 'https://wa.me/' . $wa . '?text=' . urlencode('Hi, I would like to accept quotation ' . $q['quote_ref'] . '.');
@@ -245,6 +253,7 @@ $emailBody = "Dear {$q['client_name']},\n\n"
     . "PayPal: {$paypalEmail}\n"
     . "Please include your reference number ({$q['quote_ref']}) in the payment description.\n\n"
     . (!empty($q['notes']) ? "NOTES\n{$q['notes']}\n\n" : '')
+    . "View your quotation online: {$viewUrl}\n\n"
     . "To accept this quotation:\n"
     . "WhatsApp us: {$waLink}\n"
     . "Or reply to this email: {$replyTo}\n\n"

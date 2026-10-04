@@ -771,7 +771,7 @@ ob_start();
                        value="<?= $q['valid_until'] ?? date('Y-m-d', strtotime('+14 days')) ?>"></div>
             <div><label class="admin-label">Status</label>
                 <select name="status" class="admin-input">
-                    <?php foreach(['draft'=>'Draft','sent'=>'Sent','accepted'=>'Accepted','declined'=>'Declined'] as $v=>$l): ?>
+                    <?php foreach(['draft'=>'Draft','sent'=>'Sent','viewed'=>'Viewed','negotiating'=>'Negotiating','accepted'=>'Accepted','declined'=>'Declined / Rejected'] as $v=>$l): ?>
                     <option value="<?= $v ?>" <?= ($q['status']??'draft')===$v?'selected':'' ?>><?= $l ?></option>
                     <?php endforeach; ?>
                 </select></div>

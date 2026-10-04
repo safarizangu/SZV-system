@@ -3,6 +3,11 @@ require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
 use App\Mail\EmailTemplate;
 AuthMiddleware::requireAdmin();
+// Agents have no access to this section (see the sidebar role filter in
+// layouts/admin.php); the nav hiding alone isn't enforcement, so block here too.
+if (\App\Middleware\AuthMiddleware::isAgentRole()) {
+    \App\Services\AccessGuard::denyRedirect('index.php', 'page', 'email_templates.php', 'agent_access');
+}
 $db        = \App\Models\Database::getInstance();
 $pageTitle = 'Email Templates';
 

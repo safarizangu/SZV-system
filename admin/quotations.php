@@ -15,6 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     try {
         $newStatus = $_POST['status'];
         $qId       = (int)$_POST['id'];
+        if (!in_array($newStatus, ['draft','sent','viewed','negotiating','accepted','declined','expired','converted'], true)) {
+            throw new \RuntimeException('Invalid status.');
+        }
 
         if ($isAgentUser) {
             $upd = $db->prepare("UPDATE quotations SET status=?, updated_at=NOW() WHERE id=? AND created_by=?");
@@ -129,11 +132,30 @@ try {
     foreach ($statStmt->fetchAll() as $r) $stats[$r['status']] = $r;
 } catch(Exception $e) { error_log($e->getMessage()); }
 
+// Funnel rates over quotations that were actually sent. Open rate = viewed
+// at least once; acceptance = accepted or converted. Scoped the same way
+// as the list for agents.
+$funnel = ['sent' => 0, 'viewed' => 0, 'won' => 0];
+try {
+    $fw = $isAgentUser ? ' AND created_by=?' : '';
+    $fp = $isAgentUser ? [$myId] : [];
+    $fs = $db->prepare("SELECT COUNT(*) sent, SUM(first_viewed_at IS NOT NULL) viewed,
+                               SUM(status IN ('accepted','converted')) won
+                        FROM quotations WHERE sent_at IS NOT NULL$fw");
+    $fs->execute($fp);
+    $row = $fs->fetch();
+    $funnel = ['sent' => (int)$row['sent'], 'viewed' => (int)$row['viewed'], 'won' => (int)$row['won']];
+} catch(Exception $e) { error_log($e->getMessage()); }
+$openRate = $funnel['sent'] > 0 ? round($funnel['viewed'] / $funnel['sent'] * 100) : null;
+$acceptRate = $funnel['sent'] > 0 ? round($funnel['won'] / $funnel['sent'] * 100) : null;
+
 $statusColors = [
-    'draft'    => ['badge'=>'gray',  'label'=>'Draft'],
-    'sent'     => ['badge'=>'blue',  'label'=>'Sent'],
-    'accepted' => ['badge'=>'green', 'label'=>'Accepted'],
-    'declined' => ['badge'=>'red',   'label'=>'Declined'],
+    'draft'       => ['badge'=>'gray',  'label'=>'Draft'],
+    'sent'        => ['badge'=>'blue',  'label'=>'Sent'],
+    'viewed'      => ['badge'=>'blue',  'label'=>'Viewed'],
+    'negotiating' => ['badge'=>'amber', 'label'=>'Negotiating'],
+    'accepted'    => ['badge'=>'green', 'label'=>'Accepted'],
+    'declined'    => ['badge'=>'red',   'label'=>'Declined / Rejected'],
 ];
 
 $pageTitle = 'Quotations';
@@ -153,6 +175,16 @@ ob_start();
     </div>
   </a>
   <?php endforeach; ?>
+  <div class="metric-card">
+    <span class="metric-label">Open Rate</span>
+    <span class="metric-value"><?= $openRate === null ? '—' : $openRate.'%' ?></span>
+    <span class="metric-sub"><?= $funnel['viewed'] ?> of <?= $funnel['sent'] ?> sent</span>
+  </div>
+  <div class="metric-card">
+    <span class="metric-label">Acceptance Rate</span>
+    <span class="metric-value"><?= $acceptRate === null ? '—' : $acceptRate.'%' ?></span>
+    <span class="metric-sub"><?= $funnel['won'] ?> of <?= $funnel['sent'] ?> sent</span>
+  </div>
 </div>
 
 <!-- Toolbar -->

@@ -1,6 +1,11 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
 
+if (\App\Middleware\AuthMiddleware::isAgentRole()) {
+    \App\Services\AccessGuard::denyJson('api', 'set_hero.php', 'agent_access');
+}
+
+
 // Admin only
 if (empty($_SESSION['admin_authenticated']) || $_SESSION['admin_authenticated'] !== true) {
     http_response_code(401);
