@@ -14,6 +14,12 @@ use App\Middleware\AuthMiddleware;
  */
 if (!defined('SZV_PDF_INTERNAL_RENDER')) {
     AuthMiddleware::requireAdmin();
+if (!defined('SZV_PDF_INTERNAL_RENDER') && \App\Services\OwnershipScope::isScoped()) {
+    $__qid = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
+    if (!\App\Services\OwnershipScope::ownsQuotation(\App\Models\Database::getInstance(), $__qid, \App\Services\OwnershipScope::currentAgentId())) {
+        \App\Services\AccessGuard::denyPlain('quotation', (string)$__qid, basename($_SERVER['SCRIPT_NAME']));
+    }
+}
 }
 
 $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);

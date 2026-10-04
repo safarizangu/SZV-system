@@ -1,7 +1,11 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
+use App\Services\AccessGuard;
 AuthMiddleware::requireAdmin();
+if (!AuthMiddleware::isAdminRole()) {
+    AccessGuard::denyRedirect('index.php', 'currency_rates', 'currency_rates.php', $_SERVER['REQUEST_METHOD']);
+}
 $db = \App\Models\Database::getInstance();
 $pageTitle = 'Currency Rates';
 

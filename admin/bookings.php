@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
+use App\Services\OwnershipScope;
 AuthMiddleware::requireAdmin();
 $db = \App\Models\Database::getInstance();
 
@@ -15,6 +16,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $ref     = trim($_POST['booking_ref'] ?? '');
         $status  = trim($_POST['status'] ?? '');
         $allowed = ['pending','deposit_paid','fully_paid','cancelled'];
+        if (OwnershipScope::isScoped() && !OwnershipScope::ownsBooking($db, $ref, OwnershipScope::currentAgentId())) {
+            \App\Services\AccessGuard::denyJson('booking', $ref, 'update_status:' . $status);
+        }
         if ($ref && in_array($status, $allowed, true)) {
             $prevStatus = $db->prepare("SELECT payment_status FROM bookings WHERE booking_ref=? LIMIT 1");
             $prevStatus->execute([$ref]);
@@ -51,6 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
     if ($action === 'get_booking') {
         $ref = trim($_POST['booking_ref'] ?? '');
+        if (OwnershipScope::isScoped() && !OwnershipScope::ownsBooking($db, $ref, OwnershipScope::currentAgentId())) {
+            \App\Services\AccessGuard::denyJson('booking', $ref, 'get_booking');
+        }
         $s = $db->prepare("SELECT * FROM bookings WHERE booking_ref=?");
         $s->execute([$ref]);
         $b = $s->fetch();
@@ -74,6 +81,11 @@ if ($search) {
     $params   = array_merge($params,[$like,$like,$like,$like]);
 }
 if ($status) { $where[] = "payment_status=?"; $params[] = $status; }
+if (OwnershipScope::isScoped()) {
+    [$scopeSql, $scopeParams] = OwnershipScope::bookingsListSql(OwnershipScope::currentAgentId());
+    $where[]  = $scopeSql;
+    $params   = array_merge($params, $scopeParams);
+}
 $whereSQL = $where ? 'WHERE '.implode(' AND ',$where) : '';
 
 try {
@@ -99,8 +111,16 @@ $viewRef = trim($_GET['view'] ?? '');
 
 $statusCounts = [];
 try {
-    $rows = $db->query("SELECT payment_status, COUNT(*) as c FROM bookings GROUP BY payment_status")->fetchAll();
-    foreach ($rows as $r) $statusCounts[$r['payment_status']] = $r['c'];
+    $countWhere  = '';
+    $countParams = [];
+    if (OwnershipScope::isScoped()) {
+        [$scopeSql, $scopeParams] = OwnershipScope::bookingsListSql(OwnershipScope::currentAgentId());
+        $countWhere  = "WHERE $scopeSql";
+        $countParams = $scopeParams;
+    }
+    $cs = $db->prepare("SELECT payment_status, COUNT(*) as c FROM bookings $countWhere GROUP BY payment_status");
+    $cs->execute($countParams);
+    foreach ($cs->fetchAll() as $r) $statusCounts[$r['payment_status']] = $r['c'];
 } catch(\Exception $e) {}
 
 // One status→color config, shared with the JS below via STATUS_META

@@ -11,6 +11,12 @@ use App\Middleware\AuthMiddleware;
 // input. Every real HTTP request still requires an admin session.
 if (!defined('SZV_PDF_INTERNAL_RENDER')) {
     AuthMiddleware::requireAdmin();
+if (!defined('SZV_PDF_INTERNAL_RENDER') && \App\Services\OwnershipScope::isScoped()) {
+    $__ref = strtoupper(trim($_GET['ref'] ?? $_POST['ref'] ?? ''));
+    if (!\App\Services\OwnershipScope::ownsBooking(\App\Models\Database::getInstance(), $__ref, \App\Services\OwnershipScope::currentAgentId())) {
+        \App\Services\AccessGuard::denyPlain('booking', $__ref, basename($_SERVER['SCRIPT_NAME']));
+    }
+}
 }
 
 $ref = strtoupper(trim($_GET['ref'] ?? ''));

@@ -9,6 +9,12 @@ require_once __DIR__ . '/../app/bootstrap.php';
 
 use App\Middleware\AuthMiddleware;
 AuthMiddleware::requireAdmin();
+if (!defined('SZV_PDF_INTERNAL_RENDER') && \App\Services\OwnershipScope::isScoped()) {
+    $__qid = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
+    if (!\App\Services\OwnershipScope::ownsQuotation(\App\Models\Database::getInstance(), $__qid, \App\Services\OwnershipScope::currentAgentId())) {
+        \App\Services\AccessGuard::denyPlain('quotation', (string)$__qid, basename($_SERVER['SCRIPT_NAME']));
+    }
+}
 
 // Only the POST form path (admin/quotations.php) carries a CSRF token —
 // the existing GET "Send Email" links (admin/quotation_new.php) predate

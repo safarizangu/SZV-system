@@ -22,6 +22,9 @@ function qrespond(array $d): void {
 }
 
 AuthMiddleware::requireAdmin();
+if (\App\Services\OwnershipScope::isScoped() && !\App\Services\OwnershipScope::ownsQuotation(\App\Models\Database::getInstance(), (int)($_POST['quotation_id'] ?? 0), \App\Services\OwnershipScope::currentAgentId())) {
+    \App\Services\AccessGuard::denyJson('quotation', (string)($_POST['quotation_id'] ?? ''), 'convert_to_booking');
+}
 use App\Middleware\CsrfMiddleware;
 CsrfMiddleware::validateOrDie();
 

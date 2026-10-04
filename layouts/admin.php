@@ -51,15 +51,26 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
       $unreadCount  = (int)$db_nav->query("SELECT COUNT(*) FROM contact_messages WHERE is_read=0")->fetchColumn();
       $queuePending = (int)$db_nav->query("SELECT COUNT(*) FROM email_queue WHERE status='pending'")->fetchColumn();
       $remindersDue = (int)$db_nav->query("SELECT COUNT(*) FROM booking_reminders WHERE status='pending' AND send_at<=DATE_ADD(NOW(),INTERVAL 24 HOUR)")->fetchColumn();
-      $newRequests  = (int)$db_nav->query("SELECT COUNT(*) FROM custom_safari_requests WHERE status='new'")->fetchColumn();
+      $navScoped = \App\Services\OwnershipScope::isScoped();
+      $navMe     = \App\Services\OwnershipScope::currentAgentId();
+      [$reqScope, $reqP] = $navScoped ? \App\Services\OwnershipScope::customRequestsListSql($navMe) : ['1=1', []];
+      [$bkScope,  $bkP]  = $navScoped ? \App\Services\OwnershipScope::bookingsListSql($navMe)       : ['1=1', []];
+      $leadScope = $navScoped ? 'agent_id = ?' : '1=1';
+      $leadP     = $navScoped ? [$navMe] : [];
+      $newRequests  = (int)(function() use ($db_nav, $reqScope, $reqP) { $s = $db_nav->prepare("SELECT COUNT(*) FROM custom_safari_requests WHERE status='new' AND $reqScope"); $s->execute($reqP); return $s->fetchColumn(); })();
       $openIncidents = (int)$db_nav->query("SELECT COUNT(*) FROM incidents WHERE status='open'")->fetchColumn();
-      $newLeadsCount    = (int)$db_nav->query("SELECT COUNT(*) FROM leads WHERE pipeline_stage='lead'")->fetchColumn();
-      $newBookingsCount = (int)$db_nav->query("SELECT COUNT(*) FROM bookings WHERE created_at>=DATE_SUB(NOW(),INTERVAL 24 HOUR)")->fetchColumn();
+      $ls = $db_nav->prepare("SELECT COUNT(*) FROM leads WHERE pipeline_stage='lead' AND $leadScope"); $ls->execute($leadP);
+      $newLeadsCount = (int)$ls->fetchColumn();
+      $bs = $db_nav->prepare("SELECT COUNT(*) FROM bookings WHERE created_at>=DATE_SUB(NOW(),INTERVAL 24 HOUR) AND $bkScope"); $bs->execute($bkP);
+      $newBookingsCount = (int)$bs->fetchColumn();
 
       $notifMessages = $db_nav->query("SELECT id, full_name, message, created_at FROM contact_messages WHERE is_read=0 ORDER BY created_at DESC LIMIT 5")->fetchAll();
-      $notifRequests = $db_nav->query("SELECT id, full_name, created_at FROM custom_safari_requests WHERE status='new' ORDER BY created_at DESC LIMIT 5")->fetchAll();
-      $notifLeads    = $db_nav->query("SELECT id, full_name, created_at FROM leads WHERE pipeline_stage='lead' ORDER BY created_at DESC LIMIT 5")->fetchAll();
-      $notifBookings = $db_nav->query("SELECT booking_ref, full_name, created_at FROM bookings WHERE created_at>=DATE_SUB(NOW(),INTERVAL 24 HOUR) ORDER BY created_at DESC LIMIT 5")->fetchAll();
+      $rq = $db_nav->prepare("SELECT id, full_name, created_at FROM custom_safari_requests WHERE status='new' AND $reqScope ORDER BY created_at DESC LIMIT 5"); $rq->execute($reqP);
+      $notifRequests = $rq->fetchAll();
+      $ll = $db_nav->prepare("SELECT id, full_name, created_at FROM leads WHERE pipeline_stage='lead' AND $leadScope ORDER BY created_at DESC LIMIT 5"); $ll->execute($leadP);
+      $notifLeads = $ll->fetchAll();
+      $bl = $db_nav->prepare("SELECT booking_ref, full_name, created_at FROM bookings WHERE created_at>=DATE_SUB(NOW(),INTERVAL 24 HOUR) AND $bkScope ORDER BY created_at DESC LIMIT 5"); $bl->execute($bkP);
+      $notifBookings = $bl->fetchAll();
     } catch(Exception $e) {}
     $notifTotal = $unreadCount + $newRequests + $newLeadsCount + $newBookingsCount;
 

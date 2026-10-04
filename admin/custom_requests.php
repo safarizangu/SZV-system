@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
+use App\Services\OwnershipScope;
+use App\Services\AccessGuard;
 AuthMiddleware::requireAdmin();
 
 $db = \App\Models\Database::getInstance();
@@ -13,6 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if ($_POST['action'] === 'update_status') {
         $id     = (int)$_POST['id'];
         $status = trim($_POST['status'] ?? '');
+        if (OwnershipScope::isScoped() && !OwnershipScope::ownsCustomRequest($db, $id, OwnershipScope::currentAgentId())) {
+            AccessGuard::denyJson('custom_request', (string)$id, 'update_status:' . $status);
+        }
         $allowed = ['new','in_review','quoted','converted','closed'];
         if ($id && in_array($status, $allowed, true)) {
             try {
@@ -43,6 +48,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     // actually reading anything) made that metric meaningless.
     if ($_POST['action'] === 'mark_viewed') {
         $id = (int)($_POST['id'] ?? 0);
+        if (OwnershipScope::isScoped() && !OwnershipScope::ownsCustomRequest($db, $id, OwnershipScope::currentAgentId())) {
+            AccessGuard::denyJson('custom_request', (string)$id, 'mark_viewed');
+        }
         if ($id) {
             try {
                 $db->prepare("UPDATE custom_safari_requests SET status='in_review', first_response_at=COALESCE(first_response_at, NOW()) WHERE id=? AND status='new'")
@@ -71,6 +79,11 @@ if ($search) {
     $where[] = '(full_name LIKE ? OR email LIKE ? OR phone LIKE ?)';
     $like    = "%{$search}%";
     $params  = array_merge($params, [$like, $like, $like]);
+}
+if (OwnershipScope::isScoped()) {
+    [$scopeSql, $scopeParams] = OwnershipScope::customRequestsListSql(OwnershipScope::currentAgentId());
+    $where[] = $scopeSql;
+    $params  = array_merge($params, $scopeParams);
 }
 $whereSQL = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
@@ -107,8 +120,16 @@ $statusColors = [
 // Summary counts
 $counts = [];
 try {
-    $rows = $db->query("SELECT status, COUNT(*) as cnt FROM custom_safari_requests GROUP BY status")->fetchAll();
-    foreach ($rows as $r) $counts[$r['status']] = (int)$r['cnt'];
+    $countWhere  = '';
+    $countParams = [];
+    if (OwnershipScope::isScoped()) {
+        [$scopeSql, $scopeParams] = OwnershipScope::customRequestsListSql(OwnershipScope::currentAgentId());
+        $countWhere  = "WHERE $scopeSql";
+        $countParams = $scopeParams;
+    }
+    $cs = $db->prepare("SELECT status, COUNT(*) as cnt FROM custom_safari_requests $countWhere GROUP BY status");
+    $cs->execute($countParams);
+    foreach ($cs->fetchAll() as $r) $counts[$r['status']] = (int)$r['cnt'];
 } catch (\Exception $e) {}
 
 $pageTitle = 'Custom Safari Requests';

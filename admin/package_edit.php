@@ -12,6 +12,13 @@ if ($id > 0) {
     catch(\Exception $e){}
 }
 
+// Attaching or detaching a package's itinerary template changes what the
+// package prices and displays — admin/superadmin only, enforced here on
+// the GET path itself, not just hidden in the UI.
+if ($id > 0 && (isset($_GET['unlink']) || !empty($_GET['link'])) && !AuthMiddleware::isAdminRole()) {
+    \App\Services\AccessGuard::denyRedirect("package_edit.php?id=$id", 'package', (string)$id, isset($_GET['unlink']) ? 'unlink_itinerary' : 'link_itinerary');
+}
+
 // ── Unlink — detach this package from its Itinerary Manager template,
 // seeding its own now-editable itinerary copy from the template's
 // current days first so nothing the admin was looking at disappears.

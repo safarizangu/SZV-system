@@ -9,6 +9,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_id'])) {
     \App\Middleware\CsrfMiddleware::validateOrDie();
     $id  = (int)$_POST['toggle_id'];
     $cur = (int)$_POST['current'];
+    if (!AuthMiddleware::isAdminRole()) {
+        \App\Services\AccessGuard::denyRedirect('packages.php', 'package', (string)$id, 'toggle_active');
+    }
     try { $db->prepare("UPDATE packages SET is_active=? WHERE id=?")->execute([!$cur, $id]); }
     catch(\Exception $e){ error_log($e->getMessage()); }
     header('Location: packages.php'); exit;
