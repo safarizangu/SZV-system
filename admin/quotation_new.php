@@ -335,8 +335,8 @@ if (empty($qIncludesArr) && empty($qExcludesArr) && !empty($q['itinerary_id'])) 
 $qIncludes = implode("\n", $qIncludesArr);
 $qExcludes = implode("\n", $qExcludesArr);
 
-// VAT rate
-$vatRate   = 18;
+// VAT rate — single source of truth is config/app.php's VAT_RATE constant.
+$vatPct    = (int) round((defined('VAT_RATE') ? VAT_RATE : 0.18) * 100);
 $depositPct= defined('DEPOSIT_PERCENT') ? DEPOSIT_PERCENT : 25;
 
 $pageTitle = $id ? 'Edit Quotation' : 'New Quotation';
@@ -683,7 +683,7 @@ ob_start();
             <tr style="border-top:1px solid var(--gray-200)"><td colspan="3" style="padding:.6rem 0;font-weight:600">Subtotal</td><td style="padding:.6rem 0;text-align:right;font-weight:600" id="qs-subtotal">$0</td></tr>
             <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">Markup</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-markup">+$0</td></tr>
             <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">Discount</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem;color:var(--green)" id="qs-discount">–$0</td></tr>
-            <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">VAT (18%)</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-vat">$0</td></tr>
+            <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">VAT (<?= $vatPct ?>%)</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-vat">$0</td></tr>
             <tr style="background:var(--black);color:var(--white)"><td colspan="3" style="padding:.75rem;font-weight:700">GRAND TOTAL</td><td style="padding:.75rem;text-align:right;font-family:Georgia,serif;font-size:1.1rem" id="qs-total">$0</td></tr>
             <tr><td colspan="3" style="padding:.5rem 0;font-size:.75rem;color:var(--gray-500)" id="qs-pp-label">Per Person (÷2)</td><td style="padding:.5rem 0;text-align:right;font-size:.9rem;font-weight:700" id="qs-pp">$0</td></tr>
             <tr><td colspan="4" style="padding:.6rem 0 0">
@@ -818,6 +818,9 @@ ob_start();
 
 <script>
 var fmt = function(n){ return '$'+Math.round(n).toLocaleString('en-US'); };
+// Single source of truth is config/app.php's VAT_RATE constant — mirrored
+// here instead of hardcoding 0.18 so this preview can't drift from it.
+var VAT_RATE = <?= json_encode(defined('VAT_RATE') ? VAT_RATE : 0.18) ?>;
 var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'ratePerPerson'=>(float)$a['rate_per_person'],'singleSupp'=>(float)$a['single_supplement'],'childRate'=>(float)$a['child_rate']], $accommodations)) ?>;
 var PE_VEHS  = <?= json_encode(array_map(fn($v) => ['name'=>$v['name'],'id'=>(int)$v['id'],'rate'=>(float)$v['daily_rate']+(float)$v['fuel_cost_day']+(float)$v['driver_cost_day']], $vehicles)) ?>;
 var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee'],'childFee'=>(float)$p['child_fee'],'residentAdult'=>(float)$p['resident_adult'],'residentChild'=>(float)$p['resident_child']], $parkFees)) ?>;
@@ -1025,7 +1028,7 @@ function calcTotals() {
   var discPct   = parseFloat((document.getElementById('inp_discount')||{}).value) || 0;
   var discAmt   = marked * (discPct / 100);
   var afterDisc = marked - discAmt;
-  var vat       = afterDisc * 0.18;
+  var vat       = afterDisc * VAT_RATE;
   var total     = afterDisc + vat;
   var pp        = pax > 0 ? total / pax : total;
   var deposit   = total * (<?= (float)$depositPct ?> / 100);

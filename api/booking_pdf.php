@@ -37,6 +37,15 @@ $total     = (float)($b['total_amount'] ?? 0);
 $deposit   = (float)($b['deposit_amount'] ?? round($total * 0.25, 2));
 $balance   = round($total - $deposit, 2);
 
+// $total is the authoritative, already-charged amount (unchanged below) —
+// VAT is only broken back out of it for display, the same reverse-VAT
+// calc api/check_booking.php already uses, so the figure a guest is
+// actually paying never moves, only how it's itemized.
+$vatRate     = defined('VAT_RATE') ? VAT_RATE : 0.18;
+$vatPct      = (int) round($vatRate * 100);
+$totalExVat  = round($total / (1 + $vatRate), 2);
+$vatAmount   = round($total - $totalExVat, 2);
+
 // Invoice mode — same document, relabeled once this booking is actually
 // fully paid. ?invoice=1 only ever REQUESTS this; $b['payment_status'] is
 // the real, freshly-queried source of truth, so the URL itself can't be
@@ -245,7 +254,9 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
     <table class="pay-tbl">
       <thead><tr><th>Description</th><th class="r">Amount (USD)</th></tr></thead>
       <tbody>
-        <tr><td>Total Safari Cost</td><td class="r">$<?= number_format($total,2) ?></td></tr>
+        <tr><td>Safari Cost (excl. VAT)</td><td class="r">$<?= number_format($totalExVat,2) ?></td></tr>
+        <tr><td>VAT (<?= $vatPct ?>%)</td><td class="r">$<?= number_format($vatAmount,2) ?></td></tr>
+        <tr><td><strong>Total Safari Cost</strong></td><td class="r"><strong>$<?= number_format($total,2) ?></strong></td></tr>
         <?php if ($isInvoice): ?>
         <tr><td>Amount Paid</td><td class="r">$<?= number_format($total,2) ?></td></tr>
         <tr><td><strong>Balance Due</strong></td><td class="r"><strong>$0.00</strong></td></tr>

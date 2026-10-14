@@ -630,7 +630,7 @@ ob_start();
           <tbody id="qs-line-items"></tbody>
           <tbody>
             <tr style="border-top:1px solid var(--gray-200)"><td colspan="3" style="padding:.6rem 0;font-weight:600">Subtotal</td><td style="padding:.6rem 0;text-align:right;font-weight:600" id="qs-subtotal">$0</td></tr>
-            <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">VAT (18%)</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-vat">$0</td></tr>
+            <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">VAT (<?= (int) round((defined('VAT_RATE') ? VAT_RATE : 0.18) * 100) ?>%)</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-vat">$0</td></tr>
             <tr style="background:var(--black);color:var(--white)"><td colspan="3" style="padding:.75rem;font-weight:700">TOTAL</td><td style="padding:.75rem;text-align:right;font-family:Georgia,serif;font-size:1.1rem" id="qs-total">$0</td></tr>
             <tr><td colspan="3" style="padding:.5rem 0;font-size:.75rem;color:var(--gray-500)" id="qs-pp-label">Per Person (÷2)</td><td style="padding:.5rem 0;text-align:right;font-size:.9rem;font-weight:700" id="qs-pp">$0</td></tr>
           </tbody>
@@ -832,6 +832,9 @@ ob_start();
 
 <script>
 var fmt = function(n){ return '$'+Math.round(n).toLocaleString('en-US'); };
+// Single source of truth is config/app.php's VAT_RATE constant — mirrored
+// here instead of hardcoding 0.18 so this preview can't drift from it.
+var VAT_RATE = <?= json_encode(defined('VAT_RATE') ? VAT_RATE : 0.18) ?>;
 
 // Non-null only when this package is linked to an Itinerary Manager
 // template — that template's days/includes/excludes are then what
@@ -1027,7 +1030,7 @@ function calcTotals() {
   }
 
   var subtotal = lineItems.reduce(function(sum,li){ return sum+li.amount; }, 0);
-  var vat      = subtotal * 0.18;
+  var vat      = subtotal * VAT_RATE;
   var total    = subtotal + vat;
   var pp       = travelers > 0 ? total/travelers : total;
 

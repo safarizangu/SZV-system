@@ -53,7 +53,9 @@ $subtotal  = array_sum(array_column($lineItems, 'amount'));
 $discount  = (float)($q['discount_pct'] ?? 0);
 $discAmt   = $subtotal * ($discount / 100);
 $afterDisc = $subtotal - $discAmt;
-$vat       = round($afterDisc * 0.18, 2);
+$vatRate   = defined('VAT_RATE') ? VAT_RATE : 0.18;
+$vatPct    = (int) round($vatRate * 100);
+$vat       = round($afterDisc * $vatRate, 2);
 $grand     = round($afterDisc + $vat, 2);
 $pax       = max(1, (int)($q['adults'] ?? 2) + (int)($q['children'] ?? 0));
 $perPerson = round($grand / $pax, 2);
@@ -71,7 +73,7 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title><?= $isInvoice ? 'Invoice' : 'Quotation' ?> <?= htmlspecialchars($q['quote_ref']) ?> — Safari Zangu Ventures</title>
+<title><?= $isInvoice ? 'Invoice' : 'Quotation' ?> <?= htmlspecialchars($q['quote_ref']) ?> — SZV</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500;600;700&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -279,7 +281,7 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
     </div>
     <?php endif; ?>
     <div class="tot-row vat-row">
-      <span class="lbl">VAT (18%)</span>
+      <span class="lbl">VAT (<?= $vatPct ?>%)</span>
       <span style="font-weight:600"><?= number_format($vat,2) ?></span>
     </div>
     <div class="grand-row">
