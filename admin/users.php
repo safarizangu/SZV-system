@@ -185,7 +185,7 @@ ob_start();
         </div>
         <div class="admin-form-group">
           <label class="admin-label">
-            <?= $editUser ? 'New Password <span style="font-weight:400;opacity:.6">(leave blank to keep current)</span>' : 'Password *' ?>
+            <?= $editUser ? 'New Password <span style="font-weight:600;opacity:.6">(leave blank to keep current)</span>' : 'Password *' ?>
           </label>
           <input name="new_password" type="password" class="admin-input" <?= $editUser?'':'required' ?> minlength="8" placeholder="Min 8 characters">
         </div>

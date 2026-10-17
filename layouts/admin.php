@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title><?= $pageTitle ?? 'Admin — Safari Zangu Ventures' ?></title>
   <link rel="icon" type="image/jpeg" href="<?= BASE_PATH ?>/assets/images/logo.jpeg">
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= BASE_PATH ?>/admin/css/admin.css?v=<?= @filemtime(__DIR__ . '/../admin/css/admin.css') ?: time() ?>">
 <script>
 window.BASE_PATH = "<?= BASE_PATH ?>";

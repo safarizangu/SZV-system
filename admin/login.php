@@ -52,7 +52,7 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $db   = Database::getInstance();
             $stmt = $db->prepare(
-                "SELECT id, username, password_hash, full_name, email
+                "SELECT id, username, password_hash, full_name, email, role
                  FROM admin_users WHERE username = ? LIMIT 1"
             );
             $stmt->execute([$username]);
@@ -97,6 +97,14 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['pin_verified']        = true;
             $_SESSION['admin_last_active']   = time();
             session_regenerate_id(true);
+
+            // Agents now have their own front door — send them straight
+            // there instead of into the admin panel, which the agent-scoped
+            // pages here still work as a fallback/bridge for anything the
+            // portal doesn't cover yet (quotations, bookings, invoices).
+            if (($_SESSION['admin_role'] ?? '') === 'agent') {
+                header('Location: ../agent-portal/index.php'); exit;
+            }
 
             // Strict redirect: only allow known admin pages — no open redirect
             $allowedRedirects = ['index.php','bookings.php','quotations.php','quotation_new.php',

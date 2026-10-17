@@ -158,7 +158,7 @@ ob_start();
         <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="save" value="1">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-          <div><label class="admin-label">Booking Ref <span style="font-weight:400;color:var(--gray-500)">(optional)</span></label>
+          <div><label class="admin-label">Booking Ref <span style="font-weight:600;color:var(--gray-500)">(optional)</span></label>
             <input name="booking_ref" class="admin-input" value="<?= htmlspecialchars($prefillRef) ?>" placeholder="SZVXXXXXXXX"></div>
           <div><label class="admin-label">Occurred At</label>
             <input name="occurred_at" type="datetime-local" class="admin-input" value="<?= date('Y-m-d\TH:i') ?>" required></div>
@@ -197,7 +197,7 @@ ob_start();
       <form method="POST">
         <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="resolve_id" id="resolve_id" value="">
-        <label class="admin-label">Resolution Notes <span style="font-weight:400;color:var(--gray-500)">(optional)</span></label>
+        <label class="admin-label">Resolution Notes <span style="font-weight:600;color:var(--gray-500)">(optional)</span></label>
         <textarea name="resolution_notes" class="admin-input" rows="3" placeholder="How was this resolved?"></textarea>
         <div style="margin-top:1rem;display:flex;gap:.5rem">
           <button class="admin-btn admin-btn--primary">Mark Resolved</button>

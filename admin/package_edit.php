@@ -394,9 +394,9 @@ ob_start();
      read-only here; edit day-by-day details in the Itinerary Manager. -->
 <div class="admin-card" style="margin-bottom:1.25rem;border:1.5px solid var(--black)">
   <div class="admin-card-header" style="background:var(--gray-50)">
-    <h3>Day-by-Day Itinerary <span style="font-weight:400;color:var(--gray-500);font-size:.75rem">— linked to "<?= htmlspecialchars($linkedItin['name']) ?>"</span></h3>
+    <h3>Day-by-Day Itinerary <span style="font-weight:600;color:var(--gray-500);font-size:.75rem">— linked to "<?= htmlspecialchars($linkedItin['name']) ?>"</span></h3>
     <div style="display:flex;gap:.5rem">
-      <a href="itineraries.php?id=<?= (int)$linkedItin['id'] ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.65rem">Edit in Itinerary Manager <?= \App\Helpers\AdminIcon::render('external-link', 11) ?></a>
+      <a href="itinerary_edit.php?id=<?= (int)$linkedItin['id'] ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.65rem">Edit in Itinerary Manager <?= \App\Helpers\AdminIcon::render('external-link', 11) ?></a>
       <a href="package_edit.php?id=<?= $id ?>&amp;unlink=1"
          onclick="return confirm('Unlink and make this package’s itinerary editable here instead? The template’s current days will be copied over first as a starting point.')"
          class="admin-btn admin-btn--muted" style="font-size:.65rem">Unlink &amp; Customize Here</a>
@@ -430,7 +430,7 @@ ob_start();
     <div class="day-block itinerary-day" data-day="<?= $i ?>" style="margin-bottom:1rem;border-left:3px solid var(--black)">
       <div class="admin-card-header" style="background:var(--gray-50)">
         <h3 style="font-size:.85rem">
-          <span style="font-family:Georgia,serif;color:var(--black);margin-right:.5rem">Day <?= $i+1 ?></span>
+          <span style="font-family:'Times New Roman',Times,serif;color:var(--black);margin-right:.5rem">Day <?= $i+1 ?></span>
           <input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem"
                  placeholder="Day title e.g. Arusha → Tarangire"
                  value="<?= htmlspecialchars($day['title']??'') ?>">
@@ -631,7 +631,7 @@ ob_start();
           <tbody>
             <tr style="border-top:1px solid var(--gray-200)"><td colspan="3" style="padding:.6rem 0;font-weight:600">Subtotal</td><td style="padding:.6rem 0;text-align:right;font-weight:600" id="qs-subtotal">$0</td></tr>
             <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">VAT (<?= (int) round((defined('VAT_RATE') ? VAT_RATE : 0.18) * 100) ?>%)</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-vat">$0</td></tr>
-            <tr style="background:var(--black);color:var(--white)"><td colspan="3" style="padding:.75rem;font-weight:700">TOTAL</td><td style="padding:.75rem;text-align:right;font-family:Georgia,serif;font-size:1.1rem" id="qs-total">$0</td></tr>
+            <tr style="background:var(--black);color:var(--white)"><td colspan="3" style="padding:.75rem;font-weight:700">TOTAL</td><td style="padding:.75rem;text-align:right;font-family:'Times New Roman',Times,serif;font-size:1.1rem" id="qs-total">$0</td></tr>
             <tr><td colspan="3" style="padding:.5rem 0;font-size:.75rem;color:var(--gray-500)" id="qs-pp-label">Per Person (÷2)</td><td style="padding:.5rem 0;text-align:right;font-size:.9rem;font-weight:700" id="qs-pp">$0</td></tr>
           </tbody>
         </table>
@@ -678,7 +678,7 @@ ob_start();
      vw_package_profitability directly. -->
 <div class="admin-card" style="margin-bottom:1.25rem">
   <div class="admin-card-header">
-    <h3>Profitability <span style="font-weight:400;color:var(--gray-500);font-size:.75rem">(internal only)</span></h3>
+    <h3>Profitability <span style="font-weight:600;color:var(--gray-500);font-size:.75rem">(internal only)</span></h3>
   </div>
   <div class="admin-card-body">
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;align-items:end">
@@ -1147,7 +1147,7 @@ function peDayBlockHtml(i) {
   return ''
     +'<div class="admin-card-header" style="background:var(--gray-50)">'
       +'<h3 style="font-size:.85rem">'
-        +'<span style="font-family:Georgia,serif;color:var(--black);margin-right:.5rem">Day '+(i+1)+'</span>'
+        +'<span style="font-family:\'Times New Roman\',Times,serif;color:var(--black);margin-right:.5rem">Day '+(i+1)+'</span>'
         +'<input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem" placeholder="Day title e.g. Arusha → Tarangire">'
       +'</h3>'
       +'<div style="display:flex;align-items:center;gap:.5rem"><span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span></div>'

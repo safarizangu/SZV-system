@@ -484,7 +484,7 @@ ob_start();
     <div class="day-block itinerary-day" data-day="<?= $i ?>" style="margin-bottom:1rem;border-left:3px solid var(--black)">
       <div class="admin-card-header" style="background:var(--gray-50)">
         <h3 style="font-size:.85rem">
-          <span style="font-family:Georgia,serif;color:var(--black);margin-right:.5rem">Day <?= $i+1 ?></span>
+          <span style="font-family:'Times New Roman',Times,serif;color:var(--black);margin-right:.5rem">Day <?= $i+1 ?></span>
           <input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem"
                  placeholder="Day title e.g. Arusha → Tarangire"
                  value="<?= htmlspecialchars($day['title']??'') ?>">
@@ -684,7 +684,7 @@ ob_start();
             <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">Markup</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-markup">+$0</td></tr>
             <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">Discount</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem;color:var(--green)" id="qs-discount">–$0</td></tr>
             <tr style="border-bottom:1px solid var(--gray-100)"><td colspan="3" style="padding:.4rem 0;color:var(--gray-500);font-size:.78rem">VAT (<?= $vatPct ?>%)</td><td style="padding:.4rem 0;text-align:right;font-size:.78rem" id="qs-vat">$0</td></tr>
-            <tr style="background:var(--black);color:var(--white)"><td colspan="3" style="padding:.75rem;font-weight:700">GRAND TOTAL</td><td style="padding:.75rem;text-align:right;font-family:Georgia,serif;font-size:1.1rem" id="qs-total">$0</td></tr>
+            <tr style="background:var(--black);color:var(--white)"><td colspan="3" style="padding:.75rem;font-weight:700">GRAND TOTAL</td><td style="padding:.75rem;text-align:right;font-family:'Times New Roman',Times,serif;font-size:1.1rem" id="qs-total">$0</td></tr>
             <tr><td colspan="3" style="padding:.5rem 0;font-size:.75rem;color:var(--gray-500)" id="qs-pp-label">Per Person (÷2)</td><td style="padding:.5rem 0;text-align:right;font-size:.9rem;font-weight:700" id="qs-pp">$0</td></tr>
             <tr><td colspan="4" style="padding:.6rem 0 0">
               <div style="background:var(--green-light);border:1px solid var(--green-border);padding:.75rem">
@@ -722,7 +722,7 @@ ob_start();
         <input name="service_charge_pax" type="number" step="0.01" class="admin-input" id="service_charge_pax"
                value="<?= $qSvcPax ?>" oninput="calcTotals()" placeholder="e.g. 100" style="margin-bottom:.75rem">
 
-        <label class="admin-label">Markup (%) <span style="font-weight:400;color:var(--gray-500)">— applied before discount/VAT</span></label>
+        <label class="admin-label">Markup (%) <span style="font-weight:600;color:var(--gray-500)">— applied before discount/VAT</span></label>
         <input name="markup_pct" type="number" min="0" max="100" step="0.5" class="admin-input" id="inp_markup"
                value="<?= $qMarkupPct ?>" oninput="calcTotals()" style="margin-bottom:.75rem">
 
@@ -1208,7 +1208,7 @@ function peDayBlockHtml(i) {
   return ''
     +'<div class="admin-card-header" style="background:var(--gray-50)">'
       +'<h3 style="font-size:.85rem">'
-        +'<span style="font-family:Georgia,serif;color:var(--black);margin-right:.5rem">Day '+(i+1)+'</span>'
+        +'<span style="font-family:\'Times New Roman\',Times,serif;color:var(--black);margin-right:.5rem">Day '+(i+1)+'</span>'
         +'<input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem" placeholder="Day title e.g. Arusha → Tarangire">'
       +'</h3>'
       +'<div style="display:flex;align-items:center;gap:.5rem"><span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span></div>'

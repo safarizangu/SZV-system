@@ -74,7 +74,7 @@ ob_start();
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
   <div class="admin-card">
-    <div class="admin-card-header"><h3>Vehicle Utilization <span style="font-weight:400;font-size:.7rem;color:var(--gray-500)">(30 days)</span></h3></div>
+    <div class="admin-card-header"><h3>Vehicle Utilization <span style="font-weight:600;font-size:.7rem;color:var(--gray-500)">(30 days)</span></h3></div>
     <div class="admin-card-body">
       <?php if (empty($vehicleUtil)): ?>
       <p style="color:var(--gray-500);font-size:.85rem">No active vehicles.</p>
@@ -89,7 +89,7 @@ ob_start();
   </div>
 
   <div class="admin-card">
-    <div class="admin-card-header"><h3>Guide/Driver Utilization <span style="font-weight:400;font-size:.7rem;color:var(--gray-500)">(30 days)</span></h3></div>
+    <div class="admin-card-header"><h3>Guide/Driver Utilization <span style="font-weight:600;font-size:.7rem;color:var(--gray-500)">(30 days)</span></h3></div>
     <div class="admin-card-body">
       <?php if (empty($staffUtil)): ?>
       <p style="color:var(--gray-500);font-size:.85rem">No active guides/drivers. <a href="staff.php">Add one →</a></p>

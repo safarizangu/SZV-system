@@ -20,6 +20,25 @@ class AuthMiddleware
         $_SESSION['admin_last_active'] = time();
     }
 
+    /** Agent-portal equivalent of requireAdmin() — also requires the
+     *  'agent' role, and bounces anywhere else back to the portal's own
+     *  login, not admin/login.php. */
+    public static function requireAgent(): void
+    {
+        if (!isset($_SESSION['admin_authenticated']) || $_SESSION['admin_authenticated'] !== true || !self::isAgentRole()) {
+            header('Location: ' . APP_URL . '/agent-portal/login.php?reason=required');
+            exit;
+        }
+        if (isset($_SESSION['admin_last_active'])
+            && (time() - $_SESSION['admin_last_active']) > 1800) {
+            session_destroy();
+            session_start();
+            header('Location: ' . APP_URL . '/agent-portal/login.php?reason=timeout');
+            exit;
+        }
+        $_SESSION['admin_last_active'] = time();
+    }
+
     public static function requirePin(): void
     {
         if (!isset($_SESSION['pin_verified']) || $_SESSION['pin_verified'] !== true) {

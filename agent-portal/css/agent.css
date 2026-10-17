@@ -1,0 +1,117 @@
+/* ── AGENT PORTAL SHELL ─────────────────────────────────────────
+   Loaded AFTER admin.css (see layouts/agent.php) — every component
+   class (.admin-card, .admin-btn, .admin-table, .admin-input,
+   .badge-status, .metric-card, .admin-alert, .admin-modal*) and the
+   :root tokens (colors, fonts, radius) come from admin.css as-is.
+   This file only styles the shell around them: a simple top navbar
+   instead of the admin panel's sidebar, since the portal has just a
+   handful of pages and doesn't need a collapsible grouped nav. */
+
+.agent-body {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--gray-50);
+  color: var(--black);
+  min-height: 100vh;
+}
+.agent-body input, .agent-body textarea, .agent-body select, .agent-body button {
+  font-weight: 600;
+}
+
+/* ── TOP NAVBAR ─────────────────────────────────────────────── */
+.agent-navbar {
+  background: var(--black);
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  gap: 1rem;
+}
+.agent-navbar-left  { display: flex; align-items: center; gap: 2rem; min-width: 0; }
+.agent-brand        { display: flex; align-items: baseline; gap: .5rem; flex-shrink: 0; text-decoration: none; }
+.agent-brand-mark    { font-family: var(--font-disp); font-size: 1.3rem; font-weight: 700; color: var(--white); letter-spacing: .04em; }
+.agent-brand-sub     { font-size: .55rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.4); }
+
+.agent-nav-links { display: flex; align-items: center; gap: .25rem; }
+.agent-nav-link {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .5rem .85rem;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.7);
+  text-decoration: none;
+  border-radius: var(--radius);
+  transition: color var(--transition), background var(--transition);
+  white-space: nowrap;
+}
+.agent-nav-link:hover  { color: var(--white); background: rgba(255,255,255,.08); }
+.agent-nav-link.active { color: var(--white); background: rgba(255,255,255,.12); }
+
+.agent-navbar-right { display: flex; align-items: center; gap: 1rem; flex-shrink: 0; }
+.agent-profile-link { display: inline-flex; align-items: center; gap: .55rem; text-decoration: none; }
+.agent-profile-name  { font-size: .7rem; font-weight: 600; color: rgba(255,255,255,.75); }
+.agent-profile-avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.15); color: var(--white);
+  font-size: .65rem; font-weight: 700; letter-spacing: .02em; flex-shrink: 0;
+}
+.agent-signout {
+  font-size: .65rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: rgba(255,80,80,.75); text-decoration: none; padding: .4rem .6rem;
+}
+.agent-signout:hover { color: #ff5050; }
+
+/* Hamburger (mobile) */
+.agent-hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: .4rem;
+  flex-shrink: 0;
+}
+.agent-hamburger span { display: block; width: 20px; height: 2px; background: var(--white); border-radius: 1px; }
+
+/* ── CONTENT ────────────────────────────────────────────────── */
+.agent-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2.25rem 2rem 3rem;
+}
+.agent-page-title { font-family: var(--font-disp); font-size: 1.4rem; font-weight: 700; margin-bottom: 1.5rem; }
+
+/* ── RESPONSIVE ─────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .agent-hamburger { display: flex; }
+  .agent-nav-links {
+    display: none;
+    position: absolute;
+    top: var(--topbar-h);
+    left: 0; right: 0;
+    background: var(--black);
+    flex-direction: column;
+    align-items: stretch;
+    padding: .5rem 1rem 1rem;
+    gap: .15rem;
+    box-shadow: var(--shadow-md);
+  }
+  .agent-nav-links.open { display: flex; }
+  .agent-nav-link { padding: .65rem .85rem; }
+  .agent-profile-name { display: none; }
+  .agent-content { padding: 1.5rem 1.25rem 2.5rem; }
+}
+@media (max-width: 480px) {
+  .agent-navbar { padding: 0 1.25rem; }
+  .agent-brand-sub { display: none; }
+}

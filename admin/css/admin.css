@@ -40,8 +40,8 @@
 
   --sidebar-w:   240px;
   --topbar-h:    72px;
-  --font-body:   'Jost', system-ui, sans-serif;
-  --font-disp:   'Playfair Display', Georgia, serif;
+  --font-body:   'Times New Roman', Times, serif;
+  --font-disp:   'Times New Roman', Times, serif;
   --radius:      2px;
   --shadow-sm:   0 1px 3px rgba(0,0,0,.07);
   --shadow-md:   0 4px 16px rgba(0,0,0,.10);
@@ -65,9 +65,13 @@ html, body { height: 100%; }
   display: flex;
   font-family: var(--font-body);
   font-size: 14px;
+  font-weight: 600;
   background: var(--gray-50);
   color: var(--black);
   min-height: 100vh;
+}
+.admin-body input, .admin-body textarea, .admin-body select, .admin-body button {
+  font-weight: 600;
 }
 
 /* ── SIDEBAR ────────────────────────────────────────────────── */
@@ -96,7 +100,7 @@ html, body { height: 100%; }
   flex-shrink: 0;
 }
 .admin-logo-left { display: flex; flex-direction: column; gap: .15rem; }
-.admin-logo-mark { font-family: var(--font-disp); font-size: 1.4rem; font-weight: 500; color: var(--white); letter-spacing: .04em; }
+.admin-logo-mark { font-family: var(--font-disp); font-size: 1.4rem; font-weight: 700; color: var(--white); letter-spacing: .04em; }
 .admin-logo-sub  { font-size: .55rem; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: rgba(255,255,255,.35); }
 
 /* Close button — visible on mobile only */
@@ -248,6 +252,7 @@ html, body { height: 100%; }
   border-bottom: 1px solid var(--gray-200);
   padding: 0 2rem;
   height: var(--topbar-h);
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -257,7 +262,7 @@ html, body { height: 100%; }
   gap: 1rem;
 }
 .admin-topbar-left   { display: flex; align-items: center; gap: .85rem; min-width: 0; }
-.admin-page-title    { font-family: var(--font-disp); font-size: 1.05rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-page-title    { font-family: var(--font-disp); font-size: 1.05rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .admin-topbar-right  { display: flex; align-items: center; gap: 1.1rem; flex-shrink: 0; }
 
 /* Notification bell + dropdown */
@@ -342,7 +347,7 @@ html, body { height: 100%; }
 /* ── CARDS ──────────────────────────────────────────────────── */
 .admin-card          { background: var(--white); border: 1px solid var(--gray-200); }
 .admin-card-header   { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--gray-100); }
-.admin-card-header h2,.admin-card-header h3 { font-family: var(--font-disp); font-size: .95rem; font-weight: 500; }
+.admin-card-header h2,.admin-card-header h3 { font-family: var(--font-disp); font-size: .95rem; font-weight: 700; }
 .admin-card-body     { padding: 1.25rem; }
 .admin-grid-2        { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
 .admin-link          { font-size: .68rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--black); text-decoration: none; }
@@ -431,7 +436,7 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 .admin-icon-btn--danger:hover { color: var(--red); background: var(--red-light); }
 
 /* ── ALERTS ─────────────────────────────────────────────────── */
-.admin-alert         { padding: .85rem 1.1rem; margin-bottom: 1.25rem; font-size: .85rem; font-weight: 500; border-radius: var(--radius); }
+.admin-alert         { padding: .85rem 1.1rem; margin-bottom: 1.25rem; font-size: .85rem; font-weight: 700; border-radius: var(--radius); }
 .admin-alert--success{ background: #f0fdf4; border-left: 3px solid var(--green); color: #166534; }
 .admin-alert--error,
 .admin-alert--danger { background: #fef2f2; border-left: 3px solid var(--red); color: #991b1b; }
@@ -493,7 +498,7 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
   display: flex; align-items: center; justify-content: space-between;
   gap: 1rem; padding: 1.1rem 1.5rem; border-bottom: 1px solid var(--gray-200);
 }
-.admin-modal-title  { font-family: var(--font-disp); font-size: 1.05rem; font-weight: 500; }
+.admin-modal-title  { font-family: var(--font-disp); font-size: 1.05rem; font-weight: 700; }
 .admin-modal-body   { padding: 1.5rem; }
 .admin-modal-footer {
   display: flex; align-items: center; justify-content: flex-end; gap: .6rem;
@@ -811,14 +816,14 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 }
 .metric-value {
   font-family: var(--font-disp);
-  font-size: 2rem; font-weight: 500;
+  font-size: 2rem; font-weight: 700;
   line-height: 1.05; color: var(--black);
 }
 .metric-sub { font-size: .68rem; color: var(--gray-500); margin-top: .1rem; }
 
 /* ── STAT CARDS (smaller) ───────────────────────────────────── */
 .admin-stat-label { font-size: .55rem; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; opacity: .6; }
-.admin-stat-value { font-family: var(--font-disp); font-size: 1.5rem; font-weight: 500; line-height: 1.1; }
+.admin-stat-value { font-family: var(--font-disp); font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
 .admin-stat-sub   { font-size: .62rem; opacity: .55; }
 .admin-stat-card  {
   background: var(--white); border: 1.5px solid var(--gray-200);

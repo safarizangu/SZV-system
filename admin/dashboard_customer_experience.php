@@ -101,13 +101,13 @@ ob_start();
   </div>
 
   <div class="admin-card">
-    <div class="admin-card-header"><h3>Loyalty Tiers <span style="font-weight:400;font-size:.7rem;color:var(--gray-500)">(informational)</span></h3></div>
+    <div class="admin-card-header"><h3>Loyalty Tiers <span style="font-weight:600;font-size:.7rem;color:var(--gray-500)">(informational)</span></h3></div>
     <div class="admin-card-body">
       <?php $tierColors = ['Gold'=>['#92400e','#fef3e2'],'Silver'=>['#374151','#f3f4f6'],'Standard'=>['#6b7280','#fafaf9']]; ?>
       <?php foreach ($tierCounts as $tier => $count): [$c,$bg] = $tierColors[$tier]; ?>
       <div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem 0;border-bottom:1px solid var(--gray-100)">
         <span style="background:<?= $bg ?>;color:<?= $c ?>;font-size:.7rem;font-weight:700;padding:.15rem .55rem;border-radius:2px"><?= $tier ?></span>
-        <span style="font-weight:700"><?= $count ?> <span style="font-weight:400;color:var(--gray-500);font-size:.78rem">customers</span></span>
+        <span style="font-weight:700"><?= $count ?> <span style="font-weight:600;color:var(--gray-500);font-size:.78rem">customers</span></span>
       </div>
       <?php endforeach; ?>
     </div>

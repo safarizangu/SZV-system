@@ -135,7 +135,7 @@ $galleryImgs = $edit ? (json_decode($edit['images_json'] ?? '[]', true) ?: []) :
             <input name="single_supplement" type="number" step="0.01" class="admin-input" value="<?= $edit['single_supplement']??0 ?>"></div>
           <div><label class="admin-label">Child Rate</label>
             <input name="child_rate" type="number" step="0.01" class="admin-input" value="<?= $edit['child_rate']??0 ?>"></div>
-          <div><label class="admin-label">Available Rooms <span style="font-weight:400;color:var(--gray-500)">(allotment, optional)</span></label>
+          <div><label class="admin-label">Available Rooms <span style="font-weight:600;color:var(--gray-500)">(allotment, optional)</span></label>
             <input name="available_rooms" type="number" min="0" step="1" class="admin-input" placeholder="Leave blank if not tracked" value="<?= $edit['available_rooms'] ?? '' ?>"></div>
           <div><label class="admin-label">Meal Plan</label>
             <select name="meal_plan" class="admin-input">

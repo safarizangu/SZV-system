@@ -111,7 +111,7 @@ ob_start();
 }
 .gallery-sidebar span.count {
   font-size:.6rem;
-  font-weight:400;
+  font-weight:600;
   opacity:.6;
   margin-left:.4rem;
   flex-shrink:0;

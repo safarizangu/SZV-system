@@ -377,7 +377,7 @@ ob_start();
       <div style="margin-bottom:.75rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem">
           <span style="font-size:.8rem;font-weight:500"><?= htmlspecialchars($r['source']) ?></span>
-          <span style="font-size:.8rem;font-weight:700"><?= number_format($r['visits']) ?> <span style="font-weight:400;color:var(--gray-500)">(<?= $pct ?>%)</span></span>
+          <span style="font-size:.8rem;font-weight:700"><?= number_format($r['visits']) ?> <span style="font-weight:600;color:var(--gray-500)">(<?= $pct ?>%)</span></span>
         </div>
         <div style="background:var(--gray-100);height:6px;border-radius:3px">
           <div style="width:<?= $pct ?>%;height:100%;background:<?= $col ?>;border-radius:3px"></div>

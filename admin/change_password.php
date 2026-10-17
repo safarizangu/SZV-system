@@ -71,7 +71,7 @@ ob_start();
           <input type="password" name="current_password" class="admin-input" required autocomplete="current-password">
         </div>
         <div class="admin-form-group">
-          <label class="admin-label">New Password <span style="color:var(--gray-500);font-weight:400;text-transform:none;letter-spacing:0">(min 10 characters)</span></label>
+          <label class="admin-label">New Password <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(min 10 characters)</span></label>
           <input type="password" name="new_password" class="admin-input" required autocomplete="new-password" minlength="10">
         </div>
         <div class="admin-form-group">

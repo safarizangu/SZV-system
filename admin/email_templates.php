@@ -85,7 +85,7 @@ ob_start();
     <h3 style="font-family:var(--font-disp)">
       Editing: <?= htmlspecialchars($editKey) ?>
       <?php if (isset($customTemplates[$editKey])): ?>
-      <span style="font-size:.65rem;font-weight:400;color:var(--gold)"> ★ Custom override active</span>
+      <span style="font-size:.65rem;font-weight:600;color:var(--gold)"> ★ Custom override active</span>
       <?php endif; ?>
     </h3>
     <a href="email_templates.php" class="admin-btn admin-btn--outline">← Back to Templates</a>
