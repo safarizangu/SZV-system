@@ -1,6 +1,6 @@
 # Safari Zangu Ventures — System Documentation
 
-**Version:** 1.0 — August 2026  
+**Version:** 1.1 — October 2026  
 **Stack:** PHP 8.3 · MySQL 5.7 · Apache · Hostinger  
 **Live site:** [safarizanguven.com](https://safarizanguven.com)  
 **Admin panel:** [safarizanguven.com/admin](https://safarizanguven.com/admin)
@@ -12,6 +12,25 @@
 Safari Zangu Ventures is a full-stack Tanzania safari booking and operations platform built from scratch — no framework, no page builder, no off-the-shelf booking software. Every line is custom PHP 8.3 with a PSR-4 MVC architecture running on a single Apache/MySQL Hostinger instance.
 
 The system covers everything an Arusha-based private safari operator needs to run the business: the public website guests see, the admin panel the team uses daily, the agent and commission pipeline, the email automation engine, and the marketing tools.
+
+---
+
+## Full Documentation
+
+This README is a tour; the detailed, continuously-maintained reference
+docs live in [`docs/`](docs/):
+
+| Document | Covers |
+|---|---|
+| [docs/SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md) | Request lifecycle, service layer, PDF/email pipelines, known gaps |
+| [docs/DATABASE_DESIGN.md](docs/DATABASE_DESIGN.md) | All 32 tables, as introspected from the live schema |
+| [docs/API_SPECIFICATION.md](docs/API_SPECIFICATION.md) | Every `api/` endpoint — method, auth, purpose |
+| [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) | RBAC, the ownership-scoping model, CSRF, rate limiting |
+| [docs/DEV_SETUP.md](docs/DEV_SETUP.md) | Local environment setup (this machine's quirks included) |
+| [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) | Hostinger production deploy checklist |
+| [docs/SECURITY_CHECKLIST.md](docs/SECURITY_CHECKLIST.md) | Pre-deploy security checklist |
+| [ADMIN_GUIDE.md](ADMIN_GUIDE.md) | End-user guide, served in-app at `admin/guide.php` |
+| [docs/reports/](docs/reports/) | Historical audit reports and specs from past review cycles |
 
 ---
 
@@ -50,137 +69,69 @@ The system covers everything an Arusha-based private safari operator needs to ru
 ├── robots.txt                  ← search engine directives
 ├── sitemap.xml                 ← SEO sitemap
 ├── README.md                   ← this file
+├── ADMIN_GUIDE.md              ← served in-app at admin/guide.php
+│
+├── docs/                       ← full reference docs — see "Full Documentation" above
+│   └── reports/                ← historical audit reports/specs
 │
 ├── public/                     ← all public-facing pages (URL entry points)
-│   ├── index.php               ← home page
-│   ├── about.php               ← team, story, guides, licensing
-│   ├── packages.php            ← all 5 safari packages
-│   ├── book.php                ← booking form
-│   ├── contact.php             ← contact form + office map
-│   ├── track.php               ← booking tracker (no login)
-│   ├── confirmation.php        ← post-booking confirmation page
-│   ├── terms.php               ← booking terms & conditions
-│   ├── privacy-policy.php      ← GDPR privacy policy
-│   ├── sustainability.php      ← environmental commitment
-│   ├── 404.php                 ← custom error page
-│   └── 500.php                 ← custom server error page
+│   ├── index.php / about.php / packages.php / book.php / contact.php
+│   ├── track.php / confirmation.php / terms.php / privacy-policy.php
+│   ├── sustainability.php / review.php
+│   └── 404.php / 500.php
 │
-├── admin/                      ← admin panel (self-contained, auth-gated)
-│   ├── login.php               ← bcrypt login, server-side lockout
-│   ├── logout.php / change_password.php
-│   ├── index.php               ← dashboard with live stats
-│   ├── bookings.php            ← all bookings, status management
-│   ├── quotations.php          ← quotation list, email, PDF
-│   ├── quotation_new.php       ← new quotation builder
-│   ├── packages.php            ← package management
-│   ├── package_edit.php        ← per-day itinerary builder
-│   ├── itineraries.php         ← itinerary templates
-│   ├── leads.php               ← 8-stage kanban lead pipeline
-│   ├── commissions.php         ← agent commission tracking
-│   ├── users.php               ← team and agent management
-│   ├── gallery.php             ← image gallery manager
-│   ├── email_queue.php         ← outbound email monitor
-│   ├── email_templates.php     ← 15 template previews
-│   ├── reminders.php           ← booking reminder monitor
-│   ├── contact_messages.php    ← contact form inbox
-│   ├── custom_requests.php     ← custom safari enquiries
-│   ├── analytics.php           ← revenue and booking charts
-│   ├── poster_maker.php        ← IG/social poster studio
-│   ├── team_members.php        ← guide/staff bios and photos
-│   ├── guide.php                ← per-guide profile editor
-│   ├── vehicles.php             ← fleet inventory + quotation rates
-│   ├── accommodations.php      ← lodge/camp rates by level
-│   ├── park_fees.php           ← per-park adult/child entry fees
-│   ├── seasonal_rates.php      ← peak/shoulder/low season multipliers
-│   ├── activities.php          ← optional paid activity pricing
+├── admin/                      ← ~37 pages, admin panel (self-contained, auth-gated)
+│   ├── login.php / logout.php / change_password.php / profile.php
+│   ├── index.php               ← dashboard
+│   ├── bookings.php / quotations.php / quotation_new.php / invoices.php
+│   ├── leads.php / commissions.php / customers.php / customer_view.php
+│   ├── packages.php / package_edit.php / itineraries.php
+│   ├── vehicles.php / staff.php / suppliers.php / park_fees.php
+│   ├── accommodations.php / seasonal_rates.php / activities.php
+│   ├── operations_calendar.php / room_availability.php
+│   ├── emergency_contacts.php / incidents.php
+│   ├── dashboard_sales.php / dashboard_operations.php / dashboard_fleet.php
+│   ├── dashboard_profitability.php / dashboard_customer_experience.php
+│   ├── dashboard_agents.php / analytics.php
+│   ├── email_queue.php / email_templates.php / reminders.php
+│   ├── contact_messages.php / custom_requests.php
+│   ├── gallery.php / poster_maker.php / team_members.php / guide.php
+│   ├── users.php / currency_rates.php / activity_log.php / reviews.php
 │   ├── css/admin.css           ← admin design system
 │   └── js/                     ← admin JavaScript
 │
-├── app/                        ← PHP MVC core, PSR-4 autoloaded
+├── app/                        ← PHP core, PSR-4 autoloaded — see docs/SYSTEM_ARCHITECTURE.md
 │   ├── bootstrap.php           ← autoloader, session, DB init
-│   ├── Models/
-│   │   ├── Database.php        ← PDO singleton
-│   │   ├── Booking.php
-│   │   ├── Package.php
-│   │   └── TeamMember.php
-│   ├── Mail/
-│   │   ├── EmailTemplate.php   ← 15-template engine
-│   │   └── Mailer.php          ← queue-based sending
-│   ├── Middleware/
-│   │   ├── AuthMiddleware.php  ← session auth for admin
-│   │   ├── RateLimiter.php     ← file-based IP rate limiting
-│   │   └── CsrfMiddleware.php  ← CSRF token validation
-│   ├── Helpers/
-│   │   └── Formatter.php       ← booking refs, currency, dates
-│   ├── Services/
-│   │   ├── QuotationEngine.php ← itinerary → line items pricing (DB-backed rates)
-│   │   └── PayPalClient.php    ← server-side PayPal order verification
-│   └── Validators/
-│       └── BookingValidator.php
+│   ├── Models/                 ← Database, Booking, Customer, CustomSafariRequest, Package
+│   ├── Mail/                   ← EmailTemplate, Mailer
+│   ├── Middleware/              ← AuthMiddleware, CsrfMiddleware, RateLimiter, Honeypot
+│   ├── Helpers/                 ← Formatter, AdminIcon, Env, ImageOptimizer, ItineraryDayCards, TripExtensions
+│   ├── Services/                ← ItineraryQuoteBuilder, PdfRenderer, OwnershipScope, AccessGuard,
+│   │                               PipelineSync, InvoiceMailer, PayPalClient, AccommodationAvailability,
+│   │                               BookingReminderScheduler, ActivityLog
+│   └── Validators/             ← BookingValidator
 │
-├── api/                        ← AJAX endpoints and form handlers
-│   ├── book.php                ← booking form submission
-│   ├── contact.php             ← contact form (POST only)
-│   ├── custom_safari.php       ← custom safari request handler
-│   ├── convert_quotation.php   ← quotation → booking conversion
-│   ├── itinerary.php           ← itinerary pricing API
-│   ├── quote.php               ← ad-hoc QuotationEngine pricing API
-│   ├── leads.php               ← leads CRUD (agent-scoped)
-│   ├── track_lookup.php        ← booking lookup (rate-limited)
-│   ├── check_booking.php       ← booking existence/status check
-│   ├── record_payment.php      ← verifies + records a PayPal payment (auth: none, PayPal-verified)
-│   ├── quotation_email.php     ← send quotation by email
-│   ├── quotation_pdf.php       ← generate quotation PDF (auth)
-│   ├── booking_email.php       ← resend a booking confirmation email
-│   ├── booking_pdf.php         ← generate booking confirmation PDF
-│   ├── itinerary_pdf.php       ← generate itinerary PDF
-│   ├── analytics.php           ← dashboard stats endpoint
-│   ├── dashboard_stats.php     ← admin dashboard summary tiles
-│   ├── mailer.php              ← shared mail-send helper for API endpoints
-│   ├── get_setting.php         ← read a single key from `settings` table
-│   ├── set_hero.php            ← set homepage hero image (auth)
-│   ├── vehicle_manage.php      ← fleet CRUD (auth)
-│   ├── upload_team_image.php   ← team/guide photo upload (auth)
-│   ├── gallery/
-│   │   ├── upload.php          ← image upload (auth)
-│   │   ├── delete.php          ← image delete (auth)
-│   │   └── list.php            ← image list (auth)
+├── api/                        ← ~28 endpoints — full reference in docs/API_SPECIFICATION.md
+│   ├── book.php / contact.php / custom_safari.php / review_submit.php
+│   ├── track_lookup.php / check_booking.php / track_booking_pdf.php
+│   ├── paypal_create_order.php / record_payment.php
+│   ├── itinerary.php / convert_quotation.php
+│   ├── quotation_email.php / quotation_pdf.php / quotation_itinerary_pdf.php / quote_view.php
+│   ├── booking_email.php / booking_pdf.php / booking_itinerary_pdf.php
+│   ├── voucher_pdf.php / voucher_email.php / manifest_pdf.php
+│   ├── generate_caption.php / set_hero.php / vehicle_manage.php / upload_team_image.php
+│   ├── dashboard_stats.php / analytics.php / get_setting.php
+│   ├── gallery/upload.php / gallery/delete.php / gallery/list.php
 │   └── cron/                   ← CLI-only, blocked from web (403)
-│       ├── process_email_queue.php
-│       └── process_reminders.php
+│       ├── process_email_queue.php / process_reminders.php / send_single_email.php
 │
 ├── views/                      ← HTML templates (included by public/)
-│   ├── home.php
-│   ├── about.php
-│   ├── packages.php
-│   ├── book.php
-│   ├── contact.php
-│   ├── track.php
-│   └── confirmation.php
+│   └── home.php / about.php / packages.php / book.php / contact.php / track.php / confirmation.php / review.php
 │
 ├── layouts/                    ← shared partials
-│   ├── app.php                 ← public page wrapper (head + nav + footer)
-│   ├── admin.php               ← admin page wrapper + sidebar
-│   ├── head.php                ← <head> meta, fonts, CSS
-│   ├── navbar.php              ← responsive navigation
-│   └── footer.php              ← 4-column footer with credentials
+│   └── app.php / admin.php / head.php / navbar.php / footer.php
 │
-├── assets/                     ← static files served directly
-│   ├── css/
-│   │   ├── main.css            ← full design system (1700+ lines)
-│   │   └── forms.css           ← form-specific styles
-│   ├── js/
-│   │   ├── main.js             ← nav, animations, form behaviour
-│   │   ├── analytics.js        ← GA4 event tracking
-│   │   ├── form-validator.js   ← client-side validation
-│   │   └── country-codes.js    ← phone flag selector
-│   └── images/
-│       └── packages/           ← per-package photography
-│           ├── classic-safari/
-│           ├── luxury-safari/
-│           ├── comfort-safari/
-│           ├── safari-zanzibar/
-│           └── cultural-safari/
+├── assets/                     ← static files served directly (css/, js/, images/)
 │
 ├── config/
 │   └── app.php                 ← all constants, env loader, business rules
@@ -188,15 +139,11 @@ The system covers everything an Arusha-based private safari operator needs to ru
 ├── cron/
 │   └── backup.sh               ← daily mysqldump, 30-day retention
 │
-├── database/
-│   ├── migrations/             ← schema evolution scripts
-│   └── seeders/                ← initial data (itineraries, packages)
-│
-├── sql/                        ← SQL migration files (web-blocked)
+├── sql/                        ← dated migration files (web-blocked), tracked via schema_migrations
 │
 ├── tests/                      ← dependency-free test suite (no PHPUnit needed)
 │   ├── run.php                 ← test runner — `php tests/run.php`
-│   └── suites/                 ← one file per subject (Formatter, BookingValidator, …)
+│   └── suites/                 ← one file per subject
 │
 └── storage/                    ← runtime writable storage (web-blocked)
     ├── cache/
@@ -215,7 +162,7 @@ The system covers everything an Arusha-based private safari operator needs to ru
 | Web server | Apache 2.4 | mod_rewrite, mod_headers, mod_expires |
 | Hosting | Hostinger | Shared hosting, Ubuntu, cPanel |
 | Email | PHPMailer + Hostinger SMTP | Queue-based via `email_queue` table |
-| PDF | mPDF | Quotation PDF generation |
+| PDF | dompdf (Composer) | Every `api/*_pdf.php` file's own HTML *is* the document — `App\Services\PdfRenderer` captures it and runs it through dompdf for email attachments |
 | Payments | PayPal (sandbox → live) | Stripe/Flutterwave planned Phase 1 |
 | AI | Anthropic Claude API | Poster caption generation (claude-sonnet-4-6) |
 | Frontend | Vanilla JS + Tailwind-free custom CSS | No framework, no build step |
@@ -280,10 +227,14 @@ Login at `/admin/login.php`. Protected by:
 
 | Role | Permissions |
 |---|---|
-| `superadmin` | Full access to everything including user management |
-| `admin` | Full access except creating other superadmins |
-| `agent` | Only sees own leads, cannot see other agents' data |
-| `staff` | Read-only access to bookings and packages |
+| `superadmin` | Full access. Currently identical to `admin` in every permission check — deliberate, not yet differentiated. |
+| `admin` | Full access to all admin pages and all records. |
+| `agent` | Only sees their own leads, bookings, quotations, and custom requests. Bookings/custom-requests have no owner column — ownership is derived through a linked quotation's `created_by`. Cannot set their own `agent_id` or `commission_rate`. |
+| `staff` | Full page access minus Settings; see [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) for the one open question around itinerary editing. |
+
+Full detail, including the ownership-derivation pattern and every
+hardening fix, is in
+[docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md).
 
 ### Admin pages
 
@@ -321,145 +272,35 @@ Login at `/admin/login.php`. Protected by:
 
 ## 5. Database Schema
 
-### Core tables
+32 tables plus 1 view. The core transactional ones:
 
-**`customers`** — the unified identity behind bookings, quotations, leads, and custom safari requests. Before this table existed, the same guest's name/email/phone was copied independently into each of those four tables with no shared record — a repeat guest looked like several unrelated people. `App\Models\Customer::findOrCreateByEmail()` is called from every place a new record in those four tables is created; it matches on a lowercased, trimmed email, fills in a missing `phone`/`country` on the existing record but never overwrites a value that's already set, and creates a new row only when the email hasn't been seen before.
+- **`customers`** — the unified identity behind bookings, quotations,
+  leads, and custom safari requests, deduplicated on a lowercased/trimmed
+  `email` via `App\Models\Customer::findOrCreateByEmail()`.
+- **`bookings`** — the source of truth for confirmed bookings.
+  `total_amount` is the authoritative, frozen charged figure.
+- **`quotations`** — pre-booking proposals; snapshots its own itinerary
+  and line items as JSON so it can regenerate its PDF without depending
+  on catalog data that might change later. No owner column — an agent's
+  ownership is derived through `created_by`.
+- **`leads`** — the agent sales pipeline (`agent_id` *is* a real column
+  here, unlike bookings/quotations).
+- **`commissions`** — one row per lead (unique constraint on `lead_id`),
+  created by `App\Services\PipelineSync`.
+- **`custom_safari_requests`** — bespoke enquiries; also has no owner
+  column, scoped the same way quotations are.
+- Catalog: `packages`, `itineraries`, `accommodations` (+
+  `accommodation_seasonal_rates`), `vehicles`, `park_fees`, `activities`,
+  `seasonal_rates`, `suppliers`.
+- Operations: `staff`, `booking_assignments`, `incidents`.
+- System: `email_queue`, `email_templates`, `booking_reminders`,
+  `contact_messages`, `activity_log`, `analytics_events`, `settings`,
+  `currency_rates`, `schema_migrations`, `reviews`.
+- People: `admin_users`, `agent_targets`.
 
-| Column | Purpose |
-|---|---|
-| `email` | the dedup key — always stored lowercase/trimmed |
-| `full_name`, `phone`, `country` | best-known values across every touchpoint |
-| `first_seen_at` | when this person first contacted us, across any channel |
-
-**`bookings`** — the source of truth for all confirmed bookings.
-
-| Column | Type | Purpose |
-|---|---|---|
-| `id` | int PK | |
-| `booking_ref` | varchar(20) | `SZV` + `bin2hex(random_bytes(5))` — cryptographically random |
-| `customer_id` | int | FK → customers, nullable |
-| `quotation_id` | int | FK → the quotation this booking was converted from, if any |
-| `full_name` | varchar(150) | |
-| `email` | varchar(200) | |
-| `phone` | varchar(50) | |
-| `travelers` | int | total guests |
-| `adults` | int | |
-| `children` | int | |
-| `package_id` | int | FK → packages, nullable |
-| `itinerary_id` | int | FK → itineraries, nullable |
-| `package_name` | varchar(150) | denormalised for email rendering |
-| `accommodation_level` | enum | budget / midrange / highend |
-| `travel_date` | date | |
-| `total_amount` | decimal(10,2) | USD |
-| `deposit_amount` | decimal(10,2) | direct booking: `DEPOSIT_PERCENT` config (25%); quotation conversion: carries over the 30% already quoted to the client — previously this was silently recomputed to 50% at conversion, overriding what the client had agreed to |
-| `payment_status` | enum | pending / deposit_paid / fully_paid / cancelled |
-| `confirmation_email_sent` | tinyint(1) | set once `booking_confirmation` is successfully queued |
-| `created_at` | timestamp | |
-
-**`quotations`** — pre-booking cost proposals sent to potential clients.
-
-| Column | Purpose |
-|---|---|
-| `quote_ref` | e.g. `SZV-Q001` |
-| `client_name`, `client_email` | |
-| `itinerary_id` | FK → itineraries |
-| `start_date` | proposed departure |
-| `adults`, `children` | |
-| `accommodation_level` | |
-| `line_items` | JSON — full cost breakdown |
-| `grand_total`, `per_person`, `deposit_amount`, `balance_due` | |
-| `status` | draft / sent / accepted / expired / converted |
-| `discount_pct` | |
-| `booking_ref` | populated when converted to booking |
-
-**`packages`** — the 5 safari products.
-
-| Column | Purpose |
-|---|---|
-| `slug` | URL key e.g. `classic-safari` |
-| `name` | display name |
-| `duration_days` | |
-| `itinerary_id` | FK → itineraries |
-| `price_1pax`, `price_2pax`, `price_3pax` | USD per person by group size |
-| `accommodation_level` | default level |
-| `includes` | JSON array |
-| `excludes` | JSON array |
-| `gallery_images` | JSON array of image paths |
-| `cost_breakdown` | JSON — internal costing |
-| `is_active`, `is_featured`, `sort_order` | |
-
-**`itineraries`** — day-by-day journey templates.
-
-| Column | Purpose |
-|---|---|
-| `slug` | e.g. `classic-safari-5n` |
-| `duration_days` | |
-| `days` | JSON array: `[{day, title, location, description, accommodation, vehicle, parks, activities, meals}]` |
-| `includes` | JSON array |
-| `base_price_pax` | starting price for quotation engine |
-
-**`leads`** — the agent sales pipeline.
-
-| Column | Purpose |
-|---|---|
-| `full_name`, `email`, `phone`, `country` | |
-| `agent_id` | FK → admin_users |
-| `package_name` | what they're interested in |
-| `budget_range` | e.g. `$2,000–$3,000` |
-| `pipeline_stage` | lead / qualified / quoted / negotiation / booked / travelled / completed / lost |
-| `booking_value` | actual value when converted |
-| `commission_rate` | override rate for this lead |
-| `commission_amount` | calculated: `booking_value × rate / 100` |
-| `commission_status` | pending / approved / paid / cancelled |
-| `booking_ref` | populated when converted |
-| `next_follow_up` | date for follow-up reminder |
-
-**`commissions`** — audit trail of every commission record.
-
-| Column | Purpose |
-|---|---|
-| `agent_id` | FK → admin_users |
-| `lead_id` | FK → leads |
-| `booking_ref` | |
-| `client_name`, `package_name` | |
-| `booking_value`, `commission_rate`, `commission_amount` | |
-| `status` | pending / approved / paid / cancelled |
-| `approved_by` | FK → admin_users |
-| `approved_at`, `paid_at` | timestamps |
-
-**`admin_users`** — all admin panel users including agents.
-
-| Column | Purpose |
-|---|---|
-| `username`, `password_hash` | bcrypt hashed |
-| `full_name`, `email`, `phone` | |
-| `role` | superadmin / admin / agent / staff |
-| `is_active` | toggle without deleting |
-| `commission_rate` | default % for this agent |
-| `target_monthly` | monthly booking value target |
-
-**`email_queue`** — all outbound emails.
-
-| Column | Purpose |
-|---|---|
-| `to_email`, `to_name` | |
-| `subject`, `body` | full HTML body |
-| `template` | which template was used |
-| `status` | pending / sent / failed |
-| `retry_count` | max 3 attempts |
-| `created_at`, `sent_at` | |
-
-**`booking_reminders`** — scheduled email triggers.
-
-| Column | Purpose |
-|---|---|
-| `booking_id` | FK → bookings |
-| `type` | deposit_due / balance_due / departure / post_trip |
-| `scheduled_at` | when to send |
-| `sent_at` | populated when sent |
-| `status` | pending / sent / skipped |
-
-**`agent_targets`** — monthly targets per agent.
+Full column-by-column reference, generated by introspecting the live
+schema rather than written from memory:
+**[docs/DATABASE_DESIGN.md](docs/DATABASE_DESIGN.md)**.
 
 ---
 
@@ -493,14 +334,14 @@ Cron (every 2 min)
 | `booking_reminder_balance` | Guest | Cron — 45 days before travel |
 | `booking_reminder_departure` | Guest | Cron — 7 days before travel |
 | `booking_reminder_posttrip` | Guest | Cron — 3 days after return |
-| `quotation_sent` | Guest | `api/quotation_email.php` |
+| `quotation_sent` | Guest | listed here for completeness, but `api/quotation_email.php` actually builds its own body inline and never calls this template — editing it in `admin/email_templates.php` has no effect; see [docs/SYSTEM_ARCHITECTURE.md §6](docs/SYSTEM_ARCHITECTURE.md#6-email-system) |
 | `quotation_accepted` | Guest | `admin/quotations.php` on accept |
 | `quotation_expired` | Guest | `admin/quotations.php` on expire |
 | `contact_acknowledgement` | Guest | `api/contact.php` auto-reply |
 | `contact_admin_notification` | Admin | `api/contact.php` notify admin |
 | `custom_request_ack` | Guest | `api/custom_safari.php` auto-reply |
 | `custom_request_admin` | Admin | `api/custom_safari.php` notify admin |
-| `lead_converted` | Agent | `api/leads.php` on stage → Booked |
+| `lead_converted` | Agent | `App\Services\PipelineSync` on stage → Booked |
 | `commission_approved` | Agent | `admin/commissions.php` on approve |
 | `commission_paid` | Agent | `admin/commissions.php` on paid |
 
@@ -537,7 +378,7 @@ Mailer::queueAdmin('custom_request_admin', $vars);
 
 ### How roles work in practice
 
-When an agent logs in, `$_SESSION['admin_role']` is set to `'agent'`. The `api/leads.php` handler checks this and applies a `WHERE agent_id = $myId` filter to every query. This is enforced server-side — the client cannot override it. Agents cannot set their own `agent_id` or `commission_rate` in POST requests (both are ignored and set server-side).
+When an agent logs in, `$_SESSION['admin_role']` is set to `'agent'`. `admin/leads.php` applies a `WHERE agent_id = $myId` filter to every query, and `App\Services\OwnershipScope` applies the equivalent scoping to bookings, quotations, and custom requests (which have no `agent_id` column of their own — ownership there is derived through a linked quotation). All of this is enforced server-side; the client cannot override it. Agents cannot set their own `agent_id` or `commission_rate` in POST requests (both are ignored and set server-side). Full detail: [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md).
 
 ### Commission lifecycle
 
@@ -577,6 +418,11 @@ When an agent logs in, `$_SESSION['admin_role']` is set to `'agent'`. The `api/l
 ---
 
 ## 8. Security Architecture
+
+> The RBAC model, the ownership-scoping pattern for agents, and denial
+> logging are documented in full in
+> [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) — this
+> section covers the lower-level hardening fixes.
 
 ### What was hardened
 
@@ -629,26 +475,9 @@ session_set_cookie_params([
 
 ## 9. API Endpoints
 
-All endpoints live in `api/`. They return JSON (except `quotation_pdf.php` which streams a PDF).
-
-| Endpoint | Method | Auth | Purpose |
-|---|---|---|---|
-| `api/book.php` | POST | None | Submit booking form |
-| `api/contact.php` | POST | None | Submit contact form |
-| `api/custom_safari.php` | POST | None | Submit custom safari request |
-| `api/track_lookup.php` | POST | None (rate-limited) | Look up booking by ref + date |
-| `api/record_payment.php` | POST | None (rate-limited, PayPal-verified) | Verify a PayPal order server-side and mark booking deposit/fully paid |
-| `api/itinerary.php` | GET/POST | Admin session | Get itinerary data + quote items |
-| `api/leads.php` | POST | Admin session | Leads CRUD (agent-scoped) |
-| `api/convert_quotation.php` | POST | Admin session | Convert quote to booking |
-| `api/quotation_email.php` | POST | Admin session | Send quotation by email |
-| `api/quotation_pdf.php` | GET | Admin session | Stream quotation PDF |
-| `api/analytics.php` | GET | Admin session | Dashboard stats JSON |
-| `api/gallery/upload.php` | POST | Admin session | Upload image |
-| `api/gallery/delete.php` | POST | Admin session | Delete image |
-| `api/gallery/list.php` | GET | Admin session | List images in folder |
-| `api/cron/process_email_queue.php` | CLI only | 403 from web | Send pending emails |
-| `api/cron/process_reminders.php` | CLI only | 403 from web | Fire scheduled reminders |
+~28 endpoints live under `api/`. Full method/auth/purpose reference for
+every one of them, kept in sync with the code rather than hand-copied
+here: **[docs/API_SPECIFICATION.md](docs/API_SPECIFICATION.md)**.
 
 ---
 
@@ -725,7 +554,7 @@ Key constants:
 APP_ENV          // 'local' or 'production'
 BASE_PATH        // '' on production; '/safari-zangu' on local (this machine has no
                  // Apache Alias for the project, so it's served as a real subfolder —
-                 // see LOCAL-DEV-SETUP.md)
+                 // see docs/DEV_SETUP.md)
 DB_HOST/USER/PASS/NAME
 SMTP_HOST/PORT/SECURE/USERNAME/PASSWORD
 PAYPAL_MODE      // 'sandbox' or 'live'
@@ -751,102 +580,22 @@ Fill in: `DB_PASS`, `SMTP_PASSWORD`, `PAYPAL_MODE=live`, `PAYPAL_CLIENT_ID`, `BA
 
 ## 13. Local Development Setup
 
-### Prerequisites
-- PHP 8.3 (`/usr/bin/php8.3`)
-- MySQL 5.7
-- Apache with `mod_rewrite`
-- Ubuntu (tested on Ubuntu 22.04 / 24.04)
+Prerequisites: PHP 8.3, MySQL/MariaDB, Apache with `mod_rewrite`, on
+Ubuntu. Both Apache and the database service are independent and neither
+auto-starts on this machine — the most common "it doesn't load" cause is
+one of the two simply not running.
 
-### Steps
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/your-org/safari-zangu.git /var/www/html/safari-zangu
-
-# 2. Create local environment file
-cd /var/www/html/safari-zangu
-cp .env.example .env
-# Edit .env: set DB_PASS=your_local_password, APP_ENV=local
-
-# 3. Create the database
-mysql -u root -p -e "CREATE DATABASE safari_zangu CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-
-# 4. Load the schema
-# baseline_schema.sql is a verified, complete snapshot of every table the
-# app actually uses as of 2026-09-05 — including the `customers` table —
-# (generated via mysqldump against a working install, already including
-# the audit fixes below) — it replaces the old practice of hand-picking
-# which sql/*.sql files to run, which had drifted out of sync with
-# production and was missing custom_safari_requests, contact_messages,
-# analytics_events, and team_members entirely.
-# On a FRESH database, this is the only schema file you need:
-mysql -u root -p safari_zangu < sql/baseline_schema.sql
-mysql -u root -p safari_zangu < sql/admin_users_setup.sql   # seeds the default admin login
-
-# On an EXISTING database created before 2026-09-05, run these instead of
-# (not in addition to) baseline_schema.sql — in this order:
-# mysql -u root -p safari_zangu < sql/2026_09_audit_fixes.sql
-# mysql -u root -p safari_zangu < sql/2026_09_customers_table.sql
-# php database/migrations/2026_09_backfill_customers.php   # one-time, idempotent
-
-# 5. Enable Apache rewrite
-sudo a2enmod rewrite headers expires deflate
-sudo systemctl restart apache2
-
-# 6. Set permissions
-sudo chown -R www-data:www-data assets/images/ storage/
-sudo chmod -R 775 assets/images/ storage/
-
-# 7. Set up local cron (optional for dev)
-sudo crontab -u www-data -e
-# Add the 3 cron lines from section 10
-
-# 8. Visit the site
-open http://localhost/safari-zangu/
-open http://localhost/safari-zangu/admin/
-```
-
-### Default admin credentials (local)
-Set via `sql/admin_users_setup.sql` — change immediately after first login.
+Full step-by-step (clone, `.env`, schema load, permissions, this
+machine's specific `BASE_PATH` quirk, and starting both services):
+**[docs/DEV_SETUP.md](docs/DEV_SETUP.md)**.
 
 ---
 
 ## 14. Production Deployment (Hostinger)
 
-### Pre-launch checklist
-
-```bash
-# 1. Upload files via FTP or git pull
-# 2. Create .env with production values
-APP_ENV=production
-DB_PASS=<hostinger_db_password>
-SMTP_PASSWORD=<smtp_password>
-PAYPAL_MODE=live
-PAYPAL_CLIENT_ID=<live_client_id>
-GA4_ID=G-YOURCODE
-BANK_ACCOUNT_NO=<real_account>
-BANK_SWIFT=<real_swift>
-
-# 3. Set file permissions
-find . -type f -name "*.php" -exec chmod 644 {} \;
-find . -type d -exec chmod 755 {} \;
-chmod -R 775 assets/images/ storage/
-
-# 4. Remove the local git history if shipping a plain file copy
-rm -rf .git
-
-# 5. Run SQL migrations in Hostinger phpMyAdmin
-
-# 6. Install cron jobs in Hostinger cPanel → Cron Jobs
-
-# 7. Verify HTTPS is working, then uncomment HSTS in .htaccess
-
-# 8. Test SPF/DKIM/DMARC email authentication
-# Send a test email to Gmail → Open original → All three should show PASS
-
-# 9. Set admin role
-# phpMyAdmin: UPDATE admin_users SET role='superadmin' WHERE username='admin';
-```
+Full step-by-step checklist (production `.env`, file upload, SQL
+migrations, permissions, Composer, cron, HTTPS/HSTS, SPF/DKIM/DMARC):
+**[docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)**.
 
 ---
 
@@ -1037,4 +786,4 @@ This system is proprietary software belonging to **Safari Zangu Ventures Ltd**, 
 
 ---
 
-*Last updated: August 2026*
+*Last updated: 16 October 2026 — folder structure, stack, database schema, security model, and API reference sections corrected against the live codebase; full technical reference split out into [docs/](docs/).*

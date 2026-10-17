@@ -26,12 +26,28 @@ define('BASE_PATH', $_isLocal ? '/safari-zangu' : '');
 
 ## Starting local dev
 
+Both services are independent and neither auto-starts on this machine —
+starting only one is the most common cause of "it doesn't load" or
+"Database connection failed." on a fresh terminal session.
+
 ```bash
 cd /var/www/html/safari-zangu
 sudo systemctl start apache2
+sudo systemctl start mysql      # or: sudo systemctl start mariadb
 # Open: http://localhost/safari-zangu/
 # Admin: http://localhost/safari-zangu/admin/
 ```
+
+Verify both are actually up before debugging anything else:
+
+```bash
+systemctl is-active apache2
+systemctl is-active mysql       # or mariadb
+```
+
+"Database connection failed. Please check configuration." on the site
+almost always means the DB service above is still `inactive`, not a
+real config problem — start it and reload.
 
 ## If you'd rather add the Apache Alias instead
 
