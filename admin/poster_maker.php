@@ -49,6 +49,33 @@ ob_start();
   margin: -1.5rem;
   overflow: hidden;
 }
+/* This is a canvas-based design tool — composing a poster meaningfully
+   needs real screen width, so this isn't rebuilt as a true mobile UI.
+   What it does get is the baseline every page here needs: no forced
+   horizontal scroll of the whole admin shell. Sidebars stack above/below
+   the canvas and scroll with the page instead of three fixed columns
+   fighting for a 320-414px viewport. */
+@media (max-width: 1024px) {
+  .pm-wrap {
+    grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
+  }
+  /* Grid items default to min-width:auto, which lets a child's own
+     content (button labels, swatch rows) stay wider than its 1fr track
+     and force the whole grid wider than the viewport again even after
+     collapsing to one column — min-width:0 is what actually makes the
+     column respect the track width. */
+  .pm-sidebar, .pm-right, .pm-centre { min-width: 0; max-height: 50vh; }
+  /* .pm-wrap's -1.5rem margin bleeds it edge-to-edge against
+     .admin-content's desktop padding (1.5rem at that breakpoint) — but
+     .admin-content's own padding shrinks well below 1.5rem at mobile/
+     tablet widths, so that same fixed negative margin overshoots the
+     real edge and was the actual source of every pm-wrap/pm-sidebar/
+     pm-section width mismatch found above (not a flex/grid sizing
+     issue at all, despite how it looked at first). */
+  .pm-wrap { margin: 0; }
+}
 .pm-sidebar {
   background: var(--pm-panel);
   border-right: 1px solid var(--pm-border);
@@ -76,6 +103,7 @@ ob_start();
 .pm-section {
   border-bottom: 1px solid var(--pm-border);
   padding: .85rem 1rem;
+  min-width: 0;
 }
 .pm-section-title {
   font-size: .55rem;
@@ -121,6 +149,7 @@ ob_start();
   letter-spacing: .06em;
   text-transform: uppercase;
   cursor: pointer;
+  min-width: 0;
   text-align: center;
   transition: all .12s;
   border-radius: 2px;

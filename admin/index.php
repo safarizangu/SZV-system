@@ -81,7 +81,7 @@ if (AuthMiddleware::isAgentRole()) {
     </div>
 
     <!-- MAIN GRID -->
-    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:1.25rem;align-items:start">
+    <div class="admin-split-layout" style="display:grid;grid-template-columns:1.3fr 1fr;gap:1.25rem;align-items:start">
 
     <!-- My Leads -->
     <div class="admin-card">
@@ -255,7 +255,7 @@ ob_start();
 </div>
 
 <!-- MAIN GRID -->
-<div style="display:grid;grid-template-columns:1.3fr 1fr;gap:1.25rem;align-items:start">
+<div class="admin-split-layout" style="display:grid;grid-template-columns:1.3fr 1fr;gap:1.25rem;align-items:start">
 
 <!-- Recent Bookings -->
 <div class="admin-card">

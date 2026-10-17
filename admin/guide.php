@@ -13,11 +13,11 @@ ob_start();
 .guide p,.guide li{font-size:.85rem;line-height:1.8;color:var(--gray-700)}
 .guide ul,.guide ol{padding-left:1.25rem;margin:.5rem 0}
 .guide li{margin-bottom:.25rem}
-.guide table{width:100%;border-collapse:collapse;font-size:.82rem;margin:1rem 0}
+.guide table{width:100%;border-collapse:collapse;font-size:.82rem;margin:1rem 0;display:block;overflow-x:auto}
 .guide th{background:var(--black);color:var(--white);padding:.5rem .75rem;text-align:left;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase}
 .guide td{padding:.5rem .75rem;border-bottom:1px solid var(--gray-100)}
 .guide tr:hover td{background:var(--gray-50)}
-.guide code{background:var(--gray-100);padding:.1rem .35rem;font-size:.8rem;border-radius:2px}
+.guide code{background:var(--gray-100);padding:.1rem .35rem;font-size:.8rem;border-radius:2px;overflow-wrap:anywhere}
 .guide pre{background:var(--black);color:#a3e635;padding:1rem;font-size:.75rem;overflow-x:auto;margin:1rem 0;border-radius:2px}
 .guide blockquote{border-left:3px solid var(--black);padding:.5rem 1rem;background:var(--gray-50);font-size:.82rem;margin:1rem 0}
 </style>

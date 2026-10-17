@@ -75,6 +75,10 @@ ob_start();
 ?>
 <style>
 .gallery-layout { display:grid; grid-template-columns:220px 1fr; gap:0; min-height:70vh; }
+@media (max-width: 768px) {
+  .gallery-layout { grid-template-columns: 1fr; min-height: 0; }
+  .gallery-sidebar { border-right: none; border-bottom: 1px solid var(--gray-200); position: static; max-height: none; }
+}
 .gallery-sidebar {
   border-right:1px solid var(--gray-200);
   padding:1rem 0;

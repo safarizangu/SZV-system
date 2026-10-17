@@ -105,7 +105,7 @@ ob_start();
 <?php if($msg): ?><div class="admin-alert admin-alert--success"><?= $msg ?></div><?php endif; ?>
 
 <!-- Stats + Cron Status -->
-<div style="display:grid;grid-template-columns:repeat(5,1fr) auto;gap:1rem;margin-bottom:1.5rem;align-items:stretch">
+<div class="admin-split-layout" style="display:grid;grid-template-columns:repeat(5,1fr) auto;gap:1rem;margin-bottom:1.5rem;align-items:stretch">
   <?php foreach([
     ['Pending',   $stats['pending']??0,   'amber'],
     ['Sent',      $stats['sent']??0,      'green'],
@@ -124,7 +124,7 @@ ob_start();
   </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 360px;gap:1.5rem;align-items:start">
+<div class="admin-split-layout" style="display:grid;grid-template-columns:1fr 360px;gap:1.5rem;align-items:start">
 <div>
 
 <!-- PENDING TABLE -->
