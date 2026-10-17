@@ -62,7 +62,9 @@ $perPerson = round($grand / $pax, 2);
 $deposit   = round($grand * 0.30, 2);
 $balance   = round($grand - $deposit, 2);
 $validStr  = $q['valid_until'] ? date('d F Y', strtotime($q['valid_until'])) : date('d F Y', strtotime('+14 days'));
-$destStr   = !empty($destinations) ? implode(' → ', $destinations) : ($q['package_name'] ?? 'Tanzania Safari');
+// A right-arrow glyph here previously rendered as "?" under dompdf's font
+// substitution — "·" is the proven-safe choice, used throughout.
+$destStr   = !empty($destinations) ? implode(' · ', $destinations) : ($q['package_name'] ?? 'Tanzania Safari');
 $logoUrl = (defined('APP_URL') ? APP_URL : 'https://www.safarizanguven.com') . '/assets/images/logo.jpeg';
 $bankName    = defined('BANK_NAME')         ? BANK_NAME         : 'Your Bank';
 $bankAcc     = defined('BANK_ACCOUNT_NAME') ? BANK_ACCOUNT_NAME : 'Safari Zangu Ventures';
@@ -75,112 +77,189 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
 <meta charset="UTF-8">
 <title><?= $isInvoice ? 'Invoice' : 'Quotation' ?> <?= htmlspecialchars($q['quote_ref']) ?> — SZV</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500;600;700&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  /* 'DejaVu Sans' is dompdf's own bundled font, kept as a fallback because
-     dompdf can't load the Jost @import above (stripped by
-     App\Services\PdfRenderer to avoid a font-cache write failure) — without
-     it, glyphs like → and ✦ silently render as "?" instead of erroring. */
-  body{font-family:'Jost','DejaVu Sans',Arial,sans-serif;font-size:13px;color:#0a0a0a;background:#fff;line-height:1.5}
-  .page{max-width:820px;margin:0 auto;padding:2.5rem}
+  /* Without this, a real browser's print/save-as-PDF engine silently
+     lightens every background color (the black header bar, the gold
+     brandbar, the green deposit box) to save ink — the page looks
+     correct on screen and in dompdf's own render, but washed-out grey
+     once actually printed. This forces backgrounds to print at their
+     true color. dompdf itself ignores this property harmlessly (it
+     already renders backgrounds at full color with no adjustment). */
+  *,*::before,*::after{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
+  /* One serif face throughout, per request — Times New Roman everywhere,
+     'Times'/'Liberation Serif' as same-metric fallbacks if the exact
+     name isn't resolved, 'serif' last so there's always a serif result
+     rather than silently falling back to a sans-serif default. */
+  body{font-family:'Times New Roman',Times,'Liberation Serif',serif;font-size:13.5px;color:#0a0a0a;background:#fff;line-height:1.55}
+  /* CSS @page{margin:...} was tried here to give every generated page the
+     same top/bottom inset, not just the first — confirmed via direct
+     testing that dompdf silently ignores it in this document (page
+     content rendered flush to the physical edge regardless), so this
+     reverts to .page's own padding, which is proven reliable, plus
+     explicit top padding on each page-break section below. */
+  .page{max-width:820px;margin:0 auto;padding:2.5rem 2.5rem 4rem}
+
+  /* Letterhead accent — a single gold rule, the one recurring brand mark
+     carried through the document */
+  .brandbar{height:4px;background:#c8963e;margin:-2.5rem -2.5rem 2rem}
 
   /* Header */
   .hdr{display:grid;grid-template-columns:1fr auto;gap:2rem;align-items:start;
         padding-bottom:1.5rem;border-bottom:2px solid #0a0a0a;margin-bottom:2rem}
-  .logo{font-family:'Playfair Display',Georgia,serif;font-size:1.8rem;font-weight:500;letter-spacing:.04em}
-  .logo-img{width:64px;height:64px;border-radius:50%;object-fit:cover;margin-bottom:.4rem;display:block}
-  .logo-sub{font-size:.58rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#9ca3af;margin-top:.3rem}
+  /* The closing seal on the last page — larger still, for visibility,
+     centered as a closing mark. */
+  .closing-seal{text-align:center;margin:2rem 0}
+  .closing-seal img{width:170px;height:170px;border-radius:50%;object-fit:cover;display:inline-block}
+  .company-name{font-size:1.9rem;font-weight:700;letter-spacing:.02em}
+  .logo-sub{font-size:.6rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#0a0a0a;margin-top:.3rem}
+  .logo-meta{margin-top:.6rem;font-size:.68rem;color:#0a0a0a;letter-spacing:.02em}
   .qref{text-align:right}
-  .qref-num{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:500}
-  .qref-date{font-size:.72rem;color:#9ca3af;margin-top:.2rem}
-  .badge{display:inline-block;padding:.2rem .65rem;font-size:.58rem;font-weight:700;
-         letter-spacing:.14em;text-transform:uppercase;background:#0a0a0a;color:#fff;margin-top:.4rem}
+  .qref-eyebrow{font-size:.6rem;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:#0a0a0a}
+  .qref-num{font-size:1.5rem;font-weight:700;margin-top:.15rem}
+  .qref-date{font-size:.74rem;color:#0a0a0a;margin-top:.3rem}
+  .qref-date strong{color:#0a0a0a}
+  .badge{display:inline-block;padding:.25rem .75rem;font-size:.6rem;font-weight:700;
+         letter-spacing:.16em;text-transform:uppercase;background:#0a0a0a;color:#fff;margin-top:.55rem}
 
   /* Section */
-  .sec{margin-bottom:1.75rem}
-  .sec-title{font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
-             color:#9ca3af;border-bottom:1px solid #e5e7eb;padding-bottom:.4rem;margin-bottom:.85rem}
+  .sec{margin-bottom:1.85rem}
+  .sec-title{display:flex;align-items:center;gap:.5rem;font-size:.64rem;font-weight:700;letter-spacing:.2em;
+             text-transform:uppercase;color:#0a0a0a;border-bottom:1px solid #e5e7eb;
+             padding-bottom:.5rem;margin-bottom:1rem}
+  .sec-title::before{content:'';width:10px;height:2px;background:#c8963e;flex-shrink:0}
 
-  /* Client / safari grid */
-  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
-  .four-col{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem}
-  .field label{display:block;font-size:.56rem;font-weight:700;letter-spacing:.15em;
-               text-transform:uppercase;color:#9ca3af;margin-bottom:.2rem}
-  .field span{font-size:.88rem;font-weight:500}
+  /* Client / safari grid — soft card framing instead of bare label/value
+     pairs, so each group of facts reads as one object */
+  .info-card{border:1px solid #e5e7eb;background:#f9f9f8;padding:1.1rem 1.25rem;page-break-inside:avoid}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem 1.5rem}
+  .four-col{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem 1.25rem}
+  .field label{display:block;font-size:.58rem;font-weight:700;letter-spacing:.14em;
+               text-transform:uppercase;color:#0a0a0a;margin-bottom:.25rem}
+  .field span{font-size:.9rem;font-weight:500;color:#0a0a0a}
 
-  /* Cost table — matches PDF */
-  .cost-tbl{width:100%;border-collapse:collapse;margin-bottom:1rem}
-  .cost-tbl th{font-size:.58rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
-               color:#fff;background:#0a0a0a;padding:.6rem .75rem;text-align:left}
+  /* Cost table — zebra striping replaces per-category color chips; the
+     category text itself (Acc/Veh/Park…) already carries the distinction,
+     so the color was decoration without information */
+  .cost-tbl{width:100%;border-collapse:collapse;margin-bottom:1.1rem;border:1px solid #0a0a0a}
+  .cost-tbl th{font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+               color:#fff;background:#0a0a0a;padding:.7rem .8rem;text-align:left;border:1px solid #2d2d2d}
   .cost-tbl th.r{text-align:right}
   .cost-tbl th.c{text-align:center}
-  .cost-tbl td{padding:.55rem .75rem;border-bottom:1px solid #f3f4f6;font-size:.82rem;vertical-align:middle}
-  .cost-tbl td.r{text-align:right;font-weight:600}
-  .cost-tbl td.c{text-align:center;color:#6b7280}
-  .cost-tbl tr:last-child td{border-bottom:none}
-  .cost-tbl .cat-badge{font-size:.56rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
-                        padding:.12rem .35rem;margin-right:.4rem;opacity:.7}
+  .cost-tbl td{padding:.6rem .8rem;border:1px solid #e5e7eb;font-size:.84rem;vertical-align:middle}
+  .cost-tbl tbody tr:nth-child(even){background:#f9f9f8}
+  .cost-tbl td.r{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+  .cost-tbl td.c{text-align:center;color:#0a0a0a}
+
+  /* Forces the element onto a fresh page in dompdf's print renderer */
+  /* Forces a fresh page AND gives that page's content the same breathing
+     room page 1 gets from .page's own top padding — without this, a
+     page-break-before section starts flush against the physical page
+     edge, since .page's padding only wraps the document once, not per
+     generated page. */
+  .page-break{page-break-before:always;padding-top:1.5rem}
+
+  /* The last page's own content column, tall enough to span the page,
+     so .footer (position:absolute below) anchors flush against the
+     bottom of the page instead of sitting wherever the content above it
+     happens to end, with empty space beneath it. flexbox's margin-top:auto
+     was tried first for this and confirmed (by direct render) to be
+     silently ignored by dompdf's flex implementation — absolute
+     positioning is the technique already proven reliable in this same
+     document for .page-footer and .brandbar. */
+  .last-page{position:relative;min-height:950px}
 
   /* Totals */
   .totals{margin-left:auto;width:340px}
-  .tot-row{display:flex;justify-content:space-between;padding:.45rem 0;
-           border-bottom:1px solid #f3f4f6;font-size:.85rem}
-  .tot-row .lbl{color:#6b7280}
-  .tot-row.disc .val{color:#16a34a;font-weight:700}
+  .tot-row{display:flex;justify-content:space-between;padding:.5rem 0;
+           border-bottom:1px solid #f3f4f6;font-size:.86rem;font-variant-numeric:tabular-nums}
+  .tot-row .lbl{color:#0a0a0a}
+  .tot-row.disc .val{color:#0a0a0a;font-weight:700}
   .tot-row.vat-row{border-bottom:2px solid #0a0a0a}
   .grand-row{display:flex;justify-content:space-between;align-items:center;
-             background:#0a0a0a;color:#fff;padding:.85rem 1rem;margin:.4rem 0}
-  .grand-row .lbl{font-weight:700;font-size:.95rem}
-  .grand-row .val{font-family:'Playfair Display',serif;font-size:1.25rem}
-  .pp-row{display:flex;justify-content:space-between;padding:.4rem 0;
-          font-size:.85rem;border-bottom:1px solid #f3f4f6}
-  .pp-row .val{font-weight:700;font-size:.95rem}
-  .deposit-box{background:#f0fdf4;border:1px solid #86efac;padding:.85rem 1rem;margin-top:.75rem}
-  .deposit-box .title{font-size:.58rem;font-weight:700;letter-spacing:.14em;
-                       text-transform:uppercase;color:#166534;margin-bottom:.4rem}
-  .dep-row{display:flex;justify-content:space-between;font-size:.82rem;color:#166534;margin-bottom:.2rem}
-  .dep-row .val{font-weight:700}
-  .payment-box{border:1px solid #e5e7eb;padding:.85rem 1rem;margin-top:.75rem;background:#f9f9f8}
-  .payment-box .title{font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b7280;margin-bottom:.5rem}
-  .payment-row{font-size:.82rem;color:#374151;line-height:1.8}
-  .payment-row strong{color:#0a0a0a}
+             background:#0a0a0a;color:#fff;padding:.95rem 1.1rem;margin:.5rem 0;
+             border-left:4px solid #c8963e}
+  .grand-row .lbl{font-weight:700;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase}
+  .grand-row .val{font-size:1.35rem;font-weight:700;font-variant-numeric:tabular-nums}
+  .pp-row{display:flex;justify-content:space-between;padding:.45rem 0;
+          font-size:.86rem;border-bottom:1px solid #f3f4f6;font-variant-numeric:tabular-nums}
+  .pp-row .val{font-weight:700;font-size:.96rem}
+  .deposit-box{background:#f0fdf4;border:1px solid #86efac;padding:.9rem 1.1rem;margin-top:.85rem}
+  .deposit-box .title{font-size:.6rem;font-weight:700;letter-spacing:.14em;
+                       text-transform:uppercase;color:#0a0a0a;margin-bottom:.5rem}
+  .dep-row{display:flex;justify-content:space-between;gap:.5rem;font-size:.8rem;color:#0a0a0a;margin-bottom:.3rem;
+            font-variant-numeric:tabular-nums}
+  .dep-row .val{font-weight:700;white-space:nowrap;margin-left:.75rem}
+  .payment-box{border:1px solid #e5e7eb;padding:1rem 1.1rem;background:#f9f9f8;
+               border-left:3px solid #c8963e}
+  .payment-row{display:flex;justify-content:space-between;font-size:.86rem;color:#0a0a0a;
+               padding:.4rem 0;border-bottom:1px solid #e5e7eb}
+  .payment-row:last-child{border-bottom:none}
+  .payment-row strong{color:#0a0a0a;font-weight:600;margin-left:.75rem;white-space:nowrap}
 
   /* Notes */
-  .notes-box{border:1px solid #e5e7eb;padding:1rem;background:#f9f9f8;
-             font-size:.82rem;line-height:1.75;white-space:pre-wrap}
+  .notes-box{border:1px solid #e5e7eb;padding:1.1rem 1.25rem;background:#f9f9f8;
+             font-size:.84rem;line-height:1.8;white-space:pre-wrap}
 
-  /* Footer */
-  .footer{margin-top:2.5rem;padding-top:1.25rem;border-top:2px solid #0a0a0a;
-          display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;font-size:.72rem;color:#6b7280}
-  .footer strong{display:block;color:#0a0a0a;font-weight:600;margin-bottom:.15rem}
+  /* Footer — normal in-flow block by default (the Invoice-mode path never
+     wraps this in .last-page, so it must still lay out correctly on its
+     own); anchored to the bottom of .last-page specifically when present. */
+  .footer{margin-top:2.5rem;padding-top:1.35rem;border-top:2px solid #0a0a0a;
+          display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;font-size:.74rem;color:#0a0a0a}
+  .last-page .footer{position:absolute;left:0;right:0;bottom:0;margin-top:0}
+  .footer strong{display:block;color:#0a0a0a;font-weight:600;margin-bottom:.2rem;
+                 font-size:.6rem;letter-spacing:.1em;text-transform:uppercase}
+
+  /* Running page-number strip — repeats on every page via dompdf's
+     position:fixed support, so a multi-page document never loses its
+     place once printed loose */
+  .page-footer{position:fixed;bottom:.7rem;left:2.5rem;right:2.5rem;
+               display:flex;justify-content:space-between;font-size:.62rem;
+               color:#0a0a0a;letter-spacing:.04em;border-top:1px solid #e5e7eb;padding-top:.5rem}
+  /* counter(pages) (the document's total page count) reliably resolves
+     to 0 in this dompdf install regardless of markup — confirmed by
+     direct test — so this shows the current page number only, not a
+     "page X of Y" that would always lie about Y. */
+  .page-footer .pg:after{content:"Page " counter(page)}
 
   /* Print */
   @media print {
     body{background:#fff}
     .no-print{display:none}
-    .page{padding:1.5rem}
+    .page{padding:1.5rem 1.5rem 3.5rem}
+    .page-footer{left:1.5rem;right:1.5rem}
   }
 </style>
 </head>
 <body>
+<!-- Running footer — a direct child of <body>, not nested inside .page,
+     because dompdf only reliably repaints position:fixed elements on
+     every generated page when they sit outside any padded/margined
+     ancestor block; nested one page inside .page, it silently stopped
+     repeating past page 1. -->
+<div class="page-footer">
+  <span>Safari Zangu Ventures · <?= htmlspecialchars($q['quote_ref']) ?></span>
+  <span class="pg"></span>
+</div>
+
 <div class="page">
+<div class="brandbar"></div>
 
 <!-- ── HEADER ─────────────────────────────────────────────── -->
 <div class="hdr">
   <div>
-    <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Safari Zangu Ventures" class="logo-img">
+    <div class="company-name">SZV</div>
     <div class="logo-sub">Private Tanzania Safari Specialists · Arusha</div>
-    <div style="margin-top:.5rem;font-size:.72rem;color:#9ca3af">TALA Licence No. 037129 · Reg. No. 179228971</div>
+    <div class="logo-meta">TALA Licence No. 037129 · Reg. No. 179228971</div>
   </div>
   <div class="qref">
-    <div style="font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af"><?= $isInvoice ? 'INVOICE' : 'QUOTATION' ?></div>
+    <div class="qref-eyebrow"><?= $isInvoice ? 'Invoice' : 'Quotation' ?></div>
     <div class="qref-num"><?= htmlspecialchars($q['quote_ref']) ?></div>
     <?php if ($isInvoice): ?>
-    <div class="qref-date">Issued: <?= date('d F Y') ?></div>
-    <div class="badge" style="background:#166534">PAID IN FULL</div>
+    <div class="qref-date">Issued <strong><?= date('d F Y') ?></strong></div>
+    <div class="badge" style="background:#166534">Paid in Full</div>
     <?php else: ?>
-    <div class="qref-date">Issued: <?= date('d F Y') ?></div>
-    <div class="qref-date">Valid until: <strong><?= $validStr ?></strong></div>
+    <div class="qref-date">Issued <strong><?= date('d F Y') ?></strong></div>
+    <div class="qref-date">Valid until <strong><?= $validStr ?></strong></div>
     <div class="badge"><?= strtoupper($q['status'] ?? 'draft') ?></div>
     <?php endif; ?>
   </div>
@@ -189,7 +268,7 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
 <!-- ── CLIENT ─────────────────────────────────────────────── -->
 <div class="sec">
   <div class="sec-title">Client Details</div>
-  <div class="two-col">
+  <div class="info-card two-col">
     <div class="field"><label>Name</label><span><?= htmlspecialchars($q['client_name']) ?></span></div>
     <div class="field"><label>Email</label><span><?= htmlspecialchars($q['client_email']) ?></span></div>
     <div class="field"><label>Phone / WhatsApp</label><span><?= htmlspecialchars($q['client_phone'] ?: '—') ?></span></div>
@@ -200,7 +279,7 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
 <!-- ── SAFARI SUMMARY ─────────────────────────────────────── -->
 <div class="sec">
   <div class="sec-title">Safari Summary</div>
-  <div class="four-col">
+  <div class="info-card four-col">
     <div class="field"><label>Destination</label><span><?= htmlspecialchars($destStr) ?></span></div>
     <div class="field"><label>Duration</label><span><?= (int)$q['duration_days'] ?> nights</span></div>
     <div class="field"><label>Travelers</label>
@@ -221,7 +300,7 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
 </div>
 
 <!-- ── COST BREAKDOWN TABLE — matches PDF exactly ────────── -->
-<div class="sec">
+<div class="sec page-break">
   <div class="sec-title">Cost Breakdown</div>
   <table class="cost-tbl">
     <thead>
@@ -234,26 +313,10 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
     </thead>
     <tbody>
       <?php foreach($lineItems as $item):
-        $catColors = [
-          'accommodation'=>['#eff6ff','#1d4ed8'],
-          'transport'    =>['#f0fdf4','#166534'],
-          'park_fee'     =>['#fef3e2','#92400e'],
-          'activity'     =>['#fdf4ff','#7e22ce'],
-          'flight'       =>['#f0f9ff','#0369a1'],
-          'service_fee'  =>['#f9fafb','#374151'],
-          'other'        =>['#f9fafb','#6b7280'],
-        ];
-        $catBg  = $catColors[$item['category']??'other'][0] ?? '#f9fafb';
-        $catCol = $catColors[$item['category']??'other'][1] ?? '#6b7280';
-        $catLabel = ['accommodation'=>'Acc','transport'=>'Veh','park_fee'=>'Park',
-                     'activity'=>'Act','flight'=>'Flight','service_fee'=>'Svc','other'=>''][$item['category']??'other'] ?? '';
         $amount = (float)($item['amount'] ?? 0);
       ?>
       <tr>
         <td>
-          <?php if($catLabel): ?>
-          <span class="cat-badge" style="background:<?= $catBg ?>;color:<?= $catCol ?>"><?= $catLabel ?></span>
-          <?php endif; ?>
           <?= htmlspecialchars($item['description'] ?? '') ?>
         </td>
         <td class="r">
@@ -289,7 +352,7 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
       <span class="val">USD <?= number_format($grand,2) ?></span>
     </div>
     <div class="pp-row">
-      <span style="color:#6b7280">USD per person (<?= $pax ?> guest<?= $pax!==1?'s':'' ?>)</span>
+      <span style="color:#0a0a0a">USD per person (<?= $pax ?> guest<?= $pax!==1?'s':'' ?>)</span>
       <span class="val">USD <?= number_format($perPerson,2) ?></span>
     </div>
     <?php if ($isInvoice): ?>
@@ -298,26 +361,46 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
       <div class="dep-row"><span>Amount Paid</span><span class="val">USD <?= number_format($grand,2) ?></span></div>
       <div class="dep-row"><span>Balance Due</span><span class="val">USD 0.00</span></div>
     </div>
-    <?php else: ?>
-    <div class="deposit-box">
-      <div class="title">To Confirm Your Booking</div>
-      <div class="dep-row"><span>Deposit (30%) — due within 48 hours</span><span class="val">USD <?= number_format($deposit,2) ?></span></div>
-      <div class="dep-row"><span>Balance (70%) — due 45 days before safari</span><span class="val">USD <?= number_format($balance,2) ?></span></div>
-    </div>
-    <div class="payment-box">
-      <div class="title">Payment Details</div>
-      <div class="payment-row">Bank: <strong><?= htmlspecialchars($bankName) ?></strong></div>
-      <div class="payment-row">Account Name: <strong><?= htmlspecialchars($bankAcc) ?></strong></div>
-      <div class="payment-row">Account Number: <strong><?= htmlspecialchars($bankNo) ?></strong></div>
-      <?php if ($bankSwift): ?><div class="payment-row">SWIFT: <strong><?= htmlspecialchars($bankSwift) ?></strong></div><?php endif; ?>
-      <div class="payment-row">PayPal: <strong><?= htmlspecialchars($paypalEmail) ?></strong></div>
-    </div>
     <?php endif; ?>
   </div>
 </div>
 
-<div class="sec" style="font-size:.8rem;color:#6b7280;background:#f9f9f8;border:1px solid #e5e7eb;padding:.85rem 1rem">
+<?php if (!$isInvoice): ?>
+<!-- ── PAYMENT DETAILS — always its own final page, and the whole
+     page is a flex column so .footer is pushed down to sit flush
+     against the bottom of the page rather than floating wherever the
+     content above it happens to end. ─────────────────────────────── -->
+<div class="last-page page-break">
+<div class="sec">
+  <!-- "To Confirm Your Booking" sits directly above Payment Details —
+       the deposit amount and the bank details needed to actually pay it
+       now read as one combined instruction, instead of being split
+       across two different pages. -->
+  <div class="deposit-box" style="margin-top:0;margin-bottom:1.5rem">
+    <div class="title">To Confirm Your Booking</div>
+    <div class="dep-row"><span>Deposit (30%) — due within 48 hours</span><span class="val">USD <?= number_format($deposit,2) ?></span></div>
+    <div class="dep-row"><span>Balance (70%) — due 45 days before safari</span><span class="val">USD <?= number_format($balance,2) ?></span></div>
+  </div>
+  <div class="sec-title">Payment Details</div>
+  <div class="payment-box" style="margin-top:0">
+    <div class="payment-row"><span>Bank</span><strong><?= htmlspecialchars($bankName) ?></strong></div>
+    <div class="payment-row"><span>Account Name</span><strong><?= htmlspecialchars($bankAcc) ?></strong></div>
+    <div class="payment-row"><span>Account Number</span><strong><?= htmlspecialchars($bankNo) ?></strong></div>
+    <?php if ($bankSwift): ?><div class="payment-row"><span>SWIFT</span><strong><?= htmlspecialchars($bankSwift) ?></strong></div><?php endif; ?>
+    <div class="payment-row"><span>PayPal</span><strong><?= htmlspecialchars($paypalEmail) ?></strong></div>
+  </div>
+</div>
+<?php endif; ?>
+
+<div class="sec" style="font-size:.8rem;color:#0a0a0a;background:#f9f9f8;border:1px solid #e5e7eb;padding:.85rem 1rem">
   Your full day-by-day itinerary is attached as a separate PDF alongside this quotation.
+</div>
+
+<!-- Closing seal — the logo moved here from the header (shortened to
+     "SZV" there instead), larger and centered as a closing mark rather
+     than a small corner icon. -->
+<div class="closing-seal">
+  <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Safari Zangu Ventures">
 </div>
 
 <?php if(!empty($q['notes'])): ?>
@@ -352,8 +435,14 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
     <?php endif; ?>
   </div>
 </div>
+</div><!-- /last-page -->
 
-<!-- Print button -->
+<?php if (!defined('SZV_PDF_INTERNAL_RENDER')): ?>
+<!-- Print button — only for an admin viewing this page live in a browser.
+     Omitted when PdfRenderer captures this same markup to bake into the
+     actual PDF file that gets emailed/downloaded, where an on-page
+     "Print"/"Back" button is meaningless and was previously shipping to
+     every client inside the real document. -->
 <div class="no-print" style="margin-top:1.5rem;text-align:center">
   <button onclick="window.print()"
           style="padding:.65rem 2rem;background:#0a0a0a;color:#fff;border:none;
@@ -368,6 +457,7 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
     ← Back
   </a>
 </div>
+<?php endif; ?>
 
 </div><!-- /page -->
 </body></html>

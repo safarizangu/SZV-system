@@ -53,6 +53,91 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
         exit;
     }
+    if ($action === 'update_booking') {
+        if (!AuthMiddleware::isAdminRole()) {
+            \App\Services\AccessGuard::denyJson('booking', trim($_POST['booking_ref'] ?? ''), 'update_booking');
+        }
+        $ref = trim($_POST['booking_ref'] ?? '');
+        $existing = $db->prepare("SELECT * FROM bookings WHERE booking_ref=? LIMIT 1");
+        $existing->execute([$ref]);
+        $existing = $existing->fetch();
+        if (!$ref || !$existing) {
+            echo json_encode(['success'=>false,'message'=>'Booking not found.']);
+            exit;
+        }
+
+        $fullName  = trim($_POST['full_name'] ?? '');
+        $email     = trim($_POST['email'] ?? '');
+        $phone     = trim($_POST['phone'] ?? '');
+        $travelDate = trim($_POST['travel_date'] ?? '');
+        $adults    = (int)($_POST['adults'] ?? 0);
+        $children  = max(0, (int)($_POST['children'] ?? 0));
+        $accLevel  = trim($_POST['accommodation_level'] ?? '');
+        $specialRequest = trim($_POST['special_request'] ?? '');
+        $totalAmount   = (float)($_POST['total_amount'] ?? -1);
+        $depositAmount = (float)($_POST['deposit_amount'] ?? -1);
+        $packageId = trim($_POST['package_id'] ?? '');
+        $itineraryId = trim($_POST['itinerary_id'] ?? '');
+
+        $errors = [];
+        if ($fullName === '') $errors[] = 'Guest name is required.';
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'A valid email is required.';
+        if ($phone === '') $errors[] = 'Phone is required.';
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $travelDate) || !strtotime($travelDate)) $errors[] = 'Travel date is invalid.';
+        if ($adults < 1) $errors[] = 'At least 1 adult is required.';
+        $allowedLevels = ['budget','midrange','highend','luxury','ultra_luxury'];
+        if (!in_array($accLevel, $allowedLevels, true)) $errors[] = 'Invalid accommodation level.';
+        if ($totalAmount < 0) $errors[] = 'Total amount must be 0 or more.';
+        if ($depositAmount < 0) $errors[] = 'Deposit amount must be 0 or more.';
+        if ($depositAmount > $totalAmount) $errors[] = 'Deposit cannot exceed the total amount.';
+
+        $packageName = $existing['package_name'];
+        $packageIdVal = null;
+        if ($packageId !== '') {
+            $pkg = $db->prepare("SELECT id, name FROM packages WHERE id=? LIMIT 1");
+            $pkg->execute([(int)$packageId]);
+            $pkg = $pkg->fetch();
+            if (!$pkg) { $errors[] = 'Selected package does not exist.'; }
+            else { $packageIdVal = (int)$pkg['id']; $packageName = $pkg['name']; }
+        }
+        $itineraryIdVal = null;
+        if ($itineraryId !== '') {
+            $it = $db->prepare("SELECT id FROM itineraries WHERE id=? LIMIT 1");
+            $it->execute([(int)$itineraryId]);
+            if (!$it->fetch()) { $errors[] = 'Selected itinerary does not exist.'; }
+            else { $itineraryIdVal = (int)$itineraryId; }
+        }
+
+        if ($errors) {
+            echo json_encode(['success'=>false,'message'=>implode(' ', $errors)]);
+            exit;
+        }
+
+        $db->prepare("UPDATE bookings SET
+                full_name=?, email=?, phone=?, travel_date=?, adults=?, children=?,
+                accommodation_level=?, special_request=?, total_amount=?, deposit_amount=?,
+                package_id=?, package_name=?, itinerary_id=?, updated_at=NOW()
+              WHERE booking_ref=?")
+           ->execute([
+                $fullName, $email, $phone, $travelDate, $adults, $children,
+                $accLevel, $specialRequest, $totalAmount, $depositAmount,
+                $packageIdVal, $packageName, $itineraryIdVal,
+                $ref,
+            ]);
+
+        \App\Services\ActivityLog::record('update_booking', 'booking', 0, [
+            'booking_ref' => $ref,
+            'full_name'   => $fullName,
+            'email'       => $email,
+            'total_amount'   => $totalAmount,
+            'deposit_amount' => $depositAmount,
+        ]);
+
+        $s = $db->prepare("SELECT * FROM bookings WHERE booking_ref=?");
+        $s->execute([$ref]);
+        echo json_encode(['success'=>true, 'booking'=>$s->fetch()]);
+        exit;
+    }
     if ($action === 'get_booking') {
         $ref = trim($_POST['booking_ref'] ?? '');
         if (OwnershipScope::isScoped() && !OwnershipScope::ownsBooking($db, $ref, OwnershipScope::currentAgentId())) {
@@ -133,6 +218,11 @@ $statusColors = [
     'fully_paid'   => ['bg'=>'var(--black)',       'color'=>'var(--white)','badge'=>'dark', 'label'=>'Fully Paid'],
     'cancelled'    => ['bg'=>'var(--red-light)',  'color'=>'#991b1b','badge'=>'red',  'label'=>'Cancelled'],
 ];
+
+// Package/itinerary pickers for the Edit Booking form — admin-role only
+// feature, but cheap enough to just always fetch.
+$editPackages   = $db->query("SELECT id, name FROM packages WHERE is_active=1 ORDER BY name")->fetchAll();
+$editItineraries = $db->query("SELECT id, name FROM itineraries WHERE is_active=1 ORDER BY name")->fetchAll();
 
 $pageTitle = 'Bookings';
 ob_start();
@@ -285,6 +375,14 @@ ob_start();
 <script>
 var BASE = '<?= BASE_PATH ?>';
 var STATUS_META = <?= json_encode($statusColors) ?>;
+var CAN_EDIT_BOOKING = <?= AuthMiddleware::isAdminRole() ? 'true' : 'false' ?>;
+var EDIT_PACKAGES = <?= json_encode($editPackages) ?>;
+var EDIT_ITINERARIES = <?= json_encode($editItineraries) ?>;
+var ACC_LEVELS = [
+  ['budget','Budget-Friendly'],['midrange','Mid-Range'],['highend','High-End'],
+  ['luxury','Luxury'],['ultra_luxury','Ultra Luxury']
+];
+var CURRENT_BOOKING = null;
 
 async function updateStatus(ref, newStatus, sel) {
   var fd = new FormData();
@@ -313,6 +411,7 @@ async function viewBooking(ref) {
   var r = await fetch('bookings.php',{method:'POST',body:fd});
   var b = await r.json();
   if (b.error) { toast('Not found','err'); return; }
+  CURRENT_BOOKING = b;
 
   document.getElementById('modalTitle').textContent = 'Booking — ' + b.booking_ref;
 
@@ -373,10 +472,91 @@ async function viewBooking(ref) {
     +'<a href="'+itinPdfUrl+'" '
     +'target="_blank" class="admin-btn admin-btn--outline" style="font-size:.72rem">Itinerary PDF</a>'
 
+    + (CAN_EDIT_BOOKING
+        ? '<button type="button" onclick="editBooking()" class="admin-btn admin-btn--primary" style="font-size:.72rem">Edit Booking</button>'
+        : '')
+
     +'</div>';
 
   document.getElementById('modalBody').innerHTML = html;
   document.getElementById('bookingModal').classList.add('open');
+}
+
+function editBooking() {
+  var b = CURRENT_BOOKING;
+  if (!b) return;
+  document.getElementById('modalTitle').textContent = 'Edit Booking — ' + b.booking_ref;
+
+  function opt(value, label, selected) {
+    return '<option value="'+value+'"'+(selected?' selected':'')+'>'+label+'</option>';
+  }
+  var pkgOptions = '<option value="">— None —</option>' + EDIT_PACKAGES.map(function(p){
+    return opt(p.id, p.name, String(b.package_id)===String(p.id));
+  }).join('');
+  var itinOptions = '<option value="">— None —</option>' + EDIT_ITINERARIES.map(function(i){
+    return opt(i.id, i.name, String(b.itinerary_id)===String(i.id));
+  }).join('');
+  var accOptions = ACC_LEVELS.map(function(a){
+    return opt(a[0], a[1], b.accommodation_level===a[0]);
+  }).join('');
+
+  function field(label, inputHtml) {
+    return '<div style="margin-bottom:.85rem">'
+      + '<label class="admin-label" style="display:block;margin-bottom:.3rem">'+label+'</label>'
+      + inputHtml
+      + '</div>';
+  }
+  function esc(v) {
+    var d = document.createElement('div'); d.textContent = v == null ? '' : String(v); return d.innerHTML;
+  }
+
+  var html = '<form id="editBookingForm" style="padding:1.25rem 1.5rem">'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">'
+    + field('Full Name', '<input class="admin-input" name="full_name" value="'+esc(b.full_name)+'" required>')
+    + field('Email', '<input class="admin-input" type="email" name="email" value="'+esc(b.email)+'" required>')
+    + field('Phone', '<input class="admin-input" name="phone" value="'+esc(b.phone)+'" required>')
+    + field('Travel Date', '<input class="admin-input" type="date" name="travel_date" value="'+esc(b.travel_date)+'" required>')
+    + field('Adults', '<input class="admin-input" type="number" min="1" name="adults" value="'+esc(b.adults||b.travelers||1)+'" required>')
+    + field('Children', '<input class="admin-input" type="number" min="0" name="children" value="'+esc(b.children||0)+'">')
+    + field('Accommodation Level', '<select class="admin-input" name="accommodation_level">'+accOptions+'</select>')
+    + field('Package', '<select class="admin-input" name="package_id">'+pkgOptions+'</select>')
+    + field('Itinerary', '<select class="admin-input" name="itinerary_id">'+itinOptions+'</select>')
+    + field('Total Amount (USD)', '<input class="admin-input" type="number" min="0" step="0.01" name="total_amount" value="'+esc(b.total_amount)+'" required>')
+    + field('Deposit Amount (USD)', '<input class="admin-input" type="number" min="0" step="0.01" name="deposit_amount" value="'+esc(b.deposit_amount)+'" required>')
+    + '</div>'
+    + field('Special Request', '<textarea class="admin-input" name="special_request" rows="3">'+esc(b.special_request)+'</textarea>')
+    + '<div style="display:flex;gap:.5rem;padding-top:.5rem">'
+    + '<button type="submit" class="admin-btn admin-btn--primary">Save Changes</button>'
+    + '<button type="button" class="admin-btn admin-btn--outline" onclick="viewBooking(\''+b.booking_ref+'\')">Cancel</button>'
+    + '</div>'
+    + '</form>';
+
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('editBookingForm').addEventListener('submit', saveBooking);
+}
+
+async function saveBooking(e) {
+  e.preventDefault();
+  var form = e.target;
+  var fd = new FormData(form);
+  fd.append('action','update_booking');
+  fd.append('booking_ref', CURRENT_BOOKING.booking_ref);
+  fd.append('_csrf', window.CSRF_TOKEN || '');
+  var btn = form.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  try {
+    var r = await fetch('bookings.php',{method:'POST',body:fd});
+    var d = await r.json();
+    if (d.success) {
+      toast('Booking updated','ok');
+      CURRENT_BOOKING = d.booking;
+      viewBooking(d.booking.booking_ref);
+      setTimeout(function(){ location.reload(); }, 600);
+    } else {
+      toast('Failed: '+(d.message||'Error'),'err');
+      btn.disabled = false;
+    }
+  } catch(err) { toast('Network error','err'); btn.disabled = false; }
 }
 
 function closeModal() {
