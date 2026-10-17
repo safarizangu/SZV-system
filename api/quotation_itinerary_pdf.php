@@ -85,66 +85,83 @@ $logoUrl      = (defined('APP_URL') ? APP_URL : 'https://www.safarizanguven.com'
 <meta charset="UTF-8">
 <title>Itinerary — Quotation <?= htmlspecialchars($q['quote_ref']) ?> — Safari Zangu Ventures</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500;600;700&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  /* 'DejaVu Sans' is dompdf's own bundled font, kept as a fallback because
-     dompdf can't load the Jost @import above (stripped by
-     App\Services\PdfRenderer to avoid a font-cache write failure) — without
-     it, glyphs like → and ✦ silently render as "?" instead of erroring. */
-  body{font-family:'Jost','DejaVu Sans',Arial,sans-serif;font-size:13px;color:#0a0a0a;background:#fff;line-height:1.5}
-  .page{max-width:820px;margin:0 auto;padding:2.5rem}
+  *,*::before,*::after{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
+  body{font-family:'Times New Roman',Times,'Liberation Serif',serif;font-size:13.5px;color:#0a0a0a;background:#fff;line-height:1.55}
+  .page{max-width:820px;margin:0 auto;padding:2.5rem 2.5rem 4rem}
+  .brandbar{height:4px;background:#c8963e;margin:-2.5rem -2.5rem 2rem}
 
   .hdr{display:grid;grid-template-columns:1fr auto;gap:2rem;align-items:start;
         padding-bottom:1.5rem;border-bottom:2px solid #0a0a0a;margin-bottom:2rem}
-  .logo-img{width:64px;height:64px;border-radius:50%;object-fit:cover;margin-bottom:.4rem;display:block}
-  .logo-sub{font-size:.58rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#9ca3af;margin-top:.3rem}
+  .company-name{font-size:1.9rem;font-weight:700;letter-spacing:.02em}
+  .logo-sub{font-size:.6rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#0a0a0a;margin-top:.3rem}
   .qref{text-align:right}
-  .qref-num{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:500}
-  .qref-date{font-size:.72rem;color:#9ca3af;margin-top:.2rem}
+  .qref-num{font-size:1.4rem;font-weight:700}
+  .qref-date{font-size:.72rem;color:#0a0a0a;margin-top:.2rem}
 
   .sec{margin-bottom:1.75rem}
-  .sec-title{font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
-             color:#9ca3af;border-bottom:1px solid #e5e7eb;padding-bottom:.4rem;margin-bottom:.85rem}
+  .sec-title{display:flex;align-items:center;gap:.5rem;font-size:.64rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+             color:#0a0a0a;border-bottom:1px solid #e5e7eb;padding-bottom:.4rem;margin-bottom:.85rem}
+  .sec-title::before{content:'';width:10px;height:2px;background:#c8963e;flex-shrink:0}
 
   .four-col{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem}
   .field label{display:block;font-size:.56rem;font-weight:700;letter-spacing:.15em;
-               text-transform:uppercase;color:#9ca3af;margin-bottom:.2rem}
+               text-transform:uppercase;color:#0a0a0a;margin-bottom:.2rem}
   .field span{font-size:.88rem;font-weight:500}
 
-  .overview{font-size:.88rem;line-height:1.8;color:#374151}
+  .overview{font-size:.88rem;line-height:1.8;color:#0a0a0a}
   <?= \App\Helpers\ItineraryDayCards::css() ?>
   .two-col-list{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
   .list-title{font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
               margin-bottom:.5rem}
   .list-title.inc{color:#166534}
   .list-title.exc{color:#991b1b}
-  .list-items{list-style:none;font-size:.82rem;line-height:1.9;color:#374151}
+  .list-items{list-style:none;font-size:.82rem;line-height:1.9;color:#0a0a0a}
   .list-items li::before{content:'\2713 ';color:#16a34a;font-weight:700;margin-right:.2rem}
   .list-items.exc li::before{content:'\2717 ';color:#dc2626}
 
+  .closing-seal{text-align:center;margin:2rem 0}
+  .closing-seal img{width:170px;height:170px;border-radius:50%;object-fit:cover;display:inline-block}
+
   .footer{margin-top:2.5rem;padding-top:1.25rem;border-top:2px solid #0a0a0a;
-          display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;font-size:.72rem;color:#6b7280}
+          display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;font-size:.72rem;color:#0a0a0a}
   .footer strong{display:block;color:#0a0a0a;font-weight:600;margin-bottom:.15rem}
+
+  .page-footer{position:fixed;bottom:.7rem;left:2.5rem;right:2.5rem;
+               display:flex;justify-content:space-between;font-size:.62rem;
+               color:#0a0a0a;letter-spacing:.04em;border-top:1px solid #e5e7eb;padding-top:.5rem}
+  .page-footer .pg:after{content:"Page " counter(page)}
 
   @media print {
     body{background:#fff}
     .no-print{display:none}
-    .page{padding:1.5rem}
+    .page{padding:1.5rem 1.5rem 3.5rem}
+    .page-footer{left:1.5rem;right:1.5rem}
   }
 </style>
 </head>
 <body>
+<!-- Running footer — a direct child of <body>, not nested inside .page,
+     because dompdf only reliably repaints position:fixed elements on
+     every generated page when they sit outside any padded/margined
+     ancestor block. -->
+<div class="page-footer">
+  <span>Safari Zangu Ventures · <?= htmlspecialchars($q['quote_ref']) ?></span>
+  <span class="pg"></span>
+</div>
+
 <div class="page">
+<div class="brandbar"></div>
 
 <!-- ── HEADER ─────────────────────────────────────────────── -->
 <div class="hdr">
   <div>
-    <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Safari Zangu Ventures" class="logo-img">
+    <div class="company-name">SZV</div>
     <div class="logo-sub">Private Tanzania Safari Specialists · Arusha</div>
-    <div style="margin-top:.5rem;font-size:.72rem;color:#9ca3af">TALA Licence No. 037129 · Reg. No. 179228971</div>
+    <div style="margin-top:.5rem;font-size:.72rem;color:#0a0a0a">TALA Licence No. 037129 · Reg. No. 179228971</div>
   </div>
   <div class="qref">
-    <div style="font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af">ITINERARY</div>
+    <div style="font-size:.6rem;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:#c8963e">ITINERARY</div>
     <div class="qref-num"><?= htmlspecialchars($q['quote_ref']) ?></div>
     <div class="qref-date">For Quotation <?= htmlspecialchars($q['quote_ref']) ?></div>
   </div>
@@ -204,6 +221,11 @@ $logoUrl      = (defined('APP_URL') ? APP_URL : 'https://www.safarizanguven.com'
 </div>
 <?php endif; ?>
 
+<!-- Closing seal — larger, centered, no border ring -->
+<div class="closing-seal">
+  <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Safari Zangu Ventures">
+</div>
+
 <!-- ── FOOTER ─────────────────────────────────────────────── -->
 <div class="footer">
   <div>
@@ -225,7 +247,10 @@ $logoUrl      = (defined('APP_URL') ? APP_URL : 'https://www.safarizanguven.com'
   </div>
 </div>
 
-<!-- Print button -->
+<?php if (!defined('SZV_PDF_INTERNAL_RENDER')): ?>
+<!-- Print button — only for an admin viewing this page live in a
+     browser; omitted when PdfRenderer captures this markup to bake
+     into the actual emailed/downloaded PDF. -->
 <div class="no-print" style="margin-top:1.5rem;text-align:center">
   <button onclick="window.print()"
           style="padding:.65rem 2rem;background:#0a0a0a;color:#fff;border:none;
@@ -240,6 +265,7 @@ $logoUrl      = (defined('APP_URL') ? APP_URL : 'https://www.safarizanguven.com'
     ← Back
   </a>
 </div>
+<?php endif; ?>
 
 </div><!-- /page -->
 </body></html>

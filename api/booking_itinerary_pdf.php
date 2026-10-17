@@ -67,6 +67,7 @@ $travelDt  = $b['travel_date'] ? date('d F Y', strtotime($b['travel_date'])) : '
 $bookedDt  = date('d F Y', strtotime($b['created_at']));
 $logoPath  = BASE_PATH . '/assets/images/logo.jpeg';
 $logoUrl   = 'http' . (isset($_SERVER['HTTPS']) ? 's' : '') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $logoPath;
+$logoFile  = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . BASE_PATH . '/assets/images/logo.jpeg';
 
 header('Content-Type: text/html; charset=UTF-8');
 ?><!DOCTYPE html>
@@ -75,63 +76,71 @@ header('Content-Type: text/html; charset=UTF-8');
 <meta charset="UTF-8">
 <title>Itinerary — Booking <?= htmlspecialchars($ref) ?> — Safari Zangu Ventures</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-/* 'DejaVu Sans' is dompdf's own bundled font — without it as a fallback,
-   dompdf's generic sans-serif silently renders glyphs like → and ✦ as "?"
-   instead of erroring, since Arial isn't actually installed on Linux. */
-body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;background:#fff;line-height:1.5}
-.page{max-width:820px;margin:0 auto;padding:2.5rem}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+*,*::before,*::after{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
+body{font-family:'Times New Roman',Times,'Liberation Serif',serif;font-size:13.5px;color:#0a0a0a;background:#fff;line-height:1.55}
+.page{max-width:820px;margin:0 auto;padding:2.5rem 2.5rem 4rem}
+.brandbar{height:4px;background:#c8963e;margin:-2.5rem -2.5rem 2rem}
 .hdr{display:flex;align-items:center;justify-content:space-between;padding-bottom:1.5rem;border-bottom:2px solid #0a0a0a;margin-bottom:2rem}
-.logo-img{width:64px;height:64px;border-radius:50%;object-fit:cover}
+.company-name{font-size:1.9rem;font-weight:700;letter-spacing:.02em}
 .bref-num{font-size:1.4rem;font-weight:700;letter-spacing:.04em;text-align:right}
-.bref-date{font-size:.72rem;color:#9ca3af;margin-top:.2rem;text-align:right}
+.bref-date{font-size:.72rem;color:#0a0a0a;margin-top:.2rem;text-align:right}
 .badge{display:inline-block;padding:.2rem .65rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;background:#0a0a0a;color:#fff;margin-top:.4rem}
 .sec{margin-bottom:1.75rem}
-.sec-title{font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;border-bottom:1px solid #e5e7eb;padding-bottom:.4rem;margin-bottom:.85rem}
+.sec-title{display:flex;align-items:center;gap:.5rem;font-size:.64rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#0a0a0a;border-bottom:1px solid #e5e7eb;padding-bottom:.4rem;margin-bottom:.85rem}
+.sec-title::before{content:'';width:10px;height:2px;background:#c8963e;flex-shrink:0}
 .four-col{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem}
-.field label{display:block;font-size:.56rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#9ca3af;margin-bottom:.2rem}
+.field label{display:block;font-size:.56rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#0a0a0a;margin-bottom:.2rem}
 .field span{font-size:.88rem;font-weight:500}
-.overview{font-size:.88rem;line-height:1.8;color:#374151}
+.overview{font-size:.88rem;line-height:1.8;color:#0a0a0a}
 <?= \App\Helpers\ItineraryDayCards::css() ?>
 .incl-list{columns:2;column-gap:1rem;margin:0;padding:0;list-style:none}
-.incl-list li{font-size:.8rem;padding:.2rem 0;color:#374151}
+.incl-list li{font-size:.8rem;padding:.2rem 0;color:#0a0a0a}
 .incl-list li::before{content:'✓ ';color:#166534;font-weight:700}
 .excl-list{columns:2;column-gap:1rem;margin:0;padding:0;list-style:none}
-.excl-list li{font-size:.8rem;padding:.2rem 0;color:#374151}
+.excl-list li{font-size:.8rem;padding:.2rem 0;color:#0a0a0a}
 .excl-list li::before{content:'✗ ';color:#dc2626;font-weight:700}
-.footer{text-align:center;margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid #e5e7eb;font-size:.72rem;color:#9ca3af}
-@media print{body{font-size:11pt}@page{margin:1.5cm}.no-print{display:none}}
+.closing-seal{text-align:center;margin:2rem 0}
+.closing-seal img{width:170px;height:170px;border-radius:50%;object-fit:cover;display:inline-block}
+.footer{text-align:center;margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid #e5e7eb;font-size:.72rem;color:#0a0a0a}
+.page-footer{position:fixed;bottom:.7rem;left:2.5rem;right:2.5rem;display:flex;justify-content:space-between;font-size:.62rem;color:#0a0a0a;letter-spacing:.04em;border-top:1px solid #e5e7eb;padding-top:.5rem}
+.page-footer .pg:after{content:"Page " counter(page)}
+@media print{body{font-size:11pt}@page{margin:1.5cm}.no-print{display:none}.page{padding:1.5rem 1.5rem 3.5rem}.page-footer{left:1.5rem;right:1.5rem}}
 </style>
 </head>
 <body>
-<div class="page">
+<!-- Running footer — a direct child of <body>, not nested inside .page,
+     because dompdf only reliably repaints position:fixed elements on
+     every generated page when they sit outside any padded/margined
+     ancestor block. -->
+<div class="page-footer">
+  <span>Safari Zangu Ventures · <?= htmlspecialchars($ref) ?></span>
+  <span class="pg"></span>
+</div>
 
-  <!-- Print button -->
+<div class="page">
+<div class="brandbar"></div>
+
+  <?php if (!defined('SZV_PDF_INTERNAL_RENDER')): ?>
+  <!-- Print button — only for an admin viewing this page live in a
+       browser; omitted when PdfRenderer captures this markup to bake
+       into the actual emailed/downloaded PDF. -->
   <div class="no-print" style="text-align:right;margin-bottom:1rem">
     <button onclick="window.print()"
             style="background:#0a0a0a;color:#fff;border:none;padding:.65rem 1.25rem;font-size:.78rem;font-weight:600;letter-spacing:.08em;cursor:pointer">
       ⎙ Print / Save PDF
     </button>
   </div>
+  <?php endif; ?>
 
   <!-- Header -->
   <div class="hdr">
-    <div style="display:flex;align-items:center;gap:1rem">
-      <?php
-      $logoFile = rtrim($_SERVER['DOCUMENT_ROOT'],'/').(BASE_PATH).'/assets/images/logo.jpeg';
-      if (file_exists($logoFile)):
-      ?>
-      <img src="<?= $logoUrl ?>" alt="Safari Zangu" class="logo-img">
-      <?php else: ?>
-      <div style="width:64px;height:64px;border-radius:50%;background:#0a0a0a;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.7rem;text-align:center;line-height:1.2">SZV</div>
-      <?php endif; ?>
-      <div>
-        <div style="font-size:1.1rem;font-weight:700;letter-spacing:.04em">Safari Zangu Ventures</div>
-        <div style="font-size:.68rem;color:#9ca3af;letter-spacing:.1em">ARUSHA, TANZANIA</div>
-      </div>
+    <div>
+      <div class="company-name">SZV</div>
+      <div style="font-size:.68rem;color:#0a0a0a;letter-spacing:.1em;margin-top:.3rem">ARUSHA, TANZANIA</div>
     </div>
     <div>
-      <div style="font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;text-align:right">ITINERARY</div>
+      <div style="font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#0a0a0a;text-align:right">ITINERARY</div>
       <div class="bref-num"><?= htmlspecialchars($ref) ?></div>
       <div class="bref-date">Booked <?= $bookedDt ?></div>
     </div>
@@ -187,6 +196,13 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
   </div>
   <?php endif; ?>
 
+  <!-- Closing seal — larger, centered, no border ring -->
+  <?php if (file_exists($logoFile)): ?>
+  <div class="closing-seal">
+    <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Safari Zangu Ventures">
+  </div>
+  <?php endif; ?>
+
   <!-- Footer -->
   <div class="footer">
     <p>Safari Zangu Ventures Ltd · Njiro Road, Arusha, Tanzania</p>
@@ -195,6 +211,8 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
   </div>
 
 </div>
+<?php if (!defined('SZV_PDF_INTERNAL_RENDER')): ?>
 <script>window.onload = function(){ window.print(); }</script>
+<?php endif; ?>
 </body>
 </html>

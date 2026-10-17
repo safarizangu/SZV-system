@@ -101,13 +101,13 @@ if ($itinIncludes || $itinExcludes) {
     if ($itinIncludes) {
         $inclExclHtml .= '<div><h4 style="font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;color:#166534">What\'s Included</h4><ul style="margin:0;padding:0;list-style:none">';
         foreach ($itinIncludes as $inc)
-            $inclExclHtml .= '<li style="font-size:12px;padding:3px 0;color:#374151"><span style="color:#166534;font-weight:700">✓</span> '.htmlspecialchars($inc).'</li>';
+            $inclExclHtml .= '<li style="font-size:12px;padding:3px 0;color:#0a0a0a"><span style="color:#166534;font-weight:700">✓</span> '.htmlspecialchars($inc).'</li>';
         $inclExclHtml .= '</ul></div>';
     }
     if ($itinExcludes) {
         $inclExclHtml .= '<div><h4 style="font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;color:#991b1b">Not Included</h4><ul style="margin:0;padding:0;list-style:none">';
         foreach ($itinExcludes as $exc)
-            $inclExclHtml .= '<li style="font-size:12px;padding:3px 0;color:#374151"><span style="color:#991b1b;font-weight:700">✗</span> '.htmlspecialchars($exc).'</li>';
+            $inclExclHtml .= '<li style="font-size:12px;padding:3px 0;color:#0a0a0a"><span style="color:#991b1b;font-weight:700">✗</span> '.htmlspecialchars($exc).'</li>';
         $inclExclHtml .= '</ul></div>';
     }
     $inclExclHtml .= '</div>';
@@ -120,7 +120,7 @@ if (!empty($lineItems)) {
     <table style="width:100%;border-collapse:collapse;font-size:12px">';
     foreach ($lineItems as $item) {
         $breakdownHtml .= '<tr style="border-bottom:1px solid #f3f4f6">
-          <td style="padding:6px 0;color:#374151">'.htmlspecialchars($item['description']??$item['name']??'').'</td>
+          <td style="padding:6px 0;color:#0a0a0a">'.htmlspecialchars($item['description']??$item['name']??'').'</td>
           <td style="padding:6px 0;text-align:right;font-weight:600">$'.number_format((float)($item['amount']??0),2).'</td>
         </tr>';
     }
@@ -151,43 +151,43 @@ $html = <<<HTML
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif">
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:'Times New Roman',Times,'Liberation Serif',serif">
 <div style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #e0e0e0">
 
   <!-- Header -->
-  <div style="background:#0a0a0a;padding:24px 32px">
-    <div style="font-size:22px;font-weight:700;color:#fff;letter-spacing:.04em">Safari Zangu Ventures</div>
-    <div style="font-size:11px;color:rgba(255,255,255,.6);letter-spacing:.15em;text-transform:uppercase;margin-top:4px">Booking Confirmation</div>
+  <div style="background:#0a0a0a;padding:24px 32px;text-align:center">
+    <div style="font-size:30px;font-weight:700;color:#fff;letter-spacing:.32em">SZV</div>
+    <div style="font-size:11px;color:#fff;letter-spacing:.15em;text-transform:uppercase;margin-top:8px">Booking Confirmation</div>
   </div>
 
   <!-- Body -->
   <div style="padding:32px">
     <p style="font-size:15px;margin-top:0">Dear {$b['full_name']},</p>
-    <p style="font-size:14px;line-height:1.7;color:#444">
+    <p style="font-size:14px;line-height:1.7;color:#0a0a0a">
       Thank you for booking with Safari Zangu Ventures. Your booking has been received and is confirmed.
       Please find your complete booking details and itinerary below.
     </p>
 
     <!-- Booking Reference Box -->
     <div style="background:#f7f7f5;border-left:4px solid #c8963e;padding:16px 20px;margin:24px 0">
-      <div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#6b7280;margin-bottom:4px">Booking Reference — Keep This Safe</div>
+      <div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#0a0a0a;margin-bottom:4px">Booking Reference — Keep This Safe</div>
       <div style="font-size:28px;font-weight:700;letter-spacing:.06em;color:#0a0a0a">{$ref}</div>
-      <div style="font-size:11px;color:#6b7280;margin-top:6px">You will need this reference to track your booking online</div>
+      <div style="font-size:11px;color:#0a0a0a;margin-top:6px">You will need this reference to track your booking online</div>
     </div>
 
     <!-- Booking Summary -->
     <h3 style="color:#000;font-size:15px;margin:0 0 10px;border-bottom:2px solid #000;padding-bottom:6px">Booking Summary</h3>
     <table style="width:100%;border-collapse:collapse;font-size:13px">
-      <tr><td style="padding:7px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;width:45%">Package</td><td style="font-weight:600">{$b['package_name']}</td></tr>
-      <tr><td style="padding:7px 0;border-bottom:1px solid #f3f4f6;color:#6b7280">Travel Date</td><td style="font-weight:600">{$travelDt}</td></tr>
-      <tr><td style="padding:7px 0;border-bottom:1px solid #f3f4f6;color:#6b7280">Guests</td><td>{$pax} adult{$pax_s}
+      <tr><td style="padding:7px 0;border-bottom:1px solid #f3f4f6;color:#0a0a0a;width:45%">Package</td><td style="font-weight:600">{$b['package_name']}</td></tr>
+      <tr><td style="padding:7px 0;border-bottom:1px solid #f3f4f6;color:#0a0a0a">Travel Date</td><td style="font-weight:600">{$travelDt}</td></tr>
+      <tr><td style="padding:7px 0;border-bottom:1px solid #f3f4f6;color:#0a0a0a">Guests</td><td>{$pax} adult{$pax_s}
 HTML;
 $html .= ($children > 0 ? " + {$children} child" : '') . '</td></tr>';
 $html .= <<<HTML2
-      <tr><td style="padding:7px 0;border-bottom:1px solid #f3f4f6;color:#6b7280">Accommodation</td><td>{$b['accommodation_level']}</td></tr>
-      <tr><td style="padding:7px 0;border-bottom:1px solid #f3f4f6;color:#6b7280">Total Amount</td><td style="font-weight:700;font-size:15px">\${$total_fmt}</td></tr>
-      <tr><td style="padding:7px 0;border-bottom:1px solid #f3f4f6;color:#6b7280">Deposit (25%) — due within 48h</td><td style="font-weight:600;color:#c8963e">\${$deposit_fmt}</td></tr>
-      <tr><td style="padding:7px 0;color:#6b7280">Balance — due 45 days before travel</td><td style="font-weight:600">\${$balance_fmt}</td></tr>
+      <tr><td style="padding:7px 0;border-bottom:1px solid #f3f4f6;color:#0a0a0a">Accommodation</td><td>{$b['accommodation_level']}</td></tr>
+      <tr><td style="padding:7px 0;border-bottom:1px solid #f3f4f6;color:#0a0a0a">Total Amount</td><td style="font-weight:700;font-size:15px">\${$total_fmt}</td></tr>
+      <tr><td style="padding:7px 0;border-bottom:1px solid #f3f4f6;color:#0a0a0a">Deposit (25%) — due within 48h</td><td style="font-weight:600;color:#0a0a0a">\${$deposit_fmt}</td></tr>
+      <tr><td style="padding:7px 0;color:#0a0a0a">Balance — due 45 days before travel</td><td style="font-weight:600">\${$balance_fmt}</td></tr>
     </table>
 
     {$itinHtml}
@@ -196,14 +196,14 @@ $html .= <<<HTML2
 
     <!-- Payment Instructions -->
     <h3 style="color:#000;font-size:15px;margin:28px 0 10px;border-bottom:2px solid #000;padding-bottom:6px">Payment Instructions</h3>
-    <p style="font-size:13px;color:#444;margin-bottom:16px">
+    <p style="font-size:13px;color:#0a0a0a;margin-bottom:16px">
       To secure your booking, please transfer the deposit of <strong>\${$deposit_fmt}</strong> using one of the methods below.
       Include your booking reference <strong>{$ref}</strong> in all transfers.
     </p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div style="border:1px solid #e5e7eb;padding:16px">
         <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">🏦 Bank Transfer</div>
-        <div style="font-size:12px;line-height:2;color:#374151">
+        <div style="font-size:12px;line-height:2;color:#0a0a0a">
           <strong>Bank:</strong> {$bankName}<br>
           <strong>Account Name:</strong> {$bankAccName}<br>
           <strong>Account No:</strong> {$bankAcc}<br>
@@ -213,10 +213,10 @@ $html .= <<<HTML2
       </div>
       <div style="border:1px solid #e5e7eb;padding:16px">
         <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">💳 PayPal / Wise</div>
-        <div style="font-size:12px;line-height:2;color:#374151">
+        <div style="font-size:12px;line-height:2;color:#0a0a0a">
           <strong>Send to:</strong> {$paypalEmail}<br>
           <strong>Reference:</strong> {$ref}<br>
-          <span style="font-size:11px;color:#9ca3af">Use Friends &amp; Family to avoid fees</span>
+          <span style="font-size:11px;color:#0a0a0a">Use Friends &amp; Family to avoid fees</span>
         </div>
       </div>
     </div>
@@ -229,7 +229,7 @@ $html .= <<<HTML2
       </a>
     </div>
 
-    <p style="font-size:12px;color:#9ca3af;margin-top:20px;text-align:center">
+    <p style="font-size:12px;color:#0a0a0a;margin-top:20px;text-align:center">
       Your Quotation and Itinerary PDFs are attached to this email.<br>
       Questions? Reply to this email or WhatsApp us on +255 663 430 934
     </p>
@@ -237,9 +237,9 @@ $html .= <<<HTML2
 
   <!-- Footer -->
   <div style="background:#f7f7f5;padding:16px 32px;border-top:1px solid #e0e0e0;text-align:center">
-    <p style="margin:0;font-size:11px;color:#9ca3af">Safari Zangu Ventures Ltd · Njiro Road, Arusha, Tanzania</p>
-    <p style="margin:4px 0 0;font-size:11px;color:#9ca3af">info@safarizanguven.com · +255 663 430 934 · safarizanguven.com</p>
-    <p style="margin:4px 0 0;font-size:10px;color:#c0c0b8">TALA Licence No. 037129 · Reg. No. 179228971</p>
+    <p style="margin:0;font-size:11px;color:#0a0a0a">Safari Zangu Ventures Ltd · Njiro Road, Arusha, Tanzania</p>
+    <p style="margin:4px 0 0;font-size:11px;color:#0a0a0a">info@safarizanguven.com · +255 663 430 934 · safarizanguven.com</p>
+    <p style="margin:4px 0 0;font-size:10px;color:#0a0a0a">TALA Licence No. 037129 · Reg. No. 179228971</p>
   </div>
 
 </div>

@@ -88,6 +88,7 @@ $travelDt  = $b['travel_date'] ? date('d F Y', strtotime($b['travel_date'])) : '
 $bookedDt  = date('d F Y', strtotime($b['created_at']));
 $logoPath  = BASE_PATH . '/assets/images/logo.jpeg';
 $logoUrl   = 'http' . (isset($_SERVER['HTTPS']) ? 's' : '') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $logoPath;
+$logoFile  = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . BASE_PATH . '/assets/images/logo.jpeg';
 
 header('Content-Type: text/html; charset=UTF-8');
 ?><!DOCTYPE html>
@@ -96,78 +97,97 @@ header('Content-Type: text/html; charset=UTF-8');
 <meta charset="UTF-8">
 <title><?= $isInvoice ? 'Invoice' : 'Booking' ?> <?= htmlspecialchars($ref) ?> — Safari Zangu Ventures</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-/* 'DejaVu Sans' is dompdf's own bundled font — without it as a fallback,
-   dompdf's generic sans-serif silently renders glyphs like → and ✦ as "?"
-   instead of erroring, since Arial isn't actually installed on Linux. */
-body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;background:#fff;line-height:1.5}
-.page{max-width:820px;margin:0 auto;padding:2.5rem}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+/* Without this, a real browser's print/save-as-PDF engine silently
+   lightens every background color to save ink — looks correct on screen
+   and in dompdf's own render, but washed-out grey once actually printed.
+   dompdf itself ignores the property harmlessly. */
+*,*::before,*::after{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
+body{font-family:'Times New Roman',Times,'Liberation Serif',serif;font-size:13.5px;color:#0a0a0a;background:#fff;line-height:1.55}
+.page{max-width:820px;margin:0 auto;padding:2.5rem 2.5rem 4rem}
+.brandbar{height:4px;background:#c8963e;margin:-2.5rem -2.5rem 2rem}
 .hdr{display:flex;align-items:center;justify-content:space-between;padding-bottom:1.5rem;border-bottom:2px solid #0a0a0a;margin-bottom:2rem}
-.logo-img{width:64px;height:64px;border-radius:50%;object-fit:cover}
+.company-name{font-size:1.9rem;font-weight:700;letter-spacing:.02em}
 .bref-num{font-size:1.4rem;font-weight:700;letter-spacing:.04em;text-align:right}
-.bref-date{font-size:.72rem;color:#9ca3af;margin-top:.2rem;text-align:right}
+.bref-date{font-size:.72rem;color:#0a0a0a;margin-top:.2rem;text-align:right}
 .badge{display:inline-block;padding:.2rem .65rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;background:#0a0a0a;color:#fff;margin-top:.4rem}
 .sec{margin-bottom:1.75rem}
-.sec-title{font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;border-bottom:1px solid #e5e7eb;padding-bottom:.4rem;margin-bottom:.85rem}
+.sec-title{display:flex;align-items:center;gap:.5rem;font-size:.64rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#0a0a0a;border-bottom:1px solid #e5e7eb;padding-bottom:.4rem;margin-bottom:.85rem}
+.sec-title::before{content:'';width:10px;height:2px;background:#c8963e;flex-shrink:0}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
 .four-col{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem}
-.field label{display:block;font-size:.56rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#9ca3af;margin-bottom:.2rem}
+.field label{display:block;font-size:.56rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#0a0a0a;margin-bottom:.2rem}
 .field span{font-size:.88rem;font-weight:500}
-.pay-tbl{width:100%;border-collapse:collapse}
-.pay-tbl th{font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:#0a0a0a;padding:5px 8px;text-align:left}
-.pay-tbl td{padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:.82rem}
-.pay-tbl td.r{text-align:right;font-weight:600}
-.cost-tbl{width:100%;border-collapse:collapse;margin-bottom:.5rem}
-.cost-tbl th{font-size:.58rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:#0a0a0a;padding:.6rem .75rem;text-align:left}
+.pay-tbl{width:100%;border-collapse:collapse;border:1px solid #0a0a0a}
+.pay-tbl th{font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:#0a0a0a;padding:5px 8px;text-align:left;border:1px solid #2d2d2d}
+.pay-tbl td{padding:6px 8px;border:1px solid #e5e7eb;font-size:.82rem}
+.pay-tbl tbody tr:nth-child(even){background:#f9f9f8}
+.pay-tbl td.r{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+/* Forces the element onto a fresh page in dompdf's print renderer, with
+   the same top padding page 1 gets from .page's own padding — a div's
+   own padding only wraps its content once, not per generated page. */
+.page-break{page-break-before:always;padding-top:1.5rem}
+.cost-tbl{width:100%;border-collapse:collapse;margin-bottom:.5rem;border:1px solid #0a0a0a}
+.cost-tbl th{font-size:.58rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:#0a0a0a;padding:.6rem .75rem;text-align:left;border:1px solid #2d2d2d}
 .cost-tbl th.r{text-align:right}
 .cost-tbl th.c{text-align:center}
-.cost-tbl td{padding:.55rem .75rem;border-bottom:1px solid #f3f4f6;font-size:.82rem;vertical-align:middle}
-.cost-tbl td.r{text-align:right;font-weight:600}
-.cost-tbl td.c{text-align:center;color:#6b7280}
-.cost-tbl tr:last-child td{border-bottom:none}
-.cost-tbl .cat-badge{font-size:.56rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.12rem .35rem;margin-right:.4rem;opacity:.7}
+.cost-tbl td{padding:.55rem .75rem;border:1px solid #e5e7eb;font-size:.82rem;vertical-align:middle}
+.cost-tbl tbody tr:nth-child(even){background:#f9f9f8}
+.cost-tbl td.r{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.cost-tbl td.c{text-align:center;color:#0a0a0a}
 .cost-subtotal{display:flex;justify-content:flex-end;gap:.75rem;padding:.5rem .75rem;font-size:.85rem;font-weight:700;border-top:2px solid #0a0a0a}
-.total-block{background:#f7f7f5;border:1px solid #e5e7eb;padding:1.25rem;margin-top:1rem}
+.total-block{background:#f7f7f5;border:1px solid #e5e7eb;padding:1.25rem;margin-top:1rem;border-left:4px solid #c8963e}
 .grand{font-size:1.8rem;font-weight:700}
 .pay-box{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:.75rem}
 .pay-method{border:1px solid #e5e7eb;padding:1rem}
 .pay-method h4{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.65rem;color:#0a0a0a}
-.pay-method p{font-size:.8rem;line-height:1.8;color:#374151}
+.pay-method p{font-size:.8rem;line-height:1.8;color:#0a0a0a}
 .pay-method strong{color:#0a0a0a}
-.notice{background:#fffbeb;border-left:3px solid #c8963e;padding:.85rem 1rem;font-size:.8rem;line-height:1.65;margin-top:1.5rem}
-.footer{text-align:center;margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid #e5e7eb;font-size:.72rem;color:#9ca3af}
-@media print{body{font-size:11pt}@page{margin:1.5cm}.no-print{display:none}}
+.notice{background:#fffbeb;border-left:3px solid #c8963e;padding:.85rem 1rem;font-size:.8rem;line-height:1.65;margin-top:1.5rem;color:#0a0a0a}
+.closing-seal{text-align:center;margin:2rem 0}
+.closing-seal img{width:170px;height:170px;border-radius:50%;object-fit:cover;display:inline-block}
+.footer{text-align:center;margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid #e5e7eb;font-size:.72rem;color:#0a0a0a}
+.page-footer{position:fixed;bottom:.7rem;left:2.5rem;right:2.5rem;display:flex;justify-content:space-between;font-size:.62rem;color:#0a0a0a;letter-spacing:.04em;border-top:1px solid #e5e7eb;padding-top:.5rem}
+/* counter(pages) (total page count) reliably resolves to 0 in this
+   dompdf install regardless of markup, so this shows the current page
+   number only, not a "page X of Y" that would always lie about Y. */
+.page-footer .pg:after{content:"Page " counter(page)}
+@media print{body{font-size:11pt}@page{margin:1.5cm}.no-print{display:none}.page{padding:1.5rem 1.5rem 3.5rem}.page-footer{left:1.5rem;right:1.5rem}}
 </style>
 </head>
 <body>
-<div class="page">
+<!-- Running footer — a direct child of <body>, not nested inside .page,
+     because dompdf only reliably repaints position:fixed elements on
+     every generated page when they sit outside any padded/margined
+     ancestor block. -->
+<div class="page-footer">
+  <span>Safari Zangu Ventures · <?= htmlspecialchars($ref) ?></span>
+  <span class="pg"></span>
+</div>
 
-  <!-- Print button -->
+<div class="page">
+<div class="brandbar"></div>
+
+  <?php if (!defined('SZV_PDF_INTERNAL_RENDER')): ?>
+  <!-- Print button — only for an admin viewing this page live in a
+       browser; omitted when PdfRenderer captures this markup to bake
+       into the actual emailed/downloaded PDF. -->
   <div class="no-print" style="text-align:right;margin-bottom:1rem">
     <button onclick="window.print()"
             style="background:#0a0a0a;color:#fff;border:none;padding:.65rem 1.25rem;font-size:.78rem;font-weight:600;letter-spacing:.08em;cursor:pointer">
       ⎙ Print / Save PDF
     </button>
   </div>
+  <?php endif; ?>
 
   <!-- Header -->
   <div class="hdr">
-    <div style="display:flex;align-items:center;gap:1rem">
-      <?php
-      $logoFile = rtrim($_SERVER['DOCUMENT_ROOT'],'/').(BASE_PATH).'/assets/images/logo.jpeg';
-      if (file_exists($logoFile)):
-      ?>
-      <img src="<?= $logoUrl ?>" alt="Safari Zangu" class="logo-img">
-      <?php else: ?>
-      <div style="width:64px;height:64px;border-radius:50%;background:#0a0a0a;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.7rem;text-align:center;line-height:1.2">SZV</div>
-      <?php endif; ?>
-      <div>
-        <div style="font-size:1.1rem;font-weight:700;letter-spacing:.04em">Safari Zangu Ventures</div>
-        <div style="font-size:.68rem;color:#9ca3af;letter-spacing:.1em">ARUSHA, TANZANIA</div>
-      </div>
+    <div>
+      <div class="company-name">SZV</div>
+      <div style="font-size:.68rem;color:#0a0a0a;letter-spacing:.1em;margin-top:.3rem">ARUSHA, TANZANIA</div>
     </div>
     <div>
-      <div style="font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;text-align:right"><?= $isInvoice ? 'INVOICE' : '' ?></div>
+      <div style="font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#0a0a0a;text-align:right"><?= $isInvoice ? 'INVOICE' : '' ?></div>
       <div class="bref-num"><?= htmlspecialchars($ref) ?></div>
       <div class="bref-date">Booked <?= $bookedDt ?></div>
       <div style="text-align:right">
@@ -200,7 +220,7 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
 
   <!-- Cost breakdown -->
   <?php if (!empty($lineItems)): ?>
-  <div class="sec">
+  <div class="sec page-break">
     <div class="sec-title">Cost Breakdown</div>
     <table class="cost-tbl">
       <thead>
@@ -212,26 +232,9 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
         </tr>
       </thead>
       <tbody>
-        <?php foreach ($lineItems as $item):
-          $catColors = [
-            'accommodation'=>['#eff6ff','#1d4ed8'],
-            'transport'    =>['#f0fdf4','#166534'],
-            'park_fee'     =>['#fef3e2','#92400e'],
-            'activity'     =>['#fdf4ff','#7e22ce'],
-            'flight'       =>['#f0f9ff','#0369a1'],
-            'service_fee'  =>['#f9fafb','#374151'],
-            'other'        =>['#f9fafb','#6b7280'],
-          ];
-          $catBg    = $catColors[$item['category']??'other'][0] ?? '#f9fafb';
-          $catCol   = $catColors[$item['category']??'other'][1] ?? '#6b7280';
-          $catLabel = ['accommodation'=>'Acc','transport'=>'Veh','park_fee'=>'Park',
-                       'activity'=>'Act','flight'=>'Flight','service_fee'=>'Svc','other'=>''][$item['category']??'other'] ?? '';
-        ?>
+        <?php foreach ($lineItems as $item): ?>
         <tr>
           <td>
-            <?php if ($catLabel): ?>
-            <span class="cat-badge" style="background:<?= $catBg ?>;color:<?= $catCol ?>"><?= $catLabel ?></span>
-            <?php endif; ?>
             <?= htmlspecialchars($item['description'] ?? '') ?>
           </td>
           <td class="r"><?= number_format((float)($item['unit_price']??0),0) ?></td>
@@ -242,7 +245,7 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
       </tbody>
     </table>
     <div class="cost-subtotal">
-      <span style="color:#6b7280;font-weight:600">SUBTOTAL</span>
+      <span style="color:#0a0a0a;font-weight:600">SUBTOTAL</span>
       <span>USD <?= number_format($costSubtotal,2) ?></span>
     </div>
   </div>
@@ -267,10 +270,10 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
       </tbody>
     </table>
     <div class="total-block">
-      <div style="font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;margin-bottom:.4rem">Grand Total</div>
+      <div style="font-size:.58rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#0a0a0a;margin-bottom:.4rem">Grand Total</div>
       <div class="grand">$<?= number_format($total,2) ?> USD</div>
       <?php if ($pax > 0): ?>
-      <div style="font-size:.72rem;color:#6b7280;margin-top:.3rem">$<?= number_format($total/$pax,2) ?> per person · <?= $pax ?> guest<?= $pax!==1?'s':'' ?></div>
+      <div style="font-size:.72rem;color:#0a0a0a;margin-top:.3rem">$<?= number_format($total/$pax,2) ?> per person · <?= $pax ?> guest<?= $pax!==1?'s':'' ?></div>
       <?php endif; ?>
     </div>
   </div>
@@ -299,10 +302,10 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
           Send payment to:<br>
           <strong><?= htmlspecialchars(PAYPAL_EMAIL) ?></strong><br><br>
           Include reference: <strong><?= htmlspecialchars($ref) ?></strong><br>
-          <span style="font-size:.72rem;color:#9ca3af">PayPal Friends &amp; Family or use our payment link</span>
+          <span style="font-size:.72rem;color:#0a0a0a">PayPal Friends &amp; Family or use our payment link</span>
         </p>
         <?php else: ?>
-        <p style="color:#9ca3af">Contact us for PayPal payment link:<br>
+        <p style="color:#0a0a0a">Contact us for PayPal payment link:<br>
           <strong>info@safarizanguven.com</strong><br>
           <strong>+255 663 430 934</strong>
         </p>
@@ -325,6 +328,13 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
     <?php endif; ?>
   </div>
 
+  <!-- Closing seal — larger, centered, no border ring -->
+  <?php if (file_exists($logoFile)): ?>
+  <div class="closing-seal">
+    <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Safari Zangu Ventures">
+  </div>
+  <?php endif; ?>
+
   <!-- Footer -->
   <div class="footer">
     <p>Safari Zangu Ventures Ltd · Njiro Road, Arusha, Tanzania</p>
@@ -333,6 +343,8 @@ body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;bac
   </div>
 
 </div>
+<?php if (!defined('SZV_PDF_INTERNAL_RENDER')): ?>
 <script>window.onload = function(){ window.print(); }</script>
+<?php endif; ?>
 </body>
 </html>

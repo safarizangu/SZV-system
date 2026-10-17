@@ -34,6 +34,7 @@ try {
 $totalPax = array_sum(array_map(fn($b) => (int)$b['adults'] + (int)$b['children'], $bookings));
 $logoPath = BASE_PATH . '/assets/images/logo.jpeg';
 $logoUrl  = 'http' . (isset($_SERVER['HTTPS']) ? 's' : '') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $logoPath;
+$logoFile = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . BASE_PATH . '/assets/images/logo.jpeg';
 
 header('Content-Type: text/html; charset=UTF-8');
 ?><!DOCTYPE html>
@@ -42,45 +43,57 @@ header('Content-Type: text/html; charset=UTF-8');
 <meta charset="UTF-8">
 <title>Departure Manifest — <?= htmlspecialchars(date('d M Y', strtotime($date))) ?> — Safari Zangu Ventures</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,'DejaVu Sans',sans-serif;font-size:13px;color:#0a0a0a;background:#fff;line-height:1.5}
-.page{max-width:1000px;margin:0 auto;padding:2.5rem}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+*,*::before,*::after{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
+body{font-family:'Times New Roman',Times,'Liberation Serif',serif;font-size:13.5px;color:#0a0a0a;background:#fff;line-height:1.55}
+.page{max-width:1000px;margin:0 auto;padding:2.5rem 2.5rem 4rem}
+.brandbar{height:4px;background:#c8963e;margin:-2.5rem -2.5rem 2rem}
 .hdr{display:flex;align-items:center;justify-content:space-between;padding-bottom:1.5rem;border-bottom:2px solid #0a0a0a;margin-bottom:2rem}
-.logo-img{width:56px;height:56px;border-radius:50%;object-fit:cover}
+.company-name{font-size:1.9rem;font-weight:700;letter-spacing:.02em}
 .hdr-title{font-size:1.3rem;font-weight:700;letter-spacing:.02em;text-align:right}
-.hdr-sub{font-size:.75rem;color:#9ca3af;margin-top:.2rem;text-align:right}
-.summary{background:#f7f7f5;border:1px solid #e5e7eb;padding:.85rem 1.25rem;margin-bottom:1.5rem;display:flex;gap:2rem;font-size:.85rem}
-.summary strong{font-size:1.1rem;font-family:Georgia,serif}
-table{width:100%;border-collapse:collapse}
-th{font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:#0a0a0a;padding:7px 8px;text-align:left}
-td{padding:8px;border-bottom:1px solid #f3f4f6;font-size:.8rem;vertical-align:top}
+.hdr-sub{font-size:.75rem;color:#0a0a0a;margin-top:.2rem;text-align:right}
+.summary{background:#f7f7f5;border:1px solid #e5e7eb;border-left:4px solid #c8963e;padding:.85rem 1.25rem;margin-bottom:1.5rem;display:flex;gap:2rem;font-size:.85rem}
+.summary strong{font-size:1.1rem}
+table{width:100%;border-collapse:collapse;border:1px solid #0a0a0a}
+th{font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:#0a0a0a;padding:7px 8px;text-align:left;border:1px solid #2d2d2d}
+td{padding:8px;border:1px solid #e5e7eb;font-size:.8rem;vertical-align:top}
+tbody tr:nth-child(even){background:#f9f9f8}
 .pax{white-space:nowrap}
 .missing{color:#991b1b;font-weight:600}
-.footer{text-align:center;margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid #e5e7eb;font-size:.72rem;color:#9ca3af}
-@media print{body{font-size:11pt}@page{margin:1.5cm;size:landscape}.no-print{display:none}}
+.closing-seal{text-align:center;margin:2rem 0}
+.closing-seal img{width:170px;height:170px;border-radius:50%;object-fit:cover;display:inline-block}
+.footer{text-align:center;margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid #e5e7eb;font-size:.72rem;color:#0a0a0a}
+.page-footer{position:fixed;bottom:.7rem;left:2.5rem;right:2.5rem;display:flex;justify-content:space-between;font-size:.62rem;color:#0a0a0a;letter-spacing:.04em;border-top:1px solid #e5e7eb;padding-top:.5rem}
+.page-footer .pg:after{content:"Page " counter(page)}
+@media print{body{font-size:11pt}@page{margin:1.5cm;size:landscape}.no-print{display:none}.page{padding:1.5rem 1.5rem 3.5rem}.page-footer{left:1.5rem;right:1.5rem}}
 </style>
 </head>
 <body>
-<div class="page">
+<!-- Running footer — a direct child of <body>, not nested inside .page,
+     because dompdf only reliably repaints position:fixed elements on
+     every generated page when they sit outside any padded/margined
+     ancestor block. -->
+<div class="page-footer">
+  <span>Safari Zangu Ventures · Departure Manifest · <?= htmlspecialchars($date) ?></span>
+  <span class="pg"></span>
+</div>
 
+<div class="page">
+<div class="brandbar"></div>
+
+  <?php if (!defined('SZV_PDF_INTERNAL_RENDER')): ?>
   <div class="no-print" style="text-align:right;margin-bottom:1rem">
     <button onclick="window.print()"
             style="background:#0a0a0a;color:#fff;border:none;padding:.65rem 1.25rem;font-size:.78rem;font-weight:600;letter-spacing:.08em;cursor:pointer">
       ⎙ Print / Save PDF
     </button>
   </div>
+  <?php endif; ?>
 
   <div class="hdr">
-    <div style="display:flex;align-items:center;gap:1rem">
-      <?php $logoFile = rtrim($_SERVER['DOCUMENT_ROOT'],'/').(BASE_PATH).'/assets/images/logo.jpeg'; if (file_exists($logoFile)): ?>
-      <img src="<?= $logoUrl ?>" alt="Safari Zangu" class="logo-img">
-      <?php else: ?>
-      <div style="width:56px;height:56px;border-radius:50%;background:#0a0a0a;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.65rem">SZV</div>
-      <?php endif; ?>
-      <div>
-        <div style="font-size:1rem;font-weight:700;letter-spacing:.04em">Safari Zangu Ventures</div>
-        <div style="font-size:.65rem;color:#9ca3af;letter-spacing:.1em">ARUSHA, TANZANIA</div>
-      </div>
+    <div>
+      <div class="company-name">SZV</div>
+      <div style="font-size:.65rem;color:#0a0a0a;letter-spacing:.1em;margin-top:.3rem">ARUSHA, TANZANIA</div>
     </div>
     <div>
       <div class="hdr-title">Departure Manifest</div>
@@ -94,7 +107,7 @@ td{padding:8px;border-bottom:1px solid #f3f4f6;font-size:.8rem;vertical-align:to
   </div>
 
   <?php if (!$bookings): ?>
-  <p style="color:#9ca3af;padding:2rem 0;text-align:center">No departures scheduled for this date.</p>
+  <p style="color:#0a0a0a;padding:2rem 0;text-align:center">No departures scheduled for this date.</p>
   <?php else: ?>
   <table>
     <thead><tr>
@@ -108,13 +121,20 @@ td{padding:8px;border-bottom:1px solid #f3f4f6;font-size:.8rem;vertical-align:to
       <td><?= htmlspecialchars($b['phone'] ?: $b['email']) ?></td>
       <td><?= htmlspecialchars($b['package_name']) ?></td>
       <td class="pax"><?= (int)$b['adults'] ?>A<?= $b['children'] ? '+' . (int)$b['children'] . 'C' : '' ?></td>
-      <td<?= $b['staff_name'] ? '' : ' class="missing"' ?>><?= htmlspecialchars($b['staff_name'] ?: 'Not assigned') ?><?= $b['staff_phone'] ? '<br><span style="color:#9ca3af">'.htmlspecialchars($b['staff_phone']).'</span>' : '' ?></td>
+      <td<?= $b['staff_name'] ? '' : ' class="missing"' ?>><?= htmlspecialchars($b['staff_name'] ?: 'Not assigned') ?><?= $b['staff_phone'] ? '<br><span style="color:#0a0a0a">'.htmlspecialchars($b['staff_phone']).'</span>' : '' ?></td>
       <td<?= $b['vehicle_name'] ? '' : ' class="missing"' ?>><?= htmlspecialchars($b['vehicle_name'] ?: 'Not assigned') ?></td>
       <td><?= htmlspecialchars($b['special_request'] ?: '—') ?></td>
     </tr>
     <?php endforeach; ?>
     </tbody>
   </table>
+  <?php endif; ?>
+
+  <!-- Closing seal — larger, centered, no border ring -->
+  <?php if (file_exists($logoFile)): ?>
+  <div class="closing-seal">
+    <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Safari Zangu Ventures">
+  </div>
   <?php endif; ?>
 
   <div class="footer">
