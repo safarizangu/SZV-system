@@ -8,6 +8,7 @@
   --gold: #c8963e;
   --gold-light: #f5edd9;
   --black:       #0a0a0a;
+  --black-hover: #1e1e1e;
   --white:       #ffffff;
   /* --gray-100/200/300 correspond to the public site's (assets/css/
      main.css) --gray-1/2/3 exactly; --gray-500/700 are close but NOT
@@ -58,6 +59,41 @@
   --space-7: 3rem;    /* 48px */
 }
 
+/* ── DARK MODE ──────────────────────────────────────────────────
+   Explicit opt-in only (admin/settings.php sets data-theme on <html>
+   from the signed-in user's saved preference) — no OS-preference
+   media query, since this is a per-account setting, not a browser one.
+   Re-defining --black/--white/--gray-* here is what makes dark mode
+   apply almost everywhere for free: nearly every rule in this file and
+   in the admin/*.php inline styles reads color through these tokens
+   rather than literal hex, including the sidebar above. The handful of
+   rules that use a literal status-color hex instead of a token (status
+   badges, alerts, filter pills, tint buttons) get their own overrides
+   further down, next to each rule they correspond to. */
+:root[data-theme="dark"] {
+  --black:       #f0f0ee;
+  --black-hover: #d8d8d0;
+  --white:       #1c1c1c;
+  --gray-50:     #141414;
+  --gray-100:    #262626;
+  --gray-200:    #383838;
+  --gray-300:    #4d4d4d;
+  --gray-500:    #9c9c94;
+  --gray-700:    #d8d8d0;
+
+  --green-light:  #112b1b;
+  --green-border: #1f6b3f;
+  --red-light:    #311414;
+  --red-border:   #7f2626;
+  --blue-light:   #10203a;
+  --blue-border:  #2c4f8f;
+  --amber-light:  #332406;
+  --amber-border: #8a5a0f;
+
+  --shadow-sm:   0 1px 3px rgba(0,0,0,.35);
+  --shadow-md:   0 4px 16px rgba(0,0,0,.5);
+}
+
 html, body { height: 100%; }
 
 /* ── LAYOUT SHELL ───────────────────────────────────────────── */
@@ -78,7 +114,8 @@ html, body { height: 100%; }
 .admin-sidebar {
   width: var(--sidebar-w);
   min-height: 100vh;
-  background: var(--black);
+  background: var(--white);
+  border-right: 1px solid var(--gray-200);
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -92,7 +129,7 @@ html, body { height: 100%; }
 
 .admin-logo {
   padding: 1.4rem 1.25rem;
-  border-bottom: 1px solid rgba(255,255,255,.08);
+  border-bottom: 1px solid var(--gray-200);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -100,15 +137,15 @@ html, body { height: 100%; }
   flex-shrink: 0;
 }
 .admin-logo-left { display: flex; flex-direction: column; gap: .15rem; }
-.admin-logo-mark { font-family: var(--font-disp); font-size: 1.4rem; font-weight: 700; color: var(--white); letter-spacing: .04em; }
-.admin-logo-sub  { font-size: .55rem; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: rgba(255,255,255,.35); }
+.admin-logo-mark { font-family: var(--font-disp); font-size: 1.4rem; font-weight: 700; color: var(--black); letter-spacing: .04em; }
+.admin-logo-sub  { font-size: .55rem; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--gray-500); }
 
 /* Close button — visible on mobile only */
 .sidebar-close {
   display: none;
   background: none;
   border: none;
-  color: rgba(255,255,255,.5);
+  color: var(--gray-500);
   font-size: 1.4rem;
   cursor: pointer;
   line-height: 1;
@@ -124,12 +161,12 @@ html, body { height: 100%; }
   gap: 1px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,.25) transparent;
+  scrollbar-color: var(--gray-300) transparent;
 }
 .admin-nav::-webkit-scrollbar { width: 6px; }
 .admin-nav::-webkit-scrollbar-track { background: transparent; }
-.admin-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); border-radius: 3px; }
-.admin-nav::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.4); }
+.admin-nav::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 3px; }
+.admin-nav::-webkit-scrollbar-thumb:hover { background: var(--gray-500); }
 
 /* Nav group labels — a real button so the group can collapse/expand */
 .admin-nav-group {
@@ -146,7 +183,7 @@ html, body { height: 100%; }
   font-weight: 700;
   letter-spacing: .2em;
   text-transform: uppercase;
-  color: rgba(255,255,255,.55);
+  color: var(--gray-500);
   background: none;
   border: none;
   border-radius: 0;
@@ -158,8 +195,8 @@ html, body { height: 100%; }
   flex-shrink: 0;
 }
 .admin-nav-group::-moz-focus-inner { border: 0; padding: 0; }
-.admin-nav-group:hover { color: rgba(255,255,255,.8); }
-.admin-nav-group:focus-visible { outline: 2px solid rgba(255,255,255,.4); outline-offset: -2px; }
+.admin-nav-group:hover { color: var(--black); }
+.admin-nav-group:focus-visible { outline: 2px solid var(--gray-300); outline-offset: -2px; }
 .admin-nav-group span:first-child { color: inherit; font: inherit; letter-spacing: inherit; }
 .admin-nav-group-chevron {
   display: inline-flex;
@@ -193,23 +230,23 @@ html, body { height: 100%; }
   font-weight: 600;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: rgba(255,255,255,.75);
+  color: var(--gray-700);
   text-decoration: none;
   border-left: 2px solid transparent;
   transition: color var(--transition), background var(--transition);
   white-space: nowrap;
 }
-.admin-nav-link:hover       { color: var(--white); background: rgba(255,255,255,.05); }
-.admin-nav-link.active      { color: var(--white); border-left-color: var(--white); background: rgba(255,255,255,.08); }
-.admin-nav-link--danger     { color: rgba(255,80,80,.6); }
-.admin-nav-link--danger:hover { color: #ff5050; }
+.admin-nav-link:hover       { color: var(--black); background: var(--gray-50); }
+.admin-nav-link.active      { color: var(--black); border-left-color: var(--black); background: var(--gray-100); }
+.admin-nav-link--danger     { color: rgba(220,38,38,.75); }
+.admin-nav-link--danger:hover { color: var(--red); }
 .admin-nav-icon              { display: inline-flex; align-items: center; justify-content: center; width: 16px; flex-shrink: 0; opacity: .85; }
 .admin-nav-icon .admin-icon  { vertical-align: 0; }
 .admin-sidebar-footer .admin-nav-link { display: flex; align-items: center; gap: .65rem; }
 
 .admin-sidebar-footer {
   padding: .75rem 0;
-  border-top: 1px solid rgba(255,255,255,.08);
+  border-top: 1px solid var(--gray-200);
   flex-shrink: 0;
 }
 
@@ -408,7 +445,7 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
   transition: background var(--transition), color var(--transition), border-color var(--transition);
 }
 .admin-btn--primary  { background: var(--black); color: var(--white); border-color: var(--black); }
-.admin-btn--primary:hover  { background: #1e1e1e; }
+.admin-btn--primary:hover  { background: var(--black-hover); }
 .admin-btn--outline  { background: var(--white); color: var(--black); border-color: var(--gray-300); }
 .admin-btn--outline:hover  { border-color: var(--black); }
 .admin-btn--success  { background: var(--green); color: var(--white); border-color: var(--green); }
@@ -467,6 +504,27 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 .badge-status--dark  { background: var(--black);       color: var(--white); }
 .badge-status--purple { background: #fdf4ff;           color: #7e22ce; }
 
+/* Dark-mode variants — every rule above this point in ALERTS/BADGES uses
+   a literal status-color hex rather than a token (deliberately, so the
+   text stays a fixed saturated hue over the --*-light token background
+   in both themes), so each needs its own override here rather than
+   inheriting one automatically from the token redefinition above. */
+:root[data-theme="dark"] .admin-alert--success{ background: var(--green-light); color: #4ade80; }
+:root[data-theme="dark"] .admin-alert--error,
+:root[data-theme="dark"] .admin-alert--danger { background: var(--red-light); color: #f87171; }
+:root[data-theme="dark"] .admin-alert--info   { background: var(--blue-light); color: #60a5fa; }
+:root[data-theme="dark"] .badge-pending       { background: var(--amber-light); color: #fbbf24; border-color: var(--amber-border); }
+:root[data-theme="dark"] .badge-deposit_paid  { background: var(--blue-light);  color: #38bdf8; border-color: var(--blue-border); }
+:root[data-theme="dark"] .badge-cancelled     { background: var(--red-light);   color: #f87171; border-color: var(--red-border); }
+:root[data-theme="dark"] .badge-pending.badge-status   { background: var(--amber-light); color: #fbbf24; }
+:root[data-theme="dark"] .badge-deposit_paid.badge-status { background: var(--blue-light); color: #38bdf8; }
+:root[data-theme="dark"] .badge-cancelled.badge-status  { background: var(--red-light); color: #f87171; }
+:root[data-theme="dark"] .badge-status--green { color: #4ade80; }
+:root[data-theme="dark"] .badge-status--red   { color: #f87171; }
+:root[data-theme="dark"] .badge-status--blue  { color: #60a5fa; }
+:root[data-theme="dark"] .badge-status--amber { color: #fbbf24; }
+:root[data-theme="dark"] .badge-status--purple { background: #2a1033; color: #d8a8ff; }
+
 /* Tinted info panels (e.g. package_edit.php's day-by-day itinerary
    accommodation/vehicle/park boxes) — replaces three near-identical
    inline style="" blocks that only differed by tint color. Values are
@@ -506,6 +564,66 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 }
 .admin-modal-close  { color: var(--gray-500); }
 
+/* ── CONFIRM DIALOG ─────────────────────────────────────────────
+   Replaces the browser's native confirm() everywhere in the panel —
+   built/positioned by confirmDialog() in admin/js/admin.js, styled here
+   so it inherits the panel's tokens (and therefore dark mode) for free.
+   Deliberately its own compact component, not a reuse of .admin-modal
+   above, which is sized for forms/lists, not a two-line question. */
+.confirm-dialog-overlay {
+  background: rgba(10,10,10,.55);
+  backdrop-filter: blur(3px);
+  animation: confirmFadeIn .15s ease both;
+}
+:root[data-theme="dark"] .confirm-dialog-overlay { background: rgba(0,0,0,.7); }
+@keyframes confirmFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.confirm-dialog {
+  width: 100%;
+  max-width: 400px;
+  max-height: none;
+  overflow: visible;
+  padding: 1.75rem 1.75rem 1.5rem;
+  text-align: center;
+  box-shadow: var(--shadow-md);
+  animation: confirmPopIn .18s cubic-bezier(.2,.9,.3,1.3) both;
+}
+@keyframes confirmPopIn {
+  from { opacity: 0; transform: translateY(6px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.confirm-dialog-icon {
+  width: 48px; height: 48px; margin: 0 auto .9rem;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.confirm-dialog-icon--default { background: var(--blue-light); color: var(--blue); }
+.confirm-dialog-icon--danger  { background: var(--red-light);  color: var(--red); }
+.confirm-dialog-icon svg { width: 24px; height: 24px; }
+
+.confirm-dialog-title {
+  font-family: var(--font-disp); font-size: 1.05rem; font-weight: 700;
+  margin-bottom: .5rem; line-height: 1.3;
+}
+.confirm-dialog-message {
+  font-size: .85rem; color: var(--gray-700); line-height: 1.6;
+  margin-bottom: 1.5rem; white-space: pre-line;
+}
+.confirm-dialog-actions {
+  display: flex; gap: .6rem;
+}
+.confirm-dialog-actions .admin-btn {
+  flex: 1; justify-content: center; padding: .65rem 1rem; font-size: .72rem;
+}
+.confirm-dialog-ok:focus-visible,
+.confirm-dialog-cancel:focus-visible { outline: 2px solid var(--black); outline-offset: 2px; }
+
+@media (max-width: 480px) {
+  .confirm-dialog { max-width: 92vw; padding: 1.5rem 1.25rem 1.25rem; }
+}
+
 /* ── LEAD LIST ──────────────────────────────────────────────── */
 .lead-list           { display: flex; flex-direction: column; gap: 0; }
 .admin-cards-stack    { display: flex; flex-direction: column; gap: .85rem; }
@@ -522,6 +640,7 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 .toast--ok           { background: #166534; }
 .toast--err          { background: #991b1b; }
 .highlighted-row td  { background: #f0f0f0 !important; }
+:root[data-theme="dark"] .highlighted-row td { background: #2a2a2a !important; }
 
 /* ── DATA CARD extras ───────────────────────────────────────── */
 .detail-row          { display: grid; grid-template-columns: 130px 1fr; gap: .5rem; padding: .6rem 1.5rem; border-bottom: 1px solid var(--gray-100); font-size: .85rem; }
@@ -722,6 +841,19 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
   /* Table actions wrap */
   .admin-table td { white-space: normal; word-break: break-word; }
 
+  /* Tables shrink to fit instead of forcing a sideways scroll — the
+     whole table (not just font-size) scales down far enough that every
+     column is visible at a glance on a phone, calibrated against this
+     panel's widest real table (~856px of natural content at a 375px
+     viewport) so it clears even a 360px-wide phone with room to spare.
+     Reading or tapping a specific cell is then a pinch-zoom away — the
+     viewport meta here was never set to block that (no user-scalable=no
+     or maximum-scale), so native pinch-zoom already works everywhere.
+     `zoom` isn't supported in Firefox, which is the one place this
+     silently no-ops back to the normal size + .admin-table-wrap's
+     existing overflow-x:auto scroll — a safe fallback, not a break. */
+  .admin-table { zoom: .4; }
+
   /* Form grids collapse: see the @media (max-width:768px) block above —
      moved there so tablets get it too, not just narrow phones. */
 
@@ -763,6 +895,17 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 .admin-btn--tint-green:hover { border-color:var(--green); }
 .admin-btn--tint-blue:hover  { border-color:var(--blue);  }
 .admin-btn--tint-amber:hover { border-color:var(--amber); }
+
+/* Dark-mode variants for the literal-hex rules just above. */
+:root[data-theme="dark"] .cron-pill--active { border-color:var(--green-border); background:var(--green-light); color:#4ade80; }
+:root[data-theme="dark"] .cron-pill--inactive { border-color:var(--red-border); background:var(--red-light); color:#f87171; }
+:root[data-theme="dark"] .admin-filter-pill.active.admin-filter-pill--amber { color:#fbbf24; }
+:root[data-theme="dark"] .admin-filter-pill.active.admin-filter-pill--green { color:#4ade80; }
+:root[data-theme="dark"] .admin-filter-pill.active.admin-filter-pill--red   { color:#f87171; }
+:root[data-theme="dark"] .admin-filter-pill.active.admin-filter-pill--blue  { color:#60a5fa; }
+:root[data-theme="dark"] .admin-btn--tint-green { color:#4ade80; }
+:root[data-theme="dark"] .admin-btn--tint-blue  { color:#60a5fa; }
+:root[data-theme="dark"] .admin-btn--tint-amber { color:#fbbf24; }
 
 /* ── Status dot ───────────────────────────────────────────── */
 .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:.35rem; flex-shrink:0; vertical-align:middle; }

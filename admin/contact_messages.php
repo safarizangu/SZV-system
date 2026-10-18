@@ -122,7 +122,7 @@ ob_start();
         <button class="admin-btn admin-btn--muted" style="font-size:.65rem">Mark Unread</button>
       </form>
       <?php endif; ?>
-      <form method="POST" style="display:contents" onsubmit="return confirm('Delete this message?')">
+      <form method="POST" style="display:contents" onsubmit="return confirmSubmitGuard(event, this, 'Delete this message?', {danger:true})">
         <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="action" value="delete">
         <input type="hidden" name="id" value="<?= $m['id'] ?>">

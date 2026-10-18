@@ -135,7 +135,7 @@ ob_start();
       <?php else: ?>
       <span style="font-size:.72rem;color:var(--gray-500)" title="<?= htmlspecialchars($r['resolution_notes'] ?? '') ?>">✓ <?= date('d M', strtotime($r['resolved_at'])) ?></span>
       <?php endif; ?>
-      <form method="POST" style="display:inline" onsubmit="return confirm('Delete this incident record?')">
+      <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete this incident record?', {danger:true})">
         <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="delete_id" value="<?= $r['id'] ?>">
         <button class="admin-btn admin-btn--danger" style="font-size:.65rem">Delete</button>

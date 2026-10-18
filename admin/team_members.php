@@ -78,7 +78,7 @@ catch(Exception $e){ error_log($e->getMessage()); }
   <td><?= $m['is_active'] ? '<span class="badge-status badge-status--green">Yes</span>' : '<span class="badge-status badge-status--gray">No</span>' ?></td>
   <td>
     <a href="?edit=<?= $m['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Edit</a>
-    <form method="POST" style="display:inline" onsubmit="return confirm('Delete <?= htmlspecialchars($m['name']) ?>?')">
+    <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete <?= htmlspecialchars(addslashes($m['name'])) ?>?', {danger:true})">
       <?= \App\Middleware\CsrfMiddleware::field() ?>
       <input type="hidden" name="delete_id" value="<?= $m['id'] ?>">
       <button class="admin-btn admin-btn--danger" style="font-size:.7rem">Delete</button>

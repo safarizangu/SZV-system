@@ -114,13 +114,13 @@ ob_start();
     <?php if($search||$statusF): ?><a href="email_queue.php" class="admin-btn admin-btn--muted" style="font-size:.72rem">Clear</a><?php endif; ?>
   </form>
   <?php if($stats['failed']>0): ?>
-  <form method="POST" onsubmit="return confirm('Retry all <?= $stats['failed'] ?> failed emails?')">
+  <form method="POST" onsubmit="return confirmSubmitGuard(event, this, 'Retry all <?= $stats['failed'] ?> failed emails?')">
     <?= \App\Middleware\CsrfMiddleware::field() ?>
     <input type="hidden" name="action" value="retry_all_failed">
     <button class="admin-btn admin-btn--primary" style="font-size:.72rem">Retry All Failed (<?= $stats['failed'] ?>)</button>
   </form>
   <?php endif; ?>
-  <form method="POST" onsubmit="return confirm('Delete sent emails older than 30 days?')">
+  <form method="POST" onsubmit="return confirmSubmitGuard(event, this, 'Delete sent emails older than 30 days?', {danger:true})">
     <?= \App\Middleware\CsrfMiddleware::field() ?>
     <input type="hidden" name="action" value="purge_sent">
     <button class="admin-btn admin-btn--muted" style="font-size:.72rem">Purge Old Sent</button>
@@ -172,7 +172,7 @@ ob_start();
           <button class="admin-btn admin-btn--primary" style="font-size:.62rem;padding:.25rem .5rem">Retry</button>
         </form>
         <?php endif; ?>
-        <form method="POST" style="display:inline" onsubmit="return confirm('Delete this email?')">
+        <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete this email from the queue?', {danger:true})">
           <?= \App\Middleware\CsrfMiddleware::field() ?>
           <input type="hidden" name="action" value="delete">
           <input type="hidden" name="id" value="<?= $e['id'] ?>">

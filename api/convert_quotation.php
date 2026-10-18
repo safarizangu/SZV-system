@@ -40,10 +40,10 @@ try {
     $s = $db->prepare("SELECT * FROM quotations WHERE id=? AND status IN ('accepted','sent') LIMIT 1");
     $s->execute([$id]);
     $q = $s->fetch();
-    if (!$q) qrespond(['success'=>false,'message'=>'Quotation not found or not in accepted/sent status.']);
-
-    // Check not already converted
-    if ($q['status'] === 'converted') qrespond(['success'=>false,'message'=>'Already converted to a booking.']);
+    // Covers "already converted" too — the SELECT above only matches
+    // status IN ('accepted','sent'), so a 'converted' quotation always
+    // lands here with this same message rather than a separate check.
+    if (!$q) qrespond(['success'=>false,'message'=>'Quotation not found, already converted, or not in accepted/sent status.']);
 
     // Determine travel date
     $travelDate = $_POST['travel_date'] ?? $q['start_date'] ?? null;

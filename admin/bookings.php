@@ -313,6 +313,7 @@ ob_start();
       </td>
       <td>
         <select onchange="updateStatus('<?= htmlspecialchars($b['booking_ref']) ?>', this.value, this)"
+                data-prev="<?= htmlspecialchars($b['payment_status']) ?>"
                 class="admin-input" style="padding:.3rem .5rem;font-size:.72rem;cursor:pointer;background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>;font-weight:700;max-width:130px">
           <?php foreach ($statusColors as $sv => $sl): ?>
           <option value="<?= $sv ?>" <?= $b['payment_status']===$sv?'selected':'' ?>><?= $sl['label'] ?></option>
@@ -329,7 +330,7 @@ ob_start();
         </button>
         <!-- Email booking confirmation -->
         <a href="../api/booking_email.php?ref=<?= urlencode($b['booking_ref']) ?>"
-           onclick="return confirm('Send booking confirmation email to <?= htmlspecialchars(addslashes($b['email'])) ?>?')"
+           onclick="return confirmNavGuard(event, this.href, 'Send booking confirmation email to <?= htmlspecialchars(addslashes($b['email'])) ?>?')"
            class="admin-btn admin-btn--tint-blue" style="font-size:.65rem;padding:.3rem .6rem">
           Email
         </a>
@@ -390,6 +391,8 @@ var ACC_LEVELS = [
 var CURRENT_BOOKING = null;
 
 async function updateStatus(ref, newStatus, sel) {
+  var label = sel.options[sel.selectedIndex].text;
+  if (!(await confirmStatusChange(sel, 'Change booking '+ref+' status to "'+label+'"?', {danger: newStatus==='cancelled'}))) return;
   var fd = new FormData();
   fd.append('action','update_status');
   fd.append('booking_ref',ref);
@@ -402,7 +405,9 @@ async function updateStatus(ref, newStatus, sel) {
       toast(d.invoice_email_sent ? 'Status updated — Invoice emailed to client' : 'Status updated: '+newStatus,'ok');
       var meta = STATUS_META[newStatus];
       if (meta) { sel.style.background = meta.bg; sel.style.color = meta.color; }
+      sel.dataset.prev = newStatus;
     } else {
+      sel.value = sel.dataset.prev;
       toast('Failed: '+(d.message||'Error'),'err');
     }
   } catch(e) { toast('Network error','err'); }

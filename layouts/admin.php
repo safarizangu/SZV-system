@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<?= ($_SESSION['theme_preference'] ?? 'light') === 'dark' ? 'dark' : 'light' ?>">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -91,6 +91,7 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
       'Operations' => [
         ['bookings.php',         'Bookings',         'bookings', ''],
         ['custom_requests.php',  'Requests',         'requests', $newRequests > 0 ? $newRequests : ''],
+        ['leads.php',            'Leads',            'leads', $newLeadsCount > 0 ? $newLeadsCount : ''],
         ['quotations.php',       'Quotations',       'quotations', ''],
         ['invoices.php',         'Invoices',         'invoices', ''],
         ['customers.php',        'Customers',        'customers', ''],
@@ -125,7 +126,6 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
         ['dashboard_sales.php',  'Sales &amp; Pipeline', 'analytics', ''],
       ],
       'Agent' => [
-        ['leads.php',            'Leads',            'leads', ''],
         ['dashboard_agents.php', 'Agent Performance','target', ''],
         ['commissions.php',      'Commissions',      'commissions', ''],
       ],
@@ -134,6 +134,7 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
         ['gallery.php',          'Image Gallery',    'gallery', ''],
       ],
       'Settings' => [
+        ['settings.php',          'General',          'moon', ''],
         ['park_fees.php',        'Park Fees',        'park-fees', ''],
         ['seasonal_rates.php',   'Seasons',          'seasons', ''],
         ['currency_rates.php',   'Currencies',       'currency', ''],

@@ -156,7 +156,18 @@ $statusColors = [
     'negotiating' => ['badge'=>'amber', 'label'=>'Negotiating'],
     'accepted'    => ['badge'=>'green', 'label'=>'Accepted'],
     'declined'    => ['badge'=>'red',   'label'=>'Declined / Rejected'],
+    'expired'     => ['badge'=>'gray',  'label'=>'Expired'],
+    // Set automatically by api/convert_quotation.php, not manually from
+    // the status dropdown below — excluded from $manualStatuses, but
+    // still needs a color/label here for correct badge display wherever
+    // a converted quotation shows up (list badge, stats row).
+    'converted'   => ['badge'=>'dark',  'label'=>'Converted'],
 ];
+// Statuses a human can actually choose from the status dropdown —
+// everything except 'converted', which only api/convert_quotation.php
+// should ever set (manually picking it wouldn't create the booking/
+// booking_ref that status implies exists).
+$manualStatuses = array_diff_key($statusColors, ['converted' => true]);
 
 $pageTitle = 'Quotations';
 ob_start();
@@ -272,16 +283,21 @@ ob_start();
         <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="update_status" value="1">
         <input type="hidden" name="id" value="<?= $q['id'] ?>">
-        <select name="status" onchange="this.form.submit()" class="admin-input"
+        <select name="status" data-prev="<?= htmlspecialchars($q['status']) ?>"
+                onchange="confirmQuoteStatusChange(this, '<?= htmlspecialchars(addslashes($q['quote_ref'])) ?>')"
+                class="admin-input"
                 style="font-size:.65rem;padding:.3rem .5rem;max-width:100px">
-          <?php foreach ($statusColors as $sv => $sl): ?>
+          <?php foreach ($manualStatuses as $sv => $sl): ?>
           <option value="<?= $sv ?>" <?= $q['status']===$sv?'selected':'' ?>><?= $sl['label'] ?></option>
           <?php endforeach; ?>
+          <?php if ($q['status']==='converted'): ?>
+          <option value="converted" selected disabled>Converted</option>
+          <?php endif; ?>
         </select>
       </form>
       <!-- Convert to Booking -->
       <?php if ($q['status'] === 'accepted'): ?>
-      <button onclick="openConvertModal(<?= $q['id'] ?>, '<?= htmlspecialchars($q['quote_ref']) ?>', '<?= htmlspecialchars($q['client_name']) ?>', <?= (float)$q['grand_total'] ?>, '<?= htmlspecialchars($q['package_name']??'') ?>', '<?= htmlspecialchars($q['start_date']??'') ?>')"
+      <button onclick="openConvertModal(<?= $q['id'] ?>, '<?= htmlspecialchars($q['quote_ref']) ?>', '<?= htmlspecialchars($q['client_name']) ?>', <?= (float)$q['grand_total'] ?>, '<?= htmlspecialchars($q['package_name']??'') ?>', '<?= htmlspecialchars($q['start_date']??'') ?>', <?= (float)($q['deposit_amount']??0) ?>)"
               class="admin-btn admin-btn--success" style="font-size:.65rem;padding:.3rem .6rem">
         Convert to Booking
       </button>
@@ -292,7 +308,7 @@ ob_start();
       </a>
       <?php endif; ?>
       <!-- Delete -->
-      <form method="POST" style="display:inline" onsubmit="return confirm('Delete quotation <?= htmlspecialchars($q['quote_ref']) ?>?')">
+      <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete quotation <?= htmlspecialchars(addslashes($q['quote_ref'])) ?>?', {danger:true})">
         <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="delete_id" value="<?= $q['id'] ?>">
         <button class="admin-btn admin-btn--danger" style="font-size:.65rem;padding:.3rem .6rem">Del</button>
@@ -369,7 +385,13 @@ ob_start();
 <div id="toastContainer2" class="toast-container"></div>
 
 <script>
-function openConvertModal(id, ref, name, total, pkg, startDate) {
+async function confirmQuoteStatusChange(sel, ref) {
+  var label = sel.options[sel.selectedIndex].text;
+  if (!(await confirmStatusChange(sel, 'Change quotation '+ref+' status to "'+label+'"?'))) return;
+  sel.form.submit();
+}
+
+function openConvertModal(id, ref, name, total, pkg, startDate, deposit) {
   document.getElementById('convert-quote-id').value = id;
   document.getElementById('convert-travel-date').value = startDate || '';
   document.getElementById('convert-summary').innerHTML =
@@ -377,7 +399,10 @@ function openConvertModal(id, ref, name, total, pkg, startDate) {
     +'<strong>Client:</strong> '+name+'<br>'
     +'<strong>Package:</strong> '+(pkg||'—')+'<br>'
     +'<strong>Grand Total:</strong> USD $'+Math.round(total).toLocaleString('en-US')+'<br>'
-    +'<strong>Deposit (30%):</strong> USD $'+Math.round(total*0.3).toLocaleString('en-US');
+    // The actual deposit this quotation was given to the client (not a
+    // recomputed percentage) — this is the exact figure
+    // api/convert_quotation.php carries into the new booking.
+    +'<strong>Deposit:</strong> USD $'+Math.round(deposit||0).toLocaleString('en-US');
   document.getElementById('convert-error').style.display='none';
   document.getElementById('convert-modal-ref') && (document.getElementById('convert-modal-ref').textContent=ref);
   document.getElementById('convertModal').classList.add('open');

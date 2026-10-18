@@ -78,7 +78,7 @@ $galleryImgs = $edit ? (json_decode($edit['images_json'] ?? '[]', true) ?: []) :
   <td><?= $r['is_active'] ? '<span class="badge-status badge-status--green">Active</span>' : '<span class="badge-status badge-status--gray">Inactive</span>' ?></td>
   <td>
     <a href="?edit=<?= $r['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Edit</a>
-    <form method="POST" style="display:inline" onsubmit="return confirm('Delete?')">
+    <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete this accommodation?', {danger:true})">
       <?= \App\Middleware\CsrfMiddleware::field() ?>
       <input type="hidden" name="delete_id" value="<?= $r['id'] ?>">
       <button class="admin-btn admin-btn--danger" style="font-size:.7rem">Delete</button>

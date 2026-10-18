@@ -139,10 +139,10 @@ ob_start();
       <div style="display:flex;gap:.5rem;align-items:center">
         <button type="submit" class="admin-btn admin-btn--primary">Save Template Override</button>
         <?php if (isset($customTemplates[$editKey])): ?>
-        <form method="POST" style="display:inline">
+        <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Reset to the default template? Your customizations will be lost.', {danger:true})">
           <?= \App\Middleware\CsrfMiddleware::field() ?>
           <input type="hidden" name="reset_template" value="<?= htmlspecialchars($editKey) ?>">
-          <button type="submit" class="admin-btn admin-btn--danger" onclick="return confirm('Reset to default template?')">Reset to Default</button>
+          <button type="submit" class="admin-btn admin-btn--danger">Reset to Default</button>
         </form>
         <?php endif; ?>
         <a href="email_templates.php" class="admin-btn admin-btn--outline">Cancel</a>

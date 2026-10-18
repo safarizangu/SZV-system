@@ -508,8 +508,8 @@ function updateHeroBadges(activeUrl) {
 }
 
 // ── Delete image ──────────────────────────────────────────────
-function deleteImage(url, btn) {
-  if (!confirm('Delete this image permanently?')) return;
+async function deleteImage(url, btn) {
+  if (!(await confirmDialog('Delete this image permanently?', {danger:true}))) return;
   btn.disabled = true;
 
   var fd = new FormData();

@@ -50,7 +50,7 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $db   = Database::getInstance();
             $stmt = $db->prepare(
-                "SELECT id, username, password_hash, full_name, email, role, can_change_status, can_delete_records
+                "SELECT id, username, password_hash, full_name, email, role, can_change_status, can_delete_records, theme_preference
                  FROM admin_users WHERE username = ? LIMIT 1"
             );
             $stmt->execute([$username]);
@@ -75,6 +75,7 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['admin_auth_type'] = 'password';
                     $_SESSION['can_change_status'] = (int)($user['can_change_status'] ?? 1);
                     $_SESSION['can_delete_records'] = (int)($user['can_delete_records'] ?? 1);
+                    $_SESSION['theme_preference'] = $user['theme_preference'] ?? 'light';
                 }
             }
         } catch (\Exception $e) {

@@ -56,6 +56,7 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
 </main>
 
 <script src="<?= BASE_PATH ?>/admin/js/admin-validator.js"></script>
+<script src="<?= BASE_PATH ?>/admin/js/admin.js"></script>
 <script>
 (function () {
   var btn   = document.getElementById('agentHamburger');

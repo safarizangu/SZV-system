@@ -217,6 +217,7 @@ ob_start();
       <td style="font-size:.82rem"><?= htmlspecialchars($r['budget_range'] ?? '—') ?></td>
       <td>
         <select onchange="updateStage(<?= $r['id'] ?>, this.value, this)"
+                data-prev="<?= htmlspecialchars($r['pipeline_stage']) ?>"
                 style="border:1.5px solid var(--gray-200);padding:.25rem .5rem;font-size:.7rem;background:<?= $sc['bg'] ?>;color:<?= $sc['text'] ?>;font-weight:700;max-width:120px;cursor:pointer">
           <?php foreach ($stages as $s): ?>
           <option value="<?= $s ?>" <?= $r['pipeline_stage']===$s?'selected':'' ?>><?= ucfirst($s) ?></option>
@@ -423,6 +424,10 @@ async function submitAddLead() {
 }
 
 async function updateStage(id, stage, sel) {
+    var msg = stage === 'booked'
+        ? 'Mark this lead as Booked? This creates a commission record for the agent.'
+        : 'Change this lead\'s stage to "'+sel.options[sel.selectedIndex].text+'"?';
+    if (!(await confirmStatusChange(sel, msg, {danger: stage==='lost'}))) return;
     var fd = new FormData();
     fd.append('action','update_stage');
     fd.append('id', id);
@@ -434,15 +439,17 @@ async function updateStage(id, stage, sel) {
         if (d.success) {
             var sc = STAGE_COLORS[stage] || {bg:'var(--gray-100)',text:'var(--gray-700)'};
             sel.style.background = sc.bg; sel.style.color = sc.text;
+            sel.dataset.prev = stage;
             toast(d.commission_created ? 'Stage → '+stage+' — commission created' : 'Stage → '+stage,'ok');
         } else {
+            sel.value = sel.dataset.prev;
             toast(d.message || 'Failed','err');
         }
-    } catch(e) { toast('Failed','err'); }
+    } catch(e) { sel.value = sel.dataset.prev; toast('Failed','err'); }
 }
 
 async function deleteLead(id) {
-    if (!confirm('Delete this lead?')) return;
+    if (!(await confirmDialog('Delete this lead? This cannot be undone.', {danger:true}))) return;
     var fd = new FormData();
     fd.append('action','delete_lead');
     fd.append('id', id);

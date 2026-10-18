@@ -160,7 +160,7 @@ ob_start();
       <td style="white-space:nowrap;font-size:.78rem"><?= date('d M Y H:i',strtotime($r['send_at'])) ?></td>
       <td style="font-size:.75rem;color:var(--gray-500);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= htmlspecialchars($r['subject']??'Auto') ?></td>
       <td>
-        <form method="POST" style="display:inline" onsubmit="return confirm('Cancel this reminder?')">
+        <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Cancel this reminder?', {danger:true})">
           <?= \App\Middleware\CsrfMiddleware::field() ?>
           <input type="hidden" name="cancel_id" value="<?= $r['id'] ?>">
           <button class="admin-btn admin-btn--danger" style="font-size:.62rem;padding:.25rem .45rem">Cancel</button>

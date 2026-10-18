@@ -138,7 +138,7 @@ ob_start();
         <td style="white-space:nowrap">
           <a href="?edit=<?= $u['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.62rem;padding:.25rem .5rem">Edit</a>
           <?php if(!$isMe): ?>
-          <form method="POST" style="display:inline" onsubmit="return confirm('Delete user <?= htmlspecialchars($u['username']) ?>?')">
+          <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete user <?= htmlspecialchars(addslashes($u['username'])) ?>? This cannot be undone.', {danger:true})">
             <?= \App\Middleware\CsrfMiddleware::field() ?>
             <input type="hidden" name="delete_id" value="<?= $u['id'] ?>">
             <button class="admin-btn admin-btn--danger" style="font-size:.62rem;padding:.25rem .5rem">Delete</button>

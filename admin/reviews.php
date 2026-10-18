@@ -100,7 +100,7 @@ ob_start();
       </form>
     </td>
     <td>
-      <form method="POST" style="display:inline" onsubmit="return confirm('Delete this review?')">
+      <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete this review?', {danger:true})">
         <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="delete_id" value="<?= $r['id'] ?>">
         <button class="admin-btn admin-btn--danger" style="font-size:.65rem;padding:.25rem .5rem">Delete</button>

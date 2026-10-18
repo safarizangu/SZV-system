@@ -85,7 +85,7 @@ ob_start();
         <button class="admin-btn admin-btn--outline" style="font-size:.68rem">Update</button>
       </form>
       <?php if ($r['code'] !== 'USD'): ?>
-      <form method="POST" style="display:inline" onsubmit="return confirm('Remove <?= htmlspecialchars($r['code']) ?>?')">
+      <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Remove <?= htmlspecialchars(addslashes($r['code'])) ?> from currencies?', {danger:true})">
         <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="delete_code" value="<?= htmlspecialchars($r['code']) ?>">
         <button class="admin-btn admin-btn--danger" style="font-size:.68rem">Delete</button>

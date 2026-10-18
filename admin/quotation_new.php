@@ -46,26 +46,17 @@ if ($fromBookingRef) {
         $bks = $db->prepare("
             SELECT b.*,
                    i.id as itin_id, i.name as itin_name, i.days as itin_days,
-                   p.itinerary_id as pkg_itin_id
+                   p.itinerary_id as pkg_itin_id,
+                   oq.client_country as country
             FROM bookings b
             LEFT JOIN packages p ON p.name = b.package_name AND p.is_active=1
             LEFT JOIN itineraries i ON i.id = p.itinerary_id
+            LEFT JOIN quotations oq ON oq.id = b.quotation_id
             WHERE b.booking_ref = ? LIMIT 1
         ");
         $bks->execute([$fromBookingRef]);
         $bkPrefill = $bks->fetch() ?: null;
     } catch(Exception $e) { error_log('[quotation_new] from_booking: '.$e->getMessage()); }
-}
-
-// Pre-fill from existing booking
-$fromBookingRef = trim($_GET['from_booking'] ?? '');
-$bkPrefill = null;
-if ($fromBookingRef) {
-    try {
-        $bks = $db->prepare("SELECT * FROM bookings WHERE booking_ref=? LIMIT 1");
-        $bks->execute([$fromBookingRef]);
-        $bkPrefill = $bks->fetch() ?: null;
-    } catch(Exception $e) { error_log($e->getMessage()); }
 }
 
 // Reference data

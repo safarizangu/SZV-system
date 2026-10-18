@@ -52,7 +52,7 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $db   = Database::getInstance();
             $stmt = $db->prepare(
-                "SELECT id, username, password_hash, full_name, email, role, can_change_status, can_delete_records
+                "SELECT id, username, password_hash, full_name, email, role, can_change_status, can_delete_records, theme_preference
                  FROM admin_users WHERE username = ? LIMIT 1"
             );
             $stmt->execute([$username]);
@@ -74,6 +74,7 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['admin_auth_type'] = 'password';
                 $_SESSION['can_change_status'] = (int)($user['can_change_status'] ?? 1);
                 $_SESSION['can_delete_records'] = (int)($user['can_delete_records'] ?? 1);
+                $_SESSION['theme_preference'] = $user['theme_preference'] ?? 'light';
             }
         } catch (\Exception $e) {
             error_log('[SZV Login DB] ' . $e->getMessage());
@@ -428,7 +429,7 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <button class="login-btn" type="submit" <?= $isLocked ? 'disabled' : '' ?>>
-      <?= $isLocked ? 'Locked — wait ' . ceil(($lockSeconds - (time()-$lastAttempt))/60) . ' min' : 'Sign In →' ?>
+      <?= $isLocked ? 'Locked — wait ' . ceil(($lockSeconds - (time()-$lockData['last_attempt']))/60) . ' min' : 'Sign In →' ?>
     </button>
   </form>
 

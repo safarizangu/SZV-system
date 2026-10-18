@@ -225,7 +225,8 @@ ob_start();
     </td>
     <td style="font-size:.78rem"><?= htmlspecialchars($r['total_budget'] ?? '—') ?: '—' ?></td>
     <td>
-      <select id="cr-status-<?= $r['id'] ?>" class="status-select" onchange="updateStatus(<?= $r['id'] ?>, this.value)"
+      <select id="cr-status-<?= $r['id'] ?>" class="status-select" onchange="updateStatus(<?= $r['id'] ?>, this.value, this)"
+              data-prev="<?= htmlspecialchars($r['status']) ?>"
               style="font-size:.72rem;padding:.3rem .5rem;border:1.5px solid var(--gray-200);background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>;font-weight:700;cursor:pointer">
         <?php foreach ($statusColors as $sv => $sl): ?>
         <option value="<?= $sv ?>" <?= $r['status']===$sv?'selected':'' ?>><?= $sl['label'] ?></option>
@@ -298,7 +299,9 @@ ob_start();
 
 <script>
 /* ── Status update ──────────────────────────────────────── */
-async function updateStatus(id, newStatus) {
+async function updateStatus(id, newStatus, sel) {
+  var label = sel.options[sel.selectedIndex].text;
+  if (!(await confirmStatusChange(sel, 'Change this request\'s status to "'+label+'"?'))) return;
   var fd = new FormData();
   fd.append('action', 'update_status');
   fd.append('id', id);
@@ -307,8 +310,9 @@ async function updateStatus(id, newStatus) {
   try {
     var res  = await fetch('custom_requests.php', { method:'POST', body:fd });
     var data = await res.json();
+    if (data.success) { sel.dataset.prev = newStatus; } else { sel.value = sel.dataset.prev; }
     toast(data.success ? 'Status updated' : 'Update failed', data.success ? 'ok' : 'err');
-  } catch(e) { toast('Network error', 'err'); }
+  } catch(e) { sel.value = sel.dataset.prev; toast('Network error', 'err'); }
 }
 
 /* ── View request modal ─────────────────────────────────── */

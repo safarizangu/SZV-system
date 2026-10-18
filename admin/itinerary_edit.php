@@ -156,8 +156,8 @@ ob_start();
     <button type="button" class="admin-btn admin-btn--danger" style="font-size:.65rem"
        onclick="deleteItinerary(<?= $editId ?>)">Delete</button>
     <script>
-    function deleteItinerary(id) {
-      if (!confirm('Delete this itinerary?')) return;
+    async function deleteItinerary(id) {
+      if (!(await confirmDialog('Delete this itinerary? This cannot be undone.', {danger:true}))) return;
       var f = document.createElement('form');
       f.method = 'POST'; f.action = 'itinerary_edit.php';
       [['delete', id], ['_csrf', window.CSRF_TOKEN || '']].forEach(function (p) {
@@ -408,6 +408,86 @@ ob_start();
 </datalist>
 
 <script>
+// ── Reference data + day-block template, for dynamically adding days
+//    when "Nights" is increased (syncDayCount below) — mirrors the exact
+//    PHP-rendered markup above so a day added via JS behaves identically
+//    to one rendered server-side (same class names, same datalist ids). ──
+var ITIN_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'level'=>$a['level']], $accommodations)) ?>;
+var ITIN_VEHS  = <?= json_encode(array_map(fn($v) => ['name'=>$v['name'],'id'=>(int)$v['id'],'rate'=>(float)$v['daily_rate']+(float)$v['fuel_cost_day']+(float)$v['driver_cost_day']], $vehicles)) ?>;
+var ITIN_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee']], $parkFees)) ?>;
+
+function itinDayBlockHtml(i) {
+  var accOpts  = ITIN_ACCS.map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-rate="'+a.rate+'" data-level="'+a.level+'">'; }).join('');
+  var vehOpts  = ITIN_VEHS.map(function(v){ return '<option value="'+v.name+'" data-id="'+v.id+'" data-rate="'+v.rate+'">'; }).join('');
+  var parkOpts = ITIN_PARKS.map(function(p){ return '<option value="'+p.name+'" data-id="'+p.id+'" data-fee="'+p.fee+'">'; }).join('');
+
+  return ''
+    +'<div class="admin-card-header" style="background:var(--gray-50)">'
+      +'<h3 style="font-size:.85rem">'
+        +'<span style="font-family:\'Times New Roman\',Times,serif;color:var(--black);margin-right:.5rem">Day '+(i+1)+'</span>'
+        +'<input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem" placeholder="Day title e.g. Arusha → Tarangire">'
+      +'</h3>'
+      +'<div style="display:flex;align-items:center;gap:.5rem"><span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span></div>'
+    +'</div>'
+    +'<div class="admin-card-body">'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">'
+        +'<div><label class="admin-label">Location / Park</label><input name="day_location[]" class="admin-input" placeholder="e.g. Serengeti National Park"></div>'
+        +'<div><label class="admin-label">Day Description</label><textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"></textarea></div>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">'
+        +'<div style="border:1px solid #e5e7eb;padding:.85rem;background:#eff6ff20">'
+          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8;display:flex;align-items:center;gap:.35rem"><?= \App\Helpers\AdminIcon::render('accommodations', 13) ?> Accommodation</p>'
+          +'<input type="hidden" name="day_acc_id[]" class="day-acc-id" value="0">'
+          +'<div style="margin-bottom:.45rem"><label class="admin-label">Property</label>'
+            +'<input name="day_acc_name[]" class="admin-input day-acc-name" list="acc-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayAcc(this,'+i+')" placeholder="Select or type">'
+            +'<datalist id="acc-list-'+i+'">'+accOpts+'</datalist>'
+          +'</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 60px;gap:.35rem">'
+            +'<div><label class="admin-label">Rate/Room/Night</label><input name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate" value="0" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label">Rooms</label><input name="day_acc_rooms[]" type="number" min="1" class="admin-input" value="1" oninput="calcItinTotal()"></div>'
+          +'</div>'
+        +'</div>'
+        +'<div style="border:1px solid #e5e7eb;padding:.85rem;background:#f0fdf420">'
+          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534;display:flex;align-items:center;gap:.35rem"><?= \App\Helpers\AdminIcon::render('fleet', 13) ?> Vehicle</p>'
+          +'<input type="hidden" name="day_veh_id[]" class="day-veh-id" value="0">'
+          +'<div style="margin-bottom:.45rem"><label class="admin-label">Vehicle</label>'
+            +'<input name="day_veh_name[]" class="admin-input day-veh-name" list="veh-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayVeh(this,'+i+')" placeholder="Select or type">'
+            +'<datalist id="veh-list-'+i+'">'+vehOpts+'</datalist>'
+          +'</div>'
+          +'<div><label class="admin-label">Daily Rate (incl. fuel+driver)</label><input name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate" value="0" oninput="calcItinTotal()"></div>'
+        +'</div>'
+        +'<div style="border:1px solid #e5e7eb;padding:.85rem;background:#fef3e220">'
+          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e;display:flex;align-items:center;gap:.35rem"><?= \App\Helpers\AdminIcon::render('park-fees', 13) ?> Park &amp; Meals</p>'
+          +'<input type="hidden" name="day_park_id[]" value="0">'
+          +'<div style="margin-bottom:.45rem"><label class="admin-label">Park / Area</label>'
+            +'<input name="day_park_name[]" class="admin-input" list="park-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayPark(this,'+i+')" placeholder="Select or leave blank">'
+            +'<datalist id="park-list-'+i+'">'+parkOpts+'</datalist>'
+          +'</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem">'
+            +'<div><label class="admin-label">Adult Fee</label><input name="day_park_fee[]" type="number" step="0.01" class="admin-input day-park-fee" value="0" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label">Meals/pp</label><input name="day_meals_pp[]" type="number" step="0.01" class="admin-input" value="20" oninput="calcItinTotal()"></div>'
+          +'</div>'
+        +'</div>'
+      +'</div>'
+      +'<div style="margin-bottom:1rem">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
+          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day '+(i+1)+')</p>'
+          +'<button type="button" onclick="addDayActivity('+i+')" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>'
+        +'</div>'
+        +'<div id="day-acts-'+i+'"></div>'
+        +'<input type="hidden" name="day_activities_json[]" id="acts-json-'+i+'" value="[]">'
+      +'</div>'
+      +'<div>'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
+          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day '+(i+1)+')</p>'
+          +'<button type="button" onclick="addDayOther('+i+')" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>'
+        +'</div>'
+        +'<div id="day-other-'+i+'"></div>'
+        +'<input type="hidden" name="day_other_json[]" id="other-json-'+i+'" value="[]">'
+      +'</div>'
+    +'</div>';
+}
+
 // ── Per-day auto-fill ──────────────────────────────────────
 function fillDayAcc(input, dayIdx) {
   var opts=document.querySelectorAll('#acc-list-'+dayIdx+' option');
@@ -557,6 +637,16 @@ function syncDayCount(n) {
   var container = document.getElementById('days-container');
   var existing  = container.querySelectorAll('.day-block');
   var cur       = existing.length;
+
+  // Add missing days
+  for (var i = cur; i < n; i++) {
+    var div = document.createElement('div');
+    div.className = 'day-block admin-card';
+    div.dataset.day = i;
+    div.style.cssText = 'margin-bottom:1rem;border-left:3px solid var(--black)';
+    div.innerHTML = itinDayBlockHtml(i);
+    container.appendChild(div);
+  }
   // Remove extras
   for(var i=cur-1;i>=n;i--) existing[i].remove();
   calcItinTotal();

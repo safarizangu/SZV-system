@@ -62,4 +62,103 @@
       el.classList.remove('open');
     });
   });
+
+  // ── Confirm-before-change for status <select> dropdowns ──────
+  // A status/stage <select> that fires its change immediately (no
+  // separate "Save" step) needs its own confirm — and, on Cancel, needs
+  // to visibly snap back to the value it actually still holds server-side,
+  // or the dropdown shows a status that was never saved. The select
+  // carries that known-good value in data-prev (set server-side on page
+  // load, and updated here after every confirmed, successfully-saved
+  // change) so repeated changes always revert to the last real state,
+  // not just whatever was on the page when it first loaded.
+  // ── Custom confirm dialog ─────────────────────────────────────
+  // Replaces window.confirm() everywhere in the panel with a dialog
+  // styled to match (and themed by, in dark mode) the rest of the UI —
+  // native confirm() can't be restyled at all. Since a real DOM dialog
+  // can't block like window.confirm() does, this is Promise-based; every
+  // call site awaits it instead of reading a synchronous return value.
+  var ICONS = {
+    danger:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2Z"/><line x1="12" y1="9" x2="12" y2="14"/><circle cx="12" cy="17.2" r=".6" fill="currentColor" stroke="none"/></svg>',
+    default: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 3.5"/><circle cx="12" cy="17" r=".6" fill="currentColor" stroke="none"/></svg>'
+  };
+
+  window.confirmDialog = window.confirmDialog || function (message, opts) {
+    opts = opts || {};
+    var danger = !!opts.danger;
+    return new Promise(function (resolve) {
+      var overlay = document.createElement('div');
+      overlay.className = 'admin-modal-overlay confirm-dialog-overlay open';
+      overlay.setAttribute('role', 'presentation');
+      overlay.innerHTML =
+        '<div class="admin-modal confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirmDialogTitle">' +
+          '<div class="confirm-dialog-icon confirm-dialog-icon--' + (danger ? 'danger' : 'default') + '">' + ICONS[danger ? 'danger' : 'default'] + '</div>' +
+          '<div class="confirm-dialog-title" id="confirmDialogTitle"></div>' +
+          '<div class="confirm-dialog-message"></div>' +
+          '<div class="confirm-dialog-actions">' +
+            '<button type="button" class="admin-btn admin-btn--outline confirm-dialog-cancel"></button>' +
+            '<button type="button" class="admin-btn ' + (danger ? 'admin-btn--danger' : 'admin-btn--primary') + ' confirm-dialog-ok"></button>' +
+          '</div>' +
+        '</div>';
+      // Set via textContent, not innerHTML — message/labels can contain
+      // user-entered data (names, refs), and must never be interpreted
+      // as markup.
+      overlay.querySelector('.confirm-dialog-title').textContent = opts.title || (danger ? 'Are you sure?' : 'Please confirm');
+      overlay.querySelector('.confirm-dialog-message').textContent = message;
+      overlay.querySelector('.confirm-dialog-cancel').textContent = opts.cancelLabel || 'Cancel';
+      overlay.querySelector('.confirm-dialog-ok').textContent = opts.confirmLabel || (danger ? 'Delete' : 'Confirm');
+      document.body.appendChild(overlay);
+
+      var prevFocus = document.activeElement;
+      function cleanup(result) {
+        overlay.remove();
+        document.removeEventListener('keydown', onKey);
+        if (prevFocus && prevFocus.focus) prevFocus.focus();
+        resolve(result);
+      }
+      function onKey(e) {
+        if (e.key === 'Escape') cleanup(false);
+      }
+      overlay.querySelector('.confirm-dialog-cancel').addEventListener('click', function () { cleanup(false); });
+      overlay.querySelector('.confirm-dialog-ok').addEventListener('click', function () { cleanup(true); });
+      overlay.addEventListener('mousedown', function (e) { if (e.target === overlay) cleanup(false); });
+      document.addEventListener('keydown', onKey);
+      overlay.querySelector('.confirm-dialog-ok').focus();
+    });
+  };
+
+  // ── Confirm-before-change for status <select> dropdowns ──────
+  // A status/stage <select> that fires its change immediately (no
+  // separate "Save" step) needs its own confirm — and, on Cancel, needs
+  // to visibly snap back to the value it actually still holds server-side,
+  // or the dropdown shows a status that was never saved. The select
+  // carries that known-good value in data-prev (set server-side on page
+  // load, and updated here after every confirmed, successfully-saved
+  // change) so repeated changes always revert to the last real state,
+  // not just whatever was on the page when it first loaded.
+  window.confirmStatusChange = window.confirmStatusChange || async function (sel, message, opts) {
+    var ok = await window.confirmDialog(message, opts);
+    if (!ok && sel.dataset.prev !== undefined) sel.value = sel.dataset.prev;
+    return ok;
+  };
+
+  // ── Confirm-before-submit for plain <form onsubmit="return
+  //    confirmSubmitGuard(event, this, '...')">  patterns — covers every
+  //    delete/destructive form in the panel that used to be
+  //    onsubmit="return confirm('...')". Always returns false (blocking
+  //    the native submit); submits manually once the dialog resolves true.
+  window.confirmSubmitGuard = window.confirmSubmitGuard || function (e, form, message, opts) {
+    e.preventDefault();
+    window.confirmDialog(message, opts).then(function (ok) { if (ok) form.submit(); });
+    return false;
+  };
+
+  // ── Confirm-before-navigate for plain <a onclick="return
+  //    confirmNavGuard(event, this.href, '...')"> links (e.g. "send this
+  //    email now?"). Always returns false; navigates manually on confirm.
+  window.confirmNavGuard = window.confirmNavGuard || function (e, href, message, opts) {
+    e.preventDefault();
+    window.confirmDialog(message, opts).then(function (ok) { if (ok) window.location.href = href; });
+    return false;
+  };
 })();

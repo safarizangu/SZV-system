@@ -398,7 +398,7 @@ ob_start();
     <div style="display:flex;gap:.5rem">
       <a href="itinerary_edit.php?id=<?= (int)$linkedItin['id'] ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.65rem">Edit in Itinerary Manager <?= \App\Helpers\AdminIcon::render('external-link', 11) ?></a>
       <a href="package_edit.php?id=<?= $id ?>&amp;unlink=1"
-         onclick="return confirm('Unlink and make this package’s itinerary editable here instead? The template’s current days will be copied over first as a starting point.')"
+         onclick="return confirmNavGuard(event, this.href, 'Unlink and make this package\'s itinerary editable here instead? The template\'s current days will be copied over first as a starting point.')"
          class="admin-btn admin-btn--muted" style="font-size:.65rem">Unlink &amp; Customize Here</a>
     </div>
   </div>
@@ -1681,10 +1681,11 @@ async function loadPkgItinerary() {
 // to the unlink/link GET action in package_edit.php's PHP, which writes
 // itinerary_id straight to the DB and reloads the page — at which point
 // the Day-by-Day Itinerary section becomes the read-only, linked view.
-function linkPkgItinerary() {
+async function linkPkgItinerary() {
   var id = document.getElementById('pkg_itin_select').value;
   if (!id) { alert('Select an itinerary first.'); return; }
-  if (!confirm('Link this package to that itinerary template? Its pricing and day-by-day display will then always follow the template — edit the itinerary in the Itinerary Manager instead of here.')) return;
+  var ok = await confirmDialog('Link this package to that itinerary template? Its pricing and day-by-day display will then always follow the template — edit the itinerary in the Itinerary Manager instead of here.');
+  if (!ok) return;
   window.location = (window.BASE_PATH||'') + '/admin/package_edit.php?id=<?= $id ?>&link=' + id;
 }
 

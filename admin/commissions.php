@@ -228,7 +228,8 @@ ob_start();
         <?php if ($isAgentUser): ?>
         <span style="font-size:.68rem;color:var(--gray-500)">View only</span>
         <?php else: ?>
-        <form method="POST" style="display:flex;gap:.3rem">
+        <form method="POST" style="display:flex;gap:.3rem"
+              onsubmit="return confirmCommissionStatusSubmit(event, this)">
           <?= \App\Middleware\CsrfMiddleware::field() ?>
           <input type="hidden" name="update_commission" value="1">
           <input type="hidden" name="commission_id" value="<?= $c['id'] ?>">
@@ -250,5 +251,15 @@ ob_start();
   </table>
   </div>
 </div>
+
+<script>
+function confirmCommissionStatusSubmit(e, form) {
+  var sel   = form.status;
+  var label = sel.options[sel.selectedIndex].text;
+  var extra = sel.value === 'paid' ? ' This emails the agent that they\'ve been paid.'
+            : sel.value === 'approved' ? ' This emails the agent that it\'s approved.' : '';
+  return confirmSubmitGuard(e, form, 'Change commission status to "'+label+'"?'+extra, {danger: sel.value==='cancelled'});
+}
+</script>
 
 <?php $content=ob_get_clean(); require_once __DIR__.'/../layouts/admin.php'; ?>
