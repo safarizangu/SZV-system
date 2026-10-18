@@ -19,6 +19,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if (OwnershipScope::isScoped() && !OwnershipScope::ownsBooking($db, $ref, OwnershipScope::currentAgentId())) {
             \App\Services\AccessGuard::denyJson('booking', $ref, 'update_status:' . $status);
         }
+        // Per-user permission override (admin/users.php) — doesn't apply to
+        // agents, who are already scoped by ownership above.
+        if (!AuthMiddleware::isAgentRole() && !AuthMiddleware::canChangeStatus()) {
+            \App\Services\AccessGuard::denyJson('booking', $ref, 'update_status:' . $status);
+        }
         if ($ref && in_array($status, $allowed, true)) {
             $prevStatus = $db->prepare("SELECT payment_status FROM bookings WHERE booking_ref=? LIMIT 1");
             $prevStatus->execute([$ref]);

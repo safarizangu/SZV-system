@@ -18,7 +18,7 @@ $pageTitle = 'Commission Management';
 // Update commission status
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_commission'])) {
     \App\Middleware\CsrfMiddleware::validateOrDie();
-    if ($isAgentUser) { header('Location: commissions.php?msg='.urlencode('Permission denied.')); exit; }
+    if ($isAgentUser || !AuthMiddleware::canChangeStatus()) { header('Location: commissions.php?msg='.urlencode('Permission denied.')); exit; }
     // Email wiring for commission status changes
     try {
         $id     = (int)$_POST['commission_id'];

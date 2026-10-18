@@ -23,6 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_user'])) {
     $role     = $_POST['role'] ?? 'admin';
     $newPw    = trim($_POST['new_password'] ?? '');
     $active   = isset($_POST['is_active']) ? 1 : 0;
+    $canChangeStatus  = isset($_POST['can_change_status'])  ? 1 : 0;
+    $canDeleteRecords = isset($_POST['can_delete_records']) ? 1 : 0;
 
     if (!$username) {
         $error = 'Username is required.';
@@ -41,19 +43,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_user'])) {
                 // Update — only change password if new one provided
                 if ($newPw) {
                     $hash = password_hash($newPw, PASSWORD_BCRYPT, ['cost'=>12]);
-                    $db->prepare("UPDATE admin_users SET username=?,full_name=?,email=?,role=?,is_active=?,password_hash=? WHERE id=?")
-                       ->execute([$username,$fullName,$email,$role,$active,$hash,$id]);
+                    $db->prepare("UPDATE admin_users SET username=?,full_name=?,email=?,role=?,is_active=?,can_change_status=?,can_delete_records=?,password_hash=? WHERE id=?")
+                       ->execute([$username,$fullName,$email,$role,$active,$canChangeStatus,$canDeleteRecords,$hash,$id]);
                 } else {
-                    $db->prepare("UPDATE admin_users SET username=?,full_name=?,email=?,role=?,is_active=? WHERE id=?")
-                       ->execute([$username,$fullName,$email,$role,$active,$id]);
+                    $db->prepare("UPDATE admin_users SET username=?,full_name=?,email=?,role=?,is_active=?,can_change_status=?,can_delete_records=? WHERE id=?")
+                       ->execute([$username,$fullName,$email,$role,$active,$canChangeStatus,$canDeleteRecords,$id]);
                 }
                 header('Location: users.php?msg='.urlencode('User updated.')); exit;
             } else {
                 if (!$newPw) { $error = 'Password is required for new users.'; }
                 else {
                     $hash = password_hash($newPw, PASSWORD_BCRYPT, ['cost'=>12]);
-                    $db->prepare("INSERT INTO admin_users(username,full_name,email,role,is_active,password_hash,created_at) VALUES(?,?,?,?,?,?,NOW())")
-                       ->execute([$username,$fullName,$email,$role,$active,$hash]);
+                    $db->prepare("INSERT INTO admin_users(username,full_name,email,role,is_active,can_change_status,can_delete_records,password_hash,created_at) VALUES(?,?,?,?,?,?,?,?,NOW())")
+                       ->execute([$username,$fullName,$email,$role,$active,$canChangeStatus,$canDeleteRecords,$hash]);
                     header('Location: users.php?msg='.urlencode('User created.')); exit;
                 }
             }
@@ -97,7 +99,7 @@ ob_start();
     <div class="admin-table-wrap">
     <table class="admin-table">
       <thead><tr>
-        <th>User</th><th>Email</th><th>Role</th><th>Last Login</th><th>Status</th><th>Actions</th>
+        <th>User</th><th>Email</th><th>Role</th><th>Permissions</th><th>Last Login</th><th>Status</th><th>Actions</th>
       </tr></thead>
       <tbody>
       <?php foreach($users as $u): $isMe = ($u['id'] == ($_SESSION['admin_user_id']??0)); ?>
@@ -114,6 +116,14 @@ ob_start();
           <span class="badge-status badge-status--<?= $u['role']==='superadmin'?'dark':'gray' ?>">
             <?= htmlspecialchars($u['role']??'admin') ?>
           </span>
+        </td>
+        <td style="font-size:.68rem;color:var(--gray-500);white-space:nowrap">
+          <?php if ($u['role']==='superadmin'): ?>
+          <span style="color:var(--black);font-weight:600">Full access</span>
+          <?php else: ?>
+          <?= ($u['can_change_status']??1) ? '✓ Status' : '<span style="color:var(--red)">✗ Status</span>' ?><br>
+          <?= ($u['can_delete_records']??1) ? '✓ Delete' : '<span style="color:var(--red)">✗ Delete</span>' ?>
+          <?php endif; ?>
         </td>
         <td style="font-size:.75rem;color:var(--gray-500)">
           <?= $u['last_login'] ? date('d M Y H:i', strtotime($u['last_login'])) : 'Never' ?>
@@ -189,10 +199,26 @@ ob_start();
           </label>
           <input name="new_password" type="password" class="admin-input" <?= $editUser?'':'required' ?> minlength="8" placeholder="Min 8 characters">
         </div>
-        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-bottom:1rem">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-bottom:.75rem">
           <input type="checkbox" name="is_active" value="1" <?= ($editUser['is_active']??1)?'checked':'' ?>>
           <span class="admin-label" style="margin:0">Active (can log in)</span>
         </label>
+
+        <div style="border-top:1px solid var(--gray-100);margin:.5rem 0 .85rem;padding-top:.85rem">
+          <label class="admin-label" style="display:block;margin-bottom:.5rem">Access Permissions</label>
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-bottom:.5rem">
+            <input type="checkbox" name="can_change_status" value="1" <?= ($editUser['can_change_status']??1)?'checked':'' ?>>
+            <span style="font-size:.78rem">Can change status <span style="color:var(--gray-500)">(bookings, leads, commissions)</span></span>
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-bottom:0">
+            <input type="checkbox" name="can_delete_records" value="1" <?= ($editUser['can_delete_records']??1)?'checked':'' ?>>
+            <span style="font-size:.78rem">Can delete records</span>
+          </label>
+          <p style="font-size:.68rem;color:var(--gray-500);margin-top:.5rem;line-height:1.5">
+            Superadmin always has both, regardless of these checkboxes. For agents, these have no extra effect beyond what their role already restricts.
+          </p>
+        </div>
+
         <div style="display:flex;gap:.5rem;margin-top:1rem">
           <button type="submit" class="admin-btn admin-btn--primary" style="flex:1;justify-content:center">
             <?= $editUser ? 'Update User' : '+ Create User' ?>

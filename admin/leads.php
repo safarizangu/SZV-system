@@ -60,6 +60,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if (!in_array($stage, $allowed, true)) {
             echo json_encode(['success'=>false,'message'=>'Invalid stage.']); exit;
         }
+        // Per-user permission override — doesn't apply to agents, who are
+        // already scoped to their own leads via $isAgentUser below.
+        if (!$isAgentUser && !AuthMiddleware::canChangeStatus()) {
+            echo json_encode(['success'=>false,'message'=>'Permission denied.']); exit;
+        }
 
         // Commission creation on a genuine transition into 'booked' (and the
         // agent email that goes with it) lives in PipelineSync — shared with
@@ -76,9 +81,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     if ($action === 'delete_lead') {
-        // Agent role only — staff/admin/superadmin can delete leads, same
-        // as any other Leads-page action available to them.
-        if ($isAgentUser) {
+        // Agent role never — staff/admin/superadmin can delete leads unless
+        // the per-user permission override (admin/users.php) says otherwise.
+        if ($isAgentUser || !AuthMiddleware::canDeleteRecords()) {
             echo json_encode(['success'=>false,'message'=>'Permission denied.']); exit;
         }
         $id = (int)($_POST['id'] ?? 0);

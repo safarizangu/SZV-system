@@ -73,4 +73,26 @@ class AuthMiddleware
     {
         return ($_SESSION['admin_role'] ?? 'agent') === 'agent';
     }
+
+    /**
+     * Per-user override, set in admin/users.php and carried into the
+     * session at login (see admin/login.php, agent-portal/login.php) —
+     * lets an admin restrict a specific admin/staff account from changing
+     * a booking/lead/commission's status, independent of role. superadmin
+     * always bypasses this, so an admin can never lock every superadmin
+     * account out by mistake. Defaults to true (allowed) when unset, so a
+     * session predating this feature isn't suddenly restricted.
+     */
+    public static function canChangeStatus(): bool
+    {
+        if (($_SESSION['admin_role'] ?? '') === 'superadmin') return true;
+        return ($_SESSION['can_change_status'] ?? 1) == 1;
+    }
+
+    /** Same model as canChangeStatus(), for delete actions. */
+    public static function canDeleteRecords(): bool
+    {
+        if (($_SESSION['admin_role'] ?? '') === 'superadmin') return true;
+        return ($_SESSION['can_delete_records'] ?? 1) == 1;
+    }
 }
