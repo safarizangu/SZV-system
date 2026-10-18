@@ -86,19 +86,16 @@ ob_start();
 ?>
 <?php if($msg): ?><div class="admin-alert admin-alert--success"><?= $msg ?></div><?php endif; ?>
 
-<!-- Stats bar -->
-<div class="admin-metrics-grid">
+<!-- Status filter pills -->
+<div class="admin-filter-pills">
   <?php foreach([
-    ['Total',   $stats['total'],   'dark'],
-    ['Pending', $stats['pending'], 'amber'],
-    ['Sent',    $stats['sent'],    'green'],
-    ['Failed',  $stats['failed'],  'red'],
-  ] as [$label,$val,$tint]): ?>
-  <a href="?status=<?= strtolower($label)==='total'?'':strtolower($label) ?>" style="text-decoration:none">
-    <div class="metric-card metric-card--<?= $tint ?>">
-      <span class="metric-label"><?= $label ?></span>
-      <span class="metric-value"><?= $val ?></span>
-    </div>
+    ['',        'Total',   $stats['total'],   ''],
+    ['pending', 'Pending', $stats['pending'], 'amber'],
+    ['sent',    'Sent',    $stats['sent'],    'green'],
+    ['failed',  'Failed',  $stats['failed'],  'red'],
+  ] as [$val,$label,$count,$tint]): ?>
+  <a href="?status=<?= $val ?>" class="admin-filter-pill<?= $tint ? ' admin-filter-pill--'.$tint : '' ?><?= $statusF===$val?' active':'' ?>">
+    <?= $label ?> &nbsp;<span style="opacity:.6"><?= $count ?></span>
   </a>
   <?php endforeach; ?>
 </div>

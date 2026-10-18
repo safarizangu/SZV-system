@@ -173,19 +173,9 @@ $pageTitle = 'Quotations';
 ob_start();
 ?>
 
-<!-- Stats row -->
-<div class="admin-metrics-grid">
-  <?php foreach ($statusColors as $key => $s): ?>
-  <a href="?status=<?= $key ?>" style="text-decoration:none">
-    <div class="metric-card<?= $statusFilter===$key ? ' metric-card--'.$s['badge'] : '' ?>">
-      <span class="metric-label"><?= $s['label'] ?></span>
-      <span class="metric-value"><?= $stats[$key]['cnt'] ?? 0 ?></span>
-      <?php if (!empty($stats[$key]['rev'])): ?>
-      <span class="metric-sub">$<?= number_format($stats[$key]['rev'],0) ?></span>
-      <?php endif; ?>
-    </div>
-  </a>
-  <?php endforeach; ?>
+<!-- Funnel rates — genuine computed stats, not a filterable category, so
+     these stay as cards; the per-status counts below are the filter. -->
+<div class="admin-metrics-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
   <div class="metric-card">
     <span class="metric-label">Open Rate</span>
     <span class="metric-value"><?= $openRate === null ? '—' : $openRate.'%' ?></span>
@@ -196,6 +186,20 @@ ob_start();
     <span class="metric-value"><?= $acceptRate === null ? '—' : $acceptRate.'%' ?></span>
     <span class="metric-sub"><?= $funnel['won'] ?> of <?= $funnel['sent'] ?> sent</span>
   </div>
+</div>
+
+<!-- Status filter pills -->
+<div class="admin-filter-pills">
+  <a href="quotations.php" class="admin-filter-pill<?= !$statusFilter ? ' active' : '' ?>">
+    All &nbsp;<span style="opacity:.6"><?= array_sum(array_column($stats, 'cnt')) ?></span>
+  </a>
+  <?php foreach ($statusColors as $key => $s):
+    $pillMod = $s['badge'] !== 'gray' ? ' admin-filter-pill--'.$s['badge'] : '';
+  ?>
+  <a href="?status=<?= $key ?>" class="admin-filter-pill<?= $pillMod ?><?= $statusFilter===$key?' active':'' ?>">
+    <?= $s['label'] ?> &nbsp;<span style="opacity:.6"><?= $stats[$key]['cnt'] ?? 0 ?></span>
+  </a>
+  <?php endforeach; ?>
 </div>
 
 <!-- Toolbar -->

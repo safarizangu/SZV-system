@@ -167,17 +167,6 @@ if (AuthMiddleware::isAgentRole()) {
         </div>
       </div>
 
-      <!-- Quick Actions -->
-      <div class="admin-card">
-        <div class="admin-card-header"><h3>Quick Actions</h3></div>
-        <div class="admin-card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
-          <a href="quotation_new.php" class="admin-btn admin-btn--primary" style="justify-content:center">+ Quotation</a>
-          <a href="leads.php"         class="admin-btn admin-btn--outline" style="justify-content:center">My Leads</a>
-          <a href="commissions.php"   class="admin-btn admin-btn--outline" style="justify-content:center">Commissions</a>
-          <a href="invoices.php"      class="admin-btn admin-btn--muted"   style="justify-content:center">Invoices</a>
-        </div>
-      </div>
-
     </div><!-- /right -->
     </div><!-- /grid -->
 
@@ -360,15 +349,15 @@ ob_start();
     </div>
   </div>
 
-  <!-- Quick Actions -->
+  <!-- Quick Actions — only for destinations with no other link on this
+       page (Bookings/Requests/+Quotation already have their own card
+       above with the same destination, so they're left out here rather
+       than repeated). -->
   <div class="admin-card">
     <div class="admin-card-header"><h3>Quick Actions</h3></div>
-    <div class="admin-card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
-      <a href="quotation_new.php" class="admin-btn admin-btn--primary" style="justify-content:center">+ Quotation</a>
-      <a href="bookings.php"      class="admin-btn admin-btn--outline" style="justify-content:center">Bookings</a>
+    <div class="admin-card-body" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem">
       <a href="gallery.php"       class="admin-btn admin-btn--outline" style="justify-content:center">Gallery</a>
       <a href="itineraries.php"   class="admin-btn admin-btn--outline" style="justify-content:center">Itineraries</a>
-      <a href="custom_requests.php" class="admin-btn admin-btn--amber" style="justify-content:center">Requests</a>
       <a href="packages.php"      class="admin-btn admin-btn--muted"   style="justify-content:center">Packages</a>
     </div>
   </div>

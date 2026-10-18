@@ -136,14 +136,16 @@ $pageTitle = 'Custom Safari Requests';
 ob_start();
 ?>
 
-<!-- ── Summary cards ──────────────────────────────────────── -->
-<div class="admin-metrics-grid">
-  <?php foreach ($statusColors as $key => $sc): ?>
-  <a href="?status=<?= $key ?>" style="text-decoration:none">
-    <div class="metric-card<?= $statusFilter===$key ? ' metric-card--'.$sc['badge'] : '' ?>">
-      <span class="metric-label"><?= $sc['label'] ?></span>
-      <span class="metric-value"><?= $counts[$key] ?? 0 ?></span>
-    </div>
+<!-- ── Status filter pills ─────────────────────────────────── -->
+<div class="admin-filter-pills">
+  <a href="custom_requests.php" class="admin-filter-pill<?= !$statusFilter ? ' active' : '' ?>">
+    All &nbsp;<span style="opacity:.6"><?= array_sum($counts) ?></span>
+  </a>
+  <?php foreach ($statusColors as $key => $sc):
+    $pillMod = $sc['badge'] !== 'gray' ? ' admin-filter-pill--'.$sc['badge'] : '';
+  ?>
+  <a href="?status=<?= $key ?>" class="admin-filter-pill<?= $pillMod ?><?= $statusFilter===$key?' active':'' ?>">
+    <?= $sc['label'] ?> &nbsp;<span style="opacity:.6"><?= $counts[$key] ?? 0 ?></span>
   </a>
   <?php endforeach; ?>
 </div>
