@@ -61,7 +61,7 @@ $pax       = max(1, (int)($q['adults'] ?? 2) + (int)($q['children'] ?? 0));
 $perPerson = round($grand / $pax, 2);
 $deposit   = round($grand * 0.30, 2);
 $balance   = round($grand - $deposit, 2);
-$validStr  = $q['valid_until'] ? date('d F Y', strtotime($q['valid_until'])) : date('d F Y', strtotime('+14 days'));
+$validStr  = $q['valid_until'] ? date('d F Y', strtotime($q['valid_until'])) : date('d F Y', strtotime('+' . QUOTATION_VALIDITY_DAYS . ' days'));
 // A right-arrow glyph here previously rendered as "?" under dompdf's font
 // substitution — "·" is the proven-safe choice, used throughout.
 $destStr   = !empty($destinations) ? implode(' · ', $destinations) : ($q['package_name'] ?? 'Tanzania Safari');

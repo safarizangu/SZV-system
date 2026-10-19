@@ -174,7 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_quote'])) {
         };
     }
 
-    $validUntil = !empty($_POST['valid_until']) ? $_POST['valid_until'] : date('Y-m-d', strtotime('+14 days'));
+    $validUntil = !empty($_POST['valid_until']) ? $_POST['valid_until'] : date('Y-m-d', strtotime('+' . QUOTATION_VALIDITY_DAYS . ' days'));
     $destinations= json_encode(array_values(array_filter(array_map('trim', explode(',', $_POST['destinations']??'')))));
     $includes   = array_values(array_filter(array_map('trim',explode("\n",$_POST['includes']??''))));
     $excludes   = array_values(array_filter(array_map('trim',explode("\n",$_POST['excludes']??''))));
@@ -759,7 +759,7 @@ ob_start();
                 </select></div>
             <div><label class="admin-label">Valid Until</label>
                 <input name="valid_until" type="date" class="admin-input"
-                       value="<?= $q['valid_until'] ?? date('Y-m-d', strtotime('+14 days')) ?>"></div>
+                       value="<?= $q['valid_until'] ?? date('Y-m-d', strtotime('+' . QUOTATION_VALIDITY_DAYS . ' days')) ?>"></div>
             <div><label class="admin-label">Status</label>
                 <select name="status" class="admin-input">
                     <?php foreach(['draft'=>'Draft','sent'=>'Sent','viewed'=>'Viewed','negotiating'=>'Negotiating','accepted'=>'Accepted','declined'=>'Declined / Rejected'] as $v=>$l): ?>

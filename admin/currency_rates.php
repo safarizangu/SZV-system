@@ -59,11 +59,14 @@ ob_start();
   a guest is actually billed. These are manually-maintained rates, not a live feed — check them periodically.
 </p>
 
-<div class="admin-card" style="margin-bottom:1.5rem">
-  <div class="admin-card-header"><h3>Currency Rates</h3></div>
+<div class="admin-card">
+  <div class="admin-card-header">
+    <h3>Currency Rates</h3>
+    <button type="button" onclick="openModal('addCurrencyModal')" class="admin-btn admin-btn--primary" style="font-size:.68rem">+ Add Currency</button>
+  </div>
   <div class="admin-table-wrap">
   <table class="admin-table">
-  <thead><tr><th>Code</th><th>Name</th><th>Symbol</th><th>Rate (per $1)</th><th>Active</th><th>Updated</th><th>Actions</th></tr></thead>
+  <thead><tr><th>Code</th><th>Name</th><th>Symbol</th><th>Rate (per $1)</th><th>Active</th><th>Updated</th><th style="min-width:260px">Actions</th></tr></thead>
   <tbody>
   <?php foreach ($rows as $r): ?>
   <tr>
@@ -74,43 +77,77 @@ ob_start();
     <td><?= $r['is_active'] ? '<span class="badge-status badge-status--green">Active</span>' : '<span class="badge-status badge-status--gray">Inactive</span>' ?></td>
     <td style="color:var(--gray-500);font-size:.78rem"><?= date('d M Y', strtotime($r['updated_at'])) ?></td>
     <td>
-      <form method="POST" style="display:inline-flex;gap:.4rem;align-items:center">
-        <?= \App\Middleware\CsrfMiddleware::field() ?>
-        <input type="hidden" name="save" value="1">
-        <input type="hidden" name="code" value="<?= htmlspecialchars($r['code']) ?>">
-        <input type="hidden" name="name" value="<?= htmlspecialchars($r['name']) ?>">
-        <input type="hidden" name="symbol" value="<?= htmlspecialchars($r['symbol']) ?>">
-        <input type="number" step="0.0001" min="0.0001" name="rate_to_usd" value="<?= $r['rate_to_usd'] ?>" class="admin-input" style="width:100px;font-size:.75rem;padding:.3rem">
-        <label style="display:flex;align-items:center;gap:.3rem;font-size:.7rem"><input type="checkbox" name="is_active" value="1" <?= $r['is_active']?'checked':'' ?>> Active</label>
-        <button class="admin-btn admin-btn--outline" style="font-size:.68rem">Update</button>
-      </form>
-      <?php if ($r['code'] !== 'USD'): ?>
-      <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Remove <?= htmlspecialchars(addslashes($r['code'])) ?> from currencies?', {danger:true})">
-        <?= \App\Middleware\CsrfMiddleware::field() ?>
-        <input type="hidden" name="delete_code" value="<?= htmlspecialchars($r['code']) ?>">
-        <button class="admin-btn admin-btn--danger" style="font-size:.68rem">Delete</button>
-      </form>
-      <?php endif; ?>
+      <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+        <form method="POST" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+          <?= \App\Middleware\CsrfMiddleware::field() ?>
+          <input type="hidden" name="save" value="1">
+          <input type="hidden" name="code" value="<?= htmlspecialchars($r['code']) ?>">
+          <input type="hidden" name="name" value="<?= htmlspecialchars($r['name']) ?>">
+          <input type="hidden" name="symbol" value="<?= htmlspecialchars($r['symbol']) ?>">
+          <input type="number" step="0.0001" min="0.0001" name="rate_to_usd" value="<?= $r['rate_to_usd'] ?>" class="admin-input" style="width:90px;font-size:.75rem;padding:.35rem .5rem">
+          <label style="display:flex;align-items:center;gap:.3rem;font-size:.68rem;color:var(--gray-700);white-space:nowrap;cursor:pointer">
+            <input type="checkbox" name="is_active" value="1" <?= $r['is_active']?'checked':'' ?>> Active
+          </label>
+          <button class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.35rem .6rem">Update</button>
+        </form>
+        <?php if ($r['code'] !== 'USD'): ?>
+        <form method="POST" onsubmit="return confirmSubmitGuard(event, this, 'Remove <?= htmlspecialchars(addslashes($r['code'])) ?> from currencies?', {danger:true})">
+          <?= \App\Middleware\CsrfMiddleware::field() ?>
+          <input type="hidden" name="delete_code" value="<?= htmlspecialchars($r['code']) ?>">
+          <button class="admin-btn admin-btn--danger" style="font-size:.65rem;padding:.35rem .6rem">Delete</button>
+        </form>
+        <?php endif; ?>
+      </div>
     </td>
   </tr>
   <?php endforeach; ?>
   </tbody></table></div>
 </div>
 
-<div class="admin-card">
-  <div class="admin-card-header"><h3>Add Currency</h3></div>
-  <div class="admin-card-body">
-    <form method="POST" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:1rem;align-items:end">
-      <?= \App\Middleware\CsrfMiddleware::field() ?>
-      <input type="hidden" name="save" value="1">
-      <div><label class="admin-label">Code (ISO 4217)</label><input name="code" maxlength="3" class="admin-input" placeholder="AUD" required></div>
-      <div><label class="admin-label">Name</label><input name="name" class="admin-input" placeholder="Australian Dollar" required></div>
-      <div><label class="admin-label">Symbol</label><input name="symbol" class="admin-input" placeholder="A$" required></div>
-      <div><label class="admin-label">Rate (per $1)</label><input type="number" step="0.0001" min="0.0001" name="rate_to_usd" class="admin-input" required></div>
-      <div><button class="admin-btn admin-btn--primary">Add</button></div>
-    </form>
+<!-- Add Currency modal -->
+<div id="addCurrencyModal" class="admin-modal-overlay">
+  <div class="admin-modal">
+    <div class="admin-modal-header">
+      <span class="admin-modal-title">Add Currency</span>
+      <button type="button" onclick="closeModal('addCurrencyModal')" class="admin-icon-btn admin-modal-close"><?= \App\Helpers\AdminIcon::render('close', 18) ?></button>
+    </div>
+    <div class="admin-modal-body">
+      <p style="font-size:.78rem;color:var(--gray-500);margin-bottom:1.25rem;line-height:1.6">
+        Display-only, same as every row in the table — actual charging always stays in USD.
+      </p>
+      <form method="POST">
+        <?= \App\Middleware\CsrfMiddleware::field() ?>
+        <input type="hidden" name="save" value="1">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">
+          <div>
+            <label class="admin-label">Code <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(ISO 4217)</span></label>
+            <input name="code" maxlength="3" class="admin-input" placeholder="AUD" required style="text-transform:uppercase">
+          </div>
+          <div>
+            <label class="admin-label">Rate <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(per $1)</span></label>
+            <input type="number" step="0.0001" min="0.0001" name="rate_to_usd" class="admin-input" placeholder="1.50" required>
+          </div>
+          <div>
+            <label class="admin-label">Name</label>
+            <input name="name" class="admin-input" placeholder="Australian Dollar" required>
+          </div>
+          <div>
+            <label class="admin-label">Symbol</label>
+            <input name="symbol" class="admin-input" placeholder="A$" required>
+          </div>
+        </div>
+        <div style="display:flex;gap:.5rem">
+          <button class="admin-btn admin-btn--primary">+ Add Currency</button>
+          <button type="button" onclick="closeModal('addCurrencyModal')" class="admin-btn admin-btn--outline">Cancel</button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
+
+<?php if ($msg && str_starts_with($msg, 'Error')): ?>
+<script>document.addEventListener('DOMContentLoaded', function(){ openModal('addCurrencyModal'); });</script>
+<?php endif; ?>
 
 <?php
 $content = ob_get_clean();

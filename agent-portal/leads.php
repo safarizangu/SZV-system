@@ -12,36 +12,179 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     \App\Middleware\CsrfMiddleware::validateOrDie();
     $action = $_POST['action'];
 
-    if ($action === 'add_lead') {
-        $data = [
-            'full_name'     => trim($_POST['full_name']     ?? ''),
-            'email'         => trim($_POST['email']         ?? ''),
-            'phone'         => trim($_POST['phone']         ?? ''),
-            'country'       => trim($_POST['country']       ?? ''),
-            'budget_range'  => trim($_POST['budget_range']  ?? ''),
-            'source'        => trim($_POST['source']        ?? 'website'),
-            'package_name'  => trim($_POST['package_name']  ?? ''),
-            'party_size'    => (int)($_POST['adults']       ?? 2),
-            'travel_date'   => !empty($_POST['travel_date']) ? $_POST['travel_date'] : null,
-            'pipeline_stage'=> 'lead',
-            'notes'         => trim($_POST['notes']         ?? ''),
-            // Always the signed-in agent — never assignable to anyone else here.
-            'agent_id'      => $myId,
-        ];
-        if (!$data['full_name'] || !$data['email']) {
-            echo json_encode(['success'=>false,'message'=>'Name and email required.']);
+    // Agent is booking an existing package directly for their client.
+    // Creates a real `bookings` row (visible to admin for confirmation/
+    // payment processing) plus a linked `quotations` row stamped
+    // created_by=$myId so OwnershipScope can attribute the booking back to
+    // this agent, plus a `leads` row carried straight to 'booked' through
+    // PipelineSync so the agent's commission is created the exact same way
+    // a manual stage change would (see PipelineSync::writeLeadStage).
+    if ($action === 'add_direct_booking') {
+        if (!AGENT_DIRECT_BOOKING_ENABLED) {
+            echo json_encode(['success'=>false,'message'=>'Direct booking is currently disabled — please submit a custom request instead.']);
             exit;
         }
+        $fullName = trim($_POST['full_name'] ?? '');
+        $email    = trim($_POST['email']     ?? '');
+        $phone    = trim($_POST['phone']     ?? '');
+        $country  = trim($_POST['country']   ?? '');
+        $packageId  = (int)($_POST['package_id'] ?? 0);
+        $travelDate = trim($_POST['travel_date'] ?? '');
+        $adults     = max(1, (int)($_POST['adults']   ?? 1));
+        $children   = max(0, (int)($_POST['children'] ?? 0));
+        $accLevel   = trim($_POST['accommodation_level'] ?? 'midrange');
+        $notes      = trim($_POST['notes'] ?? '');
+
+        if (!$fullName || !filter_var($email, FILTER_VALIDATE_EMAIL) || !$packageId || !$travelDate) {
+            echo json_encode(['success'=>false,'message'=>'Client name, email, package and travel date are required.']);
+            exit;
+        }
+
+        $package = (new \App\Models\Package())->findById($packageId);
+        if (!$package || !$package['is_active']) {
+            echo json_encode(['success'=>false,'message'=>'Selected package is not available.']); exit;
+        }
+
+        $travelers = $adults + $children;
+        $builtQuote = null; $quoteTotals = null; $itinerary = null;
+        if (!empty($package['itinerary_id'])) {
+            try {
+                $itinStmt = $db->prepare("SELECT * FROM itineraries WHERE id=? AND is_active=1 LIMIT 1");
+                $itinStmt->execute([(int)$package['itinerary_id']]);
+                $itinerary = $itinStmt->fetch() ?: null;
+                if ($itinerary) {
+                    $builtQuote  = \App\Services\ItineraryQuoteBuilder::build($itinerary, $adults, $children, true, $travelDate, $country ?: null);
+                    $quoteTotals = \App\Services\ItineraryQuoteBuilder::totals($builtQuote['line_items']);
+                }
+            } catch (\Exception $e) { $itinerary = null; }
+        }
+        if ($quoteTotals) {
+            $total   = $quoteTotals['grand_total'];
+            $deposit = $quoteTotals['deposit'];
+        } else {
+            $price   = (float)($package['price_1pax'] ?? 0);
+            $total   = round($price * $travelers, 2);
+            $deposit = round($total * (DEPOSIT_PERCENT / 100), 2);
+        }
+
         try {
-            $cols = implode(',', array_map(fn($k)=>"`$k`", array_keys($data)));
-            $vals = implode(',', array_fill(0, count($data), '?'));
-            $db->prepare("INSERT INTO leads ($cols,created_at) VALUES ($vals,NOW())")
-               ->execute(array_values($data));
-            $newId = (int)$db->lastInsertId();
-            \App\Services\ActivityLog::record('create', 'lead', $newId, ['full_name'=>$data['full_name']]);
+            $db->beginTransaction();
+
+            $customerId = null;
+            try { $customerId = (new \App\Models\Customer())->findOrCreateByEmail($email, $fullName, $phone, $country ?: null); }
+            catch (\Exception $e) {}
+
+            $ref = generateBookingRef();
+            $db->prepare("
+                INSERT INTO bookings
+                    (booking_ref, customer_id, full_name, email, phone, travelers, adults, children,
+                     package_id, package_name, accommodation_level,
+                     travel_date, special_request, total_amount, deposit_amount,
+                     payment_status, payment_method, created_at)
+                VALUES
+                    (?,?,?,?,?,?,?,?, ?,?,?, ?,?,?,?, 'pending','agent_booking', NOW())
+            ")->execute([
+                $ref, $customerId, $fullName, $email, $phone, $travelers, $adults, $children,
+                $packageId, $package['name'], $accLevel,
+                $travelDate, $notes, $total, $deposit,
+            ]);
+            $bookingId = (int)$db->lastInsertId();
+
+            // Linked quotation — itemised when the package has a real
+            // itinerary (same builder api/book.php uses for public
+            // bookings), otherwise a single flat line so the agent's
+            // created_by still gives OwnershipScope something to derive
+            // ownership from regardless of which pricing path ran.
+            $quoteRef = 'SZV-Q' . strtoupper(bin2hex(random_bytes(4)));
+            $lineItems = $builtQuote['line_items'] ?? [[
+                'label' => $package['name'], 'qty' => $travelers, 'unit_price' => round($total / max(1,$travelers), 2), 'total' => $total,
+            ]];
+            $destinations = $builtQuote
+                ? array_values(array_unique(array_filter(array_map(fn($d) => $d['location'] ?? '', $builtQuote['day_titles']))))
+                : [];
+            $db->prepare("
+                INSERT INTO quotations
+                    (quote_ref, customer_id, package_id, package_name, itinerary_id, created_by,
+                     client_name, client_email, client_phone, client_country,
+                     adults, children, duration_days, start_date, destinations,
+                     accommodation_level, line_items, subtotal, grand_total,
+                     per_person, deposit_amount, balance_due, status, booking_ref,
+                     valid_until, sent_at, accepted_at, created_at)
+                VALUES
+                    (?,?,?,?,?,?, ?,?,?,?, ?,?,?,?,?, ?,?,?,?, ?,?,?, 'converted', ?,
+                     CURDATE(), NOW(), NOW(), NOW())
+            ")->execute([
+                $quoteRef, $customerId, $packageId, $package['name'], $package['itinerary_id'] ?? null, $myId,
+                $fullName, $email, $phone, $country,
+                $adults, $children, (int)($package['duration_days'] ?? 5), $travelDate, json_encode($destinations),
+                $accLevel, json_encode($lineItems), $quoteTotals['subtotal'] ?? $total, $total,
+                round($total / max(1,$travelers), 2), $deposit, $total - $deposit, $ref,
+            ]);
+            $quotationId = (int)$db->lastInsertId();
+            $db->prepare("UPDATE bookings SET quotation_id=? WHERE booking_ref=?")->execute([$quotationId, $ref]);
+
+            // Lead row, carried straight to 'booked' so the shared
+            // PipelineSync commission logic fires exactly as it would from
+            // a manual stage change in admin/leads.php.
+            $db->prepare("
+                INSERT INTO leads (full_name, email, phone, country, package_name, party_size,
+                                    travel_date, booking_value, booking_ref, pipeline_stage,
+                                    source, notes, agent_id, created_at)
+                VALUES (?,?,?,?,?,?, ?,?,?, 'lead', 'agent_direct_booking', ?, ?, NOW())
+            ")->execute([$fullName, $email, $phone, $country, $package['name'], $travelers,
+                         $travelDate, $total, $ref, $notes, $myId]);
+            $leadId = (int)$db->lastInsertId();
+
+            $db->commit();
+
+            $result = \App\Services\PipelineSync::setLeadStageManual($db, $leadId, 'booked', true, $myId);
+            \App\Services\ActivityLog::record('create', 'booking', $bookingId, ['booking_ref'=>$ref, 'via'=>'agent_portal', 'agent_id'=>$myId]);
+            echo json_encode(['success'=>true, 'booking_ref'=>$ref, 'commission_created'=>$result['commission_created'] ?? false]);
+        } catch (\Exception $e) {
+            if ($db->inTransaction()) $db->rollBack();
+            echo json_encode(['success'=>false,'message'=>'Error: '.$e->getMessage()]);
+        }
+        exit;
+    }
+
+    // Agent's client wants something bespoke — no pricing decided yet, so
+    // this lands in the same custom_safari_requests queue the public
+    // enquiry form feeds, tagged with submitted_by_agent_id (the one
+    // stored exception in OwnershipScope — see its class doc) so the agent
+    // keeps visibility of it even once an admin builds the quotation.
+    if ($action === 'add_custom_request') {
+        $fullName = trim($_POST['full_name'] ?? '');
+        $email    = trim($_POST['email']     ?? '');
+        if (!$fullName || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(['success'=>false,'message'=>'Client name and a valid email are required.']); exit;
+        }
+        $destinations = array_filter(array_map('trim', explode(',', trim($_POST['destinations'] ?? ''))));
+
+        $data = [
+            'full_name'              => $fullName,
+            'email'                  => $email,
+            'phone'                  => trim($_POST['phone'] ?? ''),
+            'country'                => trim($_POST['country'] ?? ''),
+            'adults'                 => max(1, (int)($_POST['adults']   ?? 2)),
+            'children'               => max(0, (int)($_POST['children'] ?? 0)),
+            'start_date'             => !empty($_POST['start_date']) ? $_POST['start_date'] : null,
+            'duration_days'          => max(1, (int)($_POST['duration_days'] ?? 7)),
+            'flexible_dates'         => !empty($_POST['flexible_dates']) ? 'Yes' : 'No',
+            'destinations'           => json_encode($destinations),
+            'total_budget'           => trim($_POST['total_budget'] ?? ''),
+            'message'                => trim($_POST['notes'] ?? ''),
+            'submitted_by_agent_id'  => $myId,
+        ];
+        try {
+            $newId = (new \App\Models\CustomSafariRequest())->create($data);
+            \App\Services\ActivityLog::record('create', 'custom_request', $newId, ['full_name'=>$fullName, 'via'=>'agent_portal', 'agent_id'=>$myId]);
+            try {
+                \App\Mail\Mailer::queue('custom_request_ack', array_merge($data, ['to_email'=>$email, 'to_name'=>$fullName]));
+                \App\Mail\Mailer::queueAdmin('custom_request_admin', $data);
+            } catch (\Exception $e) {}
             echo json_encode(['success'=>true,'id'=>$newId]);
-        } catch(\Exception $e) {
-            echo json_encode(['success'=>false,'message'=>$e->getMessage()]);
+        } catch (\Exception $e) {
+            echo json_encode(['success'=>false,'message'=>'Error: '.$e->getMessage()]);
         }
         exit;
     }
@@ -106,7 +249,7 @@ try {
 } catch(\Exception $e) {}
 
 $packages = [];
-try { $packages = $db->query("SELECT id,name FROM packages WHERE is_active=1 ORDER BY sort_order")->fetchAll(); }
+try { $packages = $db->query("SELECT id,name,price_1pax,duration_days FROM packages WHERE is_active=1 ORDER BY sort_order")->fetchAll(); }
 catch(\Exception $e) {}
 
 $pageTitle = 'My Leads';
@@ -128,7 +271,7 @@ ob_start();
     </a>
     <?php endforeach; ?>
   </div>
-  <button onclick="openAddModal()" class="admin-btn admin-btn--primary" style="font-size:.72rem">+ Add Lead</button>
+  <button onclick="openAddModal()" class="admin-btn admin-btn--primary" style="font-size:.72rem">+ New Client</button>
 </div>
 
 <!-- Leads Table -->
@@ -187,7 +330,7 @@ ob_start();
     </tr>
     <?php endforeach; ?>
     <?php if (empty($rows)): ?>
-    <tr><td colspan="9" class="admin-empty">No leads yet. Click "+ Add Lead" to add your first lead.</td></tr>
+    <tr><td colspan="9" class="admin-empty">No leads yet. Click "+ New Client" to book a package or submit a custom request.</td></tr>
     <?php endif; ?>
   </tbody>
 </table>
@@ -206,109 +349,216 @@ ob_start();
 </div>
 <?php endif; ?>
 
-<!-- ── Add Lead Modal ──────────────────────────────────────── -->
+<!-- ── New Client Modal — choose a path, then fill its form ─── -->
 <div id="addLeadModal" class="admin-modal-overlay">
-  <div class="admin-modal">
+  <div class="admin-modal" style="max-width:640px">
     <div class="admin-modal-header" style="position:sticky;top:0;background:var(--white);z-index:1">
-      <span class="admin-modal-title">Add New Lead</span>
+      <span class="admin-modal-title" id="nc-title">New Client</span>
       <button onclick="closeAddModal()" class="admin-icon-btn admin-modal-close"><?= \App\Helpers\AdminIcon::render('close', 18) ?></button>
     </div>
     <div class="admin-modal-body">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:.85rem">
-        <div>
-          <label class="admin-label">Full Name *</label>
-          <input id="lf-name" class="admin-input" placeholder="Jane Smith" required>
+
+      <!-- Screen 0 — choose the path -->
+      <div id="nc-screen-choice">
+        <p style="font-size:.82rem;color:var(--gray-500);margin:-.25rem 0 1.25rem;line-height:1.6">
+          What is this client looking for?
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:.85rem">
+          <?php if (AGENT_DIRECT_BOOKING_ENABLED): ?>
+          <button type="button" onclick="ncGoto('booking')" class="nc-choice-card">
+            <?= \App\Helpers\AdminIcon::render('bookings', 26) ?>
+            <strong>Direct Booking</strong>
+            <span>They already know which package, dates and party size — book it now.</span>
+          </button>
+          <?php endif; ?>
+          <button type="button" onclick="ncGoto('request')" class="nc-choice-card">
+            <?= \App\Helpers\AdminIcon::render('requests', 26) ?>
+            <strong>Custom Request</strong>
+            <span>They want something bespoke — send it to our team to quote.</span>
+          </button>
         </div>
-        <div>
-          <label class="admin-label">Email *</label>
-          <input id="lf-email" type="email" class="admin-input" placeholder="jane@email.com" required>
+        <?php if (!AGENT_DIRECT_BOOKING_ENABLED): ?>
+        <p style="font-size:.74rem;color:var(--gray-500);margin-top:.85rem">Direct booking is temporarily disabled — all clients go through Custom Request for now.</p>
+        <?php endif; ?>
+      </div>
+
+      <!-- Screen 1 — direct booking of an existing package -->
+      <div id="nc-screen-booking" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:.85rem">
+          <div>
+            <label class="admin-label">Client Full Name *</label>
+            <input id="db-name" class="admin-input" placeholder="Jane Smith" required>
+          </div>
+          <div>
+            <label class="admin-label">Email *</label>
+            <input id="db-email" type="email" class="admin-input" placeholder="jane@email.com" required>
+          </div>
+          <div>
+            <label class="admin-label">Phone (WhatsApp)</label>
+            <input id="db-phone" class="admin-input" placeholder="+44 7700 900000">
+          </div>
+          <div>
+            <label class="admin-label">Country</label>
+            <input id="db-country" class="admin-input" placeholder="United Kingdom">
+          </div>
+          <div>
+            <label class="admin-label">Package *</label>
+            <select id="db-package" class="admin-input" required onchange="ncUpdateEstimate()">
+              <option value="">— Select package —</option>
+              <?php foreach ($packages as $pkg): ?>
+              <option value="<?= (int)$pkg['id'] ?>" data-price="<?= $pkg['price_1pax'] ?>"><?= htmlspecialchars($pkg['name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div>
+            <label class="admin-label">Travel Date *</label>
+            <input id="db-travel-date" type="date" class="admin-input" min="<?= date('Y-m-d') ?>" style="font-family:monospace" required>
+          </div>
+          <div>
+            <label class="admin-label">Adults</label>
+            <input id="db-adults" type="number" min="1" max="20" value="2" class="admin-input" onchange="ncUpdateEstimate()">
+          </div>
+          <div>
+            <label class="admin-label">Children</label>
+            <input id="db-children" type="number" min="0" max="20" value="0" class="admin-input" onchange="ncUpdateEstimate()">
+          </div>
+          <div>
+            <label class="admin-label">Accommodation Level</label>
+            <select id="db-acc-level" class="admin-input">
+              <option value="budget">Budget</option>
+              <option value="midrange" selected>Mid-range</option>
+              <option value="highend">High-end</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label class="admin-label">Phone (WhatsApp)</label>
-          <input id="lf-phone" class="admin-input" placeholder="+44 7700 900000">
+        <div id="db-estimate" style="font-size:.78rem;color:var(--gray-500);margin-bottom:1rem;display:none"></div>
+        <div style="margin-bottom:1.25rem">
+          <label class="admin-label">Special Requests</label>
+          <textarea id="db-notes" class="admin-input" rows="3" placeholder="Anything our team should know before confirming..."></textarea>
         </div>
-        <div>
-          <label class="admin-label">Country</label>
-          <input id="lf-country" class="admin-input" placeholder="United Kingdom">
-        </div>
-        <div>
-          <label class="admin-label">Travel Date</label>
-          <input id="lf-travel-date" type="date" class="admin-input"
-                 min="<?= date('Y-m-d') ?>" style="font-family:monospace">
-        </div>
-        <div>
-          <label class="admin-label">Party Size (Adults)</label>
-          <input id="lf-adults" type="number" min="1" max="20" value="2" class="admin-input">
-        </div>
-        <div>
-          <label class="admin-label">Package Interest</label>
-          <select id="lf-package" class="admin-input">
-            <option value="">— Select package —</option>
-            <?php foreach ($packages as $pkg): ?>
-            <option value="<?= htmlspecialchars($pkg['name']) ?>"><?= htmlspecialchars($pkg['name']) ?></option>
-            <?php endforeach; ?>
-            <option value="Custom Safari">Custom Safari</option>
-          </select>
-        </div>
-        <div>
-          <label class="admin-label">Budget Range (USD)</label>
-          <select id="lf-budget" class="admin-input">
-            <option value="">— Select range —</option>
-            <option value="Under $1,000">Under $1,000</option>
-            <option value="$1,000 – $2,000">$1,000 – $2,000</option>
-            <option value="$2,000 – $3,500">$2,000 – $3,500</option>
-            <option value="$3,500 – $5,000">$3,500 – $5,000</option>
-            <option value="$5,000 – $8,000">$5,000 – $8,000</option>
-            <option value="$8,000+">$8,000+</option>
-            <option value="Flexible">Flexible / Unknown</option>
-          </select>
-        </div>
-        <div>
-          <label class="admin-label">Lead Source</label>
-          <select id="lf-source" class="admin-input">
-            <option value="website">Website</option>
-            <option value="whatsapp">WhatsApp</option>
-            <option value="email">Email Enquiry</option>
-            <option value="referral">Referral</option>
-            <option value="instagram">Instagram</option>
-            <option value="facebook">Facebook</option>
-            <option value="safariBookings">SafariBookings.com</option>
-            <option value="tripadvisor">TripAdvisor</option>
-            <option value="google">Google Search</option>
-            <option value="other">Other</option>
-          </select>
+        <div style="display:flex;gap:.5rem">
+          <button onclick="ncBack()" class="admin-btn admin-btn--outline">← Back</button>
+          <button onclick="submitDirectBooking()" class="admin-btn admin-btn--primary">Submit Booking</button>
+          <span id="db-status" style="font-size:.78rem;color:var(--gray-500);display:flex;align-items:center;margin-left:.5rem"></span>
         </div>
       </div>
-      <div style="margin-bottom:1.25rem">
-        <label class="admin-label">Notes</label>
-        <textarea id="lf-notes" class="admin-input" rows="3" placeholder="Any additional details about this lead..."></textarea>
+
+      <!-- Screen 2 — custom safari request -->
+      <div id="nc-screen-request" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:.85rem">
+          <div>
+            <label class="admin-label">Client Full Name *</label>
+            <input id="cr-name" class="admin-input" placeholder="Jane Smith" required>
+          </div>
+          <div>
+            <label class="admin-label">Email *</label>
+            <input id="cr-email" type="email" class="admin-input" placeholder="jane@email.com" required>
+          </div>
+          <div>
+            <label class="admin-label">Phone (WhatsApp)</label>
+            <input id="cr-phone" class="admin-input" placeholder="+44 7700 900000">
+          </div>
+          <div>
+            <label class="admin-label">Country</label>
+            <input id="cr-country" class="admin-input" placeholder="United Kingdom">
+          </div>
+          <div>
+            <label class="admin-label">Destinations</label>
+            <input id="cr-destinations" class="admin-input" placeholder="Serengeti, Zanzibar, Ngorongoro">
+          </div>
+          <div>
+            <label class="admin-label">Preferred Start Date</label>
+            <input id="cr-start-date" type="date" class="admin-input" min="<?= date('Y-m-d') ?>" style="font-family:monospace">
+          </div>
+          <div>
+            <label class="admin-label">Duration (days)</label>
+            <input id="cr-duration" type="number" min="1" max="60" value="7" class="admin-input">
+          </div>
+          <div>
+            <label class="admin-label">Adults</label>
+            <input id="cr-adults" type="number" min="1" max="20" value="2" class="admin-input">
+          </div>
+          <div>
+            <label class="admin-label">Children</label>
+            <input id="cr-children" type="number" min="0" max="20" value="0" class="admin-input">
+          </div>
+          <div>
+            <label class="admin-label">Budget Range (USD)</label>
+            <select id="cr-budget" class="admin-input">
+              <option value="">— Select range —</option>
+              <option value="Under $1,000">Under $1,000</option>
+              <option value="$1,000 – $2,000">$1,000 – $2,000</option>
+              <option value="$2,000 – $3,500">$2,000 – $3,500</option>
+              <option value="$3,500 – $5,000">$3,500 – $5,000</option>
+              <option value="$5,000 – $8,000">$5,000 – $8,000</option>
+              <option value="$8,000+">$8,000+</option>
+              <option value="Flexible">Flexible / Unknown</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:center;gap:.4rem;margin-top:1.3rem">
+            <input id="cr-flexible" type="checkbox">
+            <label for="cr-flexible" style="font-size:.78rem;color:var(--gray-700);cursor:pointer">Dates are flexible</label>
+          </div>
+        </div>
+        <div style="margin-bottom:1.25rem">
+          <label class="admin-label">What are they looking for?</label>
+          <textarea id="cr-notes" class="admin-input" rows="3" placeholder="Describe what the client wants — experiences, pace, special occasions..."></textarea>
+        </div>
+        <div style="display:flex;gap:.5rem">
+          <button onclick="ncBack()" class="admin-btn admin-btn--outline">← Back</button>
+          <button onclick="submitCustomRequest()" class="admin-btn admin-btn--primary">Send Request</button>
+          <span id="cr-status" style="font-size:.78rem;color:var(--gray-500);display:flex;align-items:center;margin-left:.5rem"></span>
+        </div>
       </div>
-      <div style="display:flex;gap:.5rem">
-        <button onclick="submitAddLead()" class="admin-btn admin-btn--primary">Save Lead</button>
-        <button onclick="closeAddModal()" class="admin-btn admin-btn--outline">Cancel</button>
-        <span id="lf-status" style="font-size:.78rem;color:var(--gray-500);display:flex;align-items:center;margin-left:.5rem"></span>
-      </div>
+
     </div>
   </div>
 </div>
 
 <div id="toastContainer" class="toast-container"></div>
 
+<style>
+.nc-choice-card {
+  display:flex; flex-direction:column; align-items:flex-start; gap:.5rem;
+  text-align:left; padding:1.1rem; border:1.5px solid var(--gray-200);
+  background:var(--gray-50); cursor:pointer; border-radius:var(--radius);
+  font-family:inherit; transition:border-color .15s,background .15s;
+}
+.nc-choice-card:hover { border-color:var(--gold); background:var(--gray-100); }
+.nc-choice-card strong { font-size:.88rem; color:var(--black); }
+.nc-choice-card span { font-size:.74rem; color:var(--gray-500); line-height:1.5; }
+</style>
+
 <script>
 var STAGE_COLORS = <?= json_encode($stageColors) ?>;
 
+var NC_SCREENS = ['choice', 'booking', 'request'];
+var NC_TITLES  = {choice: 'New Client', booking: 'Direct Booking', request: 'Custom Request'};
+
 function openAddModal() {
     document.getElementById('addLeadModal').classList.add('open');
-    document.getElementById('lf-name').focus();
+    ncGoto('choice');
 }
 function closeAddModal() {
     document.getElementById('addLeadModal').classList.remove('open');
-    ['lf-name','lf-email','lf-phone','lf-country','lf-notes'].forEach(function(id){
-        var el = document.getElementById(id); if(el) el.value='';
+    ['db-name','db-email','db-phone','db-country','db-package','db-notes',
+     'cr-name','cr-email','cr-phone','cr-country','cr-destinations','cr-notes','cr-budget'].forEach(function(id){
+        var el = document.getElementById(id); if (el) el.value = '';
     });
-    document.getElementById('lf-travel-date').value = '';
-    document.getElementById('lf-adults').value = 2;
+    ['db-travel-date','cr-start-date'].forEach(function(id){ document.getElementById(id).value = ''; });
+    document.getElementById('db-adults').value   = 2;
+    document.getElementById('db-children').value = 0;
+    document.getElementById('cr-adults').value   = 2;
+    document.getElementById('cr-children').value = 0;
+    document.getElementById('cr-duration').value = 7;
+    document.getElementById('cr-flexible').checked = false;
+    document.getElementById('db-estimate').style.display = 'none';
 }
+function ncGoto(screen) {
+    NC_SCREENS.forEach(function(s){ document.getElementById('nc-screen-' + s).style.display = (s===screen) ? '' : 'none'; });
+    document.getElementById('nc-title').textContent = NC_TITLES[screen];
+}
+function ncBack() { ncGoto('choice'); }
 document.getElementById('addLeadModal').addEventListener('click', function(e){
     if(e.target === this) closeAddModal();
 });
@@ -316,40 +566,91 @@ document.addEventListener('keydown', function(e){
     if(e.key==='Escape') closeAddModal();
 });
 
-async function submitAddLead() {
-    var status = document.getElementById('lf-status');
-    var name   = document.getElementById('lf-name').value.trim();
-    var email  = document.getElementById('lf-email').value.trim();
-    if (!name || !email) { status.textContent='Name and email required.'; status.style.color='var(--red)'; return; }
+function ncUpdateEstimate() {
+    var sel  = document.getElementById('db-package');
+    var opt  = sel.options[sel.selectedIndex];
+    var box  = document.getElementById('db-estimate');
+    var price = opt ? parseFloat(opt.dataset.price || '0') : 0;
+    if (!price) { box.style.display = 'none'; return; }
+    var travelers = (parseInt(document.getElementById('db-adults').value)||0) + (parseInt(document.getElementById('db-children').value)||0);
+    box.style.display = '';
+    box.textContent = 'Estimated from $' + price.toFixed(2) + ' per person — exact total is calculated on submit.';
+}
 
-    status.textContent = 'Saving…'; status.style.color='var(--gray-500)';
+async function submitDirectBooking() {
+    var status = document.getElementById('db-status');
+    var name    = document.getElementById('db-name').value.trim();
+    var email   = document.getElementById('db-email').value.trim();
+    var pkg     = document.getElementById('db-package').value;
+    var date    = document.getElementById('db-travel-date').value;
+    if (!name || !email || !pkg || !date) {
+        status.textContent = 'Name, email, package and travel date are required.'; status.style.color = 'var(--red)'; return;
+    }
+    status.textContent = 'Submitting…'; status.style.color = 'var(--gray-500)';
     var fd = new FormData();
-    fd.append('action',           'add_lead');
+    fd.append('action',               'add_direct_booking');
+    fd.append('full_name',            name);
+    fd.append('email',                email);
+    fd.append('phone',                document.getElementById('db-phone').value);
+    fd.append('country',              document.getElementById('db-country').value);
+    fd.append('package_id',           pkg);
+    fd.append('travel_date',          date);
+    fd.append('adults',               document.getElementById('db-adults').value);
+    fd.append('children',             document.getElementById('db-children').value);
+    fd.append('accommodation_level',  document.getElementById('db-acc-level').value);
+    fd.append('notes',                document.getElementById('db-notes').value);
+    fd.append('_csrf',                window.CSRF_TOKEN || '');
+
+    try {
+        var r = await fetch('leads.php', {method:'POST', body:fd});
+        var d = await r.json();
+        if (d.success) {
+            toast('Booking ' + d.booking_ref + ' sent to admin for processing' + (d.commission_created ? ' — commission created' : ''), 'ok');
+            closeAddModal();
+            setTimeout(function(){ window.location.reload(); }, 900);
+        } else {
+            status.textContent = d.message || 'Error submitting booking.'; status.style.color = 'var(--red)';
+        }
+    } catch(e) {
+        status.textContent = 'Network error.'; status.style.color = 'var(--red)';
+    }
+}
+
+async function submitCustomRequest() {
+    var status = document.getElementById('cr-status');
+    var name   = document.getElementById('cr-name').value.trim();
+    var email  = document.getElementById('cr-email').value.trim();
+    if (!name || !email) { status.textContent = 'Name and email are required.'; status.style.color = 'var(--red)'; return; }
+
+    status.textContent = 'Sending…'; status.style.color = 'var(--gray-500)';
+    var fd = new FormData();
+    fd.append('action',           'add_custom_request');
     fd.append('full_name',        name);
     fd.append('email',            email);
-    fd.append('phone',            document.getElementById('lf-phone').value);
-    fd.append('country',          document.getElementById('lf-country').value);
-    fd.append('travel_date',      document.getElementById('lf-travel-date').value);
-    fd.append('adults',           document.getElementById('lf-adults').value);
-    fd.append('package_name',     document.getElementById('lf-package').value);
-    fd.append('budget_range',     document.getElementById('lf-budget').value);
-    fd.append('source',           document.getElementById('lf-source').value);
-    fd.append('notes',            document.getElementById('lf-notes').value);
+    fd.append('phone',            document.getElementById('cr-phone').value);
+    fd.append('country',          document.getElementById('cr-country').value);
+    fd.append('destinations',     document.getElementById('cr-destinations').value);
+    fd.append('start_date',       document.getElementById('cr-start-date').value);
+    fd.append('duration_days',    document.getElementById('cr-duration').value);
+    fd.append('adults',           document.getElementById('cr-adults').value);
+    fd.append('children',         document.getElementById('cr-children').value);
+    fd.append('flexible_dates',   document.getElementById('cr-flexible').checked ? '1' : '');
+    fd.append('total_budget',     document.getElementById('cr-budget').value);
+    fd.append('notes',            document.getElementById('cr-notes').value);
     fd.append('_csrf',            window.CSRF_TOKEN || '');
 
     try {
         var r = await fetch('leads.php', {method:'POST', body:fd});
         var d = await r.json();
         if (d.success) {
-            toast('Lead added', 'ok');
+            toast('Custom request sent to admin for a proposal', 'ok');
             closeAddModal();
-            setTimeout(function(){ window.location.reload(); }, 800);
+            setTimeout(function(){ window.location.reload(); }, 900);
         } else {
-            status.textContent = d.message || 'Error saving lead.';
-            status.style.color = 'var(--red)';
+            status.textContent = d.message || 'Error sending request.'; status.style.color = 'var(--red)';
         }
     } catch(e) {
-        status.textContent = 'Network error.'; status.style.color='var(--red)';
+        status.textContent = 'Network error.'; status.style.color = 'var(--red)';
     }
 }
 

@@ -6,11 +6,14 @@ use App\Middleware\AuthMiddleware;
 /**
  * Single source of truth for "which records does this agent own".
  *
- * Ownership is derived, not stored, because bookings and custom safari
- * requests have no owner column of their own:
+ * Ownership is mostly derived, not stored, because bookings and custom
+ * safari requests have no owner column of their own:
  *  - a booking belongs to the agent who created its quotation, or the
  *    agent holding a commission on it;
- *  - a custom request belongs to the agent who created a quotation from it.
+ *  - a custom request belongs to the agent who created a quotation from it,
+ *    OR — the one stored exception, for a request an agent submits directly
+ *    from the agent portal before any quotation exists to derive from —
+ *    whoever is stamped in its submitted_by_agent_id column.
  *
  * Staff, admin and superadmin are never scoped here — callers should use
  * isScoped() first and only apply these checks for agents.
@@ -50,16 +53,22 @@ class OwnershipScope
     public static function customRequestsListSql(int $agentId): array
     {
         return [
-            "custom_safari_requests.id IN (SELECT custom_request_id FROM quotations WHERE created_by = ? AND custom_request_id IS NOT NULL)",
-            [$agentId],
+            "(custom_safari_requests.submitted_by_agent_id = ?
+              OR custom_safari_requests.id IN (SELECT custom_request_id FROM quotations WHERE created_by = ? AND custom_request_id IS NOT NULL))",
+            [$agentId, $agentId],
         ];
     }
 
     /** True if the given custom request id belongs to the agent. */
     public static function ownsCustomRequest(\PDO $db, int $requestId, int $agentId): bool
     {
-        $stmt = $db->prepare("SELECT 1 FROM quotations WHERE custom_request_id = ? AND created_by = ? LIMIT 1");
-        $stmt->execute([$requestId, $agentId]);
+        $stmt = $db->prepare("
+            SELECT 1 FROM custom_safari_requests
+            WHERE id = ? AND (submitted_by_agent_id = ?
+                OR id IN (SELECT custom_request_id FROM quotations WHERE created_by = ? AND custom_request_id IS NOT NULL))
+            LIMIT 1
+        ");
+        $stmt->execute([$requestId, $agentId, $agentId]);
         return (bool)$stmt->fetchColumn();
     }
 

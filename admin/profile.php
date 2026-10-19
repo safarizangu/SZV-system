@@ -61,17 +61,18 @@ $roleLabels = ['superadmin' => 'Super Admin', 'admin' => 'Admin', 'staff' => 'St
 $pageTitle = 'My Profile';
 ob_start();
 ?>
-<div style="max-width:620px">
-  <?php if ($msg): ?>
-  <div class="admin-alert admin-alert--success"><?= htmlspecialchars($msg) ?></div>
-  <?php endif; ?>
-  <?php if ($error): ?>
-  <div class="admin-alert admin-alert--error"><?= htmlspecialchars($error) ?></div>
-  <?php endif; ?>
+<?php if ($msg): ?>
+<div class="admin-alert admin-alert--success"><?= htmlspecialchars($msg) ?></div>
+<?php endif; ?>
+<?php if ($error): ?>
+<div class="admin-alert admin-alert--error"><?= htmlspecialchars($error) ?></div>
+<?php endif; ?>
 
-  <div class="admin-card" style="margin-bottom:1.25rem">
+<div style="display:flex;flex-direction:column;gap:1.25rem">
+
+  <div class="admin-card">
     <div class="admin-card-body" style="display:flex;align-items:center;gap:1rem">
-      <span style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:var(--black);color:var(--white);font-size:1.1rem;font-weight:700">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:var(--black);color:var(--white);font-size:1.1rem;font-weight:700;flex-shrink:0">
         <?= htmlspecialchars($initials ?: 'A') ?>
       </span>
       <div>
@@ -89,21 +90,23 @@ ob_start();
     <div class="admin-card-body">
       <form method="POST">
         <?= \App\Middleware\CsrfMiddleware::field() ?>
-        <div class="admin-form-group">
-          <label class="admin-label">Full Name</label>
-          <input name="full_name" class="admin-input" required value="<?= htmlspecialchars($user['full_name'] ?? '') ?>">
-        </div>
-        <div class="admin-form-group">
-          <label class="admin-label">Email</label>
-          <input type="email" name="email" class="admin-input" required value="<?= htmlspecialchars($user['email'] ?? '') ?>">
-        </div>
-        <div class="admin-form-group">
-          <label class="admin-label">Phone</label>
-          <input name="phone" class="admin-input" value="<?= htmlspecialchars($user['phone'] ?? '') ?>">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:1rem">
+          <div class="admin-form-group">
+            <label class="admin-label">Full Name</label>
+            <input name="full_name" class="admin-input" required value="<?= htmlspecialchars($user['full_name'] ?? '') ?>">
+          </div>
+          <div class="admin-form-group">
+            <label class="admin-label">Email</label>
+            <input type="email" name="email" class="admin-input" required value="<?= htmlspecialchars($user['email'] ?? '') ?>">
+          </div>
+          <div class="admin-form-group">
+            <label class="admin-label">Phone</label>
+            <input name="phone" class="admin-input" value="<?= htmlspecialchars($user['phone'] ?? '') ?>">
+          </div>
         </div>
         <div class="admin-form-group">
           <label class="admin-label">Bio</label>
-          <textarea name="bio" class="admin-input" rows="3"><?= htmlspecialchars($user['bio'] ?? '') ?></textarea>
+          <textarea name="bio" class="admin-input" rows="3" style="max-width:640px"><?= htmlspecialchars($user['bio'] ?? '') ?></textarea>
         </div>
         <div style="display:flex;gap:.75rem;margin-top:1.25rem">
           <button type="submit" class="admin-btn admin-btn--primary">Save Changes</button>
@@ -113,9 +116,9 @@ ob_start();
     </div>
   </div>
 
-  <div class="admin-card" style="margin-top:1.25rem">
+  <div class="admin-card">
     <div class="admin-card-header"><h3>Account Info</h3></div>
-    <div class="admin-card-body" style="display:flex;flex-direction:column;gap:.6rem;font-size:.82rem">
+    <div class="admin-card-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:.75rem 1.5rem;font-size:.82rem">
       <div class="detail-row"><span class="detail-label">Username</span><span>@<?= htmlspecialchars($user['username']) ?></span></div>
       <div class="detail-row"><span class="detail-label">Role</span><span><?= htmlspecialchars($roleLabels[$user['role']] ?? $user['role']) ?></span></div>
       <?php if ($user['role'] === 'agent'): ?>
@@ -129,7 +132,7 @@ ob_start();
     </div>
   </div>
 
-  <div class="admin-card" style="margin-top:1.25rem">
+  <div class="admin-card">
     <div class="admin-card-body" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
       <div>
         <div style="font-weight:600;font-size:.85rem">Password</div>
@@ -138,6 +141,7 @@ ob_start();
       <a href="change_password.php" class="admin-btn admin-btn--outline">Change Password →</a>
     </div>
   </div>
+
 </div>
 <?php
 $content = ob_get_clean();

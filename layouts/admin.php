@@ -78,8 +78,11 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
     // Profitability, Customer Experience, Agent Performance) moved into
     // Analytics/Agent below instead of sharing a group with the overview.
     // analytics.php (Web Analytics), operations_calendar.php (Ops
-    // Calendar) and dashboard_operations.php (Operations dashboard
-    // widget) and dashboard_fleet.php (Suppliers & Fleet widget) were
+    // Calendar), dashboard_operations.php (Operations dashboard
+    // widget), dashboard_fleet.php (Suppliers & Fleet widget) and
+    // room_availability.php (Room Availability, formerly its own "Field
+    // Operations" group alongside Incidents/Emergency Contacts — those two
+    // moved into Operations/Catalog below, this one dropped) were
     // deliberately left out of the requested structure — the pages still
     // exist and work, they're just not linked from the sidebar anymore.
     // Group membership here is load-bearing for the role filter below —
@@ -96,6 +99,7 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
         ['invoices.php',         'Invoices',         'invoices', ''],
         ['customers.php',        'Customers',        'customers', ''],
         ['contact_messages.php', 'Messages',         'messages', $unreadCount > 0 ? $unreadCount : ''],
+        ['incidents.php',         'Incidents',        'incident', $openIncidents > 0 ? $openIncidents : ''],
       ],
       'Communications' => [
         ['email_templates.php', 'Email Templates',   'email-template', ''],
@@ -108,10 +112,8 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
         ['accommodations.php',   'Accommodations',   'accommodations', ''],
         ['activities.php',       'Activities',       'activities', ''],
         ['vehicles.php',         'Fleet',            'fleet', ''],
-      ],
-      'Field Operations' => [
-        ['room_availability.php', 'Room Availability', 'inventory', ''],
-        ['incidents.php',         'Incidents',        'incident', $openIncidents > 0 ? $openIncidents : ''],
+        ['park_fees.php',        'Park Fees',        'park-fees', ''],
+        ['seasonal_rates.php',   'Seasons',          'seasons', ''],
         ['emergency_contacts.php', 'Emergency Contacts', 'alert', ''],
       ],
       'People &amp; Partners' => [
@@ -135,8 +137,6 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
       ],
       'Settings' => [
         ['settings.php',          'General',          'moon', ''],
-        ['park_fees.php',        'Park Fees',        'park-fees', ''],
-        ['seasonal_rates.php',   'Seasons',          'seasons', ''],
         ['currency_rates.php',   'Currencies',       'currency', ''],
         ['users.php',             'Users',            'users', ''],
         ['activity_log.php',      'Activity Log',     'clock', ''],
@@ -160,6 +160,11 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
         $groups['Agent']     = array_values(array_filter($groups['Agent'], fn($l) => $l[0] !== 'dashboard_agents.php'));
     }
     if ($myNavRole === 'agent') {
+        // Incidents now lives in Operations (moved from the old Field
+        // Operations group) but admin/incidents.php still denies agents
+        // server-side — same "no dead link" reasoning as Profitability/
+        // Agent Performance above.
+        $groups['Operations'] = array_values(array_filter($groups['Operations'], fn($l) => $l[0] !== 'incidents.php'));
         $groups = [
             'Dashboard'  => $groups['Dashboard'],
             'Operations' => $groups['Operations'],
@@ -195,9 +200,9 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
   </nav>
 
   <div class="admin-sidebar-footer">
-    <a href="<?= BASE_PATH ?>/" target="_blank" class="admin-nav-link"><span class="admin-nav-icon"><?= \App\Helpers\AdminIcon::render('external-link', 15) ?></span> View Site</a>
-    <a href="change_password.php" class="admin-nav-link"><span class="admin-nav-icon"><?= \App\Helpers\AdminIcon::render('key', 15) ?></span> Change Password</a>
-    <a href="logout.php" class="admin-nav-link admin-nav-link--danger"><span class="admin-nav-icon"><?= \App\Helpers\AdminIcon::render('logout', 15) ?></span> Sign Out</a>
+    <a href="logout.php" class="admin-signout-btn">
+      <span class="admin-nav-icon"><?= \App\Helpers\AdminIcon::render('logout', 15) ?></span> Sign Out
+    </a>
   </div>
 </aside>
 
@@ -332,32 +337,44 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
   });
 })();
 
-// ── Collapsible nav groups ───────────────────────────────────
-// Per-group state remembered across page loads (this is a classic
-// multi-page app, not an SPA, so without this every navigation would
-// reset every group back open). The group containing the current page
-// is always forced open regardless of saved state — collapsing the
-// section you're currently in would hide where you are.
+// ── Collapsible nav groups (accordion — one open at a time) ──
+// Remembers which single *non-active* group was last opened by choice,
+// across page loads (this is a classic multi-page app, not an SPA, so
+// without this every navigation would reset the nav back to all-closed).
+// The group containing the current page is always forced open regardless
+// of that — collapsing the section you're currently in would hide where
+// you are.
 //
-// Default (no saved preference yet) is COLLAPSED, not expanded: with
+// Storage is deliberately a single "which group is open" key, not a
+// per-group map — a per-group map goes stale the moment a group is
+// active (and therefore force-open without ever writing its own state),
+// then later stops being active: its last manually-saved state (possibly
+// "expanded", from before it was ever active) would incorrectly win and
+// leave it open even though neither active nor most-recently chosen.
+// A single key can't go stale like that — a group is open only if its
+// key is the exact one most recently chosen, full stop.
+//
+// Default (nothing chosen yet) is every non-active group COLLAPSED: with
 // 7 groups and dozens of links, having them all open at once is taller
 // than the viewport, so the lower groups end up scrolled out of view
 // with no visible scrollbar hint — they look missing, not just hidden
-// below the fold. Starting collapsed means everything on screen is
-// fully visible; the user opens only the section(s) they need.
+// below the fold.
 (function () {
-  var STORE_KEY = 'szv_admin_nav_collapsed';
+  var STORE_KEY = 'szv_admin_nav_open_group';
 
-  function readState() {
-    try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); }
-    catch (e) { return {}; }
+  function readOpenKey() {
+    try { return localStorage.getItem(STORE_KEY); }
+    catch (e) { return null; }
   }
-  function writeState(state) {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
-    catch (e) { /* private-window / storage blocked — collapsing just won't persist */ }
+  function writeOpenKey(key) {
+    try {
+      if (key) localStorage.setItem(STORE_KEY, key);
+      else localStorage.removeItem(STORE_KEY);
+    } catch (e) { /* private-window / storage blocked — collapsing just won't persist */ }
   }
 
-  var state = readState();
+  var openKey = readOpenKey();
+  var groups  = [];
 
   document.querySelectorAll('.admin-nav-group').forEach(function (btn) {
     var key   = btn.getAttribute('data-group');
@@ -365,20 +382,37 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
     if (!items) return;
 
     var hasActive = items.getAttribute('data-has-active') === '1';
-    var saved     = Object.prototype.hasOwnProperty.call(state, key) ? state[key] : true;
-    var collapsed = !hasActive && saved === true;
+    var collapsed = !hasActive && key !== openKey;
 
     if (collapsed) {
       items.classList.add('collapsed');
       btn.setAttribute('aria-expanded', 'false');
     }
 
-    btn.addEventListener('click', function () {
-      if (hasActive) return; // never let the current page's own group be hidden
-      var nowCollapsed = items.classList.toggle('collapsed');
-      btn.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
-      state[key] = nowCollapsed;
-      writeState(state);
+    groups.push({ btn: btn, items: items, key: key, hasActive: hasActive });
+  });
+
+  groups.forEach(function (g) {
+    g.btn.addEventListener('click', function () {
+      if (g.hasActive) return; // never let the current page's own group be hidden by its own click
+
+      var opening = g.items.classList.contains('collapsed');
+
+      // Selecting a new group to browse hides whichever one was
+      // previously open that way — only the active group (handled
+      // separately above) is exempt from this.
+      if (opening) {
+        groups.forEach(function (other) {
+          if (other === g || other.hasActive) return;
+          other.items.classList.add('collapsed');
+          other.btn.setAttribute('aria-expanded', 'false');
+        });
+      }
+
+      var nowCollapsed = g.items.classList.toggle('collapsed');
+      g.btn.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
+      openKey = nowCollapsed ? null : g.key;
+      writeOpenKey(openKey);
     });
   });
 })();

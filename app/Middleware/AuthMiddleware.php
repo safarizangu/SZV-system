@@ -9,9 +9,9 @@ class AuthMiddleware
             header('Location: ' . APP_URL . '/admin/login.php?reason=required');
             exit;
         }
-        // Session timeout: 30 minutes of inactivity
+        // Session timeout — admin/settings.php's Security card (SESSION_TIMEOUT_MINUTES)
         if (isset($_SESSION['admin_last_active'])
-            && (time() - $_SESSION['admin_last_active']) > 1800) {
+            && (time() - $_SESSION['admin_last_active']) > SESSION_TIMEOUT_MINUTES * 60) {
             session_destroy();
             session_start();
             header('Location: ' . APP_URL . '/admin/login.php?reason=timeout');
@@ -30,7 +30,7 @@ class AuthMiddleware
             exit;
         }
         if (isset($_SESSION['admin_last_active'])
-            && (time() - $_SESSION['admin_last_active']) > 1800) {
+            && (time() - $_SESSION['admin_last_active']) > SESSION_TIMEOUT_MINUTES * 60) {
             session_destroy();
             session_start();
             header('Location: ' . APP_URL . '/agent-portal/login.php?reason=timeout');

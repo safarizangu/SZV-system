@@ -26,6 +26,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     cs_respond(['success' => false, 'message' => 'Method not allowed.']);
 }
 
+// Platform Controls → Maintenance Mode (admin/settings.php)
+if (MAINTENANCE_MODE) {
+    cs_respond(['success' => false, 'message' => "We're temporarily updating our booking system. Please WhatsApp us directly, or try again shortly."]);
+}
+
 try {
     RateLimiter::enforceOrDie('custom_safari', 5, 3600);
 } catch (\Exception $e) {

@@ -28,8 +28,8 @@ class BookingValidator
         if ($adults < 1 || $adults > 50) {
             $this->errors['adults'] = 'Please select at least 1 adult (max 50).';
         }
-        if ($travelers < 1 || $travelers > 60) {
-            $this->errors['travelers'] = 'Total travelers must be between 1 and 60.';
+        if ($travelers < 1 || $travelers > MAX_PARTY_SIZE) {
+            $this->errors['travelers'] = 'Total travelers must be between 1 and ' . MAX_PARTY_SIZE . '.';
         }
 
         if (empty($data['travel_date'])) {

@@ -61,9 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_password'])) {
 $pageTitle = 'My Profile';
 ob_start();
 ?>
-<div style="max-width:520px">
+<div style="display:flex;flex-direction:column;gap:1.25rem">
 
-  <div class="admin-card" style="margin-bottom:1.25rem">
+  <div class="admin-card">
     <div class="admin-card-header"><h3>Profile Details</h3></div>
     <div class="admin-card-body">
       <?php if ($msg): ?><div class="admin-alert admin-alert--success"><?= htmlspecialchars($msg) ?></div><?php endif; ?>
@@ -71,25 +71,27 @@ ob_start();
       <form method="POST">
         <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="update_profile" value="1">
-        <div class="admin-form-group" style="margin-bottom:1rem">
-          <label class="admin-label">Username</label>
-          <input class="admin-input" value="<?= htmlspecialchars($me['username']) ?>" disabled style="opacity:.6">
-        </div>
-        <div class="admin-form-group" style="margin-bottom:1rem">
-          <label class="admin-label">Email</label>
-          <input class="admin-input" value="<?= htmlspecialchars($me['email'] ?? '') ?>" disabled style="opacity:.6">
-        </div>
-        <div class="admin-form-group" style="margin-bottom:1rem">
-          <label class="admin-label">Full Name *</label>
-          <input name="full_name" class="admin-input" required value="<?= htmlspecialchars($me['full_name'] ?? '') ?>">
-        </div>
-        <div class="admin-form-group" style="margin-bottom:1rem">
-          <label class="admin-label">Phone (WhatsApp)</label>
-          <input name="phone" class="admin-input" value="<?= htmlspecialchars($me['phone'] ?? '') ?>" placeholder="+255 7XX XXX XXX">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:1rem;margin-bottom:1rem">
+          <div class="admin-form-group" style="margin-bottom:0">
+            <label class="admin-label">Username</label>
+            <input class="admin-input" value="<?= htmlspecialchars($me['username']) ?>" disabled style="opacity:.6">
+          </div>
+          <div class="admin-form-group" style="margin-bottom:0">
+            <label class="admin-label">Email</label>
+            <input class="admin-input" value="<?= htmlspecialchars($me['email'] ?? '') ?>" disabled style="opacity:.6">
+          </div>
+          <div class="admin-form-group" style="margin-bottom:0">
+            <label class="admin-label">Full Name *</label>
+            <input name="full_name" class="admin-input" required value="<?= htmlspecialchars($me['full_name'] ?? '') ?>">
+          </div>
+          <div class="admin-form-group" style="margin-bottom:0">
+            <label class="admin-label">Phone (WhatsApp)</label>
+            <input name="phone" class="admin-input" value="<?= htmlspecialchars($me['phone'] ?? '') ?>" placeholder="+255 7XX XXX XXX">
+          </div>
         </div>
         <div class="admin-form-group" style="margin-bottom:1.25rem">
           <label class="admin-label">Bio</label>
-          <textarea name="bio" class="admin-input" rows="3" placeholder="A short note about yourself (optional)"><?= htmlspecialchars($me['bio'] ?? '') ?></textarea>
+          <textarea name="bio" class="admin-input" rows="3" placeholder="A short note about yourself (optional)" style="max-width:640px"><?= htmlspecialchars($me['bio'] ?? '') ?></textarea>
         </div>
         <button type="submit" class="admin-btn admin-btn--primary">Save Changes</button>
       </form>
@@ -104,19 +106,21 @@ ob_start();
       <form method="POST">
         <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="update_password" value="1">
-        <div class="admin-form-group" style="margin-bottom:1rem">
-          <label class="admin-label">Current Password</label>
-          <input type="password" name="current_password" class="admin-input" required autocomplete="current-password">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:1rem">
+          <div class="admin-form-group" style="margin-bottom:0">
+            <label class="admin-label">Current Password</label>
+            <input type="password" name="current_password" class="admin-input" required autocomplete="current-password">
+          </div>
+          <div class="admin-form-group" style="margin-bottom:0">
+            <label class="admin-label">New Password <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(min 10 characters)</span></label>
+            <input type="password" name="new_password" class="admin-input" required autocomplete="new-password" minlength="10">
+          </div>
+          <div class="admin-form-group" style="margin-bottom:0">
+            <label class="admin-label">Confirm New Password</label>
+            <input type="password" name="confirm_password" class="admin-input" required autocomplete="new-password" minlength="10">
+          </div>
         </div>
-        <div class="admin-form-group" style="margin-bottom:1rem">
-          <label class="admin-label">New Password <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(min 10 characters)</span></label>
-          <input type="password" name="new_password" class="admin-input" required autocomplete="new-password" minlength="10">
-        </div>
-        <div class="admin-form-group" style="margin-bottom:1.25rem">
-          <label class="admin-label">Confirm New Password</label>
-          <input type="password" name="confirm_password" class="admin-input" required autocomplete="new-password" minlength="10">
-        </div>
-        <button type="submit" class="admin-btn admin-btn--primary">Update Password</button>
+        <button type="submit" class="admin-btn admin-btn--primary" style="margin-top:1.25rem">Update Password</button>
       </form>
     </div>
   </div>

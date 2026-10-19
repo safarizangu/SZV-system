@@ -146,7 +146,7 @@ class PipelineSync
 
         $rate = (float)($lead['commission_rate'] ?? 0) > 0
             ? (float)$lead['commission_rate']
-            : (float)($agent['commission_rate'] ?? 10);
+            : (float)($agent['commission_rate'] ?? DEFAULT_COMMISSION_RATE);
         $val  = (float)($lead['booking_value'] ?? 0);
         $comm = round($val * $rate / 100, 2);
 

@@ -166,11 +166,11 @@ $offset  = ($page-1)*$perPage;
 
 $where = []; $params = [];
 if ($search) {
-    $where[]  = "(booking_ref LIKE ? OR full_name LIKE ? OR email LIKE ? OR phone LIKE ?)";
+    $where[]  = "(bookings.booking_ref LIKE ? OR bookings.full_name LIKE ? OR bookings.email LIKE ? OR bookings.phone LIKE ?)";
     $like     = "%$search%";
     $params   = array_merge($params,[$like,$like,$like,$like]);
 }
-if ($status) { $where[] = "payment_status=?"; $params[] = $status; }
+if ($status) { $where[] = "bookings.payment_status=?"; $params[] = $status; }
 if (OwnershipScope::isScoped()) {
     [$scopeSql, $scopeParams] = OwnershipScope::bookingsListSql(OwnershipScope::currentAgentId());
     $where[]  = $scopeSql;
@@ -184,10 +184,12 @@ try {
     $totalRows  = (int)$total->fetchColumn();
     $totalPages = (int)ceil($totalRows/$perPage);
     $stmt = $db->prepare("
-        SELECT bookings.*, COALESCE(p.duration_days, i.duration_days) AS trip_duration
+        SELECT bookings.*, COALESCE(p.duration_days, i.duration_days) AS trip_duration, agent.full_name AS agent_name
         FROM bookings
         LEFT JOIN packages p ON p.id = bookings.package_id
         LEFT JOIN itineraries i ON i.id = bookings.itinerary_id
+        LEFT JOIN quotations q ON q.id = bookings.quotation_id
+        LEFT JOIN admin_users agent ON agent.id = q.created_by AND agent.role = 'agent'
         $whereSQL ORDER BY bookings.created_at DESC LIMIT $perPage OFFSET $offset
     ");
     $stmt->execute($params);
@@ -282,7 +284,12 @@ ob_start();
         class="<?= ($viewRef && $viewRef===$b['booking_ref']) ? 'highlighted-row' : '' ?>">
       <td><code><?= htmlspecialchars($b['booking_ref']) ?></code></td>
       <td>
-        <div style="font-weight:600;font-size:.85rem"><?= htmlspecialchars($b['full_name']) ?></div>
+        <div style="font-weight:600;font-size:.85rem">
+          <?= htmlspecialchars($b['full_name']) ?>
+          <?php if (!empty($b['agent_name'])): ?>
+          <span class="badge-status badge-status--blue" style="font-size:.58rem;margin-left:.3rem;vertical-align:middle" title="Booked by agent <?= htmlspecialchars($b['agent_name']) ?>">Agent: <?= htmlspecialchars($b['agent_name']) ?></span>
+          <?php endif; ?>
+        </div>
         <div style="font-size:.72rem;color:#9ca3af;margin-top:.1rem">
           <?= htmlspecialchars($b['email']) ?><br>
           <?= htmlspecialchars($b['phone'] ?? '') ?>

@@ -84,12 +84,47 @@ if (!defined('DB_PASS'))    define('DB_PASS',    env('DB_PASS', ''));
 if (!defined('DB_NAME'))    define('DB_NAME',    env('DB_NAME',    $_isLocal ? 'safari_zangu' : 'u662187129_safari_zangu'));
 if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
 
+// ── DB-backed setting overrides ─────────────────────────────────
+// admin/settings.php lets an admin tune business rules (VAT, deposit %,
+// bank details, WhatsApp number, etc.) from the UI, stored in the
+// existing `settings` key/value table (sql/create_settings.sql — already
+// live, previously only holding hero_image). Reading it back here, once,
+// means every one of the ~40 call sites across the app that reference
+// the constants below needs no change at all — they just see whichever
+// value wins: DB setting, then .env, then the hardcoded default.
+//
+// Deliberately NOT App\Models\Database::getInstance() — that die()s the
+// whole request on a connection failure, correct for a page that
+// actually needs the DB but wrong here: config/app.php loads on every
+// request, including ones that never touch the DB, so a blip here must
+// fall through to the hardcoded defaults silently, never take the site
+// down. Short connection timeout for the same reason.
+$_settingsOverride = [];
+try {
+    $_setPdo = new PDO(
+        sprintf('mysql:host=%s;dbname=%s;charset=%s', DB_HOST, DB_NAME, DB_CHARSET),
+        DB_USER, DB_PASS,
+        [PDO::ATTR_TIMEOUT => 2, PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+    );
+    $_settingsOverride = $_setPdo->query("SELECT `key`,`value` FROM settings")->fetchAll(PDO::FETCH_KEY_PAIR);
+    unset($_setPdo);
+} catch (\Throwable $e) {
+    // Fresh install (table doesn't exist yet) or DB briefly unreachable —
+    // either way, every _setting() call below just returns its default.
+}
+function _setting(string $key, mixed $default): mixed {
+    global $_settingsOverride;
+    return (array_key_exists($key, $_settingsOverride) && $_settingsOverride[$key] !== '')
+        ? $_settingsOverride[$key]
+        : $default;
+}
+
 // ── Site identity ─────────────────────────────────────────────
 if (!defined('SITE_NAME'))        define('SITE_NAME',        'Safari Zangu Ventures');
 if (!defined('SITE_URL'))         define('SITE_URL',         APP_URL);
-if (!defined('SITE_EMAIL'))       define('SITE_EMAIL',       'info@safarizanguven.com');
-if (!defined('ADMIN_EMAIL'))      define('ADMIN_EMAIL',      env('ADMIN_EMAIL', 'admin@safarizanguven.com'));
-if (!defined('WHATSAPP_NUMBER'))  define('WHATSAPP_NUMBER',  '255663430934');
+if (!defined('SITE_EMAIL'))       define('SITE_EMAIL',       _setting('site_email', 'info@safarizanguven.com'));
+if (!defined('ADMIN_EMAIL'))      define('ADMIN_EMAIL',      _setting('admin_email', env('ADMIN_EMAIL', 'admin@safarizanguven.com')));
+if (!defined('WHATSAPP_NUMBER'))  define('WHATSAPP_NUMBER',  _setting('whatsapp_number', '255663430934'));
 
 // ── Mail / SMTP ───────────────────────────────────────────────
 if (!defined('SMTP_HOST'))       define('SMTP_HOST',       env('SMTP_HOST',     'smtp.hostinger.com'));
@@ -116,12 +151,13 @@ if (!defined('PAYPAL_API_BASE'))    define('PAYPAL_API_BASE',    PAYPAL_MODE ===
 if (!defined('ANTHROPIC_API_KEY')) define('ANTHROPIC_API_KEY', env('ANTHROPIC_API_KEY', ''));
 
 // ── Bank details ──────────────────────────────────────────────
-// Set real account details in .env — never hardcode live banking here
-if (!defined('BANK_NAME'))         define('BANK_NAME',         env('BANK_NAME',         'ABSA Bank Tanzania'));
-if (!defined('BANK_ACCOUNT_NAME')) define('BANK_ACCOUNT_NAME', env('BANK_ACCOUNT_NAME', 'Safari Zangu Ventures Ltd'));
-if (!defined('BANK_ACCOUNT_NO'))   define('BANK_ACCOUNT_NO',   env('BANK_ACCOUNT_NO',   'XXXXXXXXXX'));
-if (!defined('BANK_SWIFT'))        define('BANK_SWIFT',        env('BANK_SWIFT',        'BARCTZTZXXX'));
-if (!defined('WISE_EMAIL'))        define('WISE_EMAIL',        env('WISE_EMAIL',        'payments@safarizanguven.com'));
+// Editable from admin/settings.php — falls back to .env, then these
+// hardcoded placeholders. Never hardcode real live banking here.
+if (!defined('BANK_NAME'))         define('BANK_NAME',         _setting('bank_name', env('BANK_NAME', 'ABSA Bank Tanzania')));
+if (!defined('BANK_ACCOUNT_NAME')) define('BANK_ACCOUNT_NAME', _setting('bank_account_name', env('BANK_ACCOUNT_NAME', 'Safari Zangu Ventures Ltd')));
+if (!defined('BANK_ACCOUNT_NO'))   define('BANK_ACCOUNT_NO',   _setting('bank_account_no', env('BANK_ACCOUNT_NO', 'XXXXXXXXXX')));
+if (!defined('BANK_SWIFT'))        define('BANK_SWIFT',        _setting('bank_swift', env('BANK_SWIFT', 'BARCTZTZXXX')));
+if (!defined('WISE_EMAIL'))        define('WISE_EMAIL',        _setting('wise_email', env('WISE_EMAIL', 'payments@safarizanguven.com')));
 
 // ── Analytics ─────────────────────────────────────────────────
 // Set GA4_ID=G-YOURCODE in .env
@@ -139,17 +175,34 @@ if (!defined('ADMIN_PIN')) define('ADMIN_PIN', bin2hex(random_bytes(32)));
 if (!defined('CRON_SECRET')) define('CRON_SECRET', env('CRON_SECRET', ''));
 
 // ── Business rules ────────────────────────────────────────────
-if (!defined('DEPOSIT_PERCENT'))     define('DEPOSIT_PERCENT',     25);   // 25% deposit at booking
-if (!defined('BALANCE_DAYS'))        define('BALANCE_DAYS',        45);   // balance due 45 days before travel
-if (!defined('VAT_RATE'))            define('VAT_RATE',            0.18);
-if (!defined('SERVICE_CHARGE_RATE')) define('SERVICE_CHARGE_RATE', 0.05);
+// All editable from admin/settings.php — see the DB-backed override
+// block above. Each still has its original hardcoded value as the
+// final fallback if no override is set.
+if (!defined('DEPOSIT_PERCENT'))     define('DEPOSIT_PERCENT',     (int)_setting('deposit_percent', 25));   // % deposit at booking
+if (!defined('BALANCE_DAYS'))        define('BALANCE_DAYS',        (int)_setting('balance_days', 45));      // balance due N days before travel
+if (!defined('VAT_RATE'))            define('VAT_RATE',            (float)_setting('vat_rate', 0.18));
+if (!defined('SERVICE_CHARGE_RATE')) define('SERVICE_CHARGE_RATE', (float)_setting('service_charge_rate', 0.05));
 
 // Display-only USD→GBP rate for showing "~£X" next to package/homepage
 // prices, for UK visitors who convert in their heads. All actual charging,
 // invoicing and quotation math stays in USD — this never touches payment
 // amounts. Rounded rather than fetched live, and needs a manual update
 // occasionally (checked against openexchangerates 20 Sep 2026: ~0.748).
-if (!defined('GBP_RATE')) define('GBP_RATE', 0.75);
+if (!defined('GBP_RATE')) define('GBP_RATE', (float)_setting('gbp_rate', 0.75));
+
+// ── Lead, quotation & party-size rules ──────────────────────────
+// Also editable from admin/settings.php.
+if (!defined('DEFAULT_COMMISSION_RATE')) define('DEFAULT_COMMISSION_RATE', (float)_setting('default_commission_rate', 10));   // % used when an agent has no rate of their own set — see PipelineSync::createCommission()
+if (!defined('QUOTATION_VALIDITY_DAYS')) define('QUOTATION_VALIDITY_DAYS', (int)_setting('quotation_validity_days', 14));     // default "valid until" window on a new quotation
+if (!defined('MAX_PARTY_SIZE'))          define('MAX_PARTY_SIZE',          (int)_setting('max_party_size', 60));              // upper bound on adults+children for a single public booking — see BookingValidator
+
+// ── Platform controls ────────────────────────────────────────────
+// Feature toggles, also editable from admin/settings.php.
+if (!defined('MAINTENANCE_MODE'))               define('MAINTENANCE_MODE',               (bool)(int)_setting('maintenance_mode', 0));                 // when on, public booking + custom-request submission politely decline — see api/book.php, api/custom_safari.php
+if (!defined('AGENT_DIRECT_BOOKING_ENABLED'))   define('AGENT_DIRECT_BOOKING_ENABLED',   (bool)(int)_setting('agent_direct_booking_enabled', 1));    // when off, agents can still submit custom requests but not book packages directly — see agent-portal/leads.php
+
+// ── Security ──────────────────────────────────────────────────────
+if (!defined('SESSION_TIMEOUT_MINUTES')) define('SESSION_TIMEOUT_MINUTES', max(5, (int)_setting('session_timeout_minutes', 30)));  // inactivity timeout for admin/agent sessions — see AuthMiddleware
 
 // ── Accommodation levels ──────────────────────────────────────
 if (!defined('ACCOMMODATION_LEVELS')) define('ACCOMMODATION_LEVELS', [

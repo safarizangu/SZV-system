@@ -23,13 +23,13 @@ class CustomSafariRequest
 
         $stmt = $this->db->prepare("
             INSERT INTO custom_safari_requests
-                (customer_id, full_name, email, phone, country, travelers, adults, children, infants,
+                (customer_id, submitted_by_agent_id, full_name, email, phone, country, travelers, adults, children, infants,
                  start_date, duration_days, destinations, message, flexible_dates,
                  guide_language, mainland_accommodation, beach_accommodation,
                  meal_plan, room_layout, accommodation_standard, total_budget,
                  experiences, status, created_at)
             VALUES
-                (:customer_id, :full_name, :email, :phone, :country, :travelers, :adults, :children, :infants,
+                (:customer_id, :submitted_by_agent_id, :full_name, :email, :phone, :country, :travelers, :adults, :children, :infants,
                  :start_date, :duration_days, :destinations, :message, :flexible_dates,
                  :guide_language, :mainland_accommodation, :beach_accommodation,
                  :meal_plan, :room_layout, :accommodation_standard, :total_budget,
@@ -37,6 +37,7 @@ class CustomSafariRequest
         ");
         $stmt->execute([
             'customer_id'             => $customerId,
+            'submitted_by_agent_id'   => $data['submitted_by_agent_id']    ?? null,
             'full_name'               => $data['full_name']               ?? '',
             'email'                   => $data['email']                   ?? '',
             'phone'                   => $data['phone']                   ?? '',

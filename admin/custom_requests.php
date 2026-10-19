@@ -72,11 +72,11 @@ $offset       = ($page - 1) * $perPage;
 $where  = [];
 $params = [];
 if ($statusFilter) {
-    $where[]  = 'status = ?';
+    $where[]  = 'custom_safari_requests.status = ?';
     $params[] = $statusFilter;
 }
 if ($search) {
-    $where[] = '(full_name LIKE ? OR email LIKE ? OR phone LIKE ?)';
+    $where[] = '(custom_safari_requests.full_name LIKE ? OR custom_safari_requests.email LIKE ? OR custom_safari_requests.phone LIKE ?)';
     $like    = "%{$search}%";
     $params  = array_merge($params, [$like, $like, $like]);
 }
@@ -94,8 +94,11 @@ try {
     $totalPages = max(1, (int)ceil($totalRows / $perPage));
 
     $rowStmt = $db->prepare(
-        "SELECT * FROM custom_safari_requests $whereSQL
-         ORDER BY created_at DESC LIMIT {$perPage} OFFSET {$offset}"
+        "SELECT custom_safari_requests.*, agent.full_name AS agent_name
+         FROM custom_safari_requests
+         LEFT JOIN admin_users agent ON agent.id = custom_safari_requests.submitted_by_agent_id
+         $whereSQL
+         ORDER BY custom_safari_requests.created_at DESC LIMIT {$perPage} OFFSET {$offset}"
     );
     $rowStmt->execute($params);
     $requests = $rowStmt->fetchAll();
@@ -206,7 +209,11 @@ ob_start();
   <tr>
     <td style="color:var(--gray-500);font-size:.75rem"><?= $r['id'] ?></td>
     <td>
-      <strong style="font-size:.85rem"><?= htmlspecialchars($r['full_name']) ?></strong><br>
+      <strong style="font-size:.85rem"><?= htmlspecialchars($r['full_name']) ?></strong>
+      <?php if (!empty($r['agent_name'])): ?>
+      <span class="badge-status badge-status--blue" style="font-size:.58rem;margin-left:.3rem;vertical-align:middle" title="Submitted by agent <?= htmlspecialchars($r['agent_name']) ?>">Agent: <?= htmlspecialchars($r['agent_name']) ?></span>
+      <?php endif; ?>
+      <br>
       <a href="mailto:<?= htmlspecialchars($r['email']) ?>" style="font-size:.72rem;color:var(--gray-500)"><?= htmlspecialchars($r['email']) ?></a><br>
       <?php if ($r['phone']): ?>
       <a href="https://wa.me/<?= preg_replace('/[^0-9]/','',$r['phone']) ?>" target="_blank" style="font-size:.7rem;color:#25D366;font-weight:600"><?= htmlspecialchars($r['phone']) ?></a>
@@ -367,6 +374,7 @@ function viewRequest(r) {
 
   document.getElementById('crModalBody').innerHTML =
     row('Full Name',      '<strong>' + r.full_name + '</strong>') +
+    row('Submitted By',   r.agent_name ? 'Agent — ' + r.agent_name : 'Website') +
     row('Email',          r.email ? '<a href="mailto:'+r.email+'" style="text-decoration:underline">'+r.email+'</a>' : '—') +
     row('Phone / WA',     r.phone ? '<a href="https://wa.me/'+r.phone.replace(/[^0-9]/g,'')+'" target="_blank" style="color:#25D366;font-weight:600">'+r.phone+'</a>' : '—') +
     row('Country',        r.country) +

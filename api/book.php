@@ -33,6 +33,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     respond(['success' => false, 'message' => 'Method not allowed.']);
 }
 
+// Platform Controls → Maintenance Mode (admin/settings.php) — checked
+// before the rate limiter so a maintenance window doesn't also burn
+// through guests' request quota.
+if (MAINTENANCE_MODE) {
+    respond(['success' => false, 'message' => "We're temporarily updating our booking system. Please WhatsApp us directly and we'll confirm your booking by hand, or try again shortly."]);
+}
+
 // ── Security ──────────────────────────────────────────────
 try {
     RateLimiter::enforceOrDie('booking', 5, 3600);
