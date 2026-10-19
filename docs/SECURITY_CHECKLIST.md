@@ -36,7 +36,9 @@ sudo chmod 700 /tmp/szv_ratelimit/
 | Feature | Status | Notes |
 |---------|--------|-------|
 | bcrypt password hashing (cost 12) | ✓ | admin_users table |
-| Session timeout (30 min inactivity) | ✓ | AuthMiddleware |
+| Session timeout (30 min inactivity, default) | ✓ | AuthMiddleware — now configurable, Settings → General → Security |
+| Track Booking password (bcrypt, cost 10) | ✓ | Replaces the old ref+travel-date pairing; see BookingTracking, SECURITY_ARCHITECTURE.md §5a |
+| Supplier Contract PDFs stored outside web root | ✓ | storage/uploads/contracts/, .htaccess-blocked, served only via admin-gated supplier_contract.php |
 | Server-side login lockout | ✓ Fixed | File-based, not session |
 | REMOTE_ADDR only (no header spoofing) | ✓ Fixed | RateLimiter |
 | Path traversal prevention (gallery) | ✓ Fixed | realpath() check |

@@ -98,6 +98,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_platform_contr
         saveSettings($db, [
             'maintenance_mode'              => isset($_POST['maintenance_mode']) ? '1' : '0',
             'agent_direct_booking_enabled'  => isset($_POST['agent_direct_booking_enabled']) ? '1' : '0',
+            'auto_send_payment_emails'      => isset($_POST['auto_send_payment_emails']) ? '1' : '0',
+            'supplier_contract_max_mb'      => max(1, min(100, (int)($_POST['supplier_contract_max_mb'] ?? 15))),
         ]);
         header('Location: settings.php?msg='.urlencode('Platform controls updated.')); exit;
     } catch (\Exception $e) {
@@ -110,6 +112,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_security'])) {
     try {
         saveSettings($db, [
             'session_timeout_minutes' => max(5, min(480, (int)($_POST['session_timeout_minutes'] ?? 30))),
+            'track_lockout_attempts'  => max(1, min(20, (int)($_POST['track_lockout_attempts'] ?? 3))),
+            'track_lockout_minutes'   => max(1, min(1440, (int)($_POST['track_lockout_minutes'] ?? 15))),
         ]);
         header('Location: settings.php?msg='.urlencode('Security settings updated.')); exit;
     } catch (\Exception $e) {
@@ -338,6 +342,22 @@ ob_start();
               </span>
             </span>
           </label>
+          <label style="display:flex;align-items:flex-start;gap:.6rem;cursor:pointer">
+            <input type="checkbox" name="auto_send_payment_emails" value="1" style="margin-top:.2rem" <?= AUTO_SEND_PAYMENT_EMAILS?'checked':'' ?>>
+            <span>
+              <strong style="display:block;font-size:.85rem">Auto-Send Payment Emails</strong>
+              <span style="font-size:.76rem;color:var(--gray-500);line-height:1.5">
+                Marking a booking Deposit Paid or Fully Paid (by hand, or via PayPal) emails the
+                client the updated Invoice and Itinerary PDFs automatically. Turning this off still
+                records the payment normally — you'd just send confirmation yourself.
+              </span>
+            </span>
+          </label>
+        </div>
+        <div style="margin-bottom:1rem;max-width:280px">
+          <label class="admin-label">Supplier Contract Max Size <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(MB)</span></label>
+          <input type="number" name="supplier_contract_max_mb" class="admin-input" min="1" max="100" step="1"
+                 value="<?= (int)SUPPLIER_CONTRACT_MAX_MB ?>">
         </div>
         <button type="submit" class="admin-btn admin-btn--primary">Save Platform Controls</button>
       </form>
@@ -348,8 +368,9 @@ ob_start();
     <div class="admin-card-header"><h3>Security</h3></div>
     <div class="admin-card-body">
       <p style="font-size:.82rem;color:var(--gray-500);margin-bottom:1.25rem;line-height:1.6;max-width:640px">
-        How long an admin, staff or agent session can sit idle before it's signed out automatically.
-        Lower is safer on a shared computer; higher is more convenient for a long working session.
+        How long an admin, staff or agent session can sit idle before it's signed out automatically,
+        and how forgiving Track Booking is with a mistyped Booking ID or password before it
+        temporarily locks that visitor out.
       </p>
       <form method="POST">
         <?= \App\Middleware\CsrfMiddleware::field() ?>
@@ -359,6 +380,16 @@ ob_start();
             <label class="admin-label">Session Timeout <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(minutes of inactivity, 5–480)</span></label>
             <input type="number" name="session_timeout_minutes" class="admin-input" min="5" max="480" step="5"
                    value="<?= (int)SESSION_TIMEOUT_MINUTES ?>">
+          </div>
+          <div>
+            <label class="admin-label">Track Booking Attempts <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(before lockout)</span></label>
+            <input type="number" name="track_lockout_attempts" class="admin-input" min="1" max="20" step="1"
+                   value="<?= (int)TRACK_LOCKOUT_ATTEMPTS ?>">
+          </div>
+          <div>
+            <label class="admin-label">Track Booking Lockout <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(minutes)</span></label>
+            <input type="number" name="track_lockout_minutes" class="admin-input" min="1" max="1440" step="1"
+                   value="<?= (int)TRACK_LOCKOUT_MINUTES ?>">
           </div>
         </div>
         <button type="submit" class="admin-btn admin-btn--primary">Save Security Settings</button>

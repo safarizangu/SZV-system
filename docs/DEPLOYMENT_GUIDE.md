@@ -52,6 +52,19 @@ re-run the rest; every CREATE TABLE already uses IF NOT EXISTS so those
 are always safe to re-run as-is. Verified by test-running the whole file
 against a fresh copy of the schema before writing it here.
 
+**19 Oct 2026 session**: 4 new migrations, not yet combined — run each of
+these individually in order, same "Duplicate column" = already-applied
+rule as above:
+- `sql/custom_requests_agent_source.sql` — `custom_safari_requests.submitted_by_agent_id`
+- `sql/bookings_tracking_password.sql` — `bookings.tracking_password_hash`
+- `sql/bookings_amount_paid.sql` — `bookings.amount_paid` (also backfills existing `fully_paid` bookings so their invoice shows the right figure immediately, not $0.00)
+- `sql/suppliers_contract_upload.sql` — `suppliers.contract_filename`/`contract_original_name`/`contract_uploaded_at`
+
+Also create `storage/uploads/contracts/` (writable by the web server —
+covered by Step 4's `storage/` chmod below, but the directory itself
+needs to exist; `admin/suppliers.php` creates it on first upload if
+missing, so this is a convenience, not a hard requirement).
+
 Optional: add `ANTHROPIC_API_KEY=` to .env to enable the Poster Maker's
 AI Caption feature (admin/poster_maker.php) — it degrades to a clear
 "not configured" message without one, nothing breaks either way.
@@ -72,7 +85,10 @@ composer install --no-dev --optimize-autoloader
 
 ### STEP 7 — Smoke test production
 curl -I https://safarizanguven.com/
-curl -s https://safarizanguven.com/api/track_lookup.php?ref=TEST&date=2026-01-01
+curl -s https://safarizanguven.com/api/track_lookup.php?ref=TEST&password=TEST
+(expects {"success":false,...} for a non-existent ref — confirms the
+endpoint and its rate-limit lock directory are both working; it no
+longer takes a `date` parameter, see API_SPECIFICATION.md)
 
 ### STEP 8 — HSTS
 After confirming HTTPS works, the HSTS header is already in .htaccess.

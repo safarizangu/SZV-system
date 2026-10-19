@@ -37,10 +37,11 @@ try {
 
 $ref        = strtoupper(Formatter::sanitize($_POST['ref']              ?? ''));
 $travelDate = Formatter::sanitize($_POST['travel_date']                  ?? '');
+$password   = $_POST['password'] ?? '';
 $orderId    = Formatter::sanitize($_POST['paypal_order_id']              ?? '');
 
-if (!$ref || !$travelDate || !$orderId) {
-    pay_respond(['success' => false, 'message' => 'Missing booking reference, date, or PayPal order ID.']);
+if (!$ref || (!$travelDate && !$password) || !$orderId) {
+    pay_respond(['success' => false, 'message' => 'Missing booking reference or PayPal order ID.']);
 }
 
 // Verify the order directly with PayPal — never trust client-submitted amounts/status.
@@ -50,10 +51,15 @@ if ($amountPaid === null) {
 }
 
 try {
-    $pdo  = \App\Models\Database::getInstance();
-    $stmt = $pdo->prepare("SELECT * FROM bookings WHERE booking_ref = ? AND travel_date = ? LIMIT 1");
-    $stmt->execute([$ref, $travelDate]);
-    $booking = $stmt->fetch();
+    $pdo = \App\Models\Database::getInstance();
+    // Same dual-credential rule as api/paypal_create_order.php.
+    if ($password !== '') {
+        $booking = \App\Services\BookingTracking::verify($pdo, $ref, $password);
+    } else {
+        $stmt = $pdo->prepare("SELECT * FROM bookings WHERE booking_ref = ? AND travel_date = ? LIMIT 1");
+        $stmt->execute([$ref, $travelDate]);
+        $booking = $stmt->fetch();
+    }
 
     if (!$booking) {
         pay_respond(['success' => false, 'message' => 'Booking not found.']);
@@ -70,37 +76,46 @@ try {
                      'message' => 'Payment already recorded.']);
     }
 
-    // Calculate new status
-    $alreadyPaid  = $booking['payment_status'] === 'deposit_paid'
-                    ? (float)$booking['deposit_amount'] : 0;
-    $newTotalPaid = $alreadyPaid + $amountPaid;
+    // Calculate new status — against the real cumulative amount_paid
+    // (same column admin/bookings.php's manual "Deposit Paid" entry
+    // writes to), not the merely-suggested deposit_amount. Previously
+    // this read deposit_amount and never wrote amount_paid at all, so a
+    // PayPal payment left the Quotation/Invoice PDF and Track Booking
+    // page showing $0.00 paid even though real money had come in.
+    $alreadyPaid  = (float)($booking['amount_paid'] ?? 0);
+    $newTotalPaid = round($alreadyPaid + $amountPaid, 2);
     $newStatus    = ($newTotalPaid >= (float)$booking['total_amount'])
                     ? 'fully_paid' : 'deposit_paid';
 
     $pdo->prepare("
         UPDATE bookings
-        SET payment_status=?, payment_method='paypal', paypal_order_id=?, updated_at=NOW()
+        SET payment_status=?, amount_paid=?, payment_method='paypal', paypal_order_id=?, updated_at=NOW()
         WHERE booking_ref=?
-    ")->execute([$newStatus, $orderId, $ref]);
+    ")->execute([$newStatus, $newTotalPaid, $orderId, $ref]);
 
-    // Queue a payment confirmation email
-    try {
-        $pdo->prepare("
-            INSERT INTO email_queue (to_email, to_name, subject, body, created_at)
-            VALUES (?, ?, ?, ?, NOW())
-        ")->execute([
-            $booking['email'],
-            $booking['full_name'],
-            'Payment Received — ' . $ref . ' | Safari Zangu Ventures',
-            '<p>Dear ' . htmlspecialchars($booking['full_name']) . ',</p>'
-            . '<p>We have received your payment of USD $' . number_format($amountPaid, 0) . '.</p>'
-            . '<p>Your booking status is now: <strong>' . strtoupper(str_replace('_',' ',$newStatus)) . '</strong></p>'
-            . '<p>Reference: <strong>' . $ref . '</strong></p>'
-            . '<p>Thank you — Safari Zangu Ventures</p>',
-        ]);
-    } catch (\Exception $e) {
-        error_log('[SZV PayEmail] ' . $e->getMessage());
-        // Non-fatal — payment still recorded
+    // Branded Invoice/Deposit-Receipt email with the real Quotation and
+    // Itinerary PDFs attached — the same documents admin/bookings.php's
+    // manual status change sends, so a PayPal payment and a manually
+    // recorded bank transfer produce identical paperwork. Every call
+    // reaching this point is already a genuinely new payment (the
+    // fully_paid short-circuit and paypal_order_id replay check above
+    // rule out a duplicate), so this always fires, not just once.
+    if (AUTO_SEND_PAYMENT_EMAILS) {
+        try {
+            $bs = $pdo->prepare("SELECT * FROM bookings WHERE booking_ref=? LIMIT 1");
+            $bs->execute([$ref]);
+            $freshBooking = $bs->fetch();
+            if ($freshBooking) {
+                if ($newStatus === 'fully_paid') {
+                    \App\Services\InvoiceMailer::sendForBooking($freshBooking);
+                } else {
+                    \App\Services\InvoiceMailer::sendDepositReceipt($freshBooking);
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('[SZV PayEmail] ' . $e->getMessage());
+            // Non-fatal — payment still recorded
+        }
     }
 
     pay_respond(['success' => true, 'status' => $newStatus,

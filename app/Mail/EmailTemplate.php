@@ -170,6 +170,21 @@ HTML;
              . '</div>';
     }
 
+    /** Booking ID + Track Booking password, side by side — see refBox() above for the single-value version. */
+    private static function credentialBox(string $ref, string $password): string {
+        return '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0"><tr>'
+             . '<td width="50%" style="background:#f7f7f5;border-left:4px solid #0a0a0a;padding:16px 18px">'
+             . '<div style="font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#0a0a0a;margin-bottom:6px">Booking ID</div>'
+             . '<div style="font-family:\'Times New Roman\',Times,serif;font-size:19px;font-weight:700;letter-spacing:.03em;color:#0a0a0a">' . htmlspecialchars($ref) . '</div>'
+             . '</td>'
+             . '<td width="16"></td>'
+             . '<td width="50%" style="background:#f7f7f5;border-left:4px solid #0a0a0a;padding:16px 18px">'
+             . '<div style="font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#0a0a0a;margin-bottom:6px">Track Booking Password</div>'
+             . '<div style="font-family:\'Courier New\',monospace;font-size:19px;font-weight:700;letter-spacing:.06em;color:#0a0a0a">' . htmlspecialchars($password) . '</div>'
+             . '</td>'
+             . '</tr></table>';
+    }
+
     private static function tableRow(string $label, string $value): string {
         return '<tr>'
              . '<td style="padding:7px 0;color:#0a0a0a;font-size:13px;width:38%;vertical-align:top">' . htmlspecialchars($label) . '</td>'
@@ -257,7 +272,8 @@ HTML;
         $total      = (float)($v['total_amount']   ?? 0);
         $deposit    = (float)($v['deposit_amount'] ?? round($total * 0.3, 2));
         $balance    = round($total - $deposit, 2);
-        $trackUrl   = self::SITE_URL . '/track.php?ref=' . urlencode($ref) . '&date=' . urlencode($v['travel_date'] ?? '');
+        $password   = $v['tracking_password'] ?? '';
+        $trackUrl   = self::SITE_URL . '/track.php?ref=' . urlencode($ref);
         $waMsg      = 'Hi Safari Zangu, I\'m following up on booking ' . $ref;
 
         $html = "
@@ -266,7 +282,7 @@ HTML;
           Thank you for booking with <strong>Safari Zangu Ventures</strong>! Your booking has been received and is now pending confirmation. We will be in touch within 24 hours with further details.
         </p>
 
-        " . self::refBox($ref, 'Keep this reference — you\'ll need it to track your booking') . "
+        " . ($password ? self::credentialBox($ref, $password) : self::refBox($ref, 'Keep this reference — you\'ll need it to track your booking')) . "
 
         " . self::sectionTitle('Booking Summary') . "
         <table width='100%' cellpadding='0' cellspacing='0' border='0' style='border-collapse:collapse'>
@@ -284,8 +300,11 @@ HTML;
         " . self::divider() . "
 
         " . self::sectionTitle('Track Your Booking') . "
-        <p style='font-size:13px;line-height:1.75;color:#0a0a0a;margin:0 0 16px'>
-          Your <strong>Booking ID</strong> and <strong>Travel Date</strong> together give you access to your booking status online — no password needed.
+        <p style='font-size:13px;line-height:1.75;color:#0a0a0a;margin:0 0 16px'>" . (
+          $password
+            ? "Your <strong>Booking ID</strong> and <strong>Track Booking Password</strong> above give you access to your full booking details, payment status and documents online, any time. Keep this email — the password is shown only once."
+            : "Your <strong>Booking ID</strong> gives you access to your booking status online."
+        ) . "
         </p>
         <div style='text-align:center;margin:20px 0'>
           " . self::ctaButton('Track My Booking →', $trackUrl) . "
@@ -301,7 +320,7 @@ HTML;
             'title'   => 'Booking Confirmation',
             'preview' => 'Your safari booking ' . $ref . ' has been received. Keep this email — your booking reference is inside.',
             'html'    => $html,
-            'text'    => "Dear {$name},\n\nThank you for booking with Safari Zangu Ventures!\n\nBooking Reference: {$ref}\nPackage: {$package}\nTravel Date: {$date}\nTotal: USD \$" . number_format($total, 0) . "\nDeposit Due (" . ($total > 0 ? round($deposit / $total * 100) : 0) . "%): USD \$" . number_format($deposit, 0) . "\n\nTrack your booking: {$trackUrl}\n\nSafari Zangu Ventures · " . self::CONTACT_PHONE,
+            'text'    => "Dear {$name},\n\nThank you for booking with Safari Zangu Ventures!\n\nBooking Reference: {$ref}\n" . ($password ? "Track Booking Password: {$password}\n" : '') . "Package: {$package}\nTravel Date: {$date}\nTotal: USD \$" . number_format($total, 0) . "\nDeposit Due (" . ($total > 0 ? round($deposit / $total * 100) : 0) . "%): USD \$" . number_format($deposit, 0) . "\n\nTrack your booking: {$trackUrl}\n\nSafari Zangu Ventures · " . self::CONTACT_PHONE,
         ];
     }
 

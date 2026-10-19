@@ -42,16 +42,21 @@ foreach ($packages as $pkg) {
         continue;
     }
 
+    // service_charge_adult/service_charge_child replaced the old flat
+    // service_charge_pax (one rate for every traveler regardless of age)
+    // — a package saved before that split still has only the old key, so
+    // it falls back to applying that same flat rate as the Adults rate
+    // here, same as everywhere else that reads this column.
     $costBreakdown = json_decode($pkg['cost_breakdown'] ?? '{}', true) ?: [];
-    $svcPax        = (float)($costBreakdown['service_charge_pax'] ?? 0);
+    $svcAdultPax   = (float)($costBreakdown['service_charge_adult'] ?? $costBreakdown['service_charge_pax'] ?? 0);
 
     $quote     = ItineraryQuoteBuilder::build(['days' => $days], 1, 0, false);
     $lineItems = $quote['line_items'];
-    if ($svcPax > 0) {
+    if ($svcAdultPax > 0) {
         $lineItems[] = [
-            'description' => 'Service Charge', 'unit_price' => $svcPax,
-            'quantity_str'=> '1 Guest',
-            'amount'      => round($svcPax, 2), 'category' => 'service_charge',
+            'description' => 'Service Charge (Adults)', 'unit_price' => $svcAdultPax,
+            'quantity_str'=> '1 Adult',
+            'amount'      => round($svcAdultPax, 2), 'category' => 'service_fee',
         ];
     }
     $totals   = ItineraryQuoteBuilder::totals($lineItems);

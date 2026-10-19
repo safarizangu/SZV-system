@@ -38,16 +38,25 @@ try {
 
 $ref        = strtoupper(Formatter::sanitize($_POST['ref']         ?? ''));
 $travelDate = Formatter::sanitize($_POST['travel_date']             ?? '');
+$password   = $_POST['password'] ?? '';
 
-if (!$ref || !$travelDate) {
-    ppc_respond(['success' => false, 'message' => 'Missing booking reference or date.']);
+if (!$ref || (!$travelDate && !$password)) {
+    ppc_respond(['success' => false, 'message' => 'Missing booking reference.']);
 }
 
 try {
-    $pdo  = \App\Models\Database::getInstance();
-    $stmt = $pdo->prepare("SELECT * FROM bookings WHERE booking_ref = ? AND travel_date = ? LIMIT 1");
-    $stmt->execute([$ref, $travelDate]);
-    $booking = $stmt->fetch();
+    $pdo = \App\Models\Database::getInstance();
+    // confirmation.php (right after booking, same browser session) still
+    // proves ownership with travel_date; track.php (a separate, later
+    // visit) now proves it with the Track Booking password instead — see
+    // app/Services/BookingTracking.php.
+    if ($password !== '') {
+        $booking = \App\Services\BookingTracking::verify($pdo, $ref, $password);
+    } else {
+        $stmt = $pdo->prepare("SELECT * FROM bookings WHERE booking_ref = ? AND travel_date = ? LIMIT 1");
+        $stmt->execute([$ref, $travelDate]);
+        $booking = $stmt->fetch();
+    }
 
     if (!$booking) {
         ppc_respond(['success' => false, 'message' => 'Booking not found.']);

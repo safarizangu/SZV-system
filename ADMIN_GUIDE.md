@@ -28,6 +28,7 @@
 20. [Analytics](#20-analytics)
 21. [Cron Jobs & Automation](#21-cron-jobs--automation)
 22. [New Since September 2026](#22-new-since-september-2026)
+22a. [New Since October 2026](#22a-new-since-october-2026)
 23. [Common Workflows](#23-common-workflows)
 24. [Security Notes](#24-security-notes)
 25. [Troubleshooting](#25-troubleshooting)
@@ -103,10 +104,20 @@ pending → deposit_paid → fully_paid
 
 **Actions per booking:**
 - **View** — opens detail modal with full guest info, safari details, payment status
-- **Update Status** — change payment status inline in the modal
+- **Update Status** — change payment status inline from the dropdown in the table row
 - **WA** — opens WhatsApp chat with the guest's number pre-filled
 - **Email** — opens email client with guest's address
 - **Export CSV** — download all bookings or current month as spreadsheet
+
+**Changing status to Deposit Paid:** since there's no bank integration,
+you'll be asked to enter the amount actually received before the status
+saves — there's no way to skip this. That figure (not the suggested
+deposit amount shown elsewhere) is what the client sees as "Amount Paid"
+on their Invoice PDF and Track Booking page from then on. **Fully Paid**
+needs no prompt — it's recorded as the full total automatically. Both
+transitions email the client an updated Invoice + Itinerary PDF
+automatically (toggle this off under Settings → General → Platform
+Controls → Auto-Send Payment Emails if you'd rather send it yourself).
 
 **Filter pills:**
 - All / Pending / Confirmed / Deposit Paid / Fully Paid / Cancelled
@@ -491,7 +502,7 @@ A large operations/quotation upgrade landed in September 2026. The sections abov
 |------|---------|
 | Operations Calendar | Month view of confirmed departures and reminders due; assign a guide/driver + vehicle per booking directly from a day's detail panel, with same-day conflict-blocking |
 | Guides & Drivers | Roster of guide-drivers (the business treats these as one combined role) |
-| Suppliers | Contracted lodges/operators, linkable to individual Accommodations records |
+| Suppliers | Contracted lodges/operators, linkable to individual Accommodations records. Each can also hold a Contract PDF on file (upload/replace/remove from the Add/Edit form) — kept for your own records, not shown to guests |
 | Room Availability | Set an "Available Rooms" allotment on any Accommodation to see 60-day utilization and get flagged if a property is over-committed |
 | Reviews | Guest-submitted ratings/NPS (public link sent in the post-trip email), with publish/unpublish moderation |
 | Incidents | Log and resolve trip issues (vehicle breakdown, medical, weather, etc.), optionally linked to a booking |
@@ -505,6 +516,56 @@ A large operations/quotation upgrade landed in September 2026. The sections abov
 **6 new dashboards** (sidebar → Dashboards): Sales & Pipeline, Operations, Profitability, Customer Experience, Agent Performance, Suppliers & Fleet. Profitability and Agent Performance are admin/superadmin only.
 
 **Automated win-back email.** Every booking now also schedules a 6-months-after-travel "we'd love to have you back" email, alongside the existing deposit/balance/departure/post-trip reminders — it's automatically skipped if the guest has already rebooked by the time it's due to send.
+
+---
+
+## 22a. New Since October 2026
+
+**Track Booking now uses a real password, not a travel date.** A guest
+checking on their booking at `/track.php` enters their Booking ID plus a
+one-time password — generated automatically and emailed the moment any
+booking is created (website, agent, or a converted request), shown once
+more on the confirmation page as a backup in case that email is slow to
+arrive. There's nothing to set up or manage — it's automatic for every
+booking from here on. Older bookings made before this change don't have
+one; if a guest from before this date needs to track their booking,
+WhatsApp or email them directly.
+
+**Track Booking shows real documents now, not just a status.** Once a
+password is entered correctly, the guest can download their Quotation
+PDF (which becomes an Invoice automatically once you mark a deposit or
+full payment — see below) and their Itinerary PDF, right from the
+tracking page, not just a generic confirmation.
+
+**Deposit Paid asks for the real amount.** Covered under Bookings above
+— since there's no bank integration, you enter what actually came in by
+hand, and that's what shows on the client's Invoice from then on, not a
+guessed figure.
+
+**Agents can now book directly, or send a custom request, from their own
+portal.** The agent portal's Leads page has a "+ New Client" button that
+first asks which this is: **Direct Booking** (an existing package, with
+dates and party size — creates a real booking that lands here in
+Bookings, same as if the guest booked it themselves) or **Custom
+Request** (lands in Safari Requests, same as the public enquiry form,
+tagged with which agent sent it). Both still show in the agent's own
+commission pipeline as normal. You can turn off Direct Booking for all
+agents (leaving Custom Request available) under Settings → General →
+Platform Controls, if you'd rather every agent booking go through your
+team first.
+
+**Service Charge is now split by Adults and Children** on both Packages
+and Quotations — set a different per-person rate for each (infants are
+always free) instead of one flat rate for everyone. A package or
+quotation saved before this change keeps working exactly as it did; the
+split only applies where you've actually set it.
+
+**Three more settings worth knowing about** (Settings → General):
+Auto-Send Payment Emails (turn off to send payment confirmations
+yourself instead of automatically), Track Booking Attempts/Lockout (how
+forgiving the tracking page is with a mistyped ID or password before
+temporarily locking that visitor out), and Supplier Contract Max Size
+(the upload limit for Contract PDFs on the Suppliers page).
 
 ---
 
@@ -544,7 +605,13 @@ A large operations/quotation upgrade landed in September 2026. The sections abov
 2. Admin sees new booking in Dashboard and Bookings
    → Click "View" → verify details
    → Update status as payment received: pending → deposit_paid → fully_paid
+      (deposit_paid asks you to enter the real amount received — see §3)
 ```
+
+The same thing happens when an **agent** books a package directly for
+their client from the agent portal's "New Client" flow — it lands here
+in Bookings exactly like a guest's own booking, just with an "Agent:
+[name]" badge next to the guest's name so you know where it came from.
 
 ### Workflow C: Creating a New Package
 

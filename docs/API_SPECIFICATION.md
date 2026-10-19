@@ -2,8 +2,8 @@
 
 **Status:** Active
 **Owner:** Project Team
-**Version:** 1.0.0
-**Last Updated:** 2026-10-16
+**Version:** 1.1.0
+**Last Updated:** 2026-10-19
 
 ## Purpose
 
@@ -35,16 +35,18 @@ enforces a per-IP cap regardless of auth.
 
 | Endpoint | Method | Auth | Purpose |
 |---|---|---|---|
-| `track_lookup.php` | POST | None | JSON booking lookup by `ref` + `date` for the public Track Booking page — the pair is the visitor's only proof of ownership. |
-| `check_booking.php` | GET | None, rate-limited | Reverse-calculates the VAT breakdown (`subtotal`/`vat_amount`/`vat_rate`) of a booking's authoritative total, for display without exposing the full record. |
-| `track_booking_pdf.php` | GET | None, rate-limited | Streams the same HTML `booking_pdf.php` gives admins, gated by the same `ref`+`date` proof and sharing `track_lookup.php`'s per-IP rate-limit counter so the 3-attempt lockout can't be dodged by switching endpoints. |
+| `track_lookup.php` | POST | None, rate-limited | JSON booking lookup by `ref` + `password` for the public Track Booking page — a real one-time password (`App\Services\BookingTracking::verify()`), not the weaker ref+travel-date pairing this used before. Returns the full cost breakdown (real `amount_paid`/`balance_due`, not just the suggested deposit), special requests, and an itinerary summary, since a real password now gates it. |
+| `track_booking_pdf.php` | GET | None, rate-limited | Streams the same HTML `booking_pdf.php` gives admins, gated by `ref`+`password` and sharing `track_lookup.php`'s per-IP rate-limit counter (configurable — `track_lockout_attempts`/`track_lockout_minutes` settings) so the lockout can't be dodged by switching endpoints. |
+| `track_quotation_pdf.php` | GET | None, rate-limited | Streams the booking's Quotation/Invoice PDF (`quotation_pdf.php`, which self-labels Quotation/partial Invoice/full Invoice from the live `payment_status`) — same `ref`+`password` gate and shared rate limit. |
+| `track_itinerary_pdf.php` | GET | None, rate-limited | Streams the booking's itinerary PDF (`quotation_itinerary_pdf.php`) — same gate. |
+| ~~`check_booking.php`~~ | GET | None, rate-limited | **Dead code** — no caller anywhere in the current UI (`views/track.php` uses `track_lookup.php` instead). Still reachable by direct URL and still uses the old percentage-based service-charge estimate rather than a real `amount_paid`; left unfixed since nothing links to it, but worth removing outright in a future cleanup rather than leaving it to confuse the next read-through. |
 
 ## Payments
 
 | Endpoint | Method | Auth | Purpose |
 |---|---|---|---|
-| `paypal_create_order.php` | POST | None, rate-limited | Creates a PayPal order server-side for the amount the server itself computes — the client never supplies the amount being charged. |
-| `record_payment.php` | POST | None, rate-limited | Verifies a PayPal order via `App\Services\PayPalClient` (OAuth2 + live `/v2/checkout/orders/{id}` lookup) before marking a booking `deposit_paid`/`fully_paid`. The client-reported status/amount is never trusted — only the server-verified PayPal response is. |
+| `paypal_create_order.php` | POST | None, rate-limited | Creates a PayPal order server-side for the amount the server itself computes — the client never supplies the amount being charged. Accepts **either** `travel_date` (same-session trust, used by `confirmation.php` right after booking) or the Track Booking `password` (used by `track.php`, a separate later visit) as proof of ownership. |
+| `record_payment.php` | POST | None, rate-limited | Verifies a PayPal order via `App\Services\PayPalClient` (OAuth2 + live `/v2/checkout/orders/{id}` lookup) before marking a booking `deposit_paid`/`fully_paid`. The client-reported status/amount is never trusted — only the server-verified PayPal response is. Accumulates the verified amount into the real `bookings.amount_paid` (not the merely suggested `deposit_amount`, which it previously and incorrectly read), then sends the same branded Invoice/Deposit-Receipt email `admin/bookings.php`'s manual status change does — gated by the `auto_send_payment_emails` setting. |
 
 ## Quotation lifecycle (admin)
 
@@ -52,7 +54,7 @@ enforces a per-IP cap regardless of auth.
 |---|---|---|---|
 | `itinerary.php` | GET/POST | Admin | Feeds `admin/quotation_new.php`'s line-item builder — resolves an itinerary's days into priced components via `ItineraryQuoteBuilder`. |
 | `quotation_email.php` | POST | Admin, ownership-checked for agents | Sends the quotation to the client. Generates `public_token` on first send, builds the view link, attaches Quotation + Itinerary PDFs. Builds its own email body directly (`Mailer::queueRaw()`) rather than going through the `quotation_sent` template — editing that template in `admin/email_templates.php` has no effect on this send. |
-| `quotation_pdf.php` | GET | Admin, ownership-checked for agents | Streams the Quotation document. `?invoice=1` relabels it INVOICE, honored only after re-querying the linked booking's `payment_status === 'fully_paid'` — the URL flag alone can't trigger it. |
+| `quotation_pdf.php` | GET | Admin, ownership-checked for agents | Streams the Quotation document. Self-determines Quotation / partial Invoice (Deposit Paid, real amount/balance) / full Invoice (Paid in Full) purely from the linked booking's live `payment_status`/`amount_paid`, re-queried fresh on every view — no query flag involved any more. |
 | `quotation_itinerary_pdf.php` | GET | Admin, ownership-checked for agents | Streams the quotation's day-by-day itinerary companion, preserving the snapshot-first resolution priority (the quotation's own `itinerary`/`includes`/`excludes` columns, then `itinerary_id`, then a package-name fallback). |
 | `convert_quotation.php` | POST | Admin, ownership-checked for agents | Converts an accepted quotation into a `bookings` row, carrying over its deposit percentage and line items; prevents an agent from converting (and thereby triggering a commission) on a quotation they don't own. |
 | `quote_view.php` | GET | None, rate-limited (token-only) | The client-facing view link from the quotation email. Accepts **only** `?t=<48-hex-char public_token>` — never a numeric id. Increments `view_count`, sets `first_viewed_at`/`last_viewed_at`, advances `status` `sent`→`viewed` (never backward), then internally includes `quotation_pdf.php` with `SZV_PDF_INTERNAL_RENDER` defined. |
@@ -61,7 +63,7 @@ enforces a per-IP cap regardless of auth.
 
 | Endpoint | Method | Auth | Purpose |
 |---|---|---|---|
-| `booking_pdf.php` | GET | Admin, ownership-checked for agents | Streams Booking Confirmation / Invoice. Rebuilds its itemized breakdown live via `ItineraryQuoteBuilder` for bookings with no linked quotation (most of them), but the Grand Total always comes from the frozen `bookings.total_amount`, never a live recompute. |
+| `booking_pdf.php` | GET | Admin, ownership-checked for agents | Streams Booking Confirmation / Invoice — same self-determined Quotation/partial/full state as `quotation_pdf.php`. Rebuilds its itemized breakdown live via `ItineraryQuoteBuilder` for bookings with no linked quotation (most of them), but the Grand Total always comes from the frozen `bookings.total_amount`, never a live recompute. |
 | `booking_itinerary_pdf.php` | GET | Admin, ownership-checked for agents | Streams the booking's day-by-day itinerary companion. |
 | `booking_email.php` | POST | Admin, ownership-checked for agents | Manually resends the booking confirmation. Builds its own HTML inline (`Mailer::queueRaw()`) — a separate code path from the automatic send in `book.php`/`convert_quotation.php`, so the two are not guaranteed to produce byte-identical output. |
 | `voucher_pdf.php` | GET | Admin, ownership-checked for agents | Streams the Travel Voucher (logistics only — no pricing). |
@@ -78,6 +80,7 @@ enforces a per-IP cap regardless of auth.
 | `upload_team_image.php` | POST | Admin, agent-blocked | Uploads a guide/staff profile photo. |
 | `gallery/upload.php` / `gallery/delete.php` / `gallery/list.php` | POST/POST/GET | Admin | Gallery image management; `delete.php` enforces a `realpath()` boundary check so a crafted path can't escape `assets/images/`. |
 | `dashboard_stats.php` | GET | Admin | Dashboard summary tiles. |
+| `supplier_contract.php` | GET | Admin, agent-blocked | Streams a supplier's uploaded Contract PDF from `storage/uploads/contracts/` (outside the web root, `.htaccess`-blocked from direct access — this is the only path to it). Upload (via `admin/suppliers.php`'s own save form) is validated by real content-type sniffing, not the filename/extension. |
 | `analytics.php` | POST | None, rate-limited | Records a public-site analytics event (page view / interaction) into `analytics_events`. |
 | `get_setting.php` | GET | None | Reads one key from the `settings` table. No auth — scoped by a strict `^[a-z0-9_]+$` key allowlist and read-only, so this is intentionally public rather than an oversight; still worth re-checking if a sensitive key is ever added to `settings`. |
 

@@ -127,6 +127,68 @@
     });
   };
 
+  // ── Prompt-for-a-value dialog ──────────────────────────────────
+  // Replaces window.prompt() the same way confirmDialog() replaces
+  // window.confirm() above — native prompt() can't be restyled and (in
+  // some embedded contexts) doesn't work at all. Resolves to the entered
+  // string, or null on Cancel/Escape/backdrop click. Used wherever a
+  // status change needs a number or short text captured alongside it
+  // (e.g. "Deposit Paid" needing the actual amount received).
+  window.promptDialog = window.promptDialog || function (message, opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      var overlay = document.createElement('div');
+      overlay.className = 'admin-modal-overlay confirm-dialog-overlay open';
+      overlay.setAttribute('role', 'presentation');
+      overlay.innerHTML =
+        '<div class="admin-modal confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="promptDialogTitle">' +
+          '<div class="confirm-dialog-icon confirm-dialog-icon--default">' + ICONS.default + '</div>' +
+          '<div class="confirm-dialog-title" id="promptDialogTitle"></div>' +
+          '<div class="confirm-dialog-message"></div>' +
+          '<input class="admin-input confirm-dialog-input" style="margin-top:1rem;width:100%;box-sizing:border-box">' +
+          '<div class="confirm-dialog-actions">' +
+            '<button type="button" class="admin-btn admin-btn--outline confirm-dialog-cancel"></button>' +
+            '<button type="button" class="admin-btn admin-btn--primary confirm-dialog-ok"></button>' +
+          '</div>' +
+        '</div>';
+      overlay.querySelector('.confirm-dialog-title').textContent = opts.title || 'Enter a value';
+      overlay.querySelector('.confirm-dialog-message').textContent = message;
+      overlay.querySelector('.confirm-dialog-cancel').textContent = opts.cancelLabel || 'Cancel';
+      overlay.querySelector('.confirm-dialog-ok').textContent = opts.confirmLabel || 'Save';
+      var input = overlay.querySelector('.confirm-dialog-input');
+      input.type = opts.inputType || 'text';
+      if (opts.inputType === 'number') {
+        input.step = opts.step || 'any';
+        if (opts.min != null) input.min = opts.min;
+      }
+      if (opts.placeholder) input.placeholder = opts.placeholder;
+      if (opts.value != null) input.value = opts.value;
+      document.body.appendChild(overlay);
+
+      var prevFocus = document.activeElement;
+      function cleanup(result) {
+        overlay.remove();
+        document.removeEventListener('keydown', onKey);
+        if (prevFocus && prevFocus.focus) prevFocus.focus();
+        resolve(result);
+      }
+      function submit() {
+        var val = input.value.trim();
+        if (opts.required !== false && !val) { input.focus(); return; }
+        cleanup(val);
+      }
+      function onKey(e) {
+        if (e.key === 'Escape') cleanup(null);
+        else if (e.key === 'Enter' && document.activeElement === input) { e.preventDefault(); submit(); }
+      }
+      overlay.querySelector('.confirm-dialog-cancel').addEventListener('click', function () { cleanup(null); });
+      overlay.querySelector('.confirm-dialog-ok').addEventListener('click', submit);
+      overlay.addEventListener('mousedown', function (e) { if (e.target === overlay) cleanup(null); });
+      document.addEventListener('keydown', onKey);
+      setTimeout(function () { input.focus(); input.select(); }, 30);
+    });
+  };
+
   // ── Confirm-before-change for status <select> dropdowns ──────
   // A status/stage <select> that fires its change immediately (no
   // separate "Save" step) needs its own confirm — and, on Cancel, needs

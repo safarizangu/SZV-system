@@ -83,7 +83,7 @@ $total     = (float)($b['total_amount'] ?? 0);
 $deposit   = (float)($b['deposit_amount'] ?? round($total * 0.25, 2));
 $balance   = $total - $deposit;
 $travelDt  = $b['travel_date'] ? date('d F Y', strtotime($b['travel_date'])) : '—';
-$trackUrl  = rtrim(APP_URL,'/').'/track.php?ref='.urlencode($ref).'&date='.urlencode($b['travel_date']??'');
+$trackUrl  = rtrim(APP_URL,'/').'/track.php?ref='.urlencode($ref);
 $pdfUrl    = rtrim(APP_URL,'/').'/api/booking_pdf.php?ref='.urlencode($ref);
 
 // Day-by-day HTML — same card arrangement as the PDFs and the admin

@@ -129,20 +129,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_quote'])) {
     // predate this snapshot (see the "Parse existing" section below).
     $pricingDays = $itinerary;
 
-    $serviceChargePax = (float)($_POST['service_charge_pax'] ?? 0);
+    $serviceChargeAdultPax = (float)($_POST['service_charge_adult'] ?? 0);
+    $serviceChargeChildPax = (float)($_POST['service_charge_child'] ?? 0);
     $discountPct      = (float)($_POST['discount_pct'] ?? 0);
     $markupPct        = max(0, (float)($_POST['markup_pct'] ?? 0));
 
     // Skip ItineraryQuoteBuilder's own hardcoded $100/pax default service
     // fee — Service Charge below is the real one, entered directly.
+    // Infants are never charged, same as everywhere else in the app.
     $built     = \App\Services\ItineraryQuoteBuilder::build(['days' => $pricingDays], $adults, $children, false, $_POST['start_date'] ?: null, trim($_POST['client_country'] ?? '') ?: null);
     $lineItems = $built['line_items'];
-    if ($serviceChargePax > 0) {
+    if ($serviceChargeAdultPax > 0 && $adults > 0) {
         $lineItems[] = [
-            'description'  => 'Professional Driver Guide & Service Fee',
-            'unit_price'   => $serviceChargePax,
-            'quantity_str' => $totalPax . ' Guest' . ($totalPax !== 1 ? 's' : ''),
-            'amount'       => round($serviceChargePax * $totalPax, 2),
+            'description'  => 'Service Charge (Adults)',
+            'unit_price'   => $serviceChargeAdultPax,
+            'quantity_str' => $adults . ' Adult' . ($adults !== 1 ? 's' : ''),
+            'amount'       => round($serviceChargeAdultPax * $adults, 2),
+            'category'     => 'service_fee',
+        ];
+    }
+    if ($serviceChargeChildPax > 0 && $children > 0) {
+        $lineItems[] = [
+            'description'  => 'Service Charge (Children)',
+            'unit_price'   => $serviceChargeChildPax,
+            'quantity_str' => $children . ' Child' . ($children !== 1 ? 'ren' : ''),
+            'amount'       => round($serviceChargeChildPax * $children, 2),
             'category'     => 'service_fee',
         ];
     }
@@ -304,10 +315,27 @@ if (empty($itinerary) && !empty($q['itinerary_id'])) {
 while (count($itinerary) < $qDuration) $itinerary[] = ['day'=>count($itinerary)+1,'title'=>'','description'=>''];
 $itinerary = array_slice($itinerary, 0, $qDuration);
 
-// service_charge stores the flat total on save; reconstruct the
-// $/person figure the Service Charge input actually edits.
-$qSvcTotal = (float)($q['service_charge'] ?? 0);
-$qSvcPax   = $qSvcTotal > 0 ? round($qSvcTotal / $qTotalPax, 2) : 0;
+// service_charge stores only the combined total — the real per-type
+// rates the two Service Charge inputs edit live in line_items instead,
+// tagged category='service_fee'. A legacy quotation saved before the
+// Adults/Children split (a single "Professional Driver Guide & Service
+// Fee" line covering everyone) prefills both inputs with that same flat
+// rate, matching what it actually charged.
+$qLineItemsForPrefill = $q ? (json_decode($q['line_items'] ?? '[]', true) ?: []) : [];
+$qSvcAdultPax = 0.0; $qSvcChildPax = 0.0;
+foreach ($qLineItemsForPrefill as $li) {
+    if (($li['category'] ?? '') !== 'service_fee') continue;
+    $desc = $li['description'] ?? '';
+    $unit = (float)($li['unit_price'] ?? 0);
+    if (stripos($desc, 'child') !== false) {
+        $qSvcChildPax = $unit;
+    } elseif (stripos($desc, 'adult') !== false) {
+        $qSvcAdultPax = $unit;
+    } else {
+        $qSvcAdultPax = $unit;
+        $qSvcChildPax = $unit;
+    }
+}
 $qDiscountPct = (float)($q['discount_pct'] ?? 0);
 $qMarkupPct   = (float)($q['markup_pct'] ?? 0);
 $qIncludesArr = $q ? (json_decode($q['includes']??'[]',true)?:[]) : [];
@@ -705,13 +733,17 @@ ob_start();
         <input name="children" type="number" min="0" class="admin-input" id="inp_children"
                value="<?= $qChildren ?>" style="margin-bottom:.75rem" oninput="calcTotals()">
 
-        <label class="admin-label">Infants</label>
+        <label class="admin-label">Infants <span style="font-weight:600;color:var(--gray-500)">— always free, no service charge</span></label>
         <input name="infants" type="number" min="0" class="admin-input"
                value="<?= (int)($q['infants']??0) ?>" style="margin-bottom:.75rem">
 
-        <label class="admin-label">Service Charge ($ / person)</label>
-        <input name="service_charge_pax" type="number" step="0.01" class="admin-input" id="service_charge_pax"
-               value="<?= $qSvcPax ?>" oninput="calcTotals()" placeholder="e.g. 100" style="margin-bottom:.75rem">
+        <label class="admin-label">Service Charge — Adults ($ / person)</label>
+        <input name="service_charge_adult" type="number" step="0.01" class="admin-input" id="service_charge_adult"
+               value="<?= $qSvcAdultPax ?>" oninput="calcTotals()" placeholder="e.g. 100" style="margin-bottom:.75rem">
+
+        <label class="admin-label">Service Charge — Children ($ / person)</label>
+        <input name="service_charge_child" type="number" step="0.01" class="admin-input" id="service_charge_child"
+               value="<?= $qSvcChildPax ?>" oninput="calcTotals()" placeholder="e.g. 100" style="margin-bottom:.75rem">
 
         <label class="admin-label">Markup (%) <span style="font-weight:600;color:var(--gray-500)">— applied before discount/VAT</span></label>
         <input name="markup_pct" type="number" min="0" max="100" step="0.5" class="admin-input" id="inp_markup"
@@ -1007,9 +1039,13 @@ function calcTotals() {
     lineItems.push({desc:name, unit:o.amount, qty:qty, amount:amount});
   });
 
-  var svcPax = +((document.getElementById('service_charge_pax')||{}).value)||0;
-  if (svcPax > 0) {
-    lineItems.push({desc:'Service Charge', unit:svcPax, qty:pax+' Guest'+(pax!==1?'s':''), amount:svcPax*pax});
+  var svcAdultPax = +((document.getElementById('service_charge_adult')||{}).value)||0;
+  var svcChildPax = +((document.getElementById('service_charge_child')||{}).value)||0;
+  if (svcAdultPax > 0 && adults > 0) {
+    lineItems.push({desc:'Service Charge (Adults)', unit:svcAdultPax, qty:adults+' Adult'+(adults!==1?'s':''), amount:svcAdultPax*adults});
+  }
+  if (svcChildPax > 0 && children > 0) {
+    lineItems.push({desc:'Service Charge (Children)', unit:svcChildPax, qty:children+' Child'+(children!==1?'ren':''), amount:svcChildPax*children});
   }
 
   var subtotal  = lineItems.reduce(function(sum,li){ return sum+li.amount; }, 0);

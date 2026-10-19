@@ -53,7 +53,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $itinStmt->execute([(int)$package['itinerary_id']]);
                 $itinerary = $itinStmt->fetch() ?: null;
                 if ($itinerary) {
-                    $builtQuote  = \App\Services\ItineraryQuoteBuilder::build($itinerary, $adults, $children, true, $travelDate, $country ?: null);
+                    // This package's own Adults/Children Service Charge
+                    // rates (admin/package_edit.php) — same fallback as
+                    // api/book.php for a package saved before that split.
+                    $pkgCostBreakdown = json_decode($package['cost_breakdown'] ?? '{}', true) ?: [];
+                    $svcFeeRates = [
+                        'adult' => (float)($pkgCostBreakdown['service_charge_adult'] ?? $pkgCostBreakdown['service_charge_pax'] ?? 100),
+                        'child' => (float)($pkgCostBreakdown['service_charge_child'] ?? $pkgCostBreakdown['service_charge_pax'] ?? 100),
+                    ];
+                    $builtQuote  = \App\Services\ItineraryQuoteBuilder::build($itinerary, $adults, $children, true, $travelDate, $country ?: null, $svcFeeRates);
                     $quoteTotals = \App\Services\ItineraryQuoteBuilder::totals($builtQuote['line_items']);
                 }
             } catch (\Exception $e) { $itinerary = null; }
@@ -135,11 +143,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                          $travelDate, $total, $ref, $notes, $myId]);
             $leadId = (int)$db->lastInsertId();
 
+            // Track Booking password — same issuance every booking-creation
+            // path uses, issued inside the transaction so a failure here
+            // rolls back the whole booking rather than leaving one without
+            // a way for the client to ever look it up again.
+            $trackingPassword = \App\Services\BookingTracking::issue($db, $ref);
+
             $db->commit();
 
             $result = \App\Services\PipelineSync::setLeadStageManual($db, $leadId, 'booked', true, $myId);
             \App\Services\ActivityLog::record('create', 'booking', $bookingId, ['booking_ref'=>$ref, 'via'=>'agent_portal', 'agent_id'=>$myId]);
-            echo json_encode(['success'=>true, 'booking_ref'=>$ref, 'commission_created'=>$result['commission_created'] ?? false]);
+
+            // Client confirmation — same branded template every other
+            // booking-creation path sends; previously skipped on this path,
+            // but the client needs their tracking password regardless of
+            // who created the booking.
+            try {
+                \App\Mail\Mailer::queue('booking_confirmation', [
+                    'to_email'            => $email,
+                    'to_name'             => $fullName,
+                    'client_name'         => $fullName,
+                    'booking_ref'         => $ref,
+                    'tracking_password'   => $trackingPassword,
+                    'package_name'        => $package['name'],
+                    'travel_date'         => $travelDate,
+                    'travelers'           => $travelers,
+                    'accommodation_level' => $accLevel,
+                    'total_amount'        => $total,
+                    'deposit_amount'      => $deposit,
+                ]);
+                $db->prepare("UPDATE bookings SET confirmation_email_sent=1 WHERE booking_ref=?")->execute([$ref]);
+            } catch (\Exception $e) {}
+
+            echo json_encode(['success'=>true, 'booking_ref'=>$ref, 'tracking_password'=>$trackingPassword, 'commission_created'=>$result['commission_created'] ?? false]);
         } catch (\Exception $e) {
             if ($db->inTransaction()) $db->rollBack();
             echo json_encode(['success'=>false,'message'=>'Error: '.$e->getMessage()]);
@@ -443,6 +479,29 @@ ob_start();
         </div>
       </div>
 
+      <!-- Screen 1b — booking submitted: Track Booking credentials, shown
+           once, same reasoning as views/confirmation.php's own flash —
+           the toast this used to rely on was wiped by the page reload
+           before an agent could read it, let alone relay it to a client. -->
+      <div id="nc-screen-booking-done" style="display:none">
+        <div style="background:var(--green-light);border:1.5px solid var(--green-border);padding:1.25rem;margin-bottom:1.25rem">
+          <p style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:.6rem">Booking Submitted</p>
+          <p style="font-size:.82rem;color:var(--gray-700);line-height:1.6">Sent to admin for processing. A confirmation email with these same details has also gone to the client.</p>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:1.25rem">
+          <div style="background:var(--gray-50);border-left:4px solid var(--black);padding:1rem">
+            <div style="font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500);margin-bottom:.35rem">Booking ID</div>
+            <div id="db-done-ref" style="font-family:monospace;font-size:1.1rem;font-weight:700"></div>
+          </div>
+          <div style="background:var(--gray-50);border-left:4px solid var(--black);padding:1rem">
+            <div style="font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500);margin-bottom:.35rem">Track Booking Password</div>
+            <div id="db-done-pwd" style="font-family:monospace;font-size:1.1rem;font-weight:700"></div>
+          </div>
+        </div>
+        <p style="font-size:.76rem;color:var(--gray-500);margin-bottom:1.25rem;line-height:1.6">Shown once here — if the client can't find their email, this is the only other place to get it. Both are needed together at <code>/track.php</code>.</p>
+        <button onclick="ncFinishBooking()" class="admin-btn admin-btn--primary">Done</button>
+      </div>
+
       <!-- Screen 2 — custom safari request -->
       <div id="nc-screen-request" style="display:none">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:.85rem">
@@ -532,8 +591,8 @@ ob_start();
 <script>
 var STAGE_COLORS = <?= json_encode($stageColors) ?>;
 
-var NC_SCREENS = ['choice', 'booking', 'request'];
-var NC_TITLES  = {choice: 'New Client', booking: 'Direct Booking', request: 'Custom Request'};
+var NC_SCREENS = ['choice', 'booking', 'booking-done', 'request'];
+var NC_TITLES  = {choice: 'New Client', booking: 'Direct Booking', 'booking-done': 'Booking Submitted', request: 'Custom Request'};
 
 function openAddModal() {
     document.getElementById('addLeadModal').classList.add('open');
@@ -605,15 +664,21 @@ async function submitDirectBooking() {
         var r = await fetch('leads.php', {method:'POST', body:fd});
         var d = await r.json();
         if (d.success) {
-            toast('Booking ' + d.booking_ref + ' sent to admin for processing' + (d.commission_created ? ' — commission created' : ''), 'ok');
-            closeAddModal();
-            setTimeout(function(){ window.location.reload(); }, 900);
+            document.getElementById('db-done-ref').textContent = d.booking_ref;
+            document.getElementById('db-done-pwd').textContent = d.tracking_password || '—';
+            ncGoto('booking-done');
+            if (d.commission_created) toast('Commission created', 'ok');
         } else {
             status.textContent = d.message || 'Error submitting booking.'; status.style.color = 'var(--red)';
         }
     } catch(e) {
         status.textContent = 'Network error.'; status.style.color = 'var(--red)';
     }
+}
+
+function ncFinishBooking() {
+    closeAddModal();
+    window.location.reload();
 }
 
 async function submitCustomRequest() {

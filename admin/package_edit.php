@@ -119,7 +119,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
     // of being re-typed into a separate set of rows here — service
     // charge and traveler counts are what's left to enter directly.
     $bd = [
-        'service_charge_pax' => (float)($_POST['service_charge_pax'] ?? 0),
+        'service_charge_adult' => (float)($_POST['service_charge_adult'] ?? 0),
+        'service_charge_child' => (float)($_POST['service_charge_child'] ?? 0),
         'adults'              => max(1,(int)($_POST['adults'] ?? 1)),
         'children'            => max(0,(int)($_POST['children'] ?? 0)),
         'infants'             => max(0,(int)($_POST['infants'] ?? 0)),
@@ -142,14 +143,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
         $row = $ls->fetch();
         $pricingDays = $row ? (json_decode($row['days'] ?? '[]', true) ?: []) : [];
     }
-    $svcPax = $bd['service_charge_pax'];
+    // price_1pax is priced for 1 adult, 0 children, so only the Adults
+    // rate feeds this preview — the Children rate still gets saved below
+    // for use whenever a real party (with children) is quoted or booked.
+    $svcAdultPax = $bd['service_charge_adult'];
     $quote     = \App\Services\ItineraryQuoteBuilder::build(['days' => $pricingDays], 1, 0, false);
     $lineItems = $quote['line_items'];
-    if ($svcPax > 0) {
+    if ($svcAdultPax > 0) {
         $lineItems[] = [
-            'description' => 'Service Charge', 'unit_price' => $svcPax,
-            'quantity_str'=> '1 Guest',
-            'amount'      => round($svcPax, 2), 'category' => 'service_charge',
+            'description' => 'Service Charge (Adults)', 'unit_price' => $svcAdultPax,
+            'quantity_str'=> '1 Adult',
+            'amount'      => round($svcAdultPax, 2), 'category' => 'service_fee',
         ];
     }
     $totals = \App\Services\ItineraryQuoteBuilder::totals($lineItems);
@@ -244,12 +248,18 @@ $itinerary = array_slice($itinerary, 0, $durationDays);
 // data the admin had already entered per day in the Day-by-Day Itinerary
 // above — re-typing the same lodge and vehicle rates twice, with no
 // guarantee the two ever agreed. It's now computed live from those same
-// day-blocks (see calcTotals() below); service_charge_pax and Adults/
-// Children/Infants are what's left to enter directly. 'service_charge'
-// is the old key, kept as a fallback for packages saved before this
-// change. Adults/Children/Infants only drive this page's live cost
-// preview — the saved price_1pax is always computed for 1 adult, 0 children.
-$bdSvcPax    = (float)($bd['service_charge_pax'] ?? $bd['service_charge'] ?? 0);
+// day-blocks (see calcTotals() below); service_charge_adult/
+// service_charge_child and Adults/Children/Infants are what's left to
+// enter directly. service_charge_pax/'service_charge' are the old keys —
+// a single flat rate applied to every traveler regardless of age — kept
+// as a fallback for packages saved before Adults/Children had separate
+// rates, applied to both here so nothing silently reprices on first load.
+// Infants never get a service charge, same as everywhere else. Adults/
+// Children/Infants only drive this page's live cost preview — the saved
+// price_1pax is always computed for 1 adult, 0 children.
+$bdLegacySvcPax = (float)($bd['service_charge_pax'] ?? $bd['service_charge'] ?? 0);
+$bdSvcAdultPax  = (float)($bd['service_charge_adult'] ?? $bdLegacySvcPax);
+$bdSvcChildPax  = (float)($bd['service_charge_child'] ?? $bdLegacySvcPax);
 $bdAdults    = max(1, (int)($bd['adults'] ?? $bd['traveler_count'] ?? 1));
 $bdChildren  = max(0, (int)($bd['children'] ?? 0));
 $bdInfants   = max(0, (int)($bd['infants'] ?? 0));
@@ -652,13 +662,17 @@ ob_start();
                value="<?= $bdChildren ?>" class="admin-input" style="margin-bottom:.75rem"
                oninput="calcTotals()">
 
-        <label class="admin-label">Infants</label>
+        <label class="admin-label">Infants <span style="font-weight:600;color:var(--gray-500)">— always free, no service charge</span></label>
         <input type="number" name="infants" id="pe_infants" min="0" max="20"
                value="<?= $bdInfants ?>" class="admin-input" style="margin-bottom:.75rem">
 
-        <label class="admin-label">Service Charge ($ / person)</label>
-        <input name="service_charge_pax" type="number" step="0.01" class="admin-input" id="service_charge_pax"
-               value="<?= $bdSvcPax ?>" oninput="calcTotals()" placeholder="e.g. 50">
+        <label class="admin-label">Service Charge — Adults ($ / person)</label>
+        <input name="service_charge_adult" type="number" step="0.01" class="admin-input" id="service_charge_adult"
+               value="<?= $bdSvcAdultPax ?>" oninput="calcTotals()" placeholder="e.g. 50" style="margin-bottom:.75rem">
+
+        <label class="admin-label">Service Charge — Children ($ / person)</label>
+        <input name="service_charge_child" type="number" step="0.01" class="admin-input" id="service_charge_child"
+               value="<?= $bdSvcChildPax ?>" oninput="calcTotals()" placeholder="e.g. 50">
         <p style="font-size:.68rem;color:var(--gray-500);margin-top:.5rem;line-height:1.5">Everything above comes from the Day-by-Day Itinerary.</p>
       </div>
 
@@ -1024,9 +1038,13 @@ function calcTotals() {
     lineItems.push({desc:name, unit:o.amount, qty:qty, amount:amount});
   });
 
-  var svcPax = +((document.getElementById('service_charge_pax')||{}).value)||0;
-  if (svcPax > 0) {
-    lineItems.push({desc:'Service Charge', unit:svcPax, qty:travelers+' Guest'+(travelers!==1?'s':''), amount:svcPax*travelers});
+  var svcAdultPax = +((document.getElementById('service_charge_adult')||{}).value)||0;
+  var svcChildPax = +((document.getElementById('service_charge_child')||{}).value)||0;
+  if (svcAdultPax > 0 && adults > 0) {
+    lineItems.push({desc:'Service Charge (Adults)', unit:svcAdultPax, qty:adults+' Adult'+(adults!==1?'s':''), amount:svcAdultPax*adults});
+  }
+  if (svcChildPax > 0 && children > 0) {
+    lineItems.push({desc:'Service Charge (Children)', unit:svcChildPax, qty:children+' Child'+(children!==1?'ren':''), amount:svcChildPax*children});
   }
 
   var subtotal = lineItems.reduce(function(sum,li){ return sum+li.amount; }, 0);

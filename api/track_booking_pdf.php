@@ -1,10 +1,10 @@
 <?php
 /**
  * Public "Download PDF Confirmation" for the Track Booking page.
- * URL: api/track_booking_pdf.php?ref=SZVXXX&date=YYYY-MM-DD
+ * URL: api/track_booking_pdf.php?ref=SZVXXX&password=XXXXXXXX
  *
  * No admin session — gated the same way api/track_lookup.php already is:
- * ref+date is the visitor's proof of ownership, and both endpoints share
+ * ref+password is the visitor's proof of ownership, and both endpoints share
  * the SAME per-IP rate-limit counter (identical lock file), so a guest
  * can't dodge the 3-attempt lockout by hitting this endpoint instead of
  * the JSON lookup. On success it renders the exact same browser-print
@@ -35,8 +35,8 @@ if (file_exists($lockFile)) {
     $lockData = json_decode(file_get_contents($lockFile), true) ?? $lockData;
 }
 
-$maxAttempts = 3;
-$lockSeconds = 900; // 15 minutes
+$maxAttempts = TRACK_LOCKOUT_ATTEMPTS;
+$lockSeconds = TRACK_LOCKOUT_MINUTES * 60;
 
 if ((time() - $lockData['last_attempt']) >= $lockSeconds) {
     $lockData['attempts'] = 0;
@@ -48,34 +48,20 @@ if ($lockData['attempts'] >= $maxAttempts) {
 }
 
 // ── Validate input — identical rules to track_lookup.php ──────────────
-$ref  = strtoupper(trim($_GET['ref'] ?? ''));
-$date = trim($_GET['date'] ?? '');
+$ref      = strtoupper(trim($_GET['ref'] ?? ''));
+$password = trim($_GET['password'] ?? '');
 
-if (!$ref || !$date) {
-    track_pdf_fail('Booking ID and Travel Date are both required.');
+if (!$ref || !$password) {
+    track_pdf_fail('Booking ID and Track Booking password are both required.');
 }
 if (!preg_match('/^SZV[A-Z0-9]{4,17}$/i', $ref)) {
     track_pdf_fail('Invalid Booking ID format.');
 }
 
-$parsedDate = null;
-foreach (['Y-m-d', 'd/m/Y', 'm/d/Y'] as $fmt) {
-    $d = \DateTime::createFromFormat($fmt, $date);
-    if ($d && $d->format($fmt) === $date) {
-        $parsedDate = $d->format('Y-m-d');
-        break;
-    }
-}
-if (!$parsedDate) {
-    track_pdf_fail('Invalid date format.');
-}
-
-// ── Confirm ownership (ref + travel_date must match, same as lookup) ──
+// ── Confirm ownership (ref + password must match, same as lookup) ──
 try {
-    $db   = \App\Models\Database::getInstance();
-    $stmt = $db->prepare("SELECT id FROM bookings WHERE booking_ref = ? AND travel_date = ? LIMIT 1");
-    $stmt->execute([$ref, $parsedDate]);
-    $found = $stmt->fetch();
+    $db    = \App\Models\Database::getInstance();
+    $found = \App\Services\BookingTracking::verify($db, $ref, $password);
 } catch (\Exception $e) {
     error_log('[Track PDF] ' . $e->getMessage());
     track_pdf_fail('An error occurred. Please try again or contact us on WhatsApp.', 500);

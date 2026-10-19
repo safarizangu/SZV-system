@@ -132,6 +132,9 @@ try {
     // Auto-schedule all standard reminders — same scheduler the direct-booking path uses
     BookingReminderScheduler::schedule($db, $ref, $travelDate);
 
+    // Track Booking password — same issuance every booking-creation path uses
+    $trackingPassword = \App\Services\BookingTracking::issue($db, $ref);
+
     // If this quotation originated from a lead or a custom request, advance
     // that record's status now that it has genuinely become a booking —
     // same linkage used when the quotation itself was created, just read
@@ -163,6 +166,7 @@ try {
             'to_name'             => $q['client_name'],
             'client_name'         => $q['client_name'],
             'booking_ref'         => $ref,
+            'tracking_password'   => $trackingPassword,
             'package_name'        => $q['package_name'] ?? '',
             'travel_date'         => $travelDate,
             'travelers'           => $travelers,
@@ -182,7 +186,7 @@ try {
         'booking_ref' => $ref,
         'booking_id'  => $bookingId,
         'message'     => 'Booking '.$ref.' created successfully.',
-        'track_url'   => BASE_PATH.'/track.php?ref='.urlencode($ref).'&date='.urlencode($travelDate),
+        'track_url'   => BASE_PATH.'/track.php?ref='.urlencode($ref),
         'admin_url'   => BASE_PATH.'/admin/bookings.php?view='.urlencode($ref),
     ]);
 

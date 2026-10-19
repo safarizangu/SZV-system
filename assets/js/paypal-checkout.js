@@ -25,7 +25,9 @@ window.SZVPayPal = (function () {
   }
 
   /**
-   * opts: { ref, travelDate, csrfToken, onSuccess(data), onError(message) }
+   * opts: { ref, travelDate, password, csrfToken, onSuccess(data), onError(message) }
+   * Pass travelDate (confirmation.php, same-session trust) or password
+   * (track.php, a separate later visit) — whichever proves ownership here.
    */
   function render(containerId, opts) {
     var el = document.getElementById(containerId);
@@ -46,7 +48,8 @@ window.SZVPayPal = (function () {
         createOrder: function () {
           var fd = new FormData();
           fd.append('ref', opts.ref);
-          fd.append('travel_date', opts.travelDate);
+          if (opts.travelDate) fd.append('travel_date', opts.travelDate);
+          if (opts.password)   fd.append('password', opts.password);
           fd.append('_csrf', opts.csrfToken);
           return fetch('api/paypal_create_order.php', { method: 'POST', body: fd, credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
@@ -60,7 +63,8 @@ window.SZVPayPal = (function () {
           return actions.order.capture().then(function () {
             var fd = new FormData();
             fd.append('ref', opts.ref);
-            fd.append('travel_date', opts.travelDate);
+            if (opts.travelDate) fd.append('travel_date', opts.travelDate);
+            if (opts.password)   fd.append('password', opts.password);
             fd.append('paypal_order_id', data.orderID);
             fd.append('_csrf', opts.csrfToken);
             return fetch('api/record_payment.php', { method: 'POST', body: fd, credentials: 'same-origin' })

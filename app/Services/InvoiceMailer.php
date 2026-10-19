@@ -29,18 +29,60 @@ class InvoiceMailer
         }
         if (!$attachments) return false;
 
-        $html    = self::buildEmailHtml($b);
+        $html    = self::buildEmailHtml($b, true);
         $subject = 'Invoice — ' . $ref . ' | Safari Zangu Ventures (Paid in Full)';
         $id = \App\Mail\Mailer::queueRaw($b['email'], $b['full_name'] ?? '', $subject, $html, $attachments, 'invoice_paid');
         return $id !== false;
     }
 
-    private static function buildEmailHtml(array $b): string
+    /**
+     * Same idea as sendForBooking(), fired once per genuine transition
+     * INTO deposit_paid — the Quotation/Booking PDF relabels itself as a
+     * partial Invoice from the booking's own amount_paid/payment_status
+     * (quotation_pdf.php, booking_pdf.php both read it live), so this just
+     * sends that same document with the real figures, not a full-paid one.
+     */
+    public static function sendDepositReceipt(array $b): bool
     {
-        $ref      = htmlspecialchars($b['booking_ref']);
-        $name     = htmlspecialchars($b['full_name'] ?? '');
-        $total    = number_format((float)($b['total_amount'] ?? 0), 2);
-        $trackUrl = rtrim(APP_URL, '/') . '/track.php?ref=' . urlencode($b['booking_ref']) . '&date=' . urlencode($b['travel_date'] ?? '');
+        $ref = $b['booking_ref'] ?? '';
+        if (!$ref || empty($b['email'])) return false;
+
+        $attachments = [];
+        if (!empty($b['quotation_id'])) {
+            $pdf = PdfRenderer::renderQuotation((int)$b['quotation_id'], 'Invoice-' . $ref);
+            if ($pdf) $attachments[] = $pdf;
+            $itin = PdfRenderer::renderQuotationItinerary((int)$b['quotation_id'], 'Itinerary-' . $ref);
+            if ($itin) $attachments[] = $itin;
+        } else {
+            $pdf = PdfRenderer::renderBooking($ref, 'Invoice-' . $ref);
+            if ($pdf) $attachments[] = $pdf;
+            $itin = PdfRenderer::renderBookingItinerary($ref, 'Itinerary-' . $ref);
+            if ($itin) $attachments[] = $itin;
+        }
+        if (!$attachments) return false;
+
+        $html    = self::buildEmailHtml($b, false);
+        $subject = 'Deposit Received — ' . $ref . ' | Safari Zangu Ventures';
+        $id = \App\Mail\Mailer::queueRaw($b['email'], $b['full_name'] ?? '', $subject, $html, $attachments, 'invoice_deposit');
+        return $id !== false;
+    }
+
+    private static function buildEmailHtml(array $b, bool $isFullyPaid): string
+    {
+        $ref        = htmlspecialchars($b['booking_ref']);
+        $name       = htmlspecialchars($b['full_name'] ?? '');
+        $total      = (float)($b['total_amount'] ?? 0);
+        $amountPaid = $isFullyPaid ? $total : (float)($b['amount_paid'] ?? 0);
+        $balance    = max(0, round($total - $amountPaid, 2));
+        $trackUrl   = rtrim(APP_URL, '/') . '/track.php?ref=' . urlencode($b['booking_ref']);
+        $headline   = $isFullyPaid ? 'Payment Received — Invoice Attached' : 'Deposit Received — Invoice Attached';
+        $intro      = $isFullyPaid
+            ? "We've received your payment in full for booking <strong>{$ref}</strong>. Thank you for choosing Safari Zangu Ventures — your Invoice and Itinerary PDFs are attached to this email for your records."
+            : "We've received your deposit for booking <strong>{$ref}</strong>. Your updated Invoice and Itinerary PDFs are attached, showing what's been paid and what's still due.";
+        $bandColor    = $isFullyPaid ? '#166534' : '#1d4ed8';
+        $totalLabel   = $isFullyPaid ? 'Total Paid' : 'Amount Paid';
+        $amountPaidF  = number_format($amountPaid, 2);
+        $balanceF     = number_format($balance, 2);
 
         return <<<HTML
 <!DOCTYPE html>
@@ -49,22 +91,21 @@ class InvoiceMailer
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:'Times New Roman',Times,'Liberation Serif',serif">
 <div style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #e0e0e0">
 
-  <div style="background:#166534;padding:24px 32px;text-align:center">
+  <div style="background:{$bandColor};padding:24px 32px;text-align:center">
     <div style="font-size:30px;font-weight:700;color:#fff;letter-spacing:.32em">SZV</div>
-    <div style="font-size:11px;color:#fff;letter-spacing:.15em;text-transform:uppercase;margin-top:8px">Payment Received — Invoice Attached</div>
+    <div style="font-size:11px;color:#fff;letter-spacing:.15em;text-transform:uppercase;margin-top:8px">{$headline}</div>
   </div>
 
   <div style="padding:32px">
     <p style="font-size:15px;margin-top:0">Dear {$name},</p>
     <p style="font-size:14px;line-height:1.7;color:#0a0a0a">
-      We've received your payment in full for booking <strong>{$ref}</strong>. Thank you for choosing Safari Zangu Ventures —
-      your Invoice and Itinerary PDFs are attached to this email for your records.
+      {$intro}
     </p>
 
-    <div style="background:#f0fdf4;border-left:4px solid #166534;padding:16px 20px;margin:24px 0">
-      <div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#0a0a0a;margin-bottom:4px">Total Paid</div>
-      <div style="font-size:28px;font-weight:700;letter-spacing:.06em;color:#0a0a0a">USD \${$total}</div>
-      <div style="font-size:11px;color:#0a0a0a;margin-top:6px">Balance Due: \$0.00</div>
+    <div style="background:#f0fdf4;border-left:4px solid {$bandColor};padding:16px 20px;margin:24px 0">
+      <div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#0a0a0a;margin-bottom:4px">{$totalLabel}</div>
+      <div style="font-size:28px;font-weight:700;letter-spacing:.06em;color:#0a0a0a">USD \${$amountPaidF}</div>
+      <div style="font-size:11px;color:#0a0a0a;margin-top:6px">Balance Due: \${$balanceF}</div>
     </div>
 
     <div style="margin-top:28px;text-align:center">

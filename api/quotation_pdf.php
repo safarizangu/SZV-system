@@ -37,16 +37,27 @@ $lineItems    = json_decode($q['line_items']    ?? '[]', true) ?: [];
 $destinations = json_decode($q['destinations']  ?? '[]', true) ?: [];
 $isDownload   = isset($_GET['download']);
 
-// Invoice mode — same document, relabeled once the linked booking is
-// actually fully paid. The ?invoice=1 flag only ever REQUESTS this; the
-// real payment status is looked up fresh so the URL itself can't be used
-// to misrepresent a booking as paid when it isn't.
-$isInvoice = false;
-if (isset($_GET['invoice']) && $_GET['invoice'] == '1' && !empty($q['booking_ref'])) {
-    $bps = $db->prepare("SELECT payment_status FROM bookings WHERE booking_ref=? LIMIT 1");
+// Document state — this same document relabels itself the moment its
+// linked booking has a real payment against it, read fresh from the DB
+// every time (never trusted from the URL) so it always reflects what's
+// actually been paid, not a snapshot from whenever it was last opened:
+//   'quote'   — no booking yet, or booking still 'pending'
+//   'partial' — booking is 'deposit_paid' — an invoice showing the real,
+//               admin-entered amount_paid and what's still due
+//   'full'    — booking is 'fully_paid' — invoice, zero balance
+$docState   = 'quote';
+$amountPaid = 0.0;
+if (!empty($q['booking_ref'])) {
+    $bps = $db->prepare("SELECT payment_status, amount_paid FROM bookings WHERE booking_ref=? LIMIT 1");
     $bps->execute([$q['booking_ref']]);
-    $isInvoice = $bps->fetchColumn() === 'fully_paid';
+    $bRow = $bps->fetch();
+    if ($bRow) {
+        $amountPaid = (float)($bRow['amount_paid'] ?? 0);
+        if ($bRow['payment_status'] === 'fully_paid') $docState = 'full';
+        elseif ($bRow['payment_status'] === 'deposit_paid') $docState = 'partial';
+    }
 }
+$isInvoice = $docState !== 'quote'; // kept for the handful of spots below that only care "is this an invoice at all"
 
 // Recalculate from line items (server authoritative)
 $subtotal  = array_sum(array_column($lineItems, 'amount'));
@@ -61,6 +72,7 @@ $pax       = max(1, (int)($q['adults'] ?? 2) + (int)($q['children'] ?? 0));
 $perPerson = round($grand / $pax, 2);
 $deposit   = round($grand * 0.30, 2);
 $balance   = round($grand - $deposit, 2);
+$realBalance = max(0, round($grand - $amountPaid, 2));
 $validStr  = $q['valid_until'] ? date('d F Y', strtotime($q['valid_until'])) : date('d F Y', strtotime('+' . QUOTATION_VALIDITY_DAYS . ' days'));
 // A right-arrow glyph here previously rendered as "?" under dompdf's font
 // substitution — "·" is the proven-safe choice, used throughout.
@@ -254,9 +266,12 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
   <div class="qref">
     <div class="qref-eyebrow"><?= $isInvoice ? 'Invoice' : 'Quotation' ?></div>
     <div class="qref-num"><?= htmlspecialchars($q['quote_ref']) ?></div>
-    <?php if ($isInvoice): ?>
+    <?php if ($docState === 'full'): ?>
     <div class="qref-date">Issued <strong><?= date('d F Y') ?></strong></div>
     <div class="badge" style="background:#166534">Paid in Full</div>
+    <?php elseif ($docState === 'partial'): ?>
+    <div class="qref-date">Issued <strong><?= date('d F Y') ?></strong></div>
+    <div class="badge" style="background:#1d4ed8">Deposit Paid — Balance Due</div>
     <?php else: ?>
     <div class="qref-date">Issued <strong><?= date('d F Y') ?></strong></div>
     <div class="qref-date">Valid until <strong><?= $validStr ?></strong></div>
@@ -355,17 +370,23 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
       <span style="color:#0a0a0a">USD per person (<?= $pax ?> guest<?= $pax!==1?'s':'' ?>)</span>
       <span class="val">USD <?= number_format($perPerson,2) ?></span>
     </div>
-    <?php if ($isInvoice): ?>
+    <?php if ($docState === 'full'): ?>
     <div class="deposit-box">
       <div class="title">Payment Status</div>
       <div class="dep-row"><span>Amount Paid</span><span class="val">USD <?= number_format($grand,2) ?></span></div>
       <div class="dep-row"><span>Balance Due</span><span class="val">USD 0.00</span></div>
     </div>
+    <?php elseif ($docState === 'partial'): ?>
+    <div class="deposit-box" style="background:#eff6ff;border-color:#bfdbfe">
+      <div class="title">Payment Status</div>
+      <div class="dep-row"><span>Amount Paid</span><span class="val">USD <?= number_format($amountPaid,2) ?></span></div>
+      <div class="dep-row"><span>Balance Due</span><span class="val">USD <?= number_format($realBalance,2) ?></span></div>
+    </div>
     <?php endif; ?>
   </div>
 </div>
 
-<?php if (!$isInvoice): ?>
+<?php if ($docState !== 'full'): ?>
 <!-- ── PAYMENT DETAILS — always its own final page, and the whole
      page is a flex column so .footer is pushed down to sit flush
      against the bottom of the page rather than floating wherever the
@@ -375,11 +396,19 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
   <!-- "To Confirm Your Booking" sits directly above Payment Details —
        the deposit amount and the bank details needed to actually pay it
        now read as one combined instruction, instead of being split
-       across two different pages. -->
+       across two different pages. For a partial payment, this becomes
+       "Balance Still Due" against the real amount already received,
+       instead of restating a deposit that's already been paid. -->
   <div class="deposit-box" style="margin-top:0;margin-bottom:1.5rem">
+    <?php if ($docState === 'partial'): ?>
+    <div class="title">Balance Still Due</div>
+    <div class="dep-row"><span>Received so far</span><span class="val">USD <?= number_format($amountPaid,2) ?></span></div>
+    <div class="dep-row"><span>Balance — due 45 days before safari</span><span class="val">USD <?= number_format($realBalance,2) ?></span></div>
+    <?php else: ?>
     <div class="title">To Confirm Your Booking</div>
     <div class="dep-row"><span>Deposit (30%) — due within 48 hours</span><span class="val">USD <?= number_format($deposit,2) ?></span></div>
     <div class="dep-row"><span>Balance (70%) — due 45 days before safari</span><span class="val">USD <?= number_format($balance,2) ?></span></div>
+    <?php endif; ?>
   </div>
   <div class="sec-title">Payment Details</div>
   <div class="payment-box" style="margin-top:0">
@@ -427,15 +456,18 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
   </div>
   <div>
     <strong>Payment</strong>
-    <?php if ($isInvoice): ?>
+    <?php if ($docState === 'full'): ?>
     Paid in full — thank you for<br>travelling with Safari Zangu Ventures.
+    <?php elseif ($docState === 'partial'): ?>
+    Balance due — see Payment Details above.<br>
+    Thank you for your deposit.
     <?php else: ?>
     Bank transfer or PayPal — see Payment Details above.<br>
     This quotation is valid until <?= $validStr ?>
     <?php endif; ?>
   </div>
 </div>
-</div><!-- /last-page -->
+<?php if ($docState !== 'full'): ?></div><!-- /last-page --><?php endif; ?>
 
 <?php if (!defined('SZV_PDF_INTERNAL_RENDER')): ?>
 <!-- Print button — only for an admin viewing this page live in a browser.

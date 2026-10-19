@@ -30,8 +30,9 @@ class ItineraryQuoteBuilder
      * @param array $itinerary Row from the `itineraries` table (days/includes/excludes as JSON strings or already-decoded arrays)
      * @param string|null $travelDate  YYYY-MM-DD. When given, accommodation and vehicle costs are scaled by the season multiplier for that date.
      * @param string|null $nationality Guest nationality/country. When it matches an EAC country, resident park-fee rates are used wherever the park has one on file (a $0.00 resident rate on file is treated as "not yet configured" and falls back to the standard rate, never charged as free).
+     * @param array{adult?:float,child?:float} $serviceFeeRates Per-person Service Charge, normally the booked package's own cost_breakdown.service_charge_adult/service_charge_child (see admin/package_edit.php). Falls back to the old flat $100/person rate for both when a caller doesn't have a package to read it from. Infants are never charged — they're excluded from $adults/$children entirely, not just this fee.
      */
-    public static function build(array $itinerary, int $adults, int $children, bool $includeDefaultServiceFee = true, ?string $travelDate = null, ?string $nationality = null): array
+    public static function build(array $itinerary, int $adults, int $children, bool $includeDefaultServiceFee = true, ?string $travelDate = null, ?string $nationality = null, array $serviceFeeRates = []): array
     {
         $adults   = max(1, $adults);
         $children = max(0, $children);
@@ -375,19 +376,37 @@ class ItineraryQuoteBuilder
 
         $hasServiceFee = false;
         foreach ($lineItems as $li) {
-            if (stripos($li['description'], 'service fee') !== false || stripos($li['description'], 'guide fee') !== false) {
+            if (($li['category'] ?? '') === 'service_fee'
+                || stripos($li['description'], 'service charge') !== false
+                || stripos($li['description'], 'service fee') !== false
+                || stripos($li['description'], 'guide fee') !== false) {
                 $hasServiceFee = true; break;
             }
         }
         if (!$hasServiceFee && $includeDefaultServiceFee) {
-            $svcRate = 100;
-            $lineItems[] = [
-                'description' => 'Professional Driver Guide & Service Fee',
-                'unit_price'  => $svcRate,
-                'quantity_str'=> $pax . ' Guest' . ($pax !== 1 ? 's' : ''),
-                'amount'      => round($svcRate * $pax, 2),
-                'category'    => 'service_fee',
-            ];
+            // Infants are excluded from $adults/$children entirely, so
+            // they're already never charged here — nothing extra needed
+            // to keep them free.
+            $adultRate = (float)($serviceFeeRates['adult'] ?? 100);
+            $childRate = (float)($serviceFeeRates['child'] ?? 100);
+            if ($adults > 0) {
+                $lineItems[] = [
+                    'description' => 'Service Charge (Adults)',
+                    'unit_price'  => $adultRate,
+                    'quantity_str'=> $adults . ' Adult' . ($adults !== 1 ? 's' : ''),
+                    'amount'      => round($adultRate * $adults, 2),
+                    'category'    => 'service_fee',
+                ];
+            }
+            if ($children > 0) {
+                $lineItems[] = [
+                    'description' => 'Service Charge (Children)',
+                    'unit_price'  => $childRate,
+                    'quantity_str'=> $children . ' Child' . ($children !== 1 ? 'ren' : ''),
+                    'amount'      => round($childRate * $children, 2),
+                    'category'    => 'service_fee',
+                ];
+            }
         }
 
         $includedActivitiesNote = '';

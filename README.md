@@ -22,10 +22,11 @@ docs live in [`docs/`](docs/):
 
 | Document | Covers |
 |---|---|
-| [docs/SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md) | Request lifecycle, service layer, PDF/email pipelines, known gaps |
-| [docs/DATABASE_DESIGN.md](docs/DATABASE_DESIGN.md) | All 32 tables, as introspected from the live schema |
+| [docs/SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md) | Request lifecycle, service layer, PDF/email pipelines, configurable settings, known gaps |
+| [docs/DATABASE_DESIGN.md](docs/DATABASE_DESIGN.md) | All 31 tables + 1 view, as introspected from the live schema |
 | [docs/API_SPECIFICATION.md](docs/API_SPECIFICATION.md) | Every `api/` endpoint — method, auth, purpose |
-| [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) | RBAC, the ownership-scoping model, CSRF, rate limiting |
+| [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) | RBAC, the ownership-scoping model, CSRF, rate limiting, Track Booking auth |
+| [docs/UI_UX_DESIGN.md](docs/UI_UX_DESIGN.md) | Design tokens, component patterns, dark mode, the public/admin/PDF visual systems |
 | [docs/DEV_SETUP.md](docs/DEV_SETUP.md) | Local environment setup (this machine's quirks included) |
 | [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) | Hostinger production deploy checklist |
 | [docs/SECURITY_CHECKLIST.md](docs/SECURITY_CHECKLIST.md) | Pre-deploy security checklist |
@@ -100,6 +101,12 @@ docs live in [`docs/`](docs/):
 │   ├── css/admin.css           ← admin design system
 │   └── js/                     ← admin JavaScript
 │
+├── agent-portal/                ← standalone front door for the `agent` role — see docs/SYSTEM_ARCHITECTURE.md §3a
+│   ├── login.php / logout.php / index.php / profile.php
+│   ├── leads.php                ← "New Client": Direct Booking or Custom Request
+│   ├── commissions.php
+│   └── css/agent.css            ← loads admin.css first, adds only the top-navbar shell
+│
 ├── app/                        ← PHP core, PSR-4 autoloaded — see docs/SYSTEM_ARCHITECTURE.md
 │   ├── bootstrap.php           ← autoloader, session, DB init
 │   ├── Models/                 ← Database, Booking, Customer, CustomSafariRequest, Package
@@ -107,18 +114,18 @@ docs live in [`docs/`](docs/):
 │   ├── Middleware/              ← AuthMiddleware, CsrfMiddleware, RateLimiter, Honeypot
 │   ├── Helpers/                 ← Formatter, AdminIcon, Env, ImageOptimizer, ItineraryDayCards, TripExtensions
 │   ├── Services/                ← ItineraryQuoteBuilder, PdfRenderer, OwnershipScope, AccessGuard,
-│   │                               PipelineSync, InvoiceMailer, PayPalClient, AccommodationAvailability,
-│   │                               BookingReminderScheduler, ActivityLog
+│   │                               PipelineSync, InvoiceMailer, PayPalClient, BookingTracking,
+│   │                               AccommodationAvailability, BookingReminderScheduler, ActivityLog
 │   └── Validators/             ← BookingValidator
 │
-├── api/                        ← ~28 endpoints — full reference in docs/API_SPECIFICATION.md
+├── api/                        ← ~31 endpoints — full reference in docs/API_SPECIFICATION.md
 │   ├── book.php / contact.php / custom_safari.php / review_submit.php
-│   ├── track_lookup.php / check_booking.php / track_booking_pdf.php
+│   ├── track_lookup.php / track_booking_pdf.php / track_quotation_pdf.php / track_itinerary_pdf.php
 │   ├── paypal_create_order.php / record_payment.php
 │   ├── itinerary.php / convert_quotation.php
 │   ├── quotation_email.php / quotation_pdf.php / quotation_itinerary_pdf.php / quote_view.php
 │   ├── booking_email.php / booking_pdf.php / booking_itinerary_pdf.php
-│   ├── voucher_pdf.php / voucher_email.php / manifest_pdf.php
+│   ├── voucher_pdf.php / voucher_email.php / manifest_pdf.php / supplier_contract.php
 │   ├── generate_caption.php / set_hero.php / vehicle_manage.php / upload_team_image.php
 │   ├── dashboard_stats.php / analytics.php / get_setting.php
 │   ├── gallery/upload.php / gallery/delete.php / gallery/list.php
@@ -129,12 +136,15 @@ docs live in [`docs/`](docs/):
 │   └── home.php / about.php / packages.php / book.php / contact.php / track.php / confirmation.php / review.php
 │
 ├── layouts/                    ← shared partials
-│   └── app.php / admin.php / head.php / navbar.php / footer.php
+│   └── app.php / admin.php / agent.php / head.php / navbar.php / footer.php
 │
 ├── assets/                     ← static files served directly (css/, js/, images/)
 │
+├── storage/                    ← .htaccess-blocked from the web; PDF cache + uploaded files
+│   └── uploads/quotations/, uploads/contracts/   ← generated PDFs, supplier Contract PDFs
+│
 ├── config/
-│   └── app.php                 ← all constants, env loader, business rules
+│   └── app.php                 ← all constants, env loader, business rules, Settings overrides
 │
 ├── cron/
 │   └── backup.sh               ← daily mysqldump, 30-day retention
@@ -229,7 +239,7 @@ Login at `/admin/login.php`. Protected by:
 |---|---|
 | `superadmin` | Full access. Currently identical to `admin` in every permission check — deliberate, not yet differentiated. |
 | `admin` | Full access to all admin pages and all records. |
-| `agent` | Only sees their own leads, bookings, quotations, and custom requests. Bookings/custom-requests have no owner column — ownership is derived through a linked quotation's `created_by`. Cannot set their own `agent_id` or `commission_rate`. |
+| `agent` | Only sees their own leads, bookings, quotations, and custom requests. Bookings/custom-requests have no owner column — ownership is derived through a linked quotation's `created_by` (one exception: `custom_safari_requests.submitted_by_agent_id`). Cannot set their own `agent_id` or `commission_rate`. Signs in through the dedicated `agent-portal/` front door, not `admin/` — see [docs/SYSTEM_ARCHITECTURE.md §3a](docs/SYSTEM_ARCHITECTURE.md). |
 | `staff` | Full page access minus Settings; see [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) for the one open question around itinerary editing. |
 
 Full detail, including the ownership-derivation pattern and every
@@ -272,7 +282,7 @@ hardening fix, is in
 
 ## 5. Database Schema
 
-32 tables plus 1 view. The core transactional ones:
+31 tables plus 1 view. The core transactional ones:
 
 - **`customers`** — the unified identity behind bookings, quotations,
   leads, and custom safari requests, deduplicated on a lowercased/trimmed
@@ -475,7 +485,7 @@ session_set_cookie_params([
 
 ## 9. API Endpoints
 
-~28 endpoints live under `api/`. Full method/auth/purpose reference for
+~31 endpoints live under `api/`. Full method/auth/purpose reference for
 every one of them, kept in sync with the code rather than hand-copied
 here: **[docs/API_SPECIFICATION.md](docs/API_SPECIFICATION.md)**.
 

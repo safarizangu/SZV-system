@@ -30,12 +30,14 @@ try {
     if (!$b) { http_response_code(404); die('Booking not found.'); }
 } catch (\Exception $e) { die('DB error: '.$e->getMessage()); }
 
-$pax       = (int)($b['travelers'] ?? $b['adults'] ?? 2);
-$adults    = (int)($b['adults'] ?? 2);
-$children  = (int)($b['children'] ?? 0);
-$total     = (float)($b['total_amount'] ?? 0);
-$deposit   = (float)($b['deposit_amount'] ?? round($total * 0.25, 2));
-$balance   = round($total - $deposit, 2);
+$pax        = (int)($b['travelers'] ?? $b['adults'] ?? 2);
+$adults     = (int)($b['adults'] ?? 2);
+$children   = (int)($b['children'] ?? 0);
+$total      = (float)($b['total_amount'] ?? 0);
+$deposit    = (float)($b['deposit_amount'] ?? round($total * 0.25, 2));
+$balance    = round($total - $deposit, 2);
+$amountPaid = (float)($b['amount_paid'] ?? 0);
+$realBalance = max(0, round($total - $amountPaid, 2));
 
 // $total is the authoritative, already-charged amount (unchanged below) —
 // VAT is only broken back out of it for display, the same reverse-VAT
@@ -46,11 +48,21 @@ $vatPct      = (int) round($vatRate * 100);
 $totalExVat  = round($total / (1 + $vatRate), 2);
 $vatAmount   = round($total - $totalExVat, 2);
 
-// Invoice mode — same document, relabeled once this booking is actually
-// fully paid. ?invoice=1 only ever REQUESTS this; $b['payment_status'] is
-// the real, freshly-queried source of truth, so the URL itself can't be
-// used to misrepresent a booking as paid when it isn't.
-$isInvoice = isset($_GET['invoice']) && $_GET['invoice'] == '1' && $b['payment_status'] === 'fully_paid';
+// Document state — self-determined from the booking's own live
+// payment_status, same as api/quotation_pdf.php, so this document
+// reflects reality on every view/download, not just when a caller
+// happens to pass ?invoice=1 (Track Booking's download link never did,
+// so a fully-paid booking's "confirmation" PDF never actually became an
+// invoice before this):
+//   'quote'   — payment_status is 'pending' (or 'cancelled')
+//   'partial' — 'deposit_paid' — real amount_paid vs. real balance
+//   'full'    — 'fully_paid' — zero balance
+$docState  = match ($b['payment_status'] ?? 'pending') {
+    'fully_paid'   => 'full',
+    'deposit_paid' => 'partial',
+    default        => 'quote',
+};
+$isInvoice = $docState !== 'quote'; // kept for the spots below that only care "is this an invoice at all"
 
 // ── Itemized cost breakdown ─────────────────────────────────
 // Most bookings have no linked quotations row (it's only created when
@@ -191,7 +203,13 @@ body{font-family:'Times New Roman',Times,'Liberation Serif',serif;font-size:13.5
       <div class="bref-num"><?= htmlspecialchars($ref) ?></div>
       <div class="bref-date">Booked <?= $bookedDt ?></div>
       <div style="text-align:right">
-        <span class="badge" style="<?= $isInvoice ? 'background:#166534' : '' ?>"><?= $isInvoice ? 'PAID IN FULL' : strtoupper(str_replace('_',' ',$b['payment_status'] ?? 'Pending')) ?></span>
+        <?php if ($docState === 'full'): ?>
+        <span class="badge" style="background:#166534">PAID IN FULL</span>
+        <?php elseif ($docState === 'partial'): ?>
+        <span class="badge" style="background:#1d4ed8">DEPOSIT PAID — BALANCE DUE</span>
+        <?php else: ?>
+        <span class="badge"><?= strtoupper(str_replace('_',' ',$b['payment_status'] ?? 'Pending')) ?></span>
+        <?php endif; ?>
       </div>
     </div>
   </div>
@@ -260,9 +278,12 @@ body{font-family:'Times New Roman',Times,'Liberation Serif',serif;font-size:13.5
         <tr><td>Safari Cost (excl. VAT)</td><td class="r">$<?= number_format($totalExVat,2) ?></td></tr>
         <tr><td>VAT (<?= $vatPct ?>%)</td><td class="r">$<?= number_format($vatAmount,2) ?></td></tr>
         <tr><td><strong>Total Safari Cost</strong></td><td class="r"><strong>$<?= number_format($total,2) ?></strong></td></tr>
-        <?php if ($isInvoice): ?>
+        <?php if ($docState === 'full'): ?>
         <tr><td>Amount Paid</td><td class="r">$<?= number_format($total,2) ?></td></tr>
         <tr><td><strong>Balance Due</strong></td><td class="r"><strong>$0.00</strong></td></tr>
+        <?php elseif ($docState === 'partial'): ?>
+        <tr><td>Amount Paid</td><td class="r">$<?= number_format($amountPaid,2) ?></td></tr>
+        <tr><td><strong>Balance Due</strong> — 45 days before departure</td><td class="r"><strong>$<?= number_format($realBalance,2) ?></strong></td></tr>
         <?php else: ?>
         <tr><td>Deposit Due (25%) — payable within 48 hours to secure dates</td><td class="r">$<?= number_format($deposit,2) ?></td></tr>
         <tr><td><strong>Balance Due</strong> — 45 days before departure</td><td class="r"><strong>$<?= number_format($balance,2) ?></strong></td></tr>
@@ -278,8 +299,9 @@ body{font-family:'Times New Roman',Times,'Liberation Serif',serif;font-size:13.5
     </div>
   </div>
 
-  <?php if (!$isInvoice): ?>
-  <!-- Payment Details -->
+  <?php if ($docState !== 'full'): ?>
+  <!-- Payment Details — still shown for a partial payment, since a
+       balance remains to pay; only dropped once fully paid. -->
   <div class="sec">
     <div class="sec-title">Payment Details</div>
     <div class="pay-box">
@@ -318,8 +340,10 @@ body{font-family:'Times New Roman',Times,'Liberation Serif',serif;font-size:13.5
   <!-- Notice -->
   <div class="notice">
     <strong>Your full day-by-day itinerary</strong> is attached as a separate PDF alongside this document.<br><br>
-    <?php if ($isInvoice): ?>
+    <?php if ($docState === 'full'): ?>
     <strong>Thank you for your payment.</strong> This invoice confirms your safari is paid in full — we look forward to welcoming you.
+    <?php elseif ($docState === 'partial'): ?>
+    <strong>Thank you for your deposit.</strong> The remaining balance above is due 45 days before departure — see Payment Details.
     <?php else: ?>
     <strong>Cancellation Policy:</strong> Full refund for cancellations 60+ days before departure.
     50% refund for cancellations 30–59 days before departure.

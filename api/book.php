@@ -124,7 +124,15 @@ if (!empty($package['itinerary_id'])) {
         $itinStmt->execute([(int)$package['itinerary_id']]);
         $itinerary = $itinStmt->fetch() ?: null;
         if ($itinerary) {
-            $builtQuote  = ItineraryQuoteBuilder::build($itinerary, $adults, $children, true, $data['travel_date'] ?: null, $data['nationality'] ?: null);
+            // This package's own Adults/Children Service Charge rates
+            // (admin/package_edit.php) — falls back to the builder's own
+            // $100/person default for a package saved before that split.
+            $pkgCostBreakdown = json_decode($package['cost_breakdown'] ?? '{}', true) ?: [];
+            $svcFeeRates = [
+                'adult' => (float)($pkgCostBreakdown['service_charge_adult'] ?? $pkgCostBreakdown['service_charge_pax'] ?? 100),
+                'child' => (float)($pkgCostBreakdown['service_charge_child'] ?? $pkgCostBreakdown['service_charge_pax'] ?? 100),
+            ];
+            $builtQuote  = ItineraryQuoteBuilder::build($itinerary, $adults, $children, true, $data['travel_date'] ?: null, $data['nationality'] ?: null, $svcFeeRates);
             $quoteTotals = ItineraryQuoteBuilder::totals($builtQuote['line_items']);
         }
     } catch (\Exception $e) {
@@ -202,6 +210,14 @@ try {
 // ── Schedule the 4 standard reminder emails ─────────────────
 BookingReminderScheduler::schedule($pdo, $ref, $data['travel_date']);
 
+// ── Issue the Track Booking password — plaintext only exists for the
+//    rest of this request, to go out in the confirmation email below, plus
+//    a one-time session flash so confirmation.php (the very next page,
+//    same browser) can show it once too, in case the email is delayed or
+//    caught by spam filtering ──
+$trackingPassword = \App\Services\BookingTracking::issue($pdo, $ref);
+$_SESSION['_track_pwd_' . $ref] = $trackingPassword;
+
 // ── Auto-generate a real quotation record for this booking ──
 // When the package has a linked itinerary, $builtQuote/$quoteTotals were
 // already computed above to price the booking itself — reuse them here
@@ -268,6 +284,7 @@ try {
         'to_name'             => $data['full_name'],
         'client_name'         => $data['full_name'],
         'booking_ref'         => $ref,
+        'tracking_password'   => $trackingPassword,
         'package_name'        => $data['package_name'],
         'travel_date'         => $data['travel_date'],
         'travelers'           => $data['travelers'],

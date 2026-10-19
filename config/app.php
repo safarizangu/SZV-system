@@ -200,9 +200,15 @@ if (!defined('MAX_PARTY_SIZE'))          define('MAX_PARTY_SIZE',          (int)
 // Feature toggles, also editable from admin/settings.php.
 if (!defined('MAINTENANCE_MODE'))               define('MAINTENANCE_MODE',               (bool)(int)_setting('maintenance_mode', 0));                 // when on, public booking + custom-request submission politely decline — see api/book.php, api/custom_safari.php
 if (!defined('AGENT_DIRECT_BOOKING_ENABLED'))   define('AGENT_DIRECT_BOOKING_ENABLED',   (bool)(int)_setting('agent_direct_booking_enabled', 1));    // when off, agents can still submit custom requests but not book packages directly — see agent-portal/leads.php
+if (!defined('AUTO_SEND_PAYMENT_EMAILS'))       define('AUTO_SEND_PAYMENT_EMAILS',       (bool)(int)_setting('auto_send_payment_emails', 1));        // when off, a Deposit Paid/Fully Paid status change still saves normally but skips the branded Invoice/Receipt email — see admin/bookings.php, api/record_payment.php
 
 // ── Security ──────────────────────────────────────────────────────
 if (!defined('SESSION_TIMEOUT_MINUTES')) define('SESSION_TIMEOUT_MINUTES', max(5, (int)_setting('session_timeout_minutes', 30)));  // inactivity timeout for admin/agent sessions — see AuthMiddleware
+if (!defined('TRACK_LOCKOUT_ATTEMPTS'))  define('TRACK_LOCKOUT_ATTEMPTS',  max(1, (int)_setting('track_lockout_attempts', 3)));    // failed Track Booking lookups before a temporary lockout — see api/track_*.php
+if (!defined('TRACK_LOCKOUT_MINUTES'))   define('TRACK_LOCKOUT_MINUTES',   max(1, (int)_setting('track_lockout_minutes', 15)));    // how long that lockout lasts
+
+// ── Documents ──────────────────────────────────────────────────────
+if (!defined('SUPPLIER_CONTRACT_MAX_MB')) define('SUPPLIER_CONTRACT_MAX_MB', max(1, (int)_setting('supplier_contract_max_mb', 15)));  // upload size cap for a supplier's Contract PDF — see admin/suppliers.php
 
 // ── Accommodation levels ──────────────────────────────────────
 if (!defined('ACCOMMODATION_LEVELS')) define('ACCOMMODATION_LEVELS', [

@@ -24,14 +24,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if (!AuthMiddleware::isAgentRole() && !AuthMiddleware::canChangeStatus()) {
             \App\Services\AccessGuard::denyJson('booking', $ref, 'update_status:' . $status);
         }
+        // No payment gateway is wired up — "Deposit Paid" always means an
+        // admin is attesting to a bank transfer that already happened off
+        // platform, so the actual amount has to be entered by hand rather
+        // than assumed to match the suggested deposit_amount a guest can
+        // plausibly over- or under-pay in practice.
+        $amountPaid = null;
+        if ($status === 'deposit_paid') {
+            $amountPaid = (float)($_POST['amount_paid'] ?? 0);
+            if ($amountPaid <= 0) {
+                echo json_encode(['success'=>false,'message'=>'Enter the amount actually received.']);
+                exit;
+            }
+        }
+
         if ($ref && in_array($status, $allowed, true)) {
             $prevStatus = $db->prepare("SELECT payment_status FROM bookings WHERE booking_ref=? LIMIT 1");
             $prevStatus->execute([$ref]);
-            $wasFullyPaid = $prevStatus->fetchColumn() === 'fully_paid';
+            $prevStatus = $prevStatus->fetchColumn();
+            $wasFullyPaid    = $prevStatus === 'fully_paid';
+            $wasDepositPaid  = $prevStatus === 'deposit_paid';
 
-            $db->prepare("UPDATE bookings SET payment_status=?, updated_at=NOW() WHERE booking_ref=?")
-               ->execute([$status, $ref]);
-            \App\Services\ActivityLog::record('update_status', 'booking', 0, ['booking_ref'=>$ref,'status'=>$status]);
+            if ($status === 'deposit_paid') {
+                $db->prepare("UPDATE bookings SET payment_status=?, amount_paid=?, updated_at=NOW() WHERE booking_ref=?")
+                   ->execute([$status, $amountPaid, $ref]);
+            } elseif ($status === 'fully_paid') {
+                // Fully paid is unambiguous — the whole total was received,
+                // no manual figure needed regardless of what deposit_paid
+                // (if any) was previously recorded at.
+                $db->prepare("UPDATE bookings SET payment_status=?, amount_paid=total_amount, updated_at=NOW() WHERE booking_ref=?")
+                   ->execute([$status, $ref]);
+            } else {
+                $db->prepare("UPDATE bookings SET payment_status=?, updated_at=NOW() WHERE booking_ref=?")
+                   ->execute([$status, $ref]);
+            }
+            \App\Services\ActivityLog::record('update_status', 'booking', 0, ['booking_ref'=>$ref,'status'=>$status,'amount_paid'=>$amountPaid]);
 
             $invoiceEmailSent = false;
             // Fires once per genuine transition INTO fully_paid — not on
@@ -39,13 +66,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             // Quotation/Booking PDF into its Invoice form (PdfRenderer's
             // *Invoice() methods re-verify payment_status themselves) and
             // emailing it straight to the client, no admin action needed.
-            if ($status === 'fully_paid' && !$wasFullyPaid) {
+            if ($status === 'fully_paid' && !$wasFullyPaid && AUTO_SEND_PAYMENT_EMAILS) {
                 try {
                     $bs = $db->prepare("SELECT * FROM bookings WHERE booking_ref=? LIMIT 1");
                     $bs->execute([$ref]);
                     $bRow = $bs->fetch();
                     if ($bRow) {
                         $invoiceEmailSent = \App\Services\InvoiceMailer::sendForBooking($bRow);
+                    }
+                } catch (\Throwable $e) {
+                    error_log('[SZV Invoice] ' . $e->getMessage());
+                }
+            }
+            // Same idea, once per genuine transition INTO deposit_paid —
+            // the Quotation PDF already relabels itself as a partial
+            // Invoice from the live payment_status (see api/quotation_pdf.php),
+            // this just emails that same document with the real figures.
+            if ($status === 'deposit_paid' && !$wasDepositPaid && AUTO_SEND_PAYMENT_EMAILS) {
+                try {
+                    $bs = $db->prepare("SELECT * FROM bookings WHERE booking_ref=? LIMIT 1");
+                    $bs->execute([$ref]);
+                    $bRow = $bs->fetch();
+                    if ($bRow) {
+                        $invoiceEmailSent = \App\Services\InvoiceMailer::sendDepositReceipt($bRow);
                     }
                 } catch (\Throwable $e) {
                     error_log('[SZV Invoice] ' . $e->getMessage());
@@ -314,7 +357,9 @@ ob_start();
       </td>
       <td style="white-space:nowrap">
         <div style="font-weight:700"><?= $b['total_amount'] ? '$'.number_format($b['total_amount'],0) : '—' ?></div>
-        <?php if ($b['deposit_amount']): ?>
+        <?php if (in_array($b['payment_status'], ['deposit_paid','fully_paid'], true) && $b['amount_paid']): ?>
+        <div style="font-size:.68rem;color:#9ca3af">paid: $<?= number_format($b['amount_paid'],0) ?></div>
+        <?php elseif ($b['deposit_amount']): ?>
         <div style="font-size:.68rem;color:#9ca3af">dep: $<?= number_format($b['deposit_amount'],0) ?></div>
         <?php endif; ?>
       </td>
@@ -399,11 +444,31 @@ var CURRENT_BOOKING = null;
 
 async function updateStatus(ref, newStatus, sel) {
   var label = sel.options[sel.selectedIndex].text;
-  if (!(await confirmStatusChange(sel, 'Change booking '+ref+' status to "'+label+'"?', {danger: newStatus==='cancelled'}))) return;
+  var amountPaid = null;
+
+  if (newStatus === 'deposit_paid') {
+    // No payment gateway wired up — this dialog IS the confirmation for
+    // the whole status change, not an extra step before one: entering a
+    // real amount and saving is what moving to "Deposit Paid" means here.
+    amountPaid = await promptDialog(
+      'How much did the guest actually transfer for booking ' + ref + '? This is entered by hand — there\'s no bank integration to verify it automatically.',
+      { title: 'Amount Received (USD)', inputType: 'number', step: '0.01', min: '0', placeholder: 'e.g. 1200.00', confirmLabel: 'Save & Mark Deposit Paid' }
+    );
+    if (amountPaid === null) { sel.value = sel.dataset.prev; return; }
+    if (!(parseFloat(amountPaid) > 0)) {
+      toast('Enter an amount greater than 0', 'err');
+      sel.value = sel.dataset.prev;
+      return;
+    }
+  } else {
+    if (!(await confirmStatusChange(sel, 'Change booking '+ref+' status to "'+label+'"?', {danger: newStatus==='cancelled'}))) return;
+  }
+
   var fd = new FormData();
   fd.append('action','update_status');
   fd.append('booking_ref',ref);
   fd.append('status',newStatus);
+  if (amountPaid !== null) fd.append('amount_paid', amountPaid);
   fd.append('_csrf', window.CSRF_TOKEN || '');
   try {
     var r = await fetch('bookings.php',{method:'POST',body:fd});
@@ -417,7 +482,10 @@ async function updateStatus(ref, newStatus, sel) {
       sel.value = sel.dataset.prev;
       toast('Failed: '+(d.message||'Error'),'err');
     }
-  } catch(e) { toast('Network error','err'); }
+  } catch(e) {
+    sel.value = sel.dataset.prev;
+    toast('Network error','err');
+  }
 }
 
 async function viewBooking(ref) {
@@ -447,11 +515,23 @@ async function viewBooking(ref) {
     ['Guests',         (b.adults||b.travelers)+' adult'+(parseInt(b.adults||b.travelers)>1?'s':'')+(b.children>0?' + '+b.children+' child':'')],
     ['Travel Date',    '<strong>'+travelDate+'</strong>'],
     ['Total Amount',   b.total_amount   ? '<strong>USD $'+Number(b.total_amount).toLocaleString('en-US',{minimumFractionDigits:2})+'</strong>' : '—'],
-    ['Deposit (25%)',  b.deposit_amount ? 'USD $'+Number(b.deposit_amount).toLocaleString('en-US',{minimumFractionDigits:2}) : '—'],
-    ['Balance Due',    (b.total_amount && b.deposit_amount) ? 'USD $'+(b.total_amount - b.deposit_amount).toLocaleString('en-US',{minimumFractionDigits:2}) : '—'],
+  ];
+  // Once a real payment is on file, show what was actually received
+  // (amount_paid — entered by hand or via PayPal) instead of the merely
+  // suggested deposit_amount, same real-vs-suggested distinction the
+  // Quotation/Invoice PDF and Track Booking page make.
+  if (b.payment_status === 'deposit_paid' || b.payment_status === 'fully_paid') {
+    var realBalance = Math.max(0, (b.total_amount||0) - (b.amount_paid||0));
+    rows.push(['Amount Paid', 'USD $'+Number(b.amount_paid||0).toLocaleString('en-US',{minimumFractionDigits:2})]);
+    rows.push(['Balance Due', 'USD $'+realBalance.toLocaleString('en-US',{minimumFractionDigits:2})]);
+  } else {
+    rows.push(['Deposit (25%)', b.deposit_amount ? 'USD $'+Number(b.deposit_amount).toLocaleString('en-US',{minimumFractionDigits:2}) : '—']);
+    rows.push(['Balance Due',   (b.total_amount && b.deposit_amount) ? 'USD $'+(b.total_amount - b.deposit_amount).toLocaleString('en-US',{minimumFractionDigits:2}) : '—']);
+  }
+  rows = rows.concat([
     ['Payment Status', '<span class="badge-status badge-status--'+(meta.badge||'gray')+'">'+(meta.label||b.payment_status)+'</span>'],
     ['Booked On',      bookedDate],
-  ];
+  ]);
   if (b.special_request)  rows.push(['Special Requests', b.special_request]);
   if (b.trip_extension)   rows.push(['Trip Extension', b.trip_extension]);
   if (b.admin_notes)      rows.push(['Admin Notes', b.admin_notes]);

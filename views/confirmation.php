@@ -3,6 +3,14 @@
 $ref  = strtoupper(trim($_GET['ref']  ?? ''));
 $date = trim($_GET['date'] ?? '');
 
+// One-time reveal of the Track Booking password — flashed into the
+// session by api/book.php for this exact ref, read once and discarded so
+// it can never be re-shown by reloading or revisiting this URL later.
+// Also sent by email (the password's real, lasting home) in case this
+// page is closed before it's noted down.
+$trackPwd = $_SESSION['_track_pwd_' . $ref] ?? null;
+if ($trackPwd) unset($_SESSION['_track_pwd_' . $ref]);
+
 // ── Fetch booking ─────────────────────────────────────────
 $booking = null;
 if ($ref && $date) {
@@ -22,14 +30,55 @@ if ($ref && $date) {
 $rawTotal   = $booking ? (float)$booking['total_amount']   : 0;
 $rawDeposit = $booking ? (float)$booking['deposit_amount'] : 0;
 $vatRate    = defined('VAT_RATE') ? (float)VAT_RATE : 0.18;
-$svcRate    = defined('SERVICE_CHARGE_RATE') ? (float)SERVICE_CHARGE_RATE : 0.05;
 $subtotal   = round($rawTotal / (1 + $vatRate), 2);
 $vatAmount  = round($rawTotal - $subtotal, 2);
-$baseAmount = round($subtotal / (1 + $svcRate), 2);
-$svcAmount  = round($subtotal - $baseAmount, 2);
 $balanceDue = round($rawTotal - $rawDeposit, 2);
 $travelers  = $booking ? (int)$booking['travelers'] : 0;
+$bkAdults   = $booking ? (int)($booking['adults']   ?? $travelers) : 0;
+$bkChildren = $booking ? (int)($booking['children'] ?? 0) : 0;
 $perPerson  = ($travelers > 0 && $rawTotal > 0) ? round($rawTotal / $travelers, 2) : 0;
+
+// Service Charge — a real dollar amount everywhere else in the app
+// (admin/package_edit.php's Adults/Children rates, carried through to
+// the actual quotation line items), never a percentage. This used to
+// reverse-derive a synthetic "5% of subtotal" figure here instead, which
+// had nothing to do with what was actually charged. Preferred source is
+// the booking's own linked quotation's real line items (exactly what
+// was priced); falls back to recomputing from the package's own rates
+// when there's no linked quotation; only reaches for the old percentage
+// guess if neither is available (very old data with no package link).
+$svcAdultAmount = 0.0; $svcChildAmount = 0.0;
+if ($booking && !empty($booking['quotation_id'])) {
+    try {
+        $qs = Database::getInstance()->prepare("SELECT line_items FROM quotations WHERE id=? LIMIT 1");
+        $qs->execute([(int)$booking['quotation_id']]);
+        $qLineItems = json_decode($qs->fetchColumn() ?: '[]', true) ?: [];
+        foreach ($qLineItems as $li) {
+            if (($li['category'] ?? '') !== 'service_fee') continue;
+            $desc = $li['description'] ?? '';
+            $amt  = (float)($li['amount'] ?? 0);
+            if (stripos($desc, 'child') !== false) $svcChildAmount += $amt;
+            else $svcAdultAmount += $amt; // covers "Adults" and any legacy combined line
+        }
+    } catch (\Exception $e) {}
+}
+if ($svcAdultAmount <= 0 && $svcChildAmount <= 0 && $booking && !empty($booking['package_id'])) {
+    try {
+        $ps = Database::getInstance()->prepare("SELECT cost_breakdown FROM packages WHERE id=? LIMIT 1");
+        $ps->execute([(int)$booking['package_id']]);
+        $pbd = json_decode($ps->fetchColumn() ?: '{}', true) ?: [];
+        $svcAdultAmount = (float)($pbd['service_charge_adult'] ?? $pbd['service_charge_pax'] ?? 0) * $bkAdults;
+        $svcChildAmount = (float)($pbd['service_charge_child'] ?? $pbd['service_charge_pax'] ?? 0) * $bkChildren;
+    } catch (\Exception $e) {}
+}
+if ($svcAdultAmount <= 0 && $svcChildAmount <= 0) {
+    // Last-resort fallback for a booking with neither link — the only
+    // place a percentage estimate is still used.
+    $svcRate   = defined('SERVICE_CHARGE_RATE') ? (float)SERVICE_CHARGE_RATE : 0.05;
+    $svcAdultAmount = round($subtotal - round($subtotal / (1 + $svcRate), 2), 2);
+}
+$svcAmount  = round($svcAdultAmount + $svcChildAmount, 2);
+$baseAmount = round($subtotal - $svcAmount, 2);
 
 function fmt($n) { return 'USD ' . number_format($n, 0, '.', ','); }
 ?>
@@ -69,8 +118,17 @@ function fmt($n) { return 'USD ' . number_format($n, 0, '.', ','); }
           <div style="font-family:var(--font-display);font-size:2.2rem;font-weight:500;letter-spacing:.06em;color:var(--black);border:1.5px solid var(--black);display:inline-block;padding:.5rem 1.5rem;margin-bottom:.6rem">
             <?= htmlspecialchars($booking['booking_ref']) ?>
           </div>
-          <p style="font-size:.78rem;color:var(--black);font-weight:500">Save this reference — you need it with your travel date to track your booking.</p>
+          <p style="font-size:.78rem;color:var(--black);font-weight:500">Save this reference — you'll need it with your Track Booking password below to check on your booking any time.</p>
         </div>
+
+        <?php if ($trackPwd): ?>
+        <!-- Track Booking password — shown once, also emailed -->
+        <div style="margin-bottom:2rem;background:#f7f7f5;border-left:4px solid var(--black);padding:1.1rem 1.5rem">
+          <p style="font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--black);margin-bottom:.4rem">Your Track Booking Password</p>
+          <div style="font-family:monospace;font-size:1.4rem;font-weight:700;letter-spacing:.08em;color:var(--black);margin-bottom:.4rem"><?= htmlspecialchars($trackPwd) ?></div>
+          <p style="font-size:.72rem;color:var(--black);line-height:1.6">Shown once — also in your confirmation email. You'll need both this and your Booking Reference above to use Track Booking later.</p>
+        </div>
+        <?php endif; ?>
 
         <!-- Booking Summary Table -->
         <div style="margin-bottom:2rem">
@@ -113,10 +171,18 @@ function fmt($n) { return 'USD ' . number_format($n, 0, '.', ','); }
             </tr>
             <?php endif; ?>
 
+            <?php if ($svcAdultAmount > 0): ?>
             <tr style="border-bottom:1px solid var(--gray-2)">
-              <td style="padding:.6rem 0;color:var(--black);font-weight:500">Service Charge (<?= round($svcRate*100) ?>%)</td>
-              <td style="padding:.6rem 0;text-align:right;font-weight:500"><?= fmt($svcAmount) ?></td>
+              <td style="padding:.6rem 0;color:var(--black);font-weight:500">Service Charge<?= $bkAdults > 0 ? ' — Adults ('.$bkAdults.')' : '' ?></td>
+              <td style="padding:.6rem 0;text-align:right;font-weight:500"><?= fmt($svcAdultAmount) ?></td>
             </tr>
+            <?php endif; ?>
+            <?php if ($svcChildAmount > 0): ?>
+            <tr style="border-bottom:1px solid var(--gray-2)">
+              <td style="padding:.6rem 0;color:var(--black);font-weight:500">Service Charge — Children (<?= $bkChildren ?>)</td>
+              <td style="padding:.6rem 0;text-align:right;font-weight:500"><?= fmt($svcChildAmount) ?></td>
+            </tr>
+            <?php endif; ?>
 
             <tr style="border-bottom:2px solid var(--black)">
               <td style="padding:.65rem 0;font-weight:600">Subtotal (before tax)</td>
@@ -162,7 +228,7 @@ function fmt($n) { return 'USD ' . number_format($n, 0, '.', ','); }
 
         <!-- Action Buttons -->
         <div class="d-flex gap-3 flex-wrap">
-          <a href="<?= BASE_PATH ?>/track.php?ref=<?= urlencode($booking['booking_ref']) ?>&date=<?= urlencode($booking['travel_date']) ?>"
+          <a href="<?= BASE_PATH ?>/track.php?ref=<?= urlencode($booking['booking_ref']) ?>"
              class="btn-sz-dark" style="font-size:.72rem;padding:.8rem 1.5rem">
             Track My Booking
           </a>
@@ -217,8 +283,7 @@ function fmt($n) { return 'USD ' . number_format($n, 0, '.', ','); }
 
           <!-- VAT note -->
           <p style="font-size:.72rem;font-weight:500;color:var(--black);line-height:1.7">
-            All prices inclusive of <?= round($vatRate*100) ?>% Tanzania VAT
-            and <?= round($svcRate*100) ?>% service charge.
+            All prices inclusive of <?= round($vatRate*100) ?>% Tanzania VAT and Service Charge.
           </p>
 
         </div>
