@@ -101,7 +101,7 @@ try {
     // Insert booking
     $db->prepare("
         INSERT INTO bookings
-            (booking_ref, quotation_id, customer_id, full_name, email, phone, travelers, adults, children,
+            (booking_ref, quotation_id, customer_id, full_name, email, phone, country, travelers, adults, children,
              package_id, itinerary_id, package_name, accommodation_level,
              travel_date, special_request,
              total_amount, deposit_amount,
@@ -115,6 +115,7 @@ try {
         $q['client_name'],
         $q['client_email'],
         $q['client_phone'] ?? '',
+        $q['client_country'] ?? null,
         $travelers, $adults, $children,
         $pkgId ?: null,
         $itineraryId,

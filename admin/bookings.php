@@ -117,6 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $fullName  = trim($_POST['full_name'] ?? '');
         $email     = trim($_POST['email'] ?? '');
         $phone     = trim($_POST['phone'] ?? '');
+        $country   = trim($_POST['country'] ?? '');
         $travelDate = trim($_POST['travel_date'] ?? '');
         $adults    = (int)($_POST['adults'] ?? 0);
         $children  = max(0, (int)($_POST['children'] ?? 0));
@@ -162,16 +163,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         $db->prepare("UPDATE bookings SET
-                full_name=?, email=?, phone=?, travel_date=?, adults=?, children=?,
+                full_name=?, email=?, phone=?, country=?, travel_date=?, adults=?, children=?,
                 accommodation_level=?, special_request=?, total_amount=?, deposit_amount=?,
                 package_id=?, package_name=?, itinerary_id=?, updated_at=NOW()
               WHERE booking_ref=?")
            ->execute([
-                $fullName, $email, $phone, $travelDate, $adults, $children,
+                $fullName, $email, $phone, $country, $travelDate, $adults, $children,
                 $accLevel, $specialRequest, $totalAmount, $depositAmount,
                 $packageIdVal, $packageName, $itineraryIdVal,
                 $ref,
             ]);
+
+        // Keep the linked quotation's own client/trip details in step —
+        // otherwise the Quotation/Itinerary PDF (which reads the
+        // quotation row, not the booking) would keep showing whoever/
+        // whatever was on file before this edit. Deliberately NOT syncing
+        // total_amount/deposit_amount here: the PDF always recomputes its
+        // totals fresh from the quotation's own line_items, never from
+        // these summary columns, so writing a new total here with no
+        // matching line-item change would just be a number nobody reads —
+        // changing the price for real means editing the quotation itself.
+        $pdfsRewritten = false;
+        if (!empty($existing['quotation_id'])) {
+            try {
+                $db->prepare("UPDATE quotations SET
+                        client_name=?, client_email=?, client_phone=?, client_country=?,
+                        adults=?, children=?, start_date=?, accommodation_level=?,
+                        package_id=?, package_name=?, itinerary_id=?, updated_at=NOW()
+                      WHERE id=?")
+                   ->execute([
+                        $fullName, $email, $phone, $country,
+                        $adults, $children, $travelDate, $accLevel,
+                        $packageIdVal, $packageName, $itineraryIdVal,
+                        (int)$existing['quotation_id'],
+                    ]);
+
+                // Rewrite the actual Quotation + Itinerary PDF files on
+                // disk so they reflect this edit immediately, not just on
+                // whatever next re-render happens to trigger — same
+                // filenames every other booking-creation path already
+                // writes to (storage/uploads/quotations/), so this
+                // overwrites in place rather than leaving an old copy
+                // behind.
+                \App\Services\PdfRenderer::renderQuotation((int)$existing['quotation_id'], 'Quotation-' . $ref);
+                \App\Services\PdfRenderer::renderQuotationItinerary((int)$existing['quotation_id'], 'Itinerary-' . $ref);
+                $pdfsRewritten = true;
+            } catch (\Throwable $e) {
+                error_log('[SZV Booking Edit Quotation Sync] ' . $e->getMessage());
+            }
+        }
 
         \App\Services\ActivityLog::record('update_booking', 'booking', 0, [
             'booking_ref' => $ref,
@@ -179,11 +219,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             'email'       => $email,
             'total_amount'   => $totalAmount,
             'deposit_amount' => $depositAmount,
+            'quotation_synced' => !empty($existing['quotation_id']),
         ]);
 
         $s = $db->prepare("SELECT * FROM bookings WHERE booking_ref=?");
         $s->execute([$ref]);
-        echo json_encode(['success'=>true, 'booking'=>$s->fetch()]);
+        echo json_encode(['success'=>true, 'booking'=>$s->fetch(), 'pdfs_rewritten'=>$pdfsRewritten]);
         exit;
     }
     if ($action === 'get_booking') {
@@ -510,6 +551,7 @@ async function viewBooking(ref) {
     ['Guest',          '<strong>'+b.full_name+'</strong>'],
     ['Email',          '<a href="mailto:'+b.email+'" style="color:inherit">'+b.email+'</a>'],
     ['Phone',          '<a href="https://wa.me/'+(b.phone||'').replace(/[^0-9]/g,'')+'?text='+encodeURIComponent('Hi '+b.full_name+', Safari Zangu here regarding booking '+b.booking_ref+'.')+'" target="_blank" style="color:inherit">'+b.phone+'</a>'],
+    ['Country',        b.country||'—'],
     ['Package',        b.package_name||'—'],
     ['Accommodation',  b.accommodation_level ? (b.accommodation_level.charAt(0).toUpperCase()+b.accommodation_level.slice(1).replace(/_/g,' ')) : '—'],
     ['Guests',         (b.adults||b.travelers)+' adult'+(parseInt(b.adults||b.travelers)>1?'s':'')+(b.children>0?' + '+b.children+' child':'')],
@@ -612,6 +654,7 @@ function editBooking() {
     + field('Full Name', '<input class="admin-input" name="full_name" value="'+esc(b.full_name)+'" required>')
     + field('Email', '<input class="admin-input" type="email" name="email" value="'+esc(b.email)+'" required>')
     + field('Phone', '<input class="admin-input" name="phone" value="'+esc(b.phone)+'" required>')
+    + field('Country', '<input class="admin-input" name="country" value="'+esc(b.country)+'" placeholder="e.g. United Kingdom">')
     + field('Travel Date', '<input class="admin-input" type="date" name="travel_date" value="'+esc(b.travel_date)+'" required>')
     + field('Adults', '<input class="admin-input" type="number" min="1" name="adults" value="'+esc(b.adults||b.travelers||1)+'" required>')
     + field('Children', '<input class="admin-input" type="number" min="0" name="children" value="'+esc(b.children||0)+'">')
@@ -645,7 +688,7 @@ async function saveBooking(e) {
     var r = await fetch('bookings.php',{method:'POST',body:fd});
     var d = await r.json();
     if (d.success) {
-      toast('Booking updated','ok');
+      toast(d.pdfs_rewritten ? 'Booking updated — Quotation & Itinerary PDFs rewritten' : 'Booking updated','ok');
       CURRENT_BOOKING = d.booking;
       viewBooking(d.booking.booking_ref);
       setTimeout(function(){ location.reload(); }, 600);

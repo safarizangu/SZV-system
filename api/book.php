@@ -171,13 +171,13 @@ try {
 try {
     $stmt = $pdo->prepare("
         INSERT INTO bookings
-            (booking_ref, customer_id, full_name, email, phone, travelers, adults, children,
+            (booking_ref, customer_id, full_name, email, phone, country, travelers, adults, children,
              package_id, package_name, accommodation_level,
              travel_date, special_request, trip_extension,
              total_amount, deposit_amount,
              payment_status, payment_method, created_at)
         VALUES
-            (:ref, :customer_id, :name, :email, :phone, :travelers, :adults, :children,
+            (:ref, :customer_id, :name, :email, :phone, :country, :travelers, :adults, :children,
              :pkg_id, :pkg_name, :acc_level,
              :travel_date, :special_request, :trip_extension,
              :total, :deposit,
@@ -189,6 +189,7 @@ try {
         'name'           => $data['full_name'],
         'email'          => $data['email'],
         'phone'          => $data['phone'],
+        'country'        => $data['nationality'] ?: null,
         'travelers'      => $data['travelers'],
         'adults'         => $data['adults'],
         'children'       => $data['children'],
@@ -233,17 +234,17 @@ if ($builtQuote && $quoteTotals) {
         $pdo->prepare("
             INSERT INTO quotations
                 (quote_ref, customer_id, package_id, package_name, itinerary_id,
-                 client_name, client_email, client_phone,
+                 client_name, client_email, client_phone, client_country,
                  adults, children, duration_days, start_date, destinations,
                  accommodation_level, line_items, subtotal, vat, grand_total,
                  per_person, deposit_amount, balance_due, status, booking_ref,
                  valid_until, sent_at, accepted_at, created_at)
             VALUES
-                (?,?,?,?,?, ?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?, 'converted', ?,
+                (?,?,?,?,?, ?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?, 'converted', ?,
                  CURDATE(), NOW(), NOW(), NOW())
         ")->execute([
             $quoteRef, $customerId, $data['package_id'], $data['package_name'], $package['itinerary_id'],
-            $data['full_name'], $data['email'], $data['phone'],
+            $data['full_name'], $data['email'], $data['phone'], $data['nationality'] ?: null,
             $adults, $children, count($builtQuote['day_titles']) ?: 5,
             $data['travel_date'], json_encode($destinations),
             $data['accommodation_level'], json_encode($builtQuote['line_items']),

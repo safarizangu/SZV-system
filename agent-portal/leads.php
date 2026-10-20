@@ -85,14 +85,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $ref = generateBookingRef();
             $db->prepare("
                 INSERT INTO bookings
-                    (booking_ref, customer_id, full_name, email, phone, travelers, adults, children,
+                    (booking_ref, customer_id, full_name, email, phone, country, travelers, adults, children,
                      package_id, package_name, accommodation_level,
                      travel_date, special_request, total_amount, deposit_amount,
                      payment_status, payment_method, created_at)
                 VALUES
-                    (?,?,?,?,?,?,?,?, ?,?,?, ?,?,?,?, 'pending','agent_booking', NOW())
+                    (?,?,?,?,?,?,?,?,?, ?,?,?, ?,?,?,?, 'pending','agent_booking', NOW())
             ")->execute([
-                $ref, $customerId, $fullName, $email, $phone, $travelers, $adults, $children,
+                $ref, $customerId, $fullName, $email, $phone, $country, $travelers, $adults, $children,
                 $packageId, $package['name'], $accLevel,
                 $travelDate, $notes, $total, $deposit,
             ]);
