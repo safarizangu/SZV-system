@@ -84,12 +84,17 @@ $roleLabels = ['guide_driver' => 'Guide-Driver', 'guide' => 'Guide Only', 'drive
     <td>$<?= number_format($r['daily_rate'],0) ?></td>
     <td><?= $r['is_active'] ? '<span class="badge-status badge-status--green">Active</span>' : '<span class="badge-status badge-status--gray">Inactive</span>' ?></td>
     <td>
-      <a href="?edit=<?= $r['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Edit</a>
-      <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete this person? Any current booking assignment will be cleared, not the booking itself.', {danger:true})">
-        <?= \App\Middleware\CsrfMiddleware::field() ?>
-        <input type="hidden" name="delete_id" value="<?= $r['id'] ?>">
-        <button class="admin-btn admin-btn--danger" style="font-size:.7rem">Delete</button>
-      </form>
+      <div class="admin-row-actions">
+        <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+        <div class="admin-row-actions-menu">
+          <a href="?edit=<?= $r['id'] ?>" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('edit', 14) ?> Edit</a>
+          <form method="POST" onsubmit="return confirmSubmitGuard(event, this, 'Delete this person? Any current booking assignment will be cleared, not the booking itself.', {danger:true})">
+            <?= \App\Middleware\CsrfMiddleware::field() ?>
+            <input type="hidden" name="delete_id" value="<?= $r['id'] ?>">
+            <button type="submit" class="admin-row-actions-item admin-row-actions-item--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?> Delete</button>
+          </form>
+        </div>
+      </div>
     </td>
   </tr>
   <?php endforeach; ?>

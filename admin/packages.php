@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_id'])) {
 $packages = [];
 try { $packages = $db->query("SELECT * FROM packages ORDER BY sort_order ASC, id ASC LIMIT 200")->fetchAll(); }
 catch(\Exception $e){ error_log($e->getMessage()); }
-$levelLabels = ['budget'=>'Budget','midrange'=>'Mid-Range','highend'=>'High-End','ultra_luxury'=>'Ultra Luxury'];
+$levelLabels = ['budget'=>'Budget','midrange'=>'Mid-Range','highend'=>'High-End','luxury'=>'Luxury','ultra_luxury'=>'Ultra Luxury'];
 
 ob_start();
 ?>

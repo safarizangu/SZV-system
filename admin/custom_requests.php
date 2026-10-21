@@ -139,26 +139,16 @@ $pageTitle = 'Custom Safari Requests';
 ob_start();
 ?>
 
-<!-- ── Status filter pills ─────────────────────────────────── -->
-<div class="admin-filter-pills">
-  <a href="custom_requests.php" class="admin-filter-pill<?= !$statusFilter ? ' active' : '' ?>">
-    All &nbsp;<span style="opacity:.6"><?= array_sum($counts) ?></span>
-  </a>
-  <?php foreach ($statusColors as $key => $sc):
-    $pillMod = $sc['badge'] !== 'gray' ? ' admin-filter-pill--'.$sc['badge'] : '';
-  ?>
-  <a href="?status=<?= $key ?>" class="admin-filter-pill<?= $pillMod ?><?= $statusFilter===$key?' active':'' ?>">
-    <?= $sc['label'] ?> &nbsp;<span style="opacity:.6"><?= $counts[$key] ?? 0 ?></span>
-  </a>
-  <?php endforeach; ?>
-</div>
-
-<!-- ── Toolbar ─────────────────────────────────────────────── -->
+<!-- ── Toolbar: status filter + search, one row ───────────────── -->
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1.25rem">
-  <form method="GET" style="display:flex;gap:.5rem;flex-wrap:wrap">
-    <?php if ($statusFilter): ?>
-    <input type="hidden" name="status" value="<?= htmlspecialchars($statusFilter) ?>">
-    <?php endif; ?>
+  <form method="GET" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+    <select name="status" class="admin-input" onchange="this.form.submit()"
+            style="max-width:190px;font-weight:700;<?= $statusFilter && isset($statusColors[$statusFilter]) ? 'background:'.$statusColors[$statusFilter]['bg'].';color:'.$statusColors[$statusFilter]['color'].';' : '' ?>">
+      <option value="">All (<?= array_sum($counts) ?>)</option>
+      <?php foreach ($statusColors as $key => $sc): ?>
+      <option value="<?= $key ?>" <?= $statusFilter===$key?'selected':'' ?>><?= $sc['label'] ?> (<?= $counts[$key] ?? 0 ?>)</option>
+      <?php endforeach; ?>
+    </select>
     <input type="text" name="search" class="admin-input" style="min-width:220px;flex:1" placeholder="Search name, email, phone…" value="<?= htmlspecialchars($search) ?>">
     <button type="submit" class="admin-btn admin-btn--primary">Search</button>
     <?php if ($search || $statusFilter): ?>
@@ -247,27 +237,26 @@ ob_start();
       <?= date('H:i', strtotime($r['created_at'])) ?>
     </td>
     <td>
-      <div style="display:flex;gap:.3rem;flex-wrap:wrap">
-        <button class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem"
-                onclick='viewRequest(<?= htmlspecialchars(json_encode($r), ENT_QUOTES) ?>)'>
-          View
-        </button>
-        <a href="quotation_new.php?from_request=<?= $r['id'] ?>"
-           class="admin-btn admin-btn--primary" style="font-size:.65rem;padding:.3rem .6rem">
-          + Quote
-        </a>
-        <?php if ($r['email']): ?>
-        <a href="mailto:<?= htmlspecialchars($r['email']) ?>?subject=Your+Custom+Safari+—+Safari+Zangu+Ventures"
-           class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">
-          Email
-        </a>
-        <?php endif; ?>
-        <?php if ($r['phone']): ?>
-        <a href="https://wa.me/<?= preg_replace('/[^0-9]/','',$r['phone']) ?>?text=Dear+<?= urlencode($r['full_name']) ?>%2C+thank+you+for+your+custom+safari+enquiry.+We+have+reviewed+your+request+and+would+love+to+help+plan+your+perfect+safari."
-           target="_blank" class="admin-btn admin-btn--success" style="font-size:.65rem;padding:.3rem .6rem;background:#25D366;border-color:#25D366">
-          WA
-        </a>
-        <?php endif; ?>
+      <div class="admin-row-actions">
+        <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+        <div class="admin-row-actions-menu">
+          <button type="button" class="admin-row-actions-item" onclick='viewRequest(<?= htmlspecialchars(json_encode($r), ENT_QUOTES) ?>)'>
+            <?= \App\Helpers\AdminIcon::render('eye', 14) ?> View
+          </button>
+          <a href="quotation_new.php?from_request=<?= $r['id'] ?>" class="admin-row-actions-item">
+            <?= \App\Helpers\AdminIcon::render('quotations', 14) ?> Quote
+          </a>
+          <?php if ($r['email']): ?>
+          <a href="mailto:<?= htmlspecialchars($r['email']) ?>?subject=Your+Custom+Safari+—+Safari+Zangu+Ventures" class="admin-row-actions-item">
+            <?= \App\Helpers\AdminIcon::render('messages', 14) ?> Email
+          </a>
+          <?php endif; ?>
+          <?php if ($r['phone']): ?>
+          <a href="https://wa.me/<?= preg_replace('/[^0-9]/','',$r['phone']) ?>?text=Dear+<?= urlencode($r['full_name']) ?>%2C+thank+you+for+your+custom+safari+enquiry.+We+have+reviewed+your+request+and+would+love+to+help+plan+your+perfect+safari." target="_blank" class="admin-row-actions-item">
+            WhatsApp
+          </a>
+          <?php endif; ?>
+        </div>
       </div>
     </td>
   </tr>

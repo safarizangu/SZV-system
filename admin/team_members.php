@@ -77,12 +77,17 @@ catch(Exception $e){ error_log($e->getMessage()); }
   <td><?= htmlspecialchars($m['email'] ?? '—') ?></td>
   <td><?= $m['is_active'] ? '<span class="badge-status badge-status--green">Yes</span>' : '<span class="badge-status badge-status--gray">No</span>' ?></td>
   <td>
-    <a href="?edit=<?= $m['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Edit</a>
-    <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete <?= htmlspecialchars(addslashes($m['name'])) ?>?', {danger:true})">
-      <?= \App\Middleware\CsrfMiddleware::field() ?>
-      <input type="hidden" name="delete_id" value="<?= $m['id'] ?>">
-      <button class="admin-btn admin-btn--danger" style="font-size:.7rem">Delete</button>
-    </form>
+    <div class="admin-row-actions">
+      <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+      <div class="admin-row-actions-menu">
+        <a href="?edit=<?= $m['id'] ?>" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('edit', 14) ?> Edit</a>
+        <form method="POST" onsubmit="return confirmSubmitGuard(event, this, 'Delete <?= htmlspecialchars(addslashes($m['name'])) ?>?', {danger:true})">
+          <?= \App\Middleware\CsrfMiddleware::field() ?>
+          <input type="hidden" name="delete_id" value="<?= $m['id'] ?>">
+          <button type="submit" class="admin-row-actions-item admin-row-actions-item--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?> Delete</button>
+        </form>
+      </div>
+    </div>
   </td>
 </tr>
 <?php endforeach; ?>

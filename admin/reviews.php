@@ -68,11 +68,13 @@ ob_start();
   </div></div>
 </div>
 
-<div class="admin-filter-pills">
-  <a href="reviews.php" class="admin-filter-pill<?= !$filter?' active':'' ?>">All</a>
-  <a href="?filter=published" class="admin-filter-pill<?= $filter==='published'?' active':'' ?>">Published</a>
-  <a href="?filter=unpublished" class="admin-filter-pill<?= $filter==='unpublished'?' active':'' ?>">Unpublished</a>
-</div>
+<form method="GET" style="margin-bottom:1.25rem">
+  <select name="filter" class="admin-input" onchange="this.form.submit()" style="max-width:170px;font-weight:700">
+    <option value=""             <?= !$filter?'selected':'' ?>>All</option>
+    <option value="published"    <?= $filter==='published'?'selected':'' ?>>Published</option>
+    <option value="unpublished"  <?= $filter==='unpublished'?'selected':'' ?>>Unpublished</option>
+  </select>
+</form>
 
 <div class="admin-card">
   <div class="admin-table-wrap">
@@ -100,11 +102,16 @@ ob_start();
       </form>
     </td>
     <td>
-      <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete this review?', {danger:true})">
-        <?= \App\Middleware\CsrfMiddleware::field() ?>
-        <input type="hidden" name="delete_id" value="<?= $r['id'] ?>">
-        <button class="admin-btn admin-btn--danger" style="font-size:.65rem;padding:.25rem .5rem">Delete</button>
-      </form>
+      <div class="admin-row-actions">
+        <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+        <div class="admin-row-actions-menu">
+          <form method="POST" onsubmit="return confirmSubmitGuard(event, this, 'Delete this review?', {danger:true})">
+            <?= \App\Middleware\CsrfMiddleware::field() ?>
+            <input type="hidden" name="delete_id" value="<?= $r['id'] ?>">
+            <button type="submit" class="admin-row-actions-item admin-row-actions-item--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?> Delete</button>
+          </form>
+        </div>
+      </div>
     </td>
   </tr>
   <?php endforeach; ?>

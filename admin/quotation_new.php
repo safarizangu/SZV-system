@@ -63,10 +63,11 @@ if ($fromBookingRef) {
 function fetchAll($db,$sql){try{return $db->query($sql)->fetchAll();}catch(Exception $e){return[];}}
 $packages      = fetchAll($db,"SELECT id,name,slug FROM packages WHERE is_active=1 ORDER BY sort_order");
 $vehicles      = fetchAll($db,"SELECT id,name,daily_rate,fuel_cost_day,driver_cost_day,capacity FROM vehicles WHERE is_active=1 ORDER BY name");
-$accommodations= fetchAll($db,"SELECT id,name,level,rate_per_room,rate_per_person,single_supplement,child_rate FROM accommodations WHERE is_active=1 ORDER BY level,name");
-$parkFees      = fetchAll($db,"SELECT id,name,adult_fee,child_fee,vehicle_fee,resident_adult,resident_child FROM park_fees WHERE is_active=1 ORDER BY name");
-$seasonalRates = fetchAll($db,"SELECT season_key,multiplier FROM seasonal_rates");
-$activitiesDB  = fetchAll($db,"SELECT id,name,price,price_unit FROM activities WHERE is_active=1 ORDER BY name");
+$accommodations= fetchAll($db,"SELECT id,name,level,location,rate_per_room,rate_per_person,single_supplement,child_rate FROM accommodations WHERE is_active=1 ORDER BY level,name");
+$parkFees      = fetchAll($db,"SELECT id,name,location,adult_fee,child_fee,vehicle_fee,resident_adult,resident_child FROM park_fees WHERE is_active=1 ORDER BY name");
+$allLocations  = \App\Services\LocationRegistry::allLocations($db);
+$allCountries  = \App\Services\LocationRegistry::allCountries($db);
+$activitiesDB  = fetchAll($db,"SELECT id,name,price,price_unit,location FROM activities WHERE is_active=1 ORDER BY name");
 
 // ── SAVE ─────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_quote'])) {
@@ -275,6 +276,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_quote'])) {
             if ($leadId) \App\Services\PipelineSync::advanceLead($db, $leadId, 'quoted');
             if ($crId)   \App\Services\PipelineSync::advanceCustomRequest($db, $crId, 'quoted');
         }
+        foreach ($itinerary as $day) { \App\Services\LocationRegistry::touchLocation($db, $day['location'] ?? ''); }
+        \App\Services\LocationRegistry::touchCountry($db, $clientCountry);
+
+        // Keep an already-converted Booking in step with this quotation —
+        // the reverse of the sync admin/bookings.php already does when a
+        // booking is edited (which pushes client/trip details back onto
+        // the quotation). Without this, editing the quotation after
+        // conversion — a corrected travel date, a re-priced itinerary, a
+        // client detail fix — would silently leave the booking (and the
+        // Invoice/Track page, which read the booking's own total_amount/
+        // deposit_amount as the amount actually owed) showing stale data.
+        // travel_date uses COALESCE so clearing Start Date on the
+        // quotation can't null out the booking's required travel_date.
+        try {
+            $bk = $db->prepare("SELECT booking_ref FROM bookings WHERE quotation_id=? LIMIT 1");
+            $bk->execute([$newId]);
+            $bkRow = $bk->fetch();
+            if ($bkRow) {
+                $db->prepare("UPDATE bookings SET
+                        full_name=?, email=?, phone=?, country=?, travel_date=COALESCE(?, travel_date),
+                        adults=?, children=?, accommodation_level=?, special_request=?,
+                        total_amount=?, deposit_amount=?, package_id=?, package_name=?, itinerary_id=?,
+                        updated_at=NOW()
+                      WHERE quotation_id=?")
+                   ->execute([
+                        $data['client_name'], $data['client_email'], $data['client_phone'], $data['client_country'],
+                        $data['start_date'],
+                        $data['adults'], $data['children'], $data['accommodation_level'], $data['notes'],
+                        $data['grand_total'], $data['deposit_amount'], $data['package_id'], $data['package_name'], $data['itinerary_id'],
+                        $newId,
+                    ]);
+
+                // Rewrite the Quotation + Itinerary PDF files on disk so
+                // they reflect this edit immediately — same filenames
+                // every booking-creation path writes to.
+                \App\Services\PdfRenderer::renderQuotation($newId, 'Quotation-' . $bkRow['booking_ref']);
+                \App\Services\PdfRenderer::renderQuotationItinerary($newId, 'Itinerary-' . $bkRow['booking_ref']);
+            }
+        } catch (\Throwable $e) {
+            error_log('[SZV Quotation Edit Booking Sync] ' . $e->getMessage());
+        }
+
         header("Location: quotation_new.php?id=$newId&msg=".urlencode('Quotation saved.')); exit;
     } catch(Exception $e) { $msg = 'Error: '.$e->getMessage(); }
 }
@@ -422,7 +465,7 @@ ob_start();
                 <input name="client_phone" class="admin-input"
                        value="<?= htmlspecialchars($q['client_phone']??$cr['phone']??$lead['phone']??'') ?>"></div>
             <div><label class="admin-label">Country</label>
-                <input name="client_country" class="admin-input" oninput="calcTotals()"
+                <input name="client_country" class="admin-input" list="country-list" oninput="calcTotals()"
                        value="<?= htmlspecialchars($q['client_country']??$cr['country']??$lead['country']??'') ?>"></div>
         </div>
 
@@ -448,6 +491,44 @@ ob_start();
     </div>
 </div>
 
+<!-- NOTES + OPTIONS -->
+<div class="admin-card" style="margin-bottom:1.25rem">
+    <div class="admin-card-header"><h3>Additional Details</h3></div>
+    <div class="admin-card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+            <div><label class="admin-label">Accommodation Level</label>
+                <select name="accommodation_level" class="admin-input" onchange="filterAllDayOptions()">
+                    <?php foreach(['budget'=>'Budget-Friendly','midrange'=>'Mid-Range','highend'=>'High-End','luxury'=>'Luxury','ultra_luxury'=>'Ultra Luxury'] as $v=>$l): ?>
+                    <option value="<?= $v ?>" <?= ($q['accommodation_level']??'midrange')===$v?'selected':'' ?>><?= $l ?></option>
+                    <?php endforeach; ?>
+                </select></div>
+            <div><label class="admin-label">Meal Plan</label>
+                <select name="meal_plan" class="admin-input">
+                    <?php foreach(['fb'=>'Full Board (B+L+D)','hb'=>'Half Board','bb'=>'Bed & Breakfast','ai'=>'All Inclusive'] as $v=>$l): ?>
+                    <option value="<?= $v ?>" <?= ($q['meal_plan']??'fb')===$v?'selected':'' ?>><?= $l ?></option>
+                    <?php endforeach; ?>
+                </select></div>
+            <div><label class="admin-label">Guide Language</label>
+                <select name="guide_language" class="admin-input">
+                    <?php foreach(['english'=>'English','french'=>'French','german'=>'German','italian'=>'Italian','spanish'=>'Spanish','chinese'=>'Mandarin'] as $v=>$l): ?>
+                    <option value="<?= $v ?>" <?= ($q['guide_language']??'english')===$v?'selected':'' ?>><?= $l ?></option>
+                    <?php endforeach; ?>
+                </select></div>
+            <div><label class="admin-label">Valid Until</label>
+                <input name="valid_until" type="date" class="admin-input"
+                       value="<?= $q['valid_until'] ?? date('Y-m-d', strtotime('+' . QUOTATION_VALIDITY_DAYS . ' days')) ?>"></div>
+            <div><label class="admin-label">Status</label>
+                <select name="status" class="admin-input">
+                    <?php foreach(['draft'=>'Draft','sent'=>'Sent','viewed'=>'Viewed','negotiating'=>'Negotiating','accepted'=>'Accepted','declined'=>'Declined / Rejected'] as $v=>$l): ?>
+                    <option value="<?= $v ?>" <?= ($q['status']??'draft')===$v?'selected':'' ?>><?= $l ?></option>
+                    <?php endforeach; ?>
+                </select></div>
+        </div>
+        <div><label class="admin-label">Notes / Special Requests</label>
+            <textarea name="notes" class="admin-input" rows="3"
+                      placeholder="Any special requirements, inclusions, or notes for the client…"><?= htmlspecialchars($q['notes']??$cr['message']??$lead['notes']??'') ?></textarea></div>
+    </div>
+</div>
 
 <!-- LOAD FROM ITINERARY -->
 <div class="admin-card" style="margin-bottom:1.25rem;border:1.5px solid var(--black)">
@@ -503,13 +584,14 @@ ob_start();
     <div class="day-block itinerary-day" data-day="<?= $i ?>" style="margin-bottom:1rem;border-left:3px solid var(--black)">
       <div class="admin-card-header" style="background:var(--gray-50)">
         <h3 style="font-size:.85rem">
-          <span style="font-family:'Times New Roman',Times,serif;color:var(--black);margin-right:.5rem">Day <?= $i+1 ?></span>
+          <span class="day-num-label" style="font-family:'Times New Roman',Times,serif;color:var(--black);margin-right:.5rem">Day <?= $i+1 ?></span>
           <input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem"
                  placeholder="Day title e.g. Arusha → Tarangire"
                  value="<?= htmlspecialchars($day['title']??'') ?>">
         </h3>
         <div style="display:flex;align-items:center;gap:.5rem">
           <span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span>
+          <button type="button" onclick="deleteDay(this)" class="admin-icon-btn admin-icon-btn--danger" title="Delete this day"><?= \App\Helpers\AdminIcon::render('trash', 14) ?></button>
         </div>
       </div>
 
@@ -517,7 +599,8 @@ ob_start();
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
           <div><label class="admin-label">Location / Park</label>
-            <input name="day_location[]" class="admin-input" value="<?= htmlspecialchars($day['location']??'') ?>" placeholder="e.g. Serengeti National Park"></div>
+            <input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="<?= $i ?>" oninput="filterDayOptions(<?= $i ?>); syncDestinationsFromDays()"
+                   value="<?= htmlspecialchars($day['location']??'') ?>" placeholder="e.g. Serengeti National Park"></div>
           <div><label class="admin-label">Day Description</label>
             <textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"><?= htmlspecialchars($day['description']??'') ?></textarea></div>
         </div>
@@ -599,16 +682,23 @@ ob_start();
         <!-- Activities for this day -->
         <div style="margin-bottom:1rem">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-            <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day <?= $i+1 ?>)</p>
+            <p class="day-acts-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day <?= $i+1 ?>)</p>
             <button type="button" onclick="addDayActivity(<?= $i ?>)" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>
           </div>
+          <datalist id="qn-act-list-<?= $i ?>">
+            <?php foreach($activitiesDB as $a): ?>
+            <option value="<?= htmlspecialchars($a['name']) ?>" data-id="<?= $a['id'] ?>" data-price="<?= $a['price'] ?>">
+            <?php endforeach; ?>
+          </datalist>
           <div id="day-acts-<?= $i ?>">
             <?php foreach(($day['activities']??[]) as $ai=>$act): ?>
-            <div class="act-item" style="display:grid;grid-template-columns:2fr 80px 90px auto;gap:.35rem;align-items:end;margin-bottom:.4rem">
-              <input name="act_name_<?= $i ?>_<?= $ai ?>" class="admin-input day-act-name" list="act-list"
+            <div class="act-item" style="display:grid;grid-template-columns:2fr 80px 60px 90px auto;gap:.35rem;align-items:end;margin-bottom:.4rem">
+              <input name="act_name_<?= $i ?>_<?= $ai ?>" class="admin-input day-act-name" list="qn-act-list-<?= $i ?>"
                      value="<?= htmlspecialchars($act['name']??'') ?>" placeholder="Activity name" style="font-size:.78rem" oninput="saveDayActs(<?= $i ?>)">
               <input name="act_price_<?= $i ?>_<?= $ai ?>" type="number" step="0.01" class="admin-input day-act-price"
                      value="<?= (float)($act['price_pp']??0) ?>" placeholder="$/pp" style="font-size:.78rem" oninput="saveDayActs(<?= $i ?>)">
+              <input name="act_qty_<?= $i ?>_<?= $ai ?>" type="number" min="1" class="admin-input day-act-qty" title="How many travelers this activity covers"
+                     value="<?= (int)($act['qty']??$qTotalPax) ?>" placeholder="Qty" style="font-size:.78rem" oninput="saveDayActs(<?= $i ?>)">
               <select name="act_type_<?= $i ?>_<?= $ai ?>" class="admin-input day-act-type" style="font-size:.72rem" onchange="saveDayActs(<?= $i ?>)">
                 <option value="included" <?= ($act['type']??'included')==='included'?'selected':'' ?>>Included</option>
                 <option value="optional" <?= ($act['type']??'included')==='optional'?'selected':'' ?>>Optional</option>
@@ -625,19 +715,26 @@ ob_start();
         <!-- Other items for this day -->
         <div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-            <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day <?= $i+1 ?>)</p>
+            <p class="day-other-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day <?= $i+1 ?>)</p>
             <button type="button" onclick="addDayOther(<?= $i ?>)" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>
           </div>
           <div id="day-other-<?= $i ?>">
             <?php foreach(($day['other_items']??[]) as $oi=>$ot): ?>
-            <div class="other-item" style="display:grid;grid-template-columns:2fr 100px auto auto;gap:.35rem;align-items:center;margin-bottom:.4rem">
-              <input class="admin-input day-other-name" value="<?= htmlspecialchars($ot['name']??'') ?>" placeholder="Item name" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
-              <input type="number" step="0.01" class="admin-input day-other-amount" value="<?= (float)($ot['amount']??0) ?>" placeholder="$" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
-              <label style="display:flex;align-items:center;gap:.25rem;font-size:.62rem;color:var(--gray-500);white-space:nowrap" title="Multiply this amount by the number of travelers">
-                <input type="checkbox" class="day-other-perpax" <?= !empty($ot['per_pax']) ? 'checked' : '' ?> onchange="saveDayOther(<?= $i ?>)"> /traveler
-              </label>
-              <button type="button" onclick="this.closest('.other-item').remove();saveDayOther(<?= $i ?>)"
-                      class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render('close', 14) ?></button>
+            <div class="other-item" style="border:1px solid var(--gray-200);border-radius:2px;padding:.5rem;margin-bottom:.5rem">
+              <div style="display:flex;gap:.35rem;margin-bottom:.35rem">
+                <input class="admin-input day-other-name" value="<?= htmlspecialchars($ot['name']??'') ?>" placeholder="Item name" style="font-size:.78rem;flex:1" oninput="saveDayOther(<?= $i ?>)">
+                <button type="button" onclick="this.closest('.other-item').remove();saveDayOther(<?= $i ?>)"
+                        class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render('close', 14) ?></button>
+              </div>
+              <div style="display:grid;grid-template-columns:70px 55px 1fr 150px;gap:.35rem;align-items:center">
+                <input type="number" step="0.01" class="admin-input day-other-amount" value="<?= (float)($ot['amount']??0) ?>" placeholder="$/unit" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
+                <input type="number" min="1" class="admin-input day-other-qty" title="Number of units" value="<?= (int)($ot['qty']??1) ?>" placeholder="Qty" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
+                <input class="admin-input day-other-unit" title="What a unit is called (e.g. Box, Trip, Vehicle) — type your own, independent of traveler count" value="<?= htmlspecialchars($ot['unit']??'') ?>" placeholder="Unit name (optional)" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
+                <select class="admin-input day-other-perpax" style="font-size:.72rem" title="Whether this cost multiplies by the number of travelers" onchange="saveDayOther(<?= $i ?>)">
+                  <option value="0" <?= empty($ot['per_pax'])?'selected':'' ?>>Flat (not per guest)</option>
+                  <option value="1" <?= !empty($ot['per_pax'])?'selected':'' ?>>× Number of guests</option>
+                </select>
+              </div>
             </div>
             <?php endforeach; ?>
           </div>
@@ -712,7 +809,7 @@ ob_start();
                   <span id="qs-deposit" style="font-weight:700;color:#166534">$0</span>
                 </div>
                 <div style="display:flex;justify-content:space-between;font-size:.82rem">
-                  <span style="color:#166534">Balance (70%) — due 45 days before</span>
+                  <span style="color:#166534">Balance (<?= 100 - (int)$depositPct ?>%) — due 45 days before</span>
                   <span id="qs-balance" style="font-weight:700;color:#166534">$0</span>
                 </div>
               </div>
@@ -759,51 +856,18 @@ ob_start();
   </div>
 </div>
 
-<!-- Shared by the Day-by-Day Itinerary's per-day activity rows above -->
-<datalist id="act-list">
-  <?php foreach($activitiesDB as $a): ?>
-  <option value="<?= htmlspecialchars($a['name']) ?>" data-price="<?= $a['price'] ?>">
+<!-- Location/country autocomplete — same master lists every such field
+     in the app draws from (see App\Services\LocationRegistry) -->
+<datalist id="location-list">
+  <?php foreach ($allLocations as $__l): ?>
+  <option value="<?= htmlspecialchars($__l['name']) ?>">
   <?php endforeach; ?>
 </datalist>
-
-<!-- NOTES + OPTIONS -->
-<div class="admin-card">
-    <div class="admin-card-header"><h3>Additional Details</h3></div>
-    <div class="admin-card-body">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
-            <div><label class="admin-label">Accommodation Level</label>
-                <select name="accommodation_level" class="admin-input">
-                    <?php foreach(['budget'=>'Budget-Friendly','midrange'=>'Mid-Range','highend'=>'High-End / Luxury','ultra_luxury'=>'Ultra Luxury'] as $v=>$l): ?>
-                    <option value="<?= $v ?>" <?= ($q['accommodation_level']??'midrange')===$v?'selected':'' ?>><?= $l ?></option>
-                    <?php endforeach; ?>
-                </select></div>
-            <div><label class="admin-label">Meal Plan</label>
-                <select name="meal_plan" class="admin-input">
-                    <?php foreach(['fb'=>'Full Board (B+L+D)','hb'=>'Half Board','bb'=>'Bed & Breakfast','ai'=>'All Inclusive'] as $v=>$l): ?>
-                    <option value="<?= $v ?>" <?= ($q['meal_plan']??'fb')===$v?'selected':'' ?>><?= $l ?></option>
-                    <?php endforeach; ?>
-                </select></div>
-            <div><label class="admin-label">Guide Language</label>
-                <select name="guide_language" class="admin-input">
-                    <?php foreach(['english'=>'English','french'=>'French','german'=>'German','italian'=>'Italian','spanish'=>'Spanish','chinese'=>'Mandarin'] as $v=>$l): ?>
-                    <option value="<?= $v ?>" <?= ($q['guide_language']??'english')===$v?'selected':'' ?>><?= $l ?></option>
-                    <?php endforeach; ?>
-                </select></div>
-            <div><label class="admin-label">Valid Until</label>
-                <input name="valid_until" type="date" class="admin-input"
-                       value="<?= $q['valid_until'] ?? date('Y-m-d', strtotime('+' . QUOTATION_VALIDITY_DAYS . ' days')) ?>"></div>
-            <div><label class="admin-label">Status</label>
-                <select name="status" class="admin-input">
-                    <?php foreach(['draft'=>'Draft','sent'=>'Sent','viewed'=>'Viewed','negotiating'=>'Negotiating','accepted'=>'Accepted','declined'=>'Declined / Rejected'] as $v=>$l): ?>
-                    <option value="<?= $v ?>" <?= ($q['status']??'draft')===$v?'selected':'' ?>><?= $l ?></option>
-                    <?php endforeach; ?>
-                </select></div>
-        </div>
-        <div><label class="admin-label">Notes / Special Requests</label>
-            <textarea name="notes" class="admin-input" rows="3"
-                      placeholder="Any special requirements, inclusions, or notes for the client…"><?= htmlspecialchars($q['notes']??$cr['message']??$lead['notes']??'') ?></textarea></div>
-    </div>
-</div>
+<datalist id="country-list">
+  <?php foreach ($allCountries as $__c): ?>
+  <option value="<?= htmlspecialchars($__c) ?>">
+  <?php endforeach; ?>
+</datalist>
 
 </div><!-- /left -->
 
@@ -844,15 +908,20 @@ var fmt = function(n){ return '$'+Math.round(n).toLocaleString('en-US'); };
 // Single source of truth is config/app.php's VAT_RATE constant — mirrored
 // here instead of hardcoding 0.18 so this preview can't drift from it.
 var VAT_RATE = <?= json_encode(defined('VAT_RATE') ? VAT_RATE : 0.18) ?>;
-var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'ratePerPerson'=>(float)$a['rate_per_person'],'singleSupp'=>(float)$a['single_supplement'],'childRate'=>(float)$a['child_rate']], $accommodations)) ?>;
+var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'ratePerPerson'=>(float)$a['rate_per_person'],'singleSupp'=>(float)$a['single_supplement'],'childRate'=>(float)$a['child_rate'],'level'=>$a['level'],'location'=>$a['location']??''], $accommodations)) ?>;
 var PE_VEHS  = <?= json_encode(array_map(fn($v) => ['name'=>$v['name'],'id'=>(int)$v['id'],'rate'=>(float)$v['daily_rate']+(float)$v['fuel_cost_day']+(float)$v['driver_cost_day']], $vehicles)) ?>;
-var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee'],'childFee'=>(float)$p['child_fee'],'residentAdult'=>(float)$p['resident_adult'],'residentChild'=>(float)$p['resident_child']], $parkFees)) ?>;
+var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee'],'childFee'=>(float)$p['child_fee'],'residentAdult'=>(float)$p['resident_adult'],'residentChild'=>(float)$p['resident_child'],'location'=>$p['location']??''], $parkFees)) ?>;
+var PE_ACTS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'price'=>(float)$a['price'],'location'=>$a['location']??''], $activitiesDB)) ?>;
 // Same 5 EAC members as App\Services\ItineraryQuoteBuilder::EAC_RESIDENT_COUNTRIES.
 var PE_EAC_COUNTRIES = ['tanzania','kenya','uganda','rwanda','burundi'];
-var PE_SEASON_MULT = <?= json_encode(array_reduce($seasonalRates, function($c,$s){ $c[$s['season_key']]=(float)$s['multiplier']; return $c; }, ['peak'=>1,'shoulder'=>0.85,'low'=>0.75])) ?>;
 
 // Mirrors App\Services\ItineraryQuoteBuilder::detectSeason() exactly —
-// pure date math, same peak/shoulder/low rules.
+// pure date math, same peak/shoulder/low rules. No longer used to
+// adjust accommodation/vehicle pricing (a manually entered or selected
+// rate is charged exactly as given — see calcTotals() below); kept so
+// tests/suites/JsPricingConsistencyTest.php can still verify this JS
+// copy hasn't drifted from the PHP original, in case season-aware
+// pricing is reintroduced elsewhere later.
 function peDetectSeason(dateStr) {
   if (!dateStr) return 'peak';
   var d = new Date(dateStr + 'T00:00:00');
@@ -875,11 +944,11 @@ function calcTotals() {
   var children = parseInt((document.getElementById('inp_children')||{}).value) || 0;
   var pax      = adults + children;
 
-  // Same season/resident inputs the server reads — start_date and
-  // client_country — so this preview matches what actually gets saved.
-  var startDate  = (document.querySelector('[name="start_date"]')||{}).value || '';
-  var season     = peDetectSeason(startDate);
-  var seasonMult = PE_SEASON_MULT[season] != null ? PE_SEASON_MULT[season] : 1;
+  // Same resident input the server reads — client_country — so this
+  // preview matches what actually gets saved. Accommodation/vehicle
+  // rates are never auto-adjusted by season: whatever the admin typed
+  // or picked for a day is the exact rate charged, so Unit Price × Qty
+  // always equals Amount on screen and on the PDF.
   var country    = ((document.querySelector('[name="client_country"]')||{}).value || '').trim().toLowerCase();
   var isResident = country && PE_EAC_COUNTRIES.indexOf(country) !== -1;
 
@@ -900,13 +969,17 @@ function calcTotals() {
         return {
           name: ((row.querySelector('.day-act-name')||{}).value||'').trim(),
           price: parseFloat((row.querySelector('.day-act-price')||{}).value)||0,
-          type: (row.querySelector('.day-act-type')||{}).value||'included'
+          type: (row.querySelector('.day-act-type')||{}).value||'included',
+          qty: parseInt((row.querySelector('.day-act-qty')||{}).value)||1
         };
       }),
       other: Array.prototype.map.call(block.querySelectorAll('.other-item'), function(row){
         return {
           name: ((row.querySelector('.day-other-name')||{}).value||'').trim(),
-          amount: parseFloat((row.querySelector('.day-other-amount')||{}).value)||0
+          amount: parseFloat((row.querySelector('.day-other-amount')||{}).value)||0,
+          qty: parseInt((row.querySelector('.day-other-qty')||{}).value)||1,
+          unit: ((row.querySelector('.day-other-unit')||{}).value||'').trim(),
+          perPax: (row.querySelector('.day-other-perpax')||{}).value==='1'
         };
       })
     };
@@ -939,18 +1012,20 @@ function calcTotals() {
     // Only paid included activities become a priced line item — a free
     // included activity (price 0) has nothing to charge, so it doesn't
     // belong in a cost table (matches ItineraryQuoteBuilder::build()'s
-    // actPaid/actFree split server-side).
+    // actPaid/actFree split server-side). Qty is how many travelers this
+    // day's booking covers — lets a party where only some travelers join
+    // an activity avoid being charged for everyone.
     d.activities.forEach(function(a){
       if (!a.name || a.type!=='included' || a.price<=0) return;
-      if (!actSeen[a.name]) actSeen[a.name] = {price:a.price,count:0};
-      actSeen[a.name].count++;
+      if (!actSeen[a.name]) actSeen[a.name] = {price:a.price,totalQty:0,days:0};
+      actSeen[a.name].totalQty += a.qty;
+      actSeen[a.name].days++;
     });
 
     d.other.forEach(function(o){
       if (!o.name || o.amount <= 0) return;
-      if (!otherSeen[o.name]) otherSeen[o.name] = {amount:0,count:0};
-      otherSeen[o.name].amount += o.amount;
-      otherSeen[o.name].count++;
+      if (!otherSeen[o.name]) otherSeen[o.name] = {unitPrice:o.amount,qty:0,unitName:o.unit,perPax:o.perPax};
+      otherSeen[o.name].qty += o.qty;
     });
   });
 
@@ -964,22 +1039,26 @@ function calcTotals() {
     var accExtra = peAccLookup(name);
 
     if (accExtra && accExtra.ratePerPerson > 0) {
+      // unit is exactly the rate on file/entered for the day — no hidden
+      // seasonal adjustment. Whatever the admin typed or picked is the
+      // final charged rate, so Unit × Qty always equals Amount (mirrors
+      // App\Services\ItineraryQuoteBuilder::build() exactly).
       var personRate = accExtra.ratePerPerson;
       var pairs = Math.floor(adults / 2), soloAdult = adults % 2, roomsUsed = pairs + soloAdult;
-      var baseAmt = personRate * adults * a.nights * seasonMult;
+      var baseAmt = personRate * adults * a.nights;
       var qty = adults+' Adult'+(adults!==1?'s':'')+' × '+a.nights+' Night'+(a.nights!==1?'s':'')+' ('+roomsUsed+' Room'+(roomsUsed!==1?'s':'')+')';
       lineItems.push({desc:'Accommodation – '+name+' (Per Person Sharing)', unit:personRate, qty:qty, amount:baseAmt});
 
       if (soloAdult === 1 && accExtra.singleSupp > 0) {
-        var suppAmt = accExtra.singleSupp * a.nights * seasonMult;
+        var suppAmt = accExtra.singleSupp * a.nights;
         lineItems.push({desc:'Single Supplement – '+name, unit:accExtra.singleSupp, qty:'1 Guest × '+a.nights+' Night'+(a.nights!==1?'s':''), amount:suppAmt});
       }
       if (children > 0 && accExtra.childRate > 0) {
         var childQty = children+' Child'+(children!==1?'ren':'')+' × '+a.nights+' Night'+(a.nights!==1?'s':'');
-        lineItems.push({desc:'Child Rate – '+name, unit:accExtra.childRate, qty:childQty, amount:accExtra.childRate*children*a.nights*seasonMult});
+        lineItems.push({desc:'Child Rate – '+name, unit:accExtra.childRate, qty:childQty, amount:accExtra.childRate*children*a.nights});
       }
     } else {
-      var amount = a.rate * a.nights * a.rooms * seasonMult;
+      var amount = a.rate * a.nights * a.rooms;
       var qty2 = a.rooms > 1
         ? a.rooms+' Rooms × '+a.nights+' Night'+(a.nights!==1?'s':'')
         : a.nights+' Night'+(a.nights!==1?'s':'');
@@ -987,19 +1066,19 @@ function calcTotals() {
 
       if (accExtra) {
         if (adults === 1 && accExtra.singleSupp > 0) {
-          var suppAmt2 = accExtra.singleSupp * a.nights * a.rooms * seasonMult;
+          var suppAmt2 = accExtra.singleSupp * a.nights * a.rooms;
           lineItems.push({desc:'Single Supplement – '+name, unit:accExtra.singleSupp, qty:qty2, amount:suppAmt2});
         }
         if (children > 0 && accExtra.childRate > 0) {
           var childQty2 = children+' Child'+(children!==1?'ren':'')+' × '+a.nights+' Night'+(a.nights!==1?'s':'');
-          lineItems.push({desc:'Child Rate – '+name, unit:accExtra.childRate, qty:childQty2, amount:accExtra.childRate*children*a.nights*seasonMult});
+          lineItems.push({desc:'Child Rate – '+name, unit:accExtra.childRate, qty:childQty2, amount:accExtra.childRate*children*a.nights});
         }
       }
     }
   });
 
   Object.keys(vehSeen).forEach(function(name){
-    var v = vehSeen[name], amount = v.rate * v.days * seasonMult;
+    var v = vehSeen[name], amount = v.rate * v.days;
     lineItems.push({desc:name+' & Fuel', unit:v.rate, qty:'1 Vehicle × '+v.days+' Day'+(v.days!==1?'s':''), amount:amount});
   });
 
@@ -1017,8 +1096,8 @@ function calcTotals() {
   });
 
   Object.keys(actSeen).forEach(function(name){
-    var a = actSeen[name], amount = a.price * pax * a.count;
-    var qty = pax+' Guest'+(pax!==1?'s':'')+(a.count>1?' × '+a.count+' Days':'');
+    var a = actSeen[name], amount = a.price * a.totalQty;
+    var qty = a.totalQty+' Guest'+(a.totalQty!==1?'s':'')+(a.days>1?' × '+a.days+' Days':'');
     lineItems.push({desc:name, unit:a.price, qty:qty, amount:amount});
   });
 
@@ -1027,16 +1106,24 @@ function calcTotals() {
     lineItems.push({desc:'Meals (Full Board — '+mealsDays+' day'+(mealsDays!==1?'s':'')+')', unit:avgMealPP, qty:pax+' Guests × '+mealsDays+' Days', amount:mealsPP*pax});
   }
 
-  // Same "is this per-traveler" heuristic api/book.php's real pricing
-  // uses (App\Services\ItineraryQuoteBuilder::build()).
+  // Per-traveler is an explicit checkbox on each Other Cost row
+  // (day-other-perpax), not a name-substring guess, and Qty is an
+  // explicit per-row unit count (e.g. 3 firewood bundles at $5 each) —
+  // matches App\Services\ItineraryQuoteBuilder::build()'s server-side
+  // logic exactly, which is what keeps this live preview honest against
+  // what's actually saved as the listed price. unitName is whatever the
+  // admin typed into "Unit name" (e.g. "Box", "Trip", "Vehicle") — it's
+  // just a label, never a multiplier, and falls back to the generic
+  // "Unit(s)" when left blank.
   Object.keys(otherSeen).forEach(function(name){
     var o = otherSeen[name];
-    var isPerPax = /transfer|water|contribution/i.test(name);
-    var amount = (isPerPax && pax > 1) ? o.amount * pax : o.amount;
-    var qty = isPerPax && pax > 1
-      ? pax+' Guests'+(o.count>1?' × '+o.count+' Days':'')
-      : (o.count>1 ? o.count+' Times' : '1');
-    lineItems.push({desc:name, unit:o.amount, qty:qty, amount:amount});
+    var unitLabel = o.unitName || ('Unit'+(o.qty!==1?'s':''));
+    var totalQty = o.perPax ? o.qty * pax : o.qty;
+    var amount = o.unitPrice * totalQty;
+    var qty = o.perPax
+      ? pax+' Guest'+(pax!==1?'s':'')+(o.qty>1?' × '+o.qty+' '+unitLabel:'')
+      : o.qty+' '+unitLabel;
+    lineItems.push({desc:name, unit:o.unitPrice, qty:qty, amount:amount});
   });
 
   var svcAdultPax = +((document.getElementById('service_charge_adult')||{}).value)||0;
@@ -1132,6 +1219,7 @@ function calcItinTotal() {
   });
 
   calcTotals();
+  scheduleAutoSync();
 }
 
 // ── Datalist auto-fill (per-day accommodation/vehicle/park) ───
@@ -1169,19 +1257,90 @@ function fillDayPark(input, dayIdx) {
   }
 }
 
+// ── Smart location/level filter for Accommodation + Park options ────
+// Narrows each day's Accommodation and Park/Area datalist down to the
+// entries whose own `location` shares a significant word with what's
+// typed in that day's own Location field — not a plain substring check,
+// because this app's location strings are sub-area names ("Central
+// Serengeti", "Northern Serengeti", "Western Serengeti Corridor") that
+// don't contain one another as substrings even though they're all
+// "Serengeti"; a pure indexOf() match would silently show nothing for
+// most real combinations. Tokenizing both sides and matching on any
+// shared 4+ letter word (park/region names) catches all of these.
+// Further narrows Accommodation by the quotation's overall Accommodation
+// Level. Only trims the *suggestions* — the field stays free text via
+// <datalist>. Looked up by the day's stable build index (data-idx / the
+// N in qn-acc-list-N, qn-park-list-N), not DOM position — those ids
+// never change even after a day is deleted and the rest renumber.
+function locMatch(a, b) {
+  if (!a || !b) return true;
+  var ta = a.toLowerCase().match(/[a-z]{4,}/g) || [];
+  var tb = b.toLowerCase().match(/[a-z]{4,}/g) || [];
+  for (var i = 0; i < ta.length; i++) { if (tb.indexOf(ta[i]) !== -1) return true; }
+  return false;
+}
+
+function filterDayOptions(dayIdx) {
+  var locInput = document.querySelector('.day-location[data-idx="'+dayIdx+'"]');
+  var loc      = locInput ? locInput.value : '';
+  var level    = (document.querySelector('[name="accommodation_level"]')||{}).value || '';
+
+  var accList = document.getElementById('qn-acc-list-'+dayIdx);
+  if (accList) {
+    accList.innerHTML = PE_ACCS
+      .filter(function(a){ return (!level || a.level===level) && locMatch(loc, a.location); })
+      .map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-rate="'+a.rate+'">'; })
+      .join('');
+  }
+  var parkList = document.getElementById('qn-park-list-'+dayIdx);
+  if (parkList) {
+    parkList.innerHTML = PE_PARKS
+      .filter(function(p){ return locMatch(loc, p.location); })
+      .map(function(p){ return '<option value="'+p.name+'" data-id="'+p.id+'" data-fee="'+p.fee+'">'; })
+      .join('');
+  }
+  var actList = document.getElementById('qn-act-list-'+dayIdx);
+  if (actList) {
+    actList.innerHTML = PE_ACTS
+      .filter(function(a){ return locMatch(loc, a.location); })
+      .map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-price="'+a.price+'">'; })
+      .join('');
+  }
+}
+
+function filterAllDayOptions() {
+  document.querySelectorAll('.day-location').forEach(function(input){
+    filterDayOptions(input.dataset.idx);
+  });
+}
+
+// ── Keep "Destinations" in sync with the day locations above ───────
+// Destinations used to only get filled in when a saved itinerary
+// template was loaded (see loadItinerary() below) — typing a day's own
+// Location field directly left it stale. Recomputed from scratch on
+// every call so it never drifts from what the days actually say.
+function syncDestinationsFromDays() {
+  var el = document.querySelector('[name="destinations"]');
+  if (!el) return;
+  var locs = Array.prototype.map.call(document.querySelectorAll('.day-location'), function(i){ return i.value.trim(); }).filter(Boolean);
+  el.value = locs.filter(function(v,i,a){ return a.indexOf(v)===i; }).join(', ');
+}
+
 // ── Activities per day ─────────────────────────────────────────
 function addDayActivity(dayIdx) {
   var container = document.getElementById('day-acts-'+dayIdx);
+  var defaultQty = (parseInt((document.getElementById('inp_adults')||{}).value)||1) + (parseInt((document.getElementById('inp_children')||{}).value)||0);
   var div = document.createElement('div');
   div.className='act-item';
-  div.style.cssText='display:grid;grid-template-columns:2fr 80px 90px auto;gap:.35rem;align-items:end;margin-bottom:.4rem';
-  div.innerHTML='<input class="admin-input day-act-name" list="act-list" placeholder="Activity name" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
+  div.style.cssText='display:grid;grid-template-columns:2fr 80px 60px 90px auto;gap:.35rem;align-items:end;margin-bottom:.4rem';
+  div.innerHTML='<input class="admin-input day-act-name" list="qn-act-list-'+dayIdx+'" placeholder="Activity name" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
     +'<input type="number" step="0.01" class="admin-input day-act-price" value="0" placeholder="$/pp" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
+    +'<input type="number" min="1" class="admin-input day-act-qty" title="How many travelers this activity covers" value="'+defaultQty+'" placeholder="Qty" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
     +'<select class="admin-input day-act-type" style="font-size:.72rem" onchange="saveDayActs('+dayIdx+')"><option value="included">Included</option><option value="optional">Optional</option></select>'
     +'<button type="button" onclick="this.closest(\'.act-item\').remove();saveDayActs('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render("close", 14) ?></button>';
   container.appendChild(div);
   div.querySelector('.day-act-name').addEventListener('change', function(){
-    var opts=document.querySelectorAll('#act-list option');
+    var opts=document.querySelectorAll('#qn-act-list-'+dayIdx+' option');
     for(var i=0;i<opts.length;i++){
       if(opts[i].value===this.value && opts[i].dataset.price){
         div.querySelector('.day-act-price').value=opts[i].dataset.price;
@@ -1196,7 +1355,7 @@ function saveDayActs(dayIdx) {
   container.querySelectorAll('.act-item').forEach(function(row){
     var name=row.querySelector('.day-act-name').value.trim();
     if(!name) return;
-    acts.push({name:name, price_pp:parseFloat(row.querySelector('.day-act-price').value)||0, type:row.querySelector('.day-act-type').value});
+    acts.push({name:name, price_pp:parseFloat(row.querySelector('.day-act-price').value)||0, qty:parseInt(row.querySelector('.day-act-qty').value)||1, type:row.querySelector('.day-act-type').value});
   });
   document.getElementById('acts-json-'+dayIdx).value=JSON.stringify(acts);
   calcItinTotal();
@@ -1207,11 +1366,17 @@ function addDayOther(dayIdx) {
   var container=document.getElementById('day-other-'+dayIdx);
   var div=document.createElement('div');
   div.className='other-item';
-  div.style.cssText='display:grid;grid-template-columns:2fr 100px auto auto;gap:.35rem;align-items:center;margin-bottom:.4rem';
-  div.innerHTML='<input class="admin-input day-other-name" placeholder="Item name" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
-    +'<input type="number" step="0.01" class="admin-input day-other-amount" value="0" placeholder="$" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
-    +'<label style="display:flex;align-items:center;gap:.25rem;font-size:.62rem;color:var(--gray-500);white-space:nowrap" title="Multiply this amount by the number of travelers"><input type="checkbox" class="day-other-perpax" onchange="saveDayOther('+dayIdx+')"> /traveler</label>'
-    +'<button type="button" onclick="this.closest(\'.other-item\').remove();saveDayOther('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render("close", 14) ?></button>';
+  div.style.cssText='border:1px solid var(--gray-200);border-radius:2px;padding:.5rem;margin-bottom:.5rem';
+  div.innerHTML='<div style="display:flex;gap:.35rem;margin-bottom:.35rem">'
+      +'<input class="admin-input day-other-name" placeholder="Item name" style="font-size:.78rem;flex:1" oninput="saveDayOther('+dayIdx+')">'
+      +'<button type="button" onclick="this.closest(\'.other-item\').remove();saveDayOther('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render("close", 14) ?></button>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:70px 55px 1fr 150px;gap:.35rem;align-items:center">'
+      +'<input type="number" step="0.01" class="admin-input day-other-amount" value="0" placeholder="$/unit" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
+      +'<input type="number" min="1" class="admin-input day-other-qty" title="Number of units" value="1" placeholder="Qty" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
+      +'<input class="admin-input day-other-unit" title="What a unit is called (e.g. Box, Trip, Vehicle) — type your own, independent of traveler count" placeholder="Unit name (optional)" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
+      +'<select class="admin-input day-other-perpax" style="font-size:.72rem" title="Whether this cost multiplies by the number of travelers" onchange="saveDayOther('+dayIdx+')"><option value="0">Flat (not per guest)</option><option value="1">× Number of guests</option></select>'
+    +'</div>';
   container.appendChild(div);
 }
 function saveDayOther(dayIdx) {
@@ -1220,7 +1385,7 @@ function saveDayOther(dayIdx) {
   container.querySelectorAll('.other-item').forEach(function(row){
     var name=row.querySelector('.day-other-name').value.trim();
     if(!name) return;
-    items.push({name:name, amount:parseFloat(row.querySelector('.day-other-amount').value)||0, per_pax:row.querySelector('.day-other-perpax').checked});
+    items.push({name:name, amount:parseFloat(row.querySelector('.day-other-amount').value)||0, qty:parseInt(row.querySelector('.day-other-qty').value)||1, unit:(row.querySelector('.day-other-unit')||{}).value||'', per_pax:row.querySelector('.day-other-perpax').value==='1'});
   });
   document.getElementById('other-json-'+dayIdx).value=JSON.stringify(items);
   calcItinTotal();
@@ -1231,18 +1396,20 @@ function peDayBlockHtml(i) {
   var accOpts  = PE_ACCS.map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-rate="'+a.rate+'">'; }).join('');
   var vehOpts  = PE_VEHS.map(function(v){ return '<option value="'+v.name+'" data-id="'+v.id+'" data-rate="'+v.rate+'">'; }).join('');
   var parkOpts = PE_PARKS.map(function(p){ return '<option value="'+p.name+'" data-id="'+p.id+'" data-fee="'+p.fee+'">'; }).join('');
+  var actOpts  = PE_ACTS.map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-price="'+a.price+'">'; }).join('');
 
   return ''
     +'<div class="admin-card-header" style="background:var(--gray-50)">'
       +'<h3 style="font-size:.85rem">'
-        +'<span style="font-family:\'Times New Roman\',Times,serif;color:var(--black);margin-right:.5rem">Day '+(i+1)+'</span>'
+        +'<span class="day-num-label" style="font-family:\'Times New Roman\',Times,serif;color:var(--black);margin-right:.5rem">Day '+(i+1)+'</span>'
         +'<input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem" placeholder="Day title e.g. Arusha → Tarangire">'
       +'</h3>'
-      +'<div style="display:flex;align-items:center;gap:.5rem"><span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span></div>'
+      +'<div style="display:flex;align-items:center;gap:.5rem"><span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span>'
+        +'<button type="button" onclick="deleteDay(this)" class="admin-icon-btn admin-icon-btn--danger" title="Delete this day"><?= \App\Helpers\AdminIcon::render('trash', 14) ?></button></div>'
     +'</div>'
     +'<div class="admin-card-body">'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">'
-        +'<div><label class="admin-label">Location / Park</label><input name="day_location[]" class="admin-input" placeholder="e.g. Serengeti National Park"></div>'
+        +'<div><label class="admin-label">Location / Park</label><input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="'+i+'" oninput="filterDayOptions('+i+'); syncDestinationsFromDays()" placeholder="e.g. Serengeti National Park"></div>'
         +'<div><label class="admin-label">Day Description</label><textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"></textarea></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">'
@@ -1282,15 +1449,16 @@ function peDayBlockHtml(i) {
       +'</div>'
       +'<div style="margin-bottom:1rem">'
         +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
-          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day '+(i+1)+')</p>'
+          +'<p class="day-acts-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day '+(i+1)+')</p>'
           +'<button type="button" onclick="addDayActivity('+i+')" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>'
         +'</div>'
+        +'<datalist id="qn-act-list-'+i+'">'+actOpts+'</datalist>'
         +'<div id="day-acts-'+i+'"></div>'
         +'<input type="hidden" name="day_activities_json[]" id="acts-json-'+i+'" value="[]">'
       +'</div>'
       +'<div>'
         +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
-          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day '+(i+1)+')</p>'
+          +'<p class="day-other-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day '+(i+1)+')</p>'
           +'<button type="button" onclick="addDayOther('+i+')" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>'
         +'</div>'
         +'<div id="day-other-'+i+'"></div>'
@@ -1312,6 +1480,7 @@ function syncItineraryDays(newCount) {
       div.style.cssText = 'margin-bottom:1rem;border-left:3px solid var(--black)';
       div.innerHTML = peDayBlockHtml(i);
       container.appendChild(div);
+      filterDayOptions(i);
     }
   } else if (newCount < blocks.length) {
     for (var j = blocks.length - 1; j >= newCount; j--) blocks[j].remove();
@@ -1321,7 +1490,52 @@ function syncItineraryDays(newCount) {
   calcItinTotal();
 }
 
+// ── Delete a single day, from anywhere in the itinerary ─────────
+// Unlike shortening via the Duration field above (which only ever trims
+// from the end), this removes one specific day-block and shifts every
+// day after it up — Day 3 of 7 deleted leaves a renumbered Day 1-6, not
+// a gap. Every day_*[] field is an array-append ("[]") name, not an
+// explicit day_title[3]-style index, so the browser's own form
+// submission already reindexes correctly from DOM order alone the
+// moment the block is gone; renumberDays() below only has to fix the
+// *visible* "Day N" labels and the Duration count, which don't update
+// themselves just because an element left the DOM.
+async function deleteDay(btn) {
+  var blocks = document.querySelectorAll('.day-block');
+  if (blocks.length <= 1) {
+    toast('A quotation needs at least 1 day — edit this one instead of deleting it.', 'err');
+    return;
+  }
+  if (!(await confirmDialog(
+    'Delete this day? Its accommodation, vehicle, park, meals, activities and other costs are removed with it — the remaining days shift up and the total recalculates automatically.',
+    {danger: true, title: 'Delete Day', confirmLabel: 'Delete Day'}
+  ))) return;
+
+  btn.closest('.day-block').remove();
+  renumberDays();
+  calcItinTotal();
+}
+
+function renumberDays() {
+  var blocks = document.querySelectorAll('.day-block');
+  blocks.forEach(function (block, idx) {
+    var n = idx + 1;
+    var dayLabel = block.querySelector('.day-num-label');
+    if (dayLabel) dayLabel.textContent = 'Day ' + n;
+    var actsLabel = block.querySelector('.day-acts-label');
+    if (actsLabel) actsLabel.textContent = 'Activities (Day ' + n + ')';
+    var otherLabel = block.querySelector('.day-other-label');
+    if (otherLabel) otherLabel.textContent = 'Other Costs (Day ' + n + ')';
+    block.dataset.day = idx;
+  });
+  var count = blocks.length;
+  var durInput = document.getElementById('inp_duration');
+  if (durInput) durInput.value = count;
+  document.getElementById('itinerary-count').textContent = count + ' day' + (count!==1?'s':'') + ' · matches duration above';
+}
+
 // ── Init ─────────────────────────────────────────────────────
+filterAllDayOptions();
 calcTotals();
 
 // ── Load itinerary template → fill Day-by-Day Itinerary ────────
@@ -1399,6 +1613,7 @@ async function loadItinerary() {
         var row  = rows[rows.length - 1];
         row.querySelector('.day-act-name').value  = act.name || '';
         row.querySelector('.day-act-price').value = act.price_pp || 0;
+        if (act.qty) row.querySelector('.day-act-qty').value = act.qty;
         row.querySelector('.day-act-type').value  = act.type || 'included';
       });
       saveDayActs(i);
@@ -1409,9 +1624,12 @@ async function loadItinerary() {
         var row  = rows[rows.length - 1];
         row.querySelector('.day-other-name').value   = ot.name || '';
         row.querySelector('.day-other-amount').value = ot.amount || 0;
-        row.querySelector('.day-other-perpax').checked = !!ot.per_pax;
+        if (ot.qty) row.querySelector('.day-other-qty').value = ot.qty;
+        if (ot.unit) row.querySelector('.day-other-unit').value = ot.unit;
+        row.querySelector('.day-other-perpax').value = ot.per_pax ? '1' : '0';
       });
       saveDayOther(i);
+      filterDayOptions(i);
     });
 
     calcItinTotal();
@@ -1421,6 +1639,7 @@ async function loadItinerary() {
     // linked branch below — loading a template does the sync for you).
     document.getElementById('includes_ta').value = (itin.includes||[]).join('\n');
     document.getElementById('excludes_ta').value = (itin.excludes||[]).join('\n');
+    includesDirty = false; excludesDirty = false;
 
     alert('Itinerary "'+itin.name+'" loaded — '+itin.duration_days+' days filled. Review and save.');
   } catch(e) { alert('Network error: '+e.message); }
@@ -1432,52 +1651,111 @@ async function loadItinerary() {
 // here is whatever the itinerary_id hidden field currently holds — it
 // can change mid-session (Load Itinerary Template sets it), so this
 // re-fetches the template fresh rather than trusting page-load data.
-async function syncIncludesExcludes() {
-  var itinId = document.getElementById('itinerary_id').value;
-  if (itinId) {
-    try {
-      var r = await fetch((window.BASE_PATH||'')+'/api/itinerary.php?action=get&id='+itinId, {credentials:'same-origin'});
-      var d = await r.json();
-      if (d.success) {
-        document.getElementById('includes_ta').value = (d.data.includes||[]).join('\n');
-        document.getElementById('excludes_ta').value = (d.data.excludes||[]).join('\n');
-        toast('Includes & Excludes synced from the itinerary template.');
-        return;
-      }
-    } catch(e) { /* fall through to the unlinked derivation below */ }
-  }
+//
+// Responsive sync: every itinerary-affecting change (accommodation,
+// vehicle, park, meals, activities — anywhere calcItinTotal() runs)
+// schedules a debounced re-sync automatically, instead of requiring
+// the "Sync from Itinerary" button to be clicked by hand each time.
+// It never overwrites a field the admin has typed into directly —
+// includesDirty/excludesDirty latch true on the first manual keystroke
+// in that textarea and only clear again when the button is clicked
+// (an explicit "yes, regenerate this" override).
+// Starts already "dirty" when the textarea loads with existing content
+// (editing a saved quotation) so the very first auto-sync tick doesn't
+// silently blow away curated text the admin never asked to regenerate —
+// only a genuinely empty field, or an explicit Sync-from-Itinerary click,
+// clears the flag and lets auto-sync write to it.
+var includesDirty = <?= json_encode($qIncludes !== '') ?>, excludesDirty = <?= json_encode($qExcludes !== '') ?>;
+var autoSyncTimer = null, autoSyncInProgress = false;
 
-  // Unlinked (or the fetch failed) — build Includes from what's
-  // actually in the Day-by-Day Itinerary. Excludes has nothing
-  // itinerary-side to derive from (visas, insurance, tips aren't part
-  // of the itinerary), so it's left for the admin to type.
-  var accSeen = {}, vehSeen = {}, parkSeen = {}, hasMeals = false, acts = {};
-  document.querySelectorAll('.day-block').forEach(function(block){
-    var accName  = ((block.querySelector('.day-acc-name')||{}).value||'').trim();
-    var vehName  = ((block.querySelector('.day-veh-name')||{}).value||'').trim();
-    var parkName = ((block.querySelector('[name="day_park_name[]"]')||{}).value||'').trim();
-    var meals    = parseFloat((block.querySelector('[name="day_meals_pp[]"]')||{}).value)||0;
-    if (accName)  accSeen[accName]   = true;
-    if (vehName)  vehSeen[vehName]   = true;
-    if (parkName) parkSeen[parkName] = true;
-    if (meals > 0) hasMeals = true;
-    block.querySelectorAll('.act-item').forEach(function(row){
-      var name = ((row.querySelector('.day-act-name')||{}).value||'').trim();
-      var type = (row.querySelector('.day-act-type')||{}).value||'included';
-      if (name && type==='included') acts[name] = true;
+function scheduleAutoSync() {
+  if (autoSyncTimer) clearTimeout(autoSyncTimer);
+  autoSyncTimer = setTimeout(function(){ syncIncludesExcludesCore(false); }, 600);
+}
+
+(function(){
+  var incEl = document.getElementById('includes_ta'), excEl = document.getElementById('excludes_ta');
+  if (incEl) incEl.addEventListener('input', function(){ if (!autoSyncInProgress) includesDirty = true; });
+  if (excEl) excEl.addEventListener('input', function(){ if (!autoSyncInProgress) excludesDirty = true; });
+})();
+
+function syncIncludesExcludes() { return syncIncludesExcludesCore(true); }
+
+async function syncIncludesExcludesCore(force) {
+  autoSyncInProgress = true;
+  try {
+    var itinId = document.getElementById('itinerary_id').value;
+    if (itinId) {
+      try {
+        var r = await fetch((window.BASE_PATH||'')+'/api/itinerary.php?action=get&id='+itinId, {credentials:'same-origin'});
+        var d = await r.json();
+        if (d.success) {
+          if (force || !includesDirty) document.getElementById('includes_ta').value = (d.data.includes||[]).join('\n');
+          if (force || !excludesDirty) document.getElementById('excludes_ta').value = (d.data.excludes||[]).join('\n');
+          if (force) { includesDirty = false; excludesDirty = false; toast('Includes & Excludes synced from the itinerary template.'); }
+          return;
+        }
+      } catch(e) { /* fall through to the unlinked derivation below */ }
+    }
+
+    // Unlinked (or the fetch failed) — build BOTH Includes and Excludes
+    // from what's actually in the Day-by-Day Itinerary, so the two stay
+    // a complete, accurate record of what the quoted price does and
+    // doesn't cover rather than Excludes being left perpetually blank:
+    // every accommodation/vehicle/park/meal/other-cost line and every
+    // "Included"-type activity goes into Includes; every "Optional"-type
+    // activity (priced as an add-on the client pays separately for, per
+    // calcTotals()'s actSeen/actPaid split) goes into Excludes instead of
+    // being silently dropped.
+    if (!force && includesDirty && excludesDirty) return;
+    var accSeen = {}, vehSeen = {}, parkSeen = {}, hasMeals = false, acts = {}, optionalActs = {}, otherItems = {};
+    document.querySelectorAll('.day-block').forEach(function(block){
+      var accName  = ((block.querySelector('.day-acc-name')||{}).value||'').trim();
+      var vehName  = ((block.querySelector('.day-veh-name')||{}).value||'').trim();
+      var parkName = ((block.querySelector('[name="day_park_name[]"]')||{}).value||'').trim();
+      var meals    = parseFloat((block.querySelector('[name="day_meals_pp[]"]')||{}).value)||0;
+      if (accName)  accSeen[accName]   = true;
+      if (vehName)  vehSeen[vehName]   = true;
+      if (parkName) parkSeen[parkName] = true;
+      if (meals > 0) hasMeals = true;
+      block.querySelectorAll('.act-item').forEach(function(row){
+        var name = ((row.querySelector('.day-act-name')||{}).value||'').trim();
+        var type = (row.querySelector('.day-act-type')||{}).value||'included';
+        if (!name) return;
+        if (type==='included') acts[name] = true; else optionalActs[name] = true;
+      });
+      block.querySelectorAll('.other-item').forEach(function(row){
+        var name = ((row.querySelector('.day-other-name')||{}).value||'').trim();
+        var amt  = parseFloat((row.querySelector('.day-other-amount')||{}).value)||0;
+        if (name && amt > 0) otherItems[name] = true;
+      });
     });
-  });
 
-  var lines = [];
-  if (Object.keys(vehSeen).length) lines.push('Private 4WD safari vehicle (' + Object.keys(vehSeen).join(', ') + ')');
-  lines.push('Professional driver-guide');
-  Object.keys(parkSeen).forEach(function(p){ lines.push(p + ' entry fees'); });
-  Object.keys(accSeen).forEach(function(a){ lines.push('Accommodation: ' + a); });
-  if (hasMeals) lines.push('Full-board meals as per itinerary');
-  Object.keys(acts).forEach(function(a){ lines.push(a); });
+    if (force || !includesDirty) {
+      var lines = [];
+      if (Object.keys(vehSeen).length) {
+        lines.push('Private 4WD safari vehicle (' + Object.keys(vehSeen).join(', ') + ')');
+        lines.push('Professional driver-guide');
+      }
+      Object.keys(parkSeen).forEach(function(p){ lines.push(p + ' entry fees'); });
+      Object.keys(accSeen).forEach(function(a){ lines.push('Accommodation: ' + a); });
+      if (hasMeals) lines.push('Full-board meals as per itinerary');
+      Object.keys(acts).forEach(function(a){ lines.push(a); });
+      Object.keys(otherItems).forEach(function(o){ lines.push(o); });
+      document.getElementById('includes_ta').value = lines.join('\n');
+      if (force) includesDirty = false;
+    }
 
-  document.getElementById('includes_ta').value = lines.join('\n');
-  toast('Includes built from the itinerary — Excludes still needs typing.');
+    if (force || !excludesDirty) {
+      var excLines = Object.keys(optionalActs).map(function(a){ return a + ' (optional — available at extra cost, not included in this price)'; });
+      document.getElementById('excludes_ta').value = excLines.join('\n');
+      if (force) excludesDirty = false;
+    }
+
+    if (force) toast('Includes & Excludes synced from the Day-by-Day Itinerary.');
+  } finally {
+    autoSyncInProgress = false;
+  }
 }
 
 function hE(s) { var d=document.createElement('div'); d.textContent=String(s||''); return d.innerHTML; }

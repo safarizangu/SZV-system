@@ -89,14 +89,17 @@ try {
     // Payment method
     $method = trim($_POST['payment_method'] ?? 'bank_transfer');
 
-    // Carry over the deposit the client was actually quoted (30% of grand
-    // total, computed and shown to them in admin/quotation_new.php) rather
-    // than recomputing a different rate here — a booking silently asking
-    // for 50% down after a 30% quotation is a real money surprise for a
-    // client who already saw and accepted a lower number in writing.
+    // Carry over the deposit the client was actually quoted (computed and
+    // shown to them in admin/quotation_new.php) rather than recomputing a
+    // different rate here — a booking silently asking for a different %
+    // down than what the client already saw and accepted in writing is a
+    // real money surprise. The fallback below is only for quotations
+    // saved before the deposit_amount column existed, and uses today's
+    // DEPOSIT_PERCENT setting rather than a hardcoded rate that could
+    // drift from it.
     $depositAmount = isset($q['deposit_amount']) && (float)$q['deposit_amount'] > 0
         ? (float)$q['deposit_amount']
-        : round((float)$q['grand_total'] * 0.30, 2); // fallback for older quotations saved before this column existed
+        : round((float)$q['grand_total'] * ((defined('DEPOSIT_PERCENT') ? DEPOSIT_PERCENT : 25) / 100), 2);
 
     // Insert booking
     $db->prepare("
@@ -107,7 +110,7 @@ try {
              total_amount, deposit_amount,
              payment_status, payment_method, created_at)
         VALUES
-            (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,NOW())
+            (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,NOW())
     ")->execute([
         $ref,
         $id,

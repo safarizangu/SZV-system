@@ -16,18 +16,19 @@ $msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     \App\Middleware\CsrfMiddleware::validateOrDie();
     $id  = (int)($_POST['id'] ?? 0);
-    $fields = ['park_key','name','country','adult_fee','child_fee','vehicle_fee','resident_adult','resident_child','fee_unit','notes'];
+    $fields = ['park_key','name','location','country','adult_fee','child_fee','vehicle_fee','resident_adult','resident_child','fee_unit','notes'];
     $vals = [];
     foreach($fields as $f) $vals[] = trim($_POST[$f] ?? '');
     $vals[] = isset($_POST['is_active']) ? 1 : 0;
     try {
         if ($id > 0) {
-            $db->prepare("UPDATE park_fees SET park_key=?,name=?,country=?,adult_fee=?,child_fee=?,vehicle_fee=?,resident_adult=?,resident_child=?,fee_unit=?,notes=?,is_active=? WHERE id=?")
+            $db->prepare("UPDATE park_fees SET park_key=?,name=?,location=?,country=?,adult_fee=?,child_fee=?,vehicle_fee=?,resident_adult=?,resident_child=?,fee_unit=?,notes=?,is_active=? WHERE id=?")
                ->execute(array_merge($vals,[$id]));
         } else {
-            $db->prepare("INSERT INTO park_fees(park_key,name,country,adult_fee,child_fee,vehicle_fee,resident_adult,resident_child,fee_unit,notes,is_active) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
+            $db->prepare("INSERT INTO park_fees(park_key,name,location,country,adult_fee,child_fee,vehicle_fee,resident_adult,resident_child,fee_unit,notes,is_active) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
                ->execute($vals);
         }
+        \App\Services\LocationRegistry::touchLocation($db, $vals[2], $vals[3]);
         $msg = 'Saved.';
     } catch(Exception $e){ $msg = 'Error: '.$e->getMessage(); }
     header('Location: park_fees.php?msg='.urlencode($msg)); exit;
@@ -38,6 +39,8 @@ if (isset($_GET['edit'])) { try { $s=$db->prepare("SELECT * FROM park_fees WHERE
 $rows = [];
 try { $rows = $db->query("SELECT * FROM park_fees ORDER BY name LIMIT 200")->fetchAll(); }
 catch(Exception $e){}
+$allLocations = \App\Services\LocationRegistry::allLocations($db);
+$allCountries = \App\Services\LocationRegistry::allCountries($db);
 ?>
 <?php if($msg): ?><div class="admin-alert admin-alert--<?= str_starts_with($msg,'Error')?'error':'success' ?>"><?= $msg ?></div><?php endif; ?>
 <div class="admin-card" style="margin-bottom:1.5rem">
@@ -46,19 +49,27 @@ catch(Exception $e){}
   </div>
 <div class="admin-table-wrap">
 <table class="admin-table">
-<thead><tr><th>Key</th><th>Park</th><th>Country</th><th>Non-Res Adult</th><th>Non-Res Child</th><th>Vehicle</th><th>Res Adult</th><th>Active</th><th>Edit</th></tr></thead>
+<thead><tr><th>Key</th><th>Park</th><th>Location</th><th>Country</th><th>Non-Res Adult</th><th>Non-Res Child</th><th>Vehicle</th><th>Res Adult</th><th>Active</th><th>Actions</th></tr></thead>
 <tbody>
 <?php foreach ($rows as $r): ?>
 <tr>
   <td><code><?= htmlspecialchars($r['park_key']) ?></code></td>
   <td><?= htmlspecialchars($r['name']) ?></td>
+  <td><?= htmlspecialchars($r['location']??'—') ?></td>
   <td><?= htmlspecialchars($r['country']) ?></td>
   <td>$<?= number_format($r['adult_fee'],0) ?></td>
   <td>$<?= number_format($r['child_fee'],0) ?></td>
   <td>$<?= number_format($r['vehicle_fee'],0) ?></td>
   <td>$<?= number_format($r['resident_adult'],0) ?></td>
   <td><?= $r['is_active'] ? '<span class="badge-status badge-status--green">Active</span>' : '<span class="badge-status badge-status--gray">Inactive</span>' ?></td>
-  <td><a href="?edit=<?= $r['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Edit</a></td>
+  <td>
+    <div class="admin-row-actions">
+      <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+      <div class="admin-row-actions-menu">
+        <a href="?edit=<?= $r['id'] ?>" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('edit', 14) ?> Edit</a>
+      </div>
+    </div>
+  </td>
 </tr>
 <?php endforeach; ?>
 </tbody></table></div>
@@ -81,8 +92,10 @@ catch(Exception $e){}
             <input name="park_key" data-av="required slug" class="admin-input" required value="<?= htmlspecialchars($edit['park_key']??'') ?>"></div>
           <div><label class="admin-label">Park Name</label>
             <input name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
+          <div><label class="admin-label">Location / Area</label>
+            <input name="location" class="admin-input" list="location-list" value="<?= htmlspecialchars($edit['location']??'') ?>" placeholder="e.g. Serengeti"></div>
           <div><label class="admin-label">Country</label>
-            <input name="country" class="admin-input" value="<?= htmlspecialchars($edit['country']??'Tanzania') ?>"></div>
+            <input name="country" class="admin-input" list="country-list" value="<?= htmlspecialchars($edit['country']??'Tanzania') ?>"></div>
           <div><label class="admin-label">Non-Resident Adult (USD)</label>
             <input name="adult_fee" data-av="required min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['adult_fee']??0 ?>"></div>
           <div><label class="admin-label">Non-Resident Child (USD)</label>
@@ -112,6 +125,17 @@ catch(Exception $e){}
     </div>
   </div>
 </div>
+
+<datalist id="location-list">
+  <?php foreach ($allLocations as $__l): ?>
+  <option value="<?= htmlspecialchars($__l['name']) ?>">
+  <?php endforeach; ?>
+</datalist>
+<datalist id="country-list">
+  <?php foreach ($allCountries as $__c): ?>
+  <option value="<?= htmlspecialchars($__c) ?>">
+  <?php endforeach; ?>
+</datalist>
 
 <script>
 function openFormModal() { document.getElementById('formModal').classList.add('open'); }

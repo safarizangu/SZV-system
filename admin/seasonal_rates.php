@@ -49,7 +49,7 @@ $months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','De
   </div>
 <div class="admin-table-wrap">
 <table class="admin-table">
-<thead><tr><th>Name</th><th>Key</th><th>Multiplier</th><th>% of Base</th><th>Months</th><th>Description</th><th>Edit</th></tr></thead>
+<thead><tr><th>Name</th><th>Key</th><th>Multiplier</th><th>% of Base</th><th>Months</th><th>Description</th><th>Actions</th></tr></thead>
 <tbody>
 <?php foreach ($rows as $r): ?>
 <tr>
@@ -59,7 +59,14 @@ $months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','De
   <td><?= round($r['multiplier']*100) ?>%</td>
   <td><?= $months[($r['start_month']??1)-1] ?> – <?= $months[($r['end_month']??12)-1] ?></td>
   <td style="font-size:.8rem;color:var(--gray-500)"><?= htmlspecialchars($r['description']??'') ?></td>
-  <td><a href="?edit=<?= $r['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Edit</a></td>
+  <td>
+    <div class="admin-row-actions">
+      <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+      <div class="admin-row-actions-menu">
+        <a href="?edit=<?= $r['id'] ?>" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('edit', 14) ?> Edit</a>
+      </div>
+    </div>
+  </td>
 </tr>
 <?php endforeach; ?>
 </tbody></table></div>

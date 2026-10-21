@@ -59,19 +59,29 @@ if (!empty($q['booking_ref'])) {
 }
 $isInvoice = $docState !== 'quote'; // kept for the handful of spots below that only care "is this an invoice at all"
 
-// Recalculate from line items (server authoritative)
-$subtotal  = array_sum(array_column($lineItems, 'amount'));
+// Recalculate from line items (server authoritative) — via the same
+// App\Services\ItineraryQuoteBuilder::totals() the admin's live preview
+// and the save handler both use, rather than a third hand-rolled copy of
+// the markup→discount→VAT→deposit formula. That third copy previously
+// skipped markup entirely and hardcoded a 30% deposit (so a quotation
+// saved with, say, a 40% DEPOSIT_PERCENT or any markup_pct would show a
+// Grand Total/Deposit on the PDF that didn't match what was actually
+// saved or what the admin saw while building the quote).
 $discount  = (float)($q['discount_pct'] ?? 0);
-$discAmt   = $subtotal * ($discount / 100);
-$afterDisc = $subtotal - $discAmt;
+$markupPct = (float)($q['markup_pct']   ?? 0);
+$totals    = \App\Services\ItineraryQuoteBuilder::totals($lineItems, $discount, $markupPct);
+$subtotal  = $totals['subtotal'];
+$discAmt   = $totals['discount'];
+$vat       = $totals['vat'];
+$grand     = $totals['grand_total'];
+$deposit   = $totals['deposit'];
+$balance   = $totals['balance'];
 $vatRate   = defined('VAT_RATE') ? VAT_RATE : 0.18;
 $vatPct    = (int) round($vatRate * 100);
-$vat       = round($afterDisc * $vatRate, 2);
-$grand     = round($afterDisc + $vat, 2);
 $pax       = max(1, (int)($q['adults'] ?? 2) + (int)($q['children'] ?? 0));
 $perPerson = round($grand / $pax, 2);
-$deposit   = round($grand * 0.30, 2);
-$balance   = round($grand - $deposit, 2);
+$depositPct = defined('DEPOSIT_PERCENT') ? (int)DEPOSIT_PERCENT : 25;
+$balancePct = 100 - $depositPct;
 $realBalance = max(0, round($grand - $amountPaid, 2));
 $validStr  = $q['valid_until'] ? date('d F Y', strtotime($q['valid_until'])) : date('d F Y', strtotime('+' . QUOTATION_VALIDITY_DAYS . ' days'));
 // A right-arrow glyph here previously rendered as "?" under dompdf's font
@@ -304,7 +314,7 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
     <div class="field"><label>Start Date</label>
       <span><?= $q['start_date'] ? date('d F Y',strtotime($q['start_date'])) : 'Flexible' ?></span></div>
     <div class="field"><label>Accommodation</label>
-      <span><?= ['budget'=>'Budget-Friendly','midrange'=>'Mid-Range','highend'=>'High-End / Luxury','ultra_luxury'=>'Ultra Luxury'][$q['accommodation_level']??'midrange'] ?? 'Mid-Range' ?></span></div>
+      <span><?= ['budget'=>'Budget-Friendly','midrange'=>'Mid-Range','highend'=>'High-End','luxury'=>'Luxury','ultra_luxury'=>'Ultra Luxury'][$q['accommodation_level']??'midrange'] ?? 'Mid-Range' ?></span></div>
     <div class="field"><label>Meal Plan</label>
       <span><?= ['fb'=>'Full Board','hb'=>'Half Board','bb'=>'Bed & Breakfast','ai'=>'All Inclusive'][$q['meal_plan']??'fb'] ?? 'Full Board' ?></span></div>
     <div class="field"><label>Guide Language</label>
@@ -406,8 +416,8 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
     <div class="dep-row"><span>Balance — due 45 days before safari</span><span class="val">USD <?= number_format($realBalance,2) ?></span></div>
     <?php else: ?>
     <div class="title">To Confirm Your Booking</div>
-    <div class="dep-row"><span>Deposit (30%) — due within 48 hours</span><span class="val">USD <?= number_format($deposit,2) ?></span></div>
-    <div class="dep-row"><span>Balance (70%) — due 45 days before safari</span><span class="val">USD <?= number_format($balance,2) ?></span></div>
+    <div class="dep-row"><span>Deposit (<?= $depositPct ?>%) — due within 48 hours</span><span class="val">USD <?= number_format($deposit,2) ?></span></div>
+    <div class="dep-row"><span>Balance (<?= $balancePct ?>%) — due 45 days before safari</span><span class="val">USD <?= number_format($balance,2) ?></span></div>
     <?php endif; ?>
   </div>
   <div class="sec-title">Payment Details</div>

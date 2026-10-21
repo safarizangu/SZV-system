@@ -169,10 +169,12 @@ ob_start();
   <td style="text-align:center;color:var(--gray-500)"><?= (int)$c['request_count'] ?></td>
   <td style="font-size:.72rem;color:var(--gray-500)"><?= date('d M Y', strtotime($c['first_seen_at'])) ?></td>
   <td>
-    <div style="display:flex;gap:.3rem">
-      <a href="customer_view.php?id=<?= $c['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">View</a>
-      <button type="button" class="admin-btn admin-btn--muted" style="font-size:.65rem;padding:.3rem .6rem"
-              onclick='openEdit(<?= json_encode($c) ?>)'>Edit</button>
+    <div class="admin-row-actions">
+      <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+      <div class="admin-row-actions-menu">
+        <a href="customer_view.php?id=<?= $c['id'] ?>" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('eye', 14) ?> View</a>
+        <button type="button" class="admin-row-actions-item" onclick='openEdit(<?= json_encode($c) ?>)'><?= \App\Helpers\AdminIcon::render('edit', 14) ?> Edit</button>
+      </div>
     </div>
   </td>
 </tr>

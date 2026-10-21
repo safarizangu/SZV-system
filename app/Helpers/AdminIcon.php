@@ -65,6 +65,7 @@ class AdminIcon
         'target'         => '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
         'bell'           => '<path d="M6 8a6 6 0 0 1 12 0c0 5.2 1.5 7.4 2.2 8.3.3.4 0 1-.5 1H4.3c-.5 0-.8-.6-.5-1C4.5 15.4 6 13.2 6 8Z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
         'moon'           => '<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z"/>',
+        'dots-vertical'  => '<circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none"/>',
     ];
 
     /**

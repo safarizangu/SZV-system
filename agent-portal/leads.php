@@ -153,6 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             $result = \App\Services\PipelineSync::setLeadStageManual($db, $leadId, 'booked', true, $myId);
             \App\Services\ActivityLog::record('create', 'booking', $bookingId, ['booking_ref'=>$ref, 'via'=>'agent_portal', 'agent_id'=>$myId]);
+            \App\Services\LocationRegistry::touchCountry($db, $country);
 
             // Client confirmation — same branded template every other
             // booking-creation path sends; previously skipped on this path,
@@ -287,10 +288,17 @@ try {
 $packages = [];
 try { $packages = $db->query("SELECT id,name,price_1pax,duration_days FROM packages WHERE is_active=1 ORDER BY sort_order")->fetchAll(); }
 catch(\Exception $e) {}
+$allCountries = \App\Services\LocationRegistry::allCountries($db);
 
 $pageTitle = 'My Leads';
 ob_start();
 ?>
+
+<datalist id="country-list">
+  <?php foreach ($allCountries as $__c): ?>
+  <option value="<?= htmlspecialchars($__c) ?>">
+  <?php endforeach; ?>
+</datalist>
 
 <!-- Stage pills -->
 <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem;align-items:center;justify-content:space-between">
@@ -435,7 +443,7 @@ ob_start();
           </div>
           <div>
             <label class="admin-label">Country</label>
-            <input id="db-country" class="admin-input" placeholder="United Kingdom">
+            <input id="db-country" class="admin-input" list="country-list" placeholder="United Kingdom">
           </div>
           <div>
             <label class="admin-label">Package *</label>
@@ -519,7 +527,7 @@ ob_start();
           </div>
           <div>
             <label class="admin-label">Country</label>
-            <input id="cr-country" class="admin-input" placeholder="United Kingdom">
+            <input id="cr-country" class="admin-input" list="country-list" placeholder="United Kingdom">
           </div>
           <div>
             <label class="admin-label">Destinations</label>

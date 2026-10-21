@@ -207,6 +207,7 @@ try {
     error_log('[SZV Booking DB] ' . $e->getMessage());
     respond(['success' => false, 'message' => 'Booking could not be saved. Please try again or WhatsApp us.']);
 }
+\App\Services\LocationRegistry::touchCountry($pdo, $data['nationality'] ?: null);
 
 // ── Schedule the 4 standard reminder emails ─────────────────
 BookingReminderScheduler::schedule($pdo, $ref, $data['travel_date']);

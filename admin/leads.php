@@ -154,21 +154,17 @@ catch(\Exception $e) {}
 ob_start();
 ?>
 
-<!-- Stage pills -->
+<!-- Stage filter -->
 <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem;align-items:center;justify-content:space-between">
-  <div class="admin-filter-pills" style="margin-bottom:0">
-    <a href="leads.php" class="admin-filter-pill<?= !$stageFilter?' active':'' ?>">
-      All &nbsp;<span style="opacity:.6"><?= array_sum($stageCounts) ?></span>
-    </a>
-    <?php foreach($stages as $s):
-      $sc = $stageColors[$s];
-      $pillMod = in_array($sc['badge'], ['amber','green','red','blue','dark'], true) ? ' admin-filter-pill--'.$sc['badge'] : '';
-    ?>
-    <a href="?stage=<?= $s ?>" class="admin-filter-pill<?= $pillMod ?><?= $stageFilter===$s?' active':'' ?>">
-      <?= ucfirst($s) ?> &nbsp;<span style="opacity:.6"><?= $stageCounts[$s] ?></span>
-    </a>
-    <?php endforeach; ?>
-  </div>
+  <form method="GET" style="margin:0">
+    <select name="stage" class="admin-input" onchange="this.form.submit()"
+            style="max-width:190px;font-weight:700;<?= $stageFilter && isset($stageColors[$stageFilter]) ? 'background:'.$stageColors[$stageFilter]['bg'].';color:'.$stageColors[$stageFilter]['text'].';' : '' ?>">
+      <option value="">All (<?= array_sum($stageCounts) ?>)</option>
+      <?php foreach($stages as $s): ?>
+      <option value="<?= $s ?>" <?= $stageFilter===$s?'selected':'' ?>><?= ucfirst($s) ?> (<?= $stageCounts[$s] ?>)</option>
+      <?php endforeach; ?>
+    </select>
+  </form>
   <button onclick="openAddModal()"
           class="admin-btn admin-btn--primary" style="font-size:.72rem">
     + Add Lead
@@ -225,19 +221,19 @@ ob_start();
         </select>
       </td>
       <td style="white-space:nowrap">
-        <a href="mailto:<?= htmlspecialchars($r['email']) ?>"
-           class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .55rem"><?= \App\Helpers\AdminIcon::render('messages', 12) ?></a>
-        <a href="https://wa.me/<?= preg_replace('/[^0-9]/','',($r['phone']??'')) ?>?text=<?= urlencode('Hi '.$r['full_name'].',') ?>"
-           target="_blank"
-           class="admin-btn admin-btn--success" style="font-size:.65rem;padding:.3rem .55rem">WA</a>
-        <?php if (!empty($r['email'])): ?>
-        <a href="../admin/quotation_new.php?from_lead=<?= $r['id'] ?>"
-           class="admin-btn admin-btn--tint-blue" style="font-size:.65rem;padding:.3rem .55rem">Quote</a>
-        <?php endif; ?>
-        <?php if (!$isAgentUser): ?>
-        <button onclick="deleteLead(<?= $r['id'] ?>)"
-                class="admin-btn admin-btn--danger" style="font-size:.65rem;padding:.3rem .55rem"><?= \App\Helpers\AdminIcon::render('trash', 12) ?></button>
-        <?php endif; ?>
+        <div class="admin-row-actions">
+          <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+          <div class="admin-row-actions-menu">
+            <a href="mailto:<?= htmlspecialchars($r['email']) ?>" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('messages', 14) ?> Email</a>
+            <a href="https://wa.me/<?= preg_replace('/[^0-9]/','',($r['phone']??'')) ?>?text=<?= urlencode('Hi '.$r['full_name'].',') ?>" target="_blank" class="admin-row-actions-item">WhatsApp</a>
+            <?php if (!empty($r['email'])): ?>
+            <a href="../admin/quotation_new.php?from_lead=<?= $r['id'] ?>" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('quotations', 14) ?> Quote</a>
+            <?php endif; ?>
+            <?php if (!$isAgentUser): ?>
+            <button type="button" onclick="deleteLead(<?= $r['id'] ?>)" class="admin-row-actions-item admin-row-actions-item--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?> Delete</button>
+            <?php endif; ?>
+          </div>
+        </div>
       </td>
     </tr>
     <?php endforeach; ?>

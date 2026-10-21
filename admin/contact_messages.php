@@ -48,13 +48,13 @@ ob_start();
 
 <!-- Toolbar -->
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1.25rem">
-  <div style="display:flex;gap:.4rem;flex-wrap:wrap">
-    <a href="?filter=all"    class="admin-filter-pill <?= $filter==='all'?'active':'' ?>">All <span style="opacity:.55"><?= count($msgs) ?></span></a>
-    <a href="?filter=unread" class="admin-filter-pill <?= $filter==='unread'?'active':'' ?>">
-      Unread <span style="opacity:.55"><?= $unread ?></span>
-    </a>
-    <a href="?filter=read"   class="admin-filter-pill <?= $filter==='read'?'active':'' ?>">Read</a>
-  </div>
+  <form method="GET" style="margin:0">
+    <select name="filter" class="admin-input" onchange="this.form.submit()" style="max-width:170px;font-weight:700">
+      <option value="all"    <?= $filter==='all'?'selected':'' ?>>All (<?= count($msgs) ?>)</option>
+      <option value="unread" <?= $filter==='unread'?'selected':'' ?>>Unread (<?= $unread ?>)</option>
+      <option value="read"   <?= $filter==='read'?'selected':'' ?>>Read</option>
+    </select>
+  </form>
   <?php if($unread > 0): ?>
   <form method="POST" style="display:inline">
     <?= \App\Middleware\CsrfMiddleware::field() ?>

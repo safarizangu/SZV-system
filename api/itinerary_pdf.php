@@ -33,7 +33,7 @@ $includes = json_decode($itin['includes'] ?? '[]', true) ?: [];
 $excludes = json_decode($itin['excludes'] ?? '[]', true) ?: [];
 
 $logoUrl = (defined('APP_URL') ? APP_URL : 'https://www.safarizanguven.com') . '/assets/images/logo.jpeg';
-$accLevelLabels = ['budget' => 'Budget-Friendly', 'midrange' => 'Mid-Range', 'highend' => 'High-End / Luxury', 'ultra_luxury' => 'Ultra Luxury'];
+$accLevelLabels = ['budget' => 'Budget-Friendly', 'midrange' => 'Mid-Range', 'highend' => 'High-End', 'luxury' => 'Luxury', 'ultra_luxury' => 'Ultra Luxury'];
 $accLevelStr = $accLevelLabels[$itin['accommodation_level'] ?? 'midrange'] ?? 'Mid-Range';
 ?><!DOCTYPE html>
 <html lang="en">

@@ -91,11 +91,16 @@ ob_start();
           <button class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.35rem .6rem">Update</button>
         </form>
         <?php if ($r['code'] !== 'USD'): ?>
-        <form method="POST" onsubmit="return confirmSubmitGuard(event, this, 'Remove <?= htmlspecialchars(addslashes($r['code'])) ?> from currencies?', {danger:true})">
-          <?= \App\Middleware\CsrfMiddleware::field() ?>
-          <input type="hidden" name="delete_code" value="<?= htmlspecialchars($r['code']) ?>">
-          <button class="admin-btn admin-btn--danger" style="font-size:.65rem;padding:.35rem .6rem">Delete</button>
-        </form>
+        <div class="admin-row-actions">
+          <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+          <div class="admin-row-actions-menu">
+            <form method="POST" onsubmit="return confirmSubmitGuard(event, this, 'Remove <?= htmlspecialchars(addslashes($r['code'])) ?> from currencies?', {danger:true})">
+              <?= \App\Middleware\CsrfMiddleware::field() ?>
+              <input type="hidden" name="delete_code" value="<?= htmlspecialchars($r['code']) ?>">
+              <button type="submit" class="admin-row-actions-item admin-row-actions-item--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?> Delete</button>
+            </form>
+          </div>
+        </div>
         <?php endif; ?>
       </div>
     </td>

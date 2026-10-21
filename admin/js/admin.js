@@ -223,4 +223,65 @@
     window.confirmDialog(message, opts).then(function (ok) { if (ok) window.location.href = href; });
     return false;
   };
+
+  // ── Row actions menu (the kebab/⋮ button in every table's Actions
+  //    column) ────────────────────────────────────────────────────
+  // One delegated listener handles every .admin-row-actions on the page,
+  // so a table needs no per-page JS beyond the markup itself: a
+  // .admin-row-actions wrapper holding a .admin-row-actions-toggle button
+  // and a .admin-row-actions-menu panel of .admin-row-actions-item
+  // links/buttons/forms. The panel is positioned as `position: fixed`
+  // from the toggle's own getBoundingClientRect() — not CSS-relative —
+  // because a table's horizontally scrolling .admin-table-wrap would
+  // otherwise clip a relatively-positioned dropdown for any row near its
+  // edge. Only one menu is ever open at a time.
+  (function () {
+    var openWrap = null;
+
+    function closeMenu() {
+      if (!openWrap) return;
+      var menu = openWrap.querySelector('.admin-row-actions-menu');
+      var toggle = openWrap.querySelector('.admin-row-actions-toggle');
+      if (menu) menu.style.display = 'none';
+      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+      openWrap = null;
+    }
+
+    function openMenu(wrap) {
+      closeMenu();
+      var toggle = wrap.querySelector('.admin-row-actions-toggle');
+      var menu   = wrap.querySelector('.admin-row-actions-menu');
+      if (!toggle || !menu) return;
+
+      menu.style.display = 'block';
+      var tRect  = toggle.getBoundingClientRect();
+      var menuH  = menu.offsetHeight;
+      var menuW  = menu.offsetWidth;
+      var openUp   = (tRect.bottom + menuH + 8) > window.innerHeight;
+      var openLeft = (tRect.right - menuW) >= 4;
+
+      menu.style.top    = openUp ? '' : (tRect.bottom + 4) + 'px';
+      menu.style.bottom = openUp ? (window.innerHeight - tRect.top + 4) + 'px' : '';
+      menu.style.left   = openLeft ? (tRect.right - menuW) + 'px' : tRect.left + 'px';
+
+      toggle.setAttribute('aria-expanded', 'true');
+      openWrap = wrap;
+    }
+
+    document.addEventListener('click', function (e) {
+      var toggle = e.target.closest('.admin-row-actions-toggle');
+      if (toggle) {
+        e.stopPropagation();
+        var wrap = toggle.closest('.admin-row-actions');
+        if (openWrap === wrap) closeMenu(); else openMenu(wrap);
+        return;
+      }
+      if (openWrap && !openWrap.contains(e.target)) closeMenu();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenu(); });
+    // Capture phase so this also fires for a scroll inside a nested
+    // scrollable ancestor (e.g. .admin-table-wrap), which doesn't bubble.
+    window.addEventListener('scroll', closeMenu, true);
+    window.addEventListener('resize', closeMenu);
+  })();
 })();

@@ -86,24 +86,26 @@ ob_start();
 ?>
 <?php if($msg): ?><div class="admin-alert admin-alert--success"><?= $msg ?></div><?php endif; ?>
 
-<!-- Status filter pills -->
-<div class="admin-filter-pills">
-  <?php foreach([
-    ['',        'Total',   $stats['total'],   ''],
-    ['pending', 'Pending', $stats['pending'], 'amber'],
-    ['sent',    'Sent',    $stats['sent'],    'green'],
-    ['failed',  'Failed',  $stats['failed'],  'red'],
-  ] as [$val,$label,$count,$tint]): ?>
-  <a href="?status=<?= $val ?>" class="admin-filter-pill<?= $tint ? ' admin-filter-pill--'.$tint : '' ?><?= $statusF===$val?' active':'' ?>">
-    <?= $label ?> &nbsp;<span style="opacity:.6"><?= $count ?></span>
-  </a>
-  <?php endforeach; ?>
-</div>
-
-<!-- Toolbar -->
+<!-- Toolbar: status filter + search, one row -->
 <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem;align-items:center">
-  <form method="GET" style="display:flex;gap:.5rem;flex:1;min-width:200px">
-    <?php if($statusF): ?><input type="hidden" name="status" value="<?= htmlspecialchars($statusF) ?>"><?php endif; ?>
+  <form method="GET" style="display:flex;gap:.5rem;flex:1;min-width:200px;align-items:center">
+    <?php
+    $statusOpts = [
+      ['',        'Total',   $stats['total'],   ''],
+      ['pending', 'Pending', $stats['pending'], 'amber'],
+      ['sent',    'Sent',    $stats['sent'],    'green'],
+      ['failed',  'Failed',  $stats['failed'],  'red'],
+    ];
+    $tintColors = ['amber'=>['bg'=>'var(--amber-light)','color'=>'#92400e'], 'green'=>['bg'=>'var(--green-light)','color'=>'#166534'], 'red'=>['bg'=>'var(--red-light)','color'=>'#991b1b']];
+    $curTint = null;
+    foreach ($statusOpts as $o) { if ($o[0]===$statusF) $curTint = $o[3]; }
+    ?>
+    <select name="status" class="admin-input" onchange="this.form.submit()"
+            style="max-width:160px;font-weight:700;<?= $curTint && isset($tintColors[$curTint]) ? 'background:'.$tintColors[$curTint]['bg'].';color:'.$tintColors[$curTint]['color'].';' : '' ?>">
+      <?php foreach ($statusOpts as [$val,$label,$count,$tint]): ?>
+      <option value="<?= $val ?>" <?= $statusF===$val?'selected':'' ?>><?= $label ?> (<?= $count ?>)</option>
+      <?php endforeach; ?>
+    </select>
     <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
            placeholder="Search email or subject…"
            class="admin-input" style="flex:1">
@@ -159,22 +161,26 @@ ob_start();
       <td style="font-size:.72rem;white-space:nowrap;color:var(--gray-500)"><?= date('d M H:i',strtotime($e['created_at'])) ?></td>
       <td style="font-size:.72rem;white-space:nowrap"><?= $e['sent_at'] ? date('d M H:i',strtotime($e['sent_at'])) : '—' ?></td>
       <td style="white-space:nowrap">
-        <button onclick="viewEmail(<?= $e['id'] ?>, this.closest('tr'))"
-                class="admin-btn admin-btn--outline" style="font-size:.62rem;padding:.25rem .5rem">View</button>
-        <?php if($e['status']==='failed' || ($e['status']==='pending' && $e['attempts']>0)): ?>
-        <form method="POST" style="display:inline">
-          <?= \App\Middleware\CsrfMiddleware::field() ?>
-          <input type="hidden" name="action" value="retry">
-          <input type="hidden" name="id" value="<?= $e['id'] ?>">
-          <button class="admin-btn admin-btn--primary" style="font-size:.62rem;padding:.25rem .5rem">Retry</button>
-        </form>
-        <?php endif; ?>
-        <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete this email from the queue?', {danger:true})">
-          <?= \App\Middleware\CsrfMiddleware::field() ?>
-          <input type="hidden" name="action" value="delete">
-          <input type="hidden" name="id" value="<?= $e['id'] ?>">
-          <button class="admin-btn admin-btn--danger" style="padding:.25rem .5rem"><?= \App\Helpers\AdminIcon::render('trash', 13) ?></button>
-        </form>
+        <div class="admin-row-actions">
+          <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+          <div class="admin-row-actions-menu">
+            <button type="button" class="admin-row-actions-item" onclick="viewEmail(<?= $e['id'] ?>, this.closest('tr'))"><?= \App\Helpers\AdminIcon::render('eye', 14) ?> View</button>
+            <?php if($e['status']==='failed' || ($e['status']==='pending' && $e['attempts']>0)): ?>
+            <form method="POST">
+              <?= \App\Middleware\CsrfMiddleware::field() ?>
+              <input type="hidden" name="action" value="retry">
+              <input type="hidden" name="id" value="<?= $e['id'] ?>">
+              <button type="submit" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('refresh', 14) ?> Retry</button>
+            </form>
+            <?php endif; ?>
+            <form method="POST" onsubmit="return confirmSubmitGuard(event, this, 'Delete this email from the queue?', {danger:true})">
+              <?= \App\Middleware\CsrfMiddleware::field() ?>
+              <input type="hidden" name="action" value="delete">
+              <input type="hidden" name="id" value="<?= $e['id'] ?>">
+              <button type="submit" class="admin-row-actions-item admin-row-actions-item--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?> Delete</button>
+            </form>
+          </div>
+        </div>
       </td>
     </tr>
     <?php endforeach; ?>

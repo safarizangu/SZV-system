@@ -124,22 +124,15 @@ ob_start();
   </div>
 </div>
 
-<!-- Status filter pills -->
-<div class="admin-filter-pills">
-  <a href="invoices.php" class="admin-filter-pill<?= !$status ? ' active' : '' ?>">
-    All &nbsp;<span style="opacity:.6"><?= number_format(array_sum($statusCounts)) ?></span>
-  </a>
-  <?php foreach ($statusColors as $sv => $sc): ?>
-  <a href="?status=<?= $sv ?><?= $search ? '&search=' . urlencode($search) : '' ?>"
-     class="admin-filter-pill admin-filter-pill--<?= $sc['badge'] ?><?= $status === $sv ? ' active' : '' ?>">
-    <?= $sc['label'] ?> &nbsp;<span style="opacity:.6"><?= $statusCounts[$sv] ?? 0 ?></span>
-  </a>
-  <?php endforeach; ?>
-</div>
-
-<!-- Search bar -->
-<form method="GET" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem">
-  <input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>">
+<!-- Status filter + search, one row -->
+<form method="GET" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center">
+  <select name="status" class="admin-input" onchange="this.form.submit()"
+          style="max-width:190px;font-weight:700;<?= $status && isset($statusColors[$status]) ? 'background:'.$statusColors[$status]['bg'].';color:'.$statusColors[$status]['color'].';' : '' ?>">
+    <option value="">All (<?= number_format(array_sum($statusCounts)) ?>)</option>
+    <?php foreach ($statusColors as $sv => $sc): ?>
+    <option value="<?= $sv ?>" <?= $status===$sv?'selected':'' ?>><?= $sc['label'] ?> (<?= $statusCounts[$sv] ?? 0 ?>)</option>
+    <?php endforeach; ?>
+  </select>
   <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
          placeholder="Search invoice #, client, package…" class="admin-input" style="min-width:260px">
   <button class="admin-btn admin-btn--primary">Search</button>
@@ -184,10 +177,13 @@ ob_start();
     <td><span class="badge-status badge-status--<?= $sc['badge'] ?>"><?= $sc['label'] ?></span></td>
     <td style="font-size:.72rem;color:var(--gray-500);white-space:nowrap"><?= date('d M Y', strtotime($inv['created_at'])) ?></td>
     <td style="white-space:nowrap">
-      <a href="../api/booking_pdf.php?ref=<?= urlencode($inv['booking_ref']) ?>" target="_blank"
-         class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .55rem">View</a>
-      <a href="bookings.php?view=<?= urlencode($inv['booking_ref']) ?>"
-         class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .55rem">Booking ↗</a>
+      <div class="admin-row-actions">
+        <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+        <div class="admin-row-actions-menu">
+          <a href="../api/booking_pdf.php?ref=<?= urlencode($inv['booking_ref']) ?>" target="_blank" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('eye', 14) ?> View PDF</a>
+          <a href="bookings.php?view=<?= urlencode($inv['booking_ref']) ?>" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('external-link', 14) ?> Booking</a>
+        </div>
+      </div>
     </td>
   </tr>
   <?php endforeach; ?>

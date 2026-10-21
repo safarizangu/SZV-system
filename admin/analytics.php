@@ -171,13 +171,13 @@ ob_start();
     <p style="font-size:.65rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--gray-500);margin-bottom:.2rem">Period</p>
     <p style="font-family:var(--font-disp);font-size:1.1rem"><?= $ranges[$range] ?></p>
   </div>
-  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-    <?php foreach ($ranges as $v => $l): ?>
-    <a href="?range=<?= $v ?>" class="admin-filter-pill<?= $v===$range?' active':'' ?>">
-      <?= $l ?>
-    </a>
-    <?php endforeach; ?>
-  </div>
+  <form method="GET">
+    <select name="range" class="admin-input" onchange="this.form.submit()" style="max-width:170px;font-weight:700">
+      <?php foreach ($ranges as $v => $l): ?>
+      <option value="<?= $v ?>" <?= $v===$range?'selected':'' ?>><?= $l ?></option>
+      <?php endforeach; ?>
+    </select>
+  </form>
 </div>
 
 <!-- ── KPI CARDS ─────────────────────────────────────────────── -->

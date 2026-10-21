@@ -94,6 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_itin'])) {
             $db->prepare("INSERT INTO itineraries ($cols) VALUES ($phld)")->execute(array_values($data));
             $newId = $db->lastInsertId();
         }
+        foreach ($days as $day) { \App\Services\LocationRegistry::touchLocation($db, $day['location'] ?? ''); }
         header("Location: itinerary_edit.php?id=$newId&msg=".urlencode('Itinerary saved.')); exit;
     } catch(\Exception $e) { $msg = 'Error: '.$e->getMessage(); }
 }
@@ -109,10 +110,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
 
 // Load reference data
 function fetchAll($db,$sql){try{return $db->query($sql)->fetchAll();}catch(\Exception $e){return[];}}
-$accommodations = fetchAll($db,"SELECT id,name,level,rate_per_room,rate_per_person FROM accommodations WHERE is_active=1 ORDER BY level,name");
+$accommodations = fetchAll($db,"SELECT id,name,level,location,rate_per_room,rate_per_person FROM accommodations WHERE is_active=1 ORDER BY level,name");
 $vehicles       = fetchAll($db,"SELECT id,name,daily_rate,fuel_cost_day,driver_cost_day FROM vehicles WHERE is_active=1 ORDER BY name");
-$parkFees       = fetchAll($db,"SELECT id,name,adult_fee,child_fee FROM park_fees WHERE is_active=1 ORDER BY name");
-$activitiesDB   = fetchAll($db,"SELECT id,name,price,price_unit FROM activities WHERE is_active=1 ORDER BY name");
+$parkFees       = fetchAll($db,"SELECT id,name,location,adult_fee,child_fee FROM park_fees WHERE is_active=1 ORDER BY name");
+$activitiesDB   = fetchAll($db,"SELECT id,name,price,price_unit,location FROM activities WHERE is_active=1 ORDER BY name");
+$allLocations   = \App\Services\LocationRegistry::allLocations($db);
+// Generic, location-less activity-type suggestions — kept as free-text
+// prompts (no price/id) alongside the real catalog above, shown in every
+// day's datalist regardless of location since they're not tied to one.
+$genericActivityLabels = ['Morning Game Drive','Afternoon Game Drive','Full Day Game Drive','Night Game Drive','Bush Walk','Sundowner','Hot Air Balloon Safari','Crater Descent','Village Visit','Dhow Cruise'];
 
 $editId = (int)($_GET['id'] ?? 0);
 $itin   = null;
@@ -175,8 +181,8 @@ ob_start();
       <div><label class="admin-label">Slug *</label>
         <input name="slug" class="admin-input" required pattern="[a-z0-9-]+" value="<?= htmlspecialchars($itin['slug']??'') ?>"></div>
       <div><label class="admin-label">Accommodation Level</label>
-        <select name="accommodation_level" class="admin-input">
-          <?php foreach(['budget'=>'Budget','midrange'=>'Mid-Range','highend'=>'High-End','ultra_luxury'=>'Ultra Luxury'] as $v=>$l): ?>
+        <select name="accommodation_level" class="admin-input" onchange="filterAllDayOptions()">
+          <?php foreach(['budget'=>'Budget','midrange'=>'Mid-Range','highend'=>'High-End','luxury'=>'Luxury','ultra_luxury'=>'Ultra Luxury'] as $v=>$l): ?>
           <option value="<?= $v ?>" <?= ($itin['accommodation_level']??'midrange')===$v?'selected':'' ?>><?= $l ?></option>
           <?php endforeach; ?>
         </select></div>
@@ -221,13 +227,14 @@ ob_start();
 <div class="day-block admin-card" data-day="<?= $i ?>" style="margin-bottom:1rem;border-left:3px solid var(--black)">
   <div class="admin-card-header" style="background:var(--gray-50)">
     <h3 style="font-size:.85rem">
-      <span style="font-family:'Times New Roman',Times,serif;color:var(--black);margin-right:.5rem">Day <?= $i+1 ?></span>
+      <span class="day-num-label" style="font-family:'Times New Roman',Times,serif;color:var(--black);margin-right:.5rem">Day <?= $i+1 ?></span>
       <input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem"
              placeholder="Day title e.g. Arusha → Tarangire"
              value="<?= htmlspecialchars($day['title']) ?>">
     </h3>
     <div style="display:flex;align-items:center;gap:.5rem">
       <span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span>
+      <button type="button" onclick="deleteDay(this)" class="admin-icon-btn admin-icon-btn--danger" title="Delete this day"><?= \App\Helpers\AdminIcon::render('trash', 14) ?></button>
     </div>
   </div>
 
@@ -236,7 +243,8 @@ ob_start();
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
       <!-- Location -->
       <div><label class="admin-label">Location / Park</label>
-        <input name="day_location[]" class="admin-input" value="<?= htmlspecialchars($day['location']??'') ?>" placeholder="e.g. Serengeti National Park"></div>
+        <input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="<?= $i ?>" oninput="filterDayOptions(<?= $i ?>)"
+               value="<?= htmlspecialchars($day['location']??'') ?>" placeholder="e.g. Serengeti National Park"></div>
       <!-- Description -->
       <div><label class="admin-label">Day Description</label>
         <textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"><?= htmlspecialchars($day['description']??'') ?></textarea></div>
@@ -319,13 +327,21 @@ ob_start();
     <!-- Activities for this day -->
     <div style="margin-bottom:1rem">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-        <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day <?= $i+1 ?>)</p>
+        <p class="day-acts-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day <?= $i+1 ?>)</p>
         <button type="button" onclick="addDayActivity(<?= $i ?>)" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>
       </div>
+      <datalist id="act-list-<?= $i ?>">
+        <?php foreach($activitiesDB as $a): ?>
+        <option value="<?= htmlspecialchars($a['name']) ?>" data-id="<?= $a['id'] ?>" data-price="<?= $a['price'] ?>">
+        <?php endforeach; ?>
+        <?php foreach($genericActivityLabels as $__g): ?>
+        <option value="<?= htmlspecialchars($__g) ?>">
+        <?php endforeach; ?>
+      </datalist>
       <div id="day-acts-<?= $i ?>">
         <?php foreach($day['activities'] as $ai=>$act): ?>
         <div class="act-item" style="display:grid;grid-template-columns:2fr 80px 90px auto;gap:.35rem;align-items:end;margin-bottom:.4rem">
-          <input name="act_name_<?= $i ?>_<?= $ai ?>" class="admin-input day-act-name" list="act-list"
+          <input name="act_name_<?= $i ?>_<?= $ai ?>" class="admin-input day-act-name" list="act-list-<?= $i ?>"
                  value="<?= htmlspecialchars($act['name']??'') ?>" placeholder="Activity name" style="font-size:.78rem" oninput="saveDayActs(<?= $i ?>)">
           <input name="act_price_<?= $i ?>_<?= $ai ?>" type="number" step="0.01" class="admin-input day-act-price"
                  value="<?= (float)($act['price_pp']??0) ?>" placeholder="$/pp" style="font-size:.78rem" oninput="saveDayActs(<?= $i ?>)">
@@ -345,7 +361,7 @@ ob_start();
     <!-- Other items for this day -->
     <div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-        <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day <?= $i+1 ?>)</p>
+        <p class="day-other-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day <?= $i+1 ?>)</p>
         <button type="button" onclick="addDayOther(<?= $i ?>)" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>
       </div>
       <div id="day-other-<?= $i ?>">
@@ -390,21 +406,12 @@ ob_start();
 
 </form>
 
-<!-- Activities datalist -->
-<datalist id="act-list">
-  <?php foreach($activitiesDB as $a): ?>
-  <option value="<?= htmlspecialchars($a['name']) ?>" data-price="<?= $a['price'] ?>">
+<!-- Location datalist — same master list every location/country field in
+     the app autocompletes from (see App\Services\LocationRegistry) -->
+<datalist id="location-list">
+  <?php foreach ($allLocations as $__l): ?>
+  <option value="<?= htmlspecialchars($__l['name']) ?>">
   <?php endforeach; ?>
-  <option value="Morning Game Drive">
-  <option value="Afternoon Game Drive">
-  <option value="Full Day Game Drive">
-  <option value="Night Game Drive">
-  <option value="Bush Walk">
-  <option value="Sundowner">
-  <option value="Hot Air Balloon Safari">
-  <option value="Crater Descent">
-  <option value="Village Visit">
-  <option value="Dhow Cruise">
 </datalist>
 
 <script>
@@ -412,26 +419,31 @@ ob_start();
 //    when "Nights" is increased (syncDayCount below) — mirrors the exact
 //    PHP-rendered markup above so a day added via JS behaves identically
 //    to one rendered server-side (same class names, same datalist ids). ──
-var ITIN_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'level'=>$a['level']], $accommodations)) ?>;
+var ITIN_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'level'=>$a['level'],'location'=>$a['location']??''], $accommodations)) ?>;
 var ITIN_VEHS  = <?= json_encode(array_map(fn($v) => ['name'=>$v['name'],'id'=>(int)$v['id'],'rate'=>(float)$v['daily_rate']+(float)$v['fuel_cost_day']+(float)$v['driver_cost_day']], $vehicles)) ?>;
-var ITIN_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee']], $parkFees)) ?>;
+var ITIN_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee'],'location'=>$p['location']??''], $parkFees)) ?>;
+var ITIN_ACTS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'price'=>(float)$a['price'],'location'=>$a['location']??''], $activitiesDB)) ?>;
+var ITIN_GENERIC_ACTS = <?= json_encode($genericActivityLabels) ?>;
+var ITIN_GENERIC_ACT_OPTS = ITIN_GENERIC_ACTS.map(function(g){ return '<option value="'+g+'">'; }).join('');
 
 function itinDayBlockHtml(i) {
   var accOpts  = ITIN_ACCS.map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-rate="'+a.rate+'" data-level="'+a.level+'">'; }).join('');
   var vehOpts  = ITIN_VEHS.map(function(v){ return '<option value="'+v.name+'" data-id="'+v.id+'" data-rate="'+v.rate+'">'; }).join('');
   var parkOpts = ITIN_PARKS.map(function(p){ return '<option value="'+p.name+'" data-id="'+p.id+'" data-fee="'+p.fee+'">'; }).join('');
+  var actOpts  = ITIN_ACTS.map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-price="'+a.price+'">'; }).join('') + ITIN_GENERIC_ACT_OPTS;
 
   return ''
     +'<div class="admin-card-header" style="background:var(--gray-50)">'
       +'<h3 style="font-size:.85rem">'
-        +'<span style="font-family:\'Times New Roman\',Times,serif;color:var(--black);margin-right:.5rem">Day '+(i+1)+'</span>'
+        +'<span class="day-num-label" style="font-family:\'Times New Roman\',Times,serif;color:var(--black);margin-right:.5rem">Day '+(i+1)+'</span>'
         +'<input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem" placeholder="Day title e.g. Arusha → Tarangire">'
       +'</h3>'
-      +'<div style="display:flex;align-items:center;gap:.5rem"><span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span></div>'
+      +'<div style="display:flex;align-items:center;gap:.5rem"><span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span>'
+        +'<button type="button" onclick="deleteDay(this)" class="admin-icon-btn admin-icon-btn--danger" title="Delete this day">'+<?= $trashIconJs ?>+'</button></div>'
     +'</div>'
     +'<div class="admin-card-body">'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">'
-        +'<div><label class="admin-label">Location / Park</label><input name="day_location[]" class="admin-input" placeholder="e.g. Serengeti National Park"></div>'
+        +'<div><label class="admin-label">Location / Park</label><input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="'+i+'" oninput="filterDayOptions('+i+')" placeholder="e.g. Serengeti National Park"></div>'
         +'<div><label class="admin-label">Day Description</label><textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"></textarea></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">'
@@ -471,15 +483,16 @@ function itinDayBlockHtml(i) {
       +'</div>'
       +'<div style="margin-bottom:1rem">'
         +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
-          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day '+(i+1)+')</p>'
+          +'<p class="day-acts-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day '+(i+1)+')</p>'
           +'<button type="button" onclick="addDayActivity('+i+')" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>'
         +'</div>'
+        +'<datalist id="act-list-'+i+'">'+actOpts+'</datalist>'
         +'<div id="day-acts-'+i+'"></div>'
         +'<input type="hidden" name="day_activities_json[]" id="acts-json-'+i+'" value="[]">'
       +'</div>'
       +'<div>'
         +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
-          +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day '+(i+1)+')</p>'
+          +'<p class="day-other-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day '+(i+1)+')</p>'
           +'<button type="button" onclick="addDayOther('+i+')" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>'
         +'</div>'
         +'<div id="day-other-'+i+'"></div>'
@@ -520,6 +533,64 @@ function fillDayPark(input, dayIdx) {
       calcItinTotal(); break;
     }
   }
+}
+
+// ── Smart location/level filter for Accommodation + Park options ────
+// Narrows each day's Accommodation and Park/Area datalist down to the
+// entries whose own `location` shares a significant word with what's
+// typed in that day's own Location field — not a plain substring check,
+// because this app's location strings are sub-area names ("Central
+// Serengeti", "Northern Serengeti", "Western Serengeti Corridor") that
+// don't contain one another as substrings even though they're all
+// "Serengeti"; a pure indexOf() match would silently show nothing for
+// most real combinations. Tokenizing both sides and matching on any
+// shared 4+ letter word (park/region names) catches all of these.
+// Further narrows Accommodation by the itinerary's overall Accommodation
+// Level. This only trims the *suggestions* — the field itself stays free
+// text via <datalist>, so an admin can always type something not yet
+// listed. Looked up by the day's stable build index (data-idx / the N in
+// acc-list-N, park-list-N), not DOM position — those ids never change
+// even after a day is deleted and the rest renumber (see deleteDay()).
+function locMatch(a, b) {
+  if (!a || !b) return true;
+  var ta = a.toLowerCase().match(/[a-z]{4,}/g) || [];
+  var tb = b.toLowerCase().match(/[a-z]{4,}/g) || [];
+  for (var i = 0; i < ta.length; i++) { if (tb.indexOf(ta[i]) !== -1) return true; }
+  return false;
+}
+
+function filterDayOptions(dayIdx) {
+  var locInput = document.querySelector('.day-location[data-idx="'+dayIdx+'"]');
+  var loc      = locInput ? locInput.value : '';
+  var level    = (document.querySelector('[name="accommodation_level"]')||{}).value || '';
+
+  var accList = document.getElementById('acc-list-'+dayIdx);
+  if (accList) {
+    accList.innerHTML = ITIN_ACCS
+      .filter(function(a){ return (!level || a.level===level) && locMatch(loc, a.location); })
+      .map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-rate="'+a.rate+'" data-level="'+a.level+'">'; })
+      .join('');
+  }
+  var parkList = document.getElementById('park-list-'+dayIdx);
+  if (parkList) {
+    parkList.innerHTML = ITIN_PARKS
+      .filter(function(p){ return locMatch(loc, p.location); })
+      .map(function(p){ return '<option value="'+p.name+'" data-id="'+p.id+'" data-fee="'+p.fee+'">'; })
+      .join('');
+  }
+  var actList = document.getElementById('act-list-'+dayIdx);
+  if (actList) {
+    actList.innerHTML = ITIN_ACTS
+      .filter(function(a){ return locMatch(loc, a.location); })
+      .map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-price="'+a.price+'">'; })
+      .join('') + ITIN_GENERIC_ACT_OPTS;
+  }
+}
+
+function filterAllDayOptions() {
+  document.querySelectorAll('.day-location').forEach(function(input){
+    filterDayOptions(input.dataset.idx);
+  });
 }
 
 // ── Calculate total across all days ───────────────────────
@@ -580,13 +651,13 @@ function addDayActivity(dayIdx) {
   var div = document.createElement('div');
   div.className='act-item';
   div.style.cssText='display:grid;grid-template-columns:2fr 80px 90px auto;gap:.35rem;align-items:end;margin-bottom:.4rem';
-  div.innerHTML='<input class="admin-input day-act-name" list="act-list" placeholder="Activity name" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
+  div.innerHTML='<input class="admin-input day-act-name" list="act-list-'+dayIdx+'" placeholder="Activity name" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
     +'<input type="number" step="0.01" class="admin-input day-act-price" value="0" placeholder="$/pp" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
     +'<select class="admin-input day-act-type" style="font-size:.72rem" onchange="saveDayActs('+dayIdx+')"><option value="included">Included</option><option value="optional">Optional</option></select>'
     +'<button type="button" onclick="this.closest(\'.act-item\').remove();saveDayActs('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger">'+<?= $trashIconJs ?>+'</button>';
   container.appendChild(div);
   div.querySelector('.day-act-name').addEventListener('change', function(){
-    var opts=document.querySelectorAll('#act-list option');
+    var opts=document.querySelectorAll('#act-list-'+dayIdx+' option');
     for(var i=0;i<opts.length;i++){
       if(opts[i].value===this.value && opts[i].dataset.price){
         div.querySelector('.day-act-price').value=opts[i].dataset.price;
@@ -646,13 +717,59 @@ function syncDayCount(n) {
     div.style.cssText = 'margin-bottom:1rem;border-left:3px solid var(--black)';
     div.innerHTML = itinDayBlockHtml(i);
     container.appendChild(div);
+    filterDayOptions(i);
   }
   // Remove extras
   for(var i=cur-1;i>=n;i--) existing[i].remove();
   calcItinTotal();
 }
 
+// ── Delete a single day, from anywhere in the itinerary ─────────
+// Unlike shortening via the Nights field above (which only ever trims
+// from the end), this removes one specific day-block and shifts every
+// day after it up. Every day_*[] field is an array-append ("[]") name,
+// not an explicit day_title[3]-style index, so the form submission
+// already reindexes correctly from DOM order alone once the block is
+// gone — renumberDays() only has to fix the *visible* "Day N" labels and
+// the Nights count, which don't update themselves on their own. Each
+// day-block's internal ids (acc-list-N, day-acts-N, etc.) and their
+// onclick handlers stay as originally built — they only need to stay
+// self-consistent within their own moved block, not match the new
+// visible day number.
+async function deleteDay(btn) {
+  var blocks = document.querySelectorAll('.day-block');
+  if (blocks.length <= 1) {
+    toast('An itinerary needs at least 1 day — edit this one instead of deleting it.', 'err');
+    return;
+  }
+  if (!(await confirmDialog(
+    'Delete this day? Its accommodation, vehicle, park, meals, activities and other costs are removed with it — the remaining days shift up and the total recalculates automatically.',
+    {danger: true, title: 'Delete Day', confirmLabel: 'Delete Day'}
+  ))) return;
+
+  btn.closest('.day-block').remove();
+  renumberDays();
+  calcItinTotal();
+}
+
+function renumberDays() {
+  var blocks = document.querySelectorAll('.day-block');
+  blocks.forEach(function (block, idx) {
+    var n2 = idx + 1;
+    var dayLabel = block.querySelector('.day-num-label');
+    if (dayLabel) dayLabel.textContent = 'Day ' + n2;
+    var actsLabel = block.querySelector('.day-acts-label');
+    if (actsLabel) actsLabel.textContent = 'Activities (Day ' + n2 + ')';
+    var otherLabel = block.querySelector('.day-other-label');
+    if (otherLabel) otherLabel.textContent = 'Other Costs (Day ' + n2 + ')';
+    block.dataset.day = idx;
+  });
+  var durInput = document.getElementById('dur_input');
+  if (durInput) durInput.value = blocks.length;
+}
+
 // Init
+filterAllDayOptions();
 calcItinTotal();
 </script>
 

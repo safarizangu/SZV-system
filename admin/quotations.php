@@ -188,24 +188,18 @@ ob_start();
   </div>
 </div>
 
-<!-- Status filter pills -->
-<div class="admin-filter-pills">
-  <a href="quotations.php" class="admin-filter-pill<?= !$statusFilter ? ' active' : '' ?>">
-    All &nbsp;<span style="opacity:.6"><?= array_sum(array_column($stats, 'cnt')) ?></span>
-  </a>
-  <?php foreach ($statusColors as $key => $s):
-    $pillMod = $s['badge'] !== 'gray' ? ' admin-filter-pill--'.$s['badge'] : '';
-  ?>
-  <a href="?status=<?= $key ?>" class="admin-filter-pill<?= $pillMod ?><?= $statusFilter===$key?' active':'' ?>">
-    <?= $s['label'] ?> &nbsp;<span style="opacity:.6"><?= $stats[$key]['cnt'] ?? 0 ?></span>
-  </a>
-  <?php endforeach; ?>
-</div>
-
-<!-- Toolbar -->
+<!-- Toolbar: status filter + search, one row -->
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1.25rem">
-  <form style="display:flex;gap:.5rem;flex-wrap:wrap">
-    <input type="hidden" name="status" value="<?= htmlspecialchars($statusFilter) ?>">
+  <form style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+    <?php $badgeColors = ['gray'=>['bg'=>'var(--gray-100)','color'=>'var(--gray-700)'],'blue'=>['bg'=>'var(--blue-light)','color'=>'#1e40af'],'amber'=>['bg'=>'var(--amber-light)','color'=>'#92400e'],'green'=>['bg'=>'var(--green-light)','color'=>'#166534'],'red'=>['bg'=>'var(--red-light)','color'=>'#991b1b'],'dark'=>['bg'=>'var(--black)','color'=>'var(--white)']];
+    $curBadge = $statusFilter && isset($statusColors[$statusFilter]) ? $statusColors[$statusFilter]['badge'] : null; ?>
+    <select name="status" class="admin-input" onchange="this.form.submit()"
+            style="max-width:190px;font-weight:700;<?= $curBadge && isset($badgeColors[$curBadge]) ? 'background:'.$badgeColors[$curBadge]['bg'].';color:'.$badgeColors[$curBadge]['color'].';' : '' ?>">
+      <option value="">All (<?= array_sum(array_column($stats, 'cnt')) ?>)</option>
+      <?php foreach ($statusColors as $key => $s): ?>
+      <option value="<?= $key ?>" <?= $statusFilter===$key?'selected':'' ?>><?= $s['label'] ?> (<?= $stats[$key]['cnt'] ?? 0 ?>)</option>
+      <?php endforeach; ?>
+    </select>
     <input type="text" name="q" value="<?= htmlspecialchars($search) ?>"
            placeholder="Search name, email, ref…"
            class="admin-input" style="min-width:220px">
@@ -269,54 +263,57 @@ ob_start();
   </td>
   <td style="font-size:.72rem;color:var(--gray-500)"><?= date('d M Y', strtotime($q['created_at'])) ?></td>
   <td>
-    <div style="display:flex;gap:.3rem;flex-wrap:wrap">
-      <!-- Edit -->
-      <a href="quotation_new.php?id=<?= $q['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">Edit</a>
-      <!-- PDF -->
-      <a href="../api/quotation_pdf.php?id=<?= $q['id'] ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">PDF</a>
-      <!-- Itinerary — day-by-day companion PDF -->
-      <a href="../api/quotation_itinerary_pdf.php?id=<?= $q['id'] ?>" target="_blank" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">Itinerary</a>
-      <!-- Email -->
-      <form method="POST" action="../api/quotation_email.php" style="display:inline" target="_blank">
-        <?= \App\Middleware\CsrfMiddleware::field() ?>
-        <input type="hidden" name="id" value="<?= $q['id'] ?>">
-        <button class="admin-btn admin-btn--primary" style="font-size:.65rem;padding:.3rem .6rem">Email</button>
-      </form>
-      <!-- Status -->
-      <form method="POST" style="display:inline">
-        <?= \App\Middleware\CsrfMiddleware::field() ?>
-        <input type="hidden" name="update_status" value="1">
-        <input type="hidden" name="id" value="<?= $q['id'] ?>">
-        <select name="status" data-prev="<?= htmlspecialchars($q['status']) ?>"
-                onchange="confirmQuoteStatusChange(this, '<?= htmlspecialchars(addslashes($q['quote_ref'])) ?>')"
-                class="admin-input"
-                style="font-size:.65rem;padding:.3rem .5rem;max-width:100px">
-          <?php foreach ($manualStatuses as $sv => $sl): ?>
-          <option value="<?= $sv ?>" <?= $q['status']===$sv?'selected':'' ?>><?= $sl['label'] ?></option>
-          <?php endforeach; ?>
-          <?php if ($q['status']==='converted'): ?>
-          <option value="converted" selected disabled>Converted</option>
-          <?php endif; ?>
-        </select>
-      </form>
-      <!-- Convert to Booking -->
-      <?php if ($q['status'] === 'accepted'): ?>
-      <button onclick="openConvertModal(<?= $q['id'] ?>, '<?= htmlspecialchars($q['quote_ref']) ?>', '<?= htmlspecialchars($q['client_name']) ?>', <?= (float)$q['grand_total'] ?>, '<?= htmlspecialchars($q['package_name']??'') ?>', '<?= htmlspecialchars($q['start_date']??'') ?>', <?= (float)($q['deposit_amount']??0) ?>)"
-              class="admin-btn admin-btn--success" style="font-size:.65rem;padding:.3rem .6rem">
-        Convert to Booking
-      </button>
-      <?php endif; ?>
-      <?php if ($q['status'] === 'converted' && !empty($q['booking_ref'])): ?>
-      <a href="bookings.php?view=<?= urlencode($q['booking_ref']) ?>" class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">
-        View Booking ↗
-      </a>
-      <?php endif; ?>
-      <!-- Delete -->
-      <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete quotation <?= htmlspecialchars(addslashes($q['quote_ref'])) ?>?', {danger:true})">
-        <?= \App\Middleware\CsrfMiddleware::field() ?>
-        <input type="hidden" name="delete_id" value="<?= $q['id'] ?>">
-        <button class="admin-btn admin-btn--danger" style="font-size:.65rem;padding:.3rem .6rem">Del</button>
-      </form>
+    <div class="admin-row-actions">
+      <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+      <div class="admin-row-actions-menu">
+        <!-- Edit -->
+        <a href="quotation_new.php?id=<?= $q['id'] ?>" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('edit', 14) ?> Edit</a>
+        <!-- PDF -->
+        <a href="../api/quotation_pdf.php?id=<?= $q['id'] ?>" target="_blank" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('invoices', 14) ?> PDF</a>
+        <!-- Itinerary — day-by-day companion PDF -->
+        <a href="../api/quotation_itinerary_pdf.php?id=<?= $q['id'] ?>" target="_blank" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('itineraries', 14) ?> Itinerary</a>
+        <!-- Email -->
+        <form method="POST" action="../api/quotation_email.php" target="_blank">
+          <?= \App\Middleware\CsrfMiddleware::field() ?>
+          <input type="hidden" name="id" value="<?= $q['id'] ?>">
+          <button type="submit" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('email-template', 14) ?> Email</button>
+        </form>
+        <!-- Status -->
+        <form method="POST" style="padding:.4rem .65rem">
+          <?= \App\Middleware\CsrfMiddleware::field() ?>
+          <input type="hidden" name="update_status" value="1">
+          <input type="hidden" name="id" value="<?= $q['id'] ?>">
+          <select name="status" data-prev="<?= htmlspecialchars($q['status']) ?>"
+                  onchange="confirmQuoteStatusChange(this, '<?= htmlspecialchars(addslashes($q['quote_ref'])) ?>')"
+                  class="admin-input"
+                  style="font-size:.7rem;padding:.3rem .5rem;width:100%">
+            <?php foreach ($manualStatuses as $sv => $sl): ?>
+            <option value="<?= $sv ?>" <?= $q['status']===$sv?'selected':'' ?>><?= $sl['label'] ?></option>
+            <?php endforeach; ?>
+            <?php if ($q['status']==='converted'): ?>
+            <option value="converted" selected disabled>Converted</option>
+            <?php endif; ?>
+          </select>
+        </form>
+        <!-- Convert to Booking -->
+        <?php if ($q['status'] === 'accepted'): ?>
+        <button type="button" onclick="openConvertModal(<?= $q['id'] ?>, '<?= htmlspecialchars($q['quote_ref']) ?>', '<?= htmlspecialchars($q['client_name']) ?>', <?= (float)$q['grand_total'] ?>, '<?= htmlspecialchars($q['package_name']??'') ?>', '<?= htmlspecialchars($q['start_date']??'') ?>', <?= (float)($q['deposit_amount']??0) ?>)"
+                class="admin-row-actions-item">
+          <?= \App\Helpers\AdminIcon::render('check', 14) ?> Convert to Booking
+        </button>
+        <?php endif; ?>
+        <?php if ($q['status'] === 'converted' && !empty($q['booking_ref'])): ?>
+        <a href="bookings.php?view=<?= urlencode($q['booking_ref']) ?>" class="admin-row-actions-item">
+          <?= \App\Helpers\AdminIcon::render('external-link', 14) ?> View Booking
+        </a>
+        <?php endif; ?>
+        <!-- Delete -->
+        <form method="POST" onsubmit="return confirmSubmitGuard(event, this, 'Delete quotation <?= htmlspecialchars(addslashes($q['quote_ref'])) ?>?', {danger:true})">
+          <?= \App\Middleware\CsrfMiddleware::field() ?>
+          <input type="hidden" name="delete_id" value="<?= $q['id'] ?>">
+          <button type="submit" class="admin-row-actions-item admin-row-actions-item--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?> Delete</button>
+        </form>
+      </div>
     </div>
   </td>
 </tr>

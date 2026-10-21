@@ -136,14 +136,19 @@ ob_start();
           <?php endif; ?>
         </td>
         <td style="white-space:nowrap">
-          <a href="?edit=<?= $u['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.62rem;padding:.25rem .5rem">Edit</a>
-          <?php if(!$isMe): ?>
-          <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete user <?= htmlspecialchars(addslashes($u['username'])) ?>? This cannot be undone.', {danger:true})">
-            <?= \App\Middleware\CsrfMiddleware::field() ?>
-            <input type="hidden" name="delete_id" value="<?= $u['id'] ?>">
-            <button class="admin-btn admin-btn--danger" style="font-size:.62rem;padding:.25rem .5rem">Delete</button>
-          </form>
-          <?php endif; ?>
+          <div class="admin-row-actions">
+            <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+            <div class="admin-row-actions-menu">
+              <a href="?edit=<?= $u['id'] ?>" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('edit', 14) ?> Edit</a>
+              <?php if(!$isMe): ?>
+              <form method="POST" onsubmit="return confirmSubmitGuard(event, this, 'Delete user <?= htmlspecialchars(addslashes($u['username'])) ?>? This cannot be undone.', {danger:true})">
+                <?= \App\Middleware\CsrfMiddleware::field() ?>
+                <input type="hidden" name="delete_id" value="<?= $u['id'] ?>">
+                <button type="submit" class="admin-row-actions-item admin-row-actions-item--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?> Delete</button>
+              </form>
+              <?php endif; ?>
+            </div>
+          </div>
         </td>
       </tr>
       <?php endforeach; ?>

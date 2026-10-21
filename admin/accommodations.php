@@ -40,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
             $db->prepare("INSERT INTO accommodations(name,level,location,park_key,supplier_id,rate_per_room,rate_per_person,single_supplement,child_rate,available_rooms,meal_plan,is_active,notes,images_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
                ->execute([$name,$lev,$loc,$park,$supp,$rr,$rp,$ss,$cr,$avr,$mp,$act,$notes,$images]);
         }
+        \App\Services\LocationRegistry::touchLocation($db, $loc);
         $msg = 'Saved.';
     } catch(Exception $e){ $msg = 'Error: '.$e->getMessage(); }
     header('Location: accommodations.php?msg='.urlencode($msg)); exit;
@@ -57,6 +58,7 @@ $rows = [];
 try { $rows = $db->query("SELECT * FROM accommodations ORDER BY level, name LIMIT 200")->fetchAll(); }
 catch(Exception $e){}
 $galleryImgs = $edit ? (json_decode($edit['images_json'] ?? '[]', true) ?: []) : [];
+$allLocations = \App\Services\LocationRegistry::allLocations($db);
 ?>
 <?php if($msg): ?><div class="admin-alert admin-alert--<?= str_starts_with($msg,'Error')?'error':'success' ?>"><?= $msg ?></div><?php endif; ?>
 <div class="admin-card" style="margin-bottom:1.5rem">
@@ -77,12 +79,17 @@ $galleryImgs = $edit ? (json_decode($edit['images_json'] ?? '[]', true) ?: []) :
   <td>$<?= number_format($r['rate_per_person'],0) ?></td>
   <td><?= $r['is_active'] ? '<span class="badge-status badge-status--green">Active</span>' : '<span class="badge-status badge-status--gray">Inactive</span>' ?></td>
   <td>
-    <a href="?edit=<?= $r['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Edit</a>
-    <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete this accommodation?', {danger:true})">
-      <?= \App\Middleware\CsrfMiddleware::field() ?>
-      <input type="hidden" name="delete_id" value="<?= $r['id'] ?>">
-      <button class="admin-btn admin-btn--danger" style="font-size:.7rem">Delete</button>
-    </form>
+    <div class="admin-row-actions">
+      <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+      <div class="admin-row-actions-menu">
+        <a href="?edit=<?= $r['id'] ?>" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('edit', 14) ?> Edit</a>
+        <form method="POST" onsubmit="return confirmSubmitGuard(event, this, 'Delete this accommodation?', {danger:true})">
+          <?= \App\Middleware\CsrfMiddleware::field() ?>
+          <input type="hidden" name="delete_id" value="<?= $r['id'] ?>">
+          <button type="submit" class="admin-row-actions-item admin-row-actions-item--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?> Delete</button>
+        </form>
+      </div>
+    </div>
   </td>
 </tr>
 <?php endforeach; ?>
@@ -106,13 +113,13 @@ $galleryImgs = $edit ? (json_decode($edit['images_json'] ?? '[]', true) ?: []) :
             <input name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
           <div><label class="admin-label">Level</label>
             <select name="level" class="admin-input">
-              <?php foreach(['budget'=>'Budget','midrange'=>'Mid-Range','highend'=>'High-End','ultra_luxury'=>'Ultra Luxury'] as $v=>$l): ?>
+              <?php foreach(['budget'=>'Budget','midrange'=>'Mid-Range','highend'=>'High-End','luxury'=>'Luxury','ultra_luxury'=>'Ultra Luxury'] as $v=>$l): ?>
               <option value="<?= $v ?>" <?= ($edit['level']??'midrange')===$v?'selected':'' ?>><?= $l ?></option>
               <?php endforeach; ?>
             </select>
           </div>
           <div><label class="admin-label">Location</label>
-            <input name="location" class="admin-input" value="<?= htmlspecialchars($edit['location']??'') ?>"></div>
+            <input name="location" class="admin-input" list="location-list" value="<?= htmlspecialchars($edit['location']??'') ?>" placeholder="e.g. Serengeti National Park"></div>
           <div><label class="admin-label">Park Key</label>
             <input name="park_key" class="admin-input" value="<?= htmlspecialchars($edit['park_key']??'') ?>"></div>
           <div><label class="admin-label">Supplier</label>
@@ -196,6 +203,12 @@ $galleryImgs = $edit ? (json_decode($edit['images_json'] ?? '[]', true) ?: []) :
     </div>
   </div>
 </div>
+
+<datalist id="location-list">
+  <?php foreach ($allLocations as $__l): ?>
+  <option value="<?= htmlspecialchars($__l['name']) ?>">
+  <?php endforeach; ?>
+</datalist>
 
 <script src="<?= BASE_PATH ?>/assets/js/admin-gallery-picker.js"></script>
 <script>

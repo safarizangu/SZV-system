@@ -108,11 +108,13 @@ ob_start();
   <div class="admin-card-header"><h3>Incidents</h3>
     <a href="incidents.php?new=1<?= $prefillRef ? '&booking_ref='.urlencode($prefillRef) : '' ?>" class="admin-btn admin-btn--primary" style="font-size:.68rem">+ Log Incident</a>
   </div>
-  <div class="admin-filter-pills" style="padding:0 1.25rem 1rem">
-    <a href="?filter=open" class="admin-filter-pill<?= $filter==='open'?' active':'' ?>">Open</a>
-    <a href="?filter=resolved" class="admin-filter-pill<?= $filter==='resolved'?' active':'' ?>">Resolved</a>
-    <a href="?filter=all" class="admin-filter-pill<?= $filter==='all'?' active':'' ?>">All</a>
-  </div>
+  <form method="GET" style="padding:0 1.25rem 1rem">
+    <select name="filter" class="admin-input" onchange="this.form.submit()" style="max-width:170px;font-weight:700">
+      <option value="open"     <?= $filter==='open'?'selected':'' ?>>Open</option>
+      <option value="resolved" <?= $filter==='resolved'?'selected':'' ?>>Resolved</option>
+      <option value="all"      <?= $filter==='all'?'selected':'' ?>>All</option>
+    </select>
+  </form>
   <div class="admin-table-wrap">
   <table class="admin-table">
   <thead><tr><th>Occurred</th><th>Booking</th><th>Type</th><th>Severity</th><th>Description</th><th>Reported By</th><th>Status</th><th>Actions</th></tr></thead>
@@ -130,16 +132,21 @@ ob_start();
     <td style="font-size:.8rem;color:var(--gray-500)"><?= htmlspecialchars($r['reporter_name'] ?? '—') ?></td>
     <td><?= $r['status']==='open' ? '<span class="badge-status badge-status--amber">Open</span>' : '<span class="badge-status badge-status--green">Resolved</span>' ?></td>
     <td>
-      <?php if ($r['status']==='open'): ?>
-      <button type="button" onclick="openResolveModal(<?= $r['id'] ?>)" class="admin-btn admin-btn--outline" style="font-size:.65rem">Resolve</button>
-      <?php else: ?>
-      <span style="font-size:.72rem;color:var(--gray-500)" title="<?= htmlspecialchars($r['resolution_notes'] ?? '') ?>">✓ <?= date('d M', strtotime($r['resolved_at'])) ?></span>
-      <?php endif; ?>
-      <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete this incident record?', {danger:true})">
-        <?= \App\Middleware\CsrfMiddleware::field() ?>
-        <input type="hidden" name="delete_id" value="<?= $r['id'] ?>">
-        <button class="admin-btn admin-btn--danger" style="font-size:.65rem">Delete</button>
-      </form>
+      <div class="admin-row-actions">
+        <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+        <div class="admin-row-actions-menu">
+          <?php if ($r['status']==='open'): ?>
+          <button type="button" class="admin-row-actions-item" onclick="openResolveModal(<?= $r['id'] ?>)"><?= \App\Helpers\AdminIcon::render('check', 14) ?> Resolve</button>
+          <?php else: ?>
+          <span class="admin-row-actions-item" style="color:var(--gray-500);cursor:default" title="<?= htmlspecialchars($r['resolution_notes'] ?? '') ?>">✓ Resolved <?= date('d M', strtotime($r['resolved_at'])) ?></span>
+          <?php endif; ?>
+          <form method="POST" onsubmit="return confirmSubmitGuard(event, this, 'Delete this incident record?', {danger:true})">
+            <?= \App\Middleware\CsrfMiddleware::field() ?>
+            <input type="hidden" name="delete_id" value="<?= $r['id'] ?>">
+            <button type="submit" class="admin-row-actions-item admin-row-actions-item--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?> Delete</button>
+          </form>
+        </div>
+      </div>
     </td>
   </tr>
   <?php endforeach; ?>

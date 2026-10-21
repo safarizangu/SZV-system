@@ -501,6 +501,33 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 .admin-icon-btn:hover         { color: var(--black); background: var(--gray-100); }
 .admin-icon-btn--danger:hover { color: var(--red); background: var(--red-light); }
 
+/* ── ROW ACTIONS MENU ───────────────────────────────────────── */
+/* Every admin table's Actions column: one kebab (⋮) button per row that
+   opens a dropdown holding that row's own actions (Edit, Delete, etc.),
+   instead of a cluttered row of separate buttons. The dropdown is
+   positioned by JS (admin.js) as `position: fixed` from the trigger's own
+   getBoundingClientRect(), not CSS-relative — a table's horizontally
+   scrolling .admin-table-wrap would otherwise clip it. */
+.admin-row-actions         { position: relative; display: inline-block; }
+.admin-row-actions-toggle  { position: relative; }
+.admin-row-actions-menu {
+  display: none; position: fixed; z-index: 500;
+  min-width: 170px; background: var(--white); border: 1.5px solid var(--gray-200);
+  box-shadow: var(--shadow-md); padding: .35rem;
+}
+.admin-row-actions-menu form { margin: 0; }
+.admin-row-actions-item {
+  display: flex; align-items: center; gap: .55rem; width: 100%; box-sizing: border-box;
+  padding: .5rem .65rem; font-size: .76rem; font-weight: 500; font-family: inherit;
+  text-align: left; text-decoration: none; white-space: nowrap;
+  background: none; border: none; color: var(--black); cursor: pointer;
+  transition: background var(--transition);
+}
+.admin-row-actions-item:hover          { background: var(--gray-50); }
+.admin-row-actions-item--danger        { color: var(--red); }
+.admin-row-actions-item--danger:hover  { background: var(--red-light); }
+.admin-row-actions-item .admin-icon    { flex-shrink: 0; }
+
 /* ── ALERTS ─────────────────────────────────────────────────── */
 .admin-alert         { padding: .85rem 1.1rem; margin-bottom: 1.25rem; font-size: .85rem; font-weight: 700; border-radius: var(--radius); }
 .admin-alert--success{ background: #f0fdf4; border-left: 3px solid var(--green); color: #166534; }

@@ -28,7 +28,7 @@ class ItineraryQuoteBuilder
 
     /**
      * @param array $itinerary Row from the `itineraries` table (days/includes/excludes as JSON strings or already-decoded arrays)
-     * @param string|null $travelDate  YYYY-MM-DD. When given, accommodation and vehicle costs are scaled by the season multiplier for that date.
+     * @param string|null $travelDate  YYYY-MM-DD. Accepted for callers that already pass it, but no longer used to scale pricing — a manually entered or selected accommodation/vehicle rate is charged exactly as given, never silently adjusted by season (the admin's typed price must always equal what the printed quotation shows).
      * @param string|null $nationality Guest nationality/country. When it matches an EAC country, resident park-fee rates are used wherever the park has one on file (a $0.00 resident rate on file is treated as "not yet configured" and falls back to the standard rate, never charged as free).
      * @param array{adult?:float,child?:float} $serviceFeeRates Per-person Service Charge, normally the booked package's own cost_breakdown.service_charge_adult/service_charge_child (see admin/package_edit.php). Falls back to the old flat $100/person rate for both when a caller doesn't have a package to read it from. Infants are never charged — they're excluded from $adults/$children entirely, not just this fee.
      */
@@ -42,8 +42,7 @@ class ItineraryQuoteBuilder
         $includes = self::decode($itinerary['includes'] ?? []);
         $excludes = self::decode($itinerary['excludes'] ?? []);
 
-        $seasonMultiplier = $travelDate ? self::getSeasonMultiplier(self::detectSeason($travelDate)) : 1.0;
-        $isResident       = $nationality ? in_array(strtolower(trim($nationality)), self::EAC_RESIDENT_COUNTRIES, true) : false;
+        $isResident = $nationality ? in_array(strtolower(trim($nationality)), self::EAC_RESIDENT_COUNTRIES, true) : false;
 
         // ── Step 1: Aggregate resources across all days ───────
         $accGroups  = [];
@@ -109,8 +108,19 @@ class ItineraryQuoteBuilder
                 $type  = $act['type'] ?? 'included';
                 if ($type === 'optional') continue;
 
+                // How many travelers this specific day's booking of the
+                // activity covers — an explicit Qty field on each
+                // Activity row (admin/quotation_new.php,
+                // admin/package_edit.php) now drives this, so a party
+                // where only some travelers join an activity isn't
+                // silently charged for everyone. Days saved before that
+                // field existed have no qty key at all, so they fall
+                // back to full pax — the only value the old, qty-less
+                // behavior could ever have meant.
+                $qty = isset($act['qty']) ? max(1, (int)$act['qty']) : $pax;
+
                 if ($price > 0) {
-                    $actPaid[] = ['name' => $actName, 'price' => $price, 'day' => $dayNum];
+                    $actPaid[] = ['name' => $actName, 'price' => $price, 'qty' => $qty, 'day' => $dayNum];
                 } else {
                     $actFree[] = ['name' => $actName, 'day' => $dayNum];
                 }
@@ -138,18 +148,31 @@ class ItineraryQuoteBuilder
                     ? (bool)$ot['per_pax']
                     : (bool)preg_match('/transfer|water|contribution/i', $otName);
 
+                // An explicit Qty field on each Other Cost row — e.g. 3
+                // firewood bundles at $5 each — instead of the row's
+                // dollar amount always meaning "one unit". Days saved
+                // before that field existed have no qty key, so they
+                // fall back to 1 (the only value the old behavior could
+                // ever have meant).
+                $otQty  = isset($ot['qty']) ? max(1, (int)$ot['qty']) : 1;
+                // What a unit is called (e.g. "Box", "Trip", "Vehicle") —
+                // a free-text label the admin fills in themselves, purely
+                // for the printed quantity string; it never multiplies
+                // anything and falls back to the generic "Unit(s)" label
+                // when left blank.
+                $otUnit = trim($ot['unit'] ?? '');
+
                 $found = false;
                 foreach ($otherItems as &$existing) {
                     if ($existing['name'] === $otName) {
-                        $existing['amount'] += $otAmt;
-                        $existing['count']++;
+                        $existing['qty'] += $otQty;
                         $found = true;
                         break;
                     }
                 }
                 unset($existing);
                 if (!$found) {
-                    $otherItems[] = ['name' => $otName, 'amount' => $otAmt, 'count' => 1, 'per_pax' => $perPax];
+                    $otherItems[] = ['name' => $otName, 'unit_price' => $otAmt, 'qty' => $otQty, 'unit_name' => $otUnit, 'per_pax' => $perPax];
                 }
             }
         }
@@ -175,7 +198,11 @@ class ItineraryQuoteBuilder
                 $soloAdult  = $adults % 2;
                 $roomsUsed  = $pairs + $soloAdult;
 
-                $baseAmount = $personRate * $adults * $n * $seasonMultiplier;
+                // unit_price is exactly the rate on file/entered for the
+                // day — no hidden seasonal adjustment. The admin's typed
+                // or selected rate is the final charged rate; Unit Price
+                // × Qty always equals Amount, on screen and on the PDF.
+                $baseAmount = $personRate * $adults * $n;
                 $qtyStr = $adults . ' Adult' . ($adults !== 1 ? 's' : '') . ' × ' . $n . ' Night' . ($n !== 1 ? 's' : '')
                     . ' (' . $roomsUsed . ' Room' . ($roomsUsed !== 1 ? 's' : '') . ')';
                 $lineItems[] = [
@@ -187,7 +214,7 @@ class ItineraryQuoteBuilder
                 ];
 
                 if ($soloAdult === 1 && $accExtras['single_supplement'] > 0) {
-                    $suppAmount = $accExtras['single_supplement'] * $n * $seasonMultiplier;
+                    $suppAmount = $accExtras['single_supplement'] * $n;
                     $lineItems[] = [
                         'description' => 'Single Supplement – ' . $acc['name'],
                         'unit_price'  => $accExtras['single_supplement'],
@@ -198,7 +225,7 @@ class ItineraryQuoteBuilder
                 }
 
                 if ($children > 0 && $accExtras['child_rate'] > 0) {
-                    $childAmount = $accExtras['child_rate'] * $children * $n * $seasonMultiplier;
+                    $childAmount = $accExtras['child_rate'] * $children * $n;
                     $lineItems[] = [
                         'description' => 'Child Rate – ' . $acc['name'],
                         'unit_price'  => $accExtras['child_rate'],
@@ -215,7 +242,7 @@ class ItineraryQuoteBuilder
                 // so the admin's own room count (set per day) still
                 // drives this, same as it always has.
                 $r = $acc['rooms'];
-                $amount = $acc['rate'] * $n * $r * $seasonMultiplier;
+                $amount = $acc['rate'] * $n * $r;
                 $qtyStr = $r > 1 ? $r . ' Rooms × ' . $n . ' Night' . ($n !== 1 ? 's' : '') : $n . ' Night' . ($n !== 1 ? 's' : '');
                 $lineItems[] = [
                     'description' => 'Accommodation – ' . $acc['name'],
@@ -226,7 +253,7 @@ class ItineraryQuoteBuilder
                 ];
 
                 if ($adults === 1 && $accExtras['single_supplement'] > 0) {
-                    $suppAmount = $accExtras['single_supplement'] * $n * $r * $seasonMultiplier;
+                    $suppAmount = $accExtras['single_supplement'] * $n * $r;
                     $lineItems[] = [
                         'description' => 'Single Supplement – ' . $acc['name'],
                         'unit_price'  => $accExtras['single_supplement'],
@@ -237,7 +264,7 @@ class ItineraryQuoteBuilder
                 }
 
                 if ($children > 0 && $accExtras['child_rate'] > 0) {
-                    $childAmount = $accExtras['child_rate'] * $children * $n * $seasonMultiplier;
+                    $childAmount = $accExtras['child_rate'] * $children * $n;
                     $lineItems[] = [
                         'description' => 'Child Rate – ' . $acc['name'],
                         'unit_price'  => $accExtras['child_rate'],
@@ -277,12 +304,12 @@ class ItineraryQuoteBuilder
                         'description' => $desc,
                         'unit_price'  => $components[$field],
                         'quantity_str'=> $dayStr,
-                        'amount'      => round($components[$field] * $veh['days'] * $seasonMultiplier, 2),
+                        'amount'      => round($components[$field] * $veh['days'], 2),
                         'category'    => 'transport',
                     ];
                 }
             } else {
-                $amount = $veh['rate'] * $veh['days'] * $seasonMultiplier;
+                $amount = $veh['rate'] * $veh['days'];
                 $lineItems[] = [
                     'description' => $veh['name'] . ' & Fuel',
                     'unit_price'  => $veh['rate'],
@@ -325,17 +352,19 @@ class ItineraryQuoteBuilder
         foreach ($actPaid as $act) {
             $key = $act['name'];
             if (!isset($actConsolidated[$key])) {
-                $actConsolidated[$key] = ['name' => $act['name'], 'price' => $act['price'], 'count' => 0];
+                $actConsolidated[$key] = ['name' => $act['name'], 'price' => $act['price'], 'totalQty' => 0, 'days' => 0];
             }
-            $actConsolidated[$key]['count']++;
+            $actConsolidated[$key]['totalQty'] += $act['qty'];
+            $actConsolidated[$key]['days']++;
         }
         foreach ($actConsolidated as $act) {
-            $count  = $act['count'];
-            $amount = $act['price'] * $pax * $count;
+            $totalQty = $act['totalQty'];
+            $actDays  = $act['days'];
+            $amount   = $act['price'] * $totalQty;
             $lineItems[] = [
                 'description' => $act['name'],
                 'unit_price'  => $act['price'],
-                'quantity_str'=> $pax . ' Guest' . ($pax !== 1 ? 's' : '') . ($count > 1 ? ' × ' . $count . ' Days' : ''),
+                'quantity_str'=> $totalQty . ' Guest' . ($totalQty !== 1 ? 's' : '') . ($actDays > 1 ? ' × ' . $actDays . ' Days' : ''),
                 'amount'      => round($amount, 2),
                 'category'    => 'activity',
             ];
@@ -354,20 +383,21 @@ class ItineraryQuoteBuilder
         }
 
         foreach ($otherItems as $ot) {
-            $amount   = $ot['amount'];
-            $isPerPax = $ot['per_pax'];
+            $isPerPax  = $ot['per_pax'];
+            $totalQty  = $isPerPax ? $ot['qty'] * $pax : $ot['qty'];
+            $amount    = $ot['unit_price'] * $totalQty;
+            $unitLabel = $ot['unit_name'] !== '' ? $ot['unit_name'] : ('Unit' . ($ot['qty'] !== 1 ? 's' : ''));
 
-            if ($isPerPax && $pax > 1) {
-                $amount = $ot['amount'] * $pax;
-                $qtyStr = $pax . ' Guests';
-                if ($ot['count'] > 1) $qtyStr .= ' × ' . $ot['count'] . ' Days';
+            if ($isPerPax) {
+                $qtyStr = $pax . ' Guest' . ($pax !== 1 ? 's' : '');
+                if ($ot['qty'] > 1) $qtyStr .= ' × ' . $ot['qty'] . ' ' . $unitLabel;
             } else {
-                $qtyStr = $ot['count'] > 1 ? $ot['count'] . ' Times' : '1';
+                $qtyStr = $ot['qty'] . ' ' . $unitLabel;
             }
 
             $lineItems[] = [
                 'description' => $ot['name'],
-                'unit_price'  => $ot['amount'],
+                'unit_price'  => $ot['unit_price'],
                 'quantity_str'=> $qtyStr,
                 'amount'      => round($amount, 2),
                 'category'    => 'other',
@@ -602,24 +632,6 @@ class ItineraryQuoteBuilder
         if ($month === 1  && $day <= 5)  return 'peak';
         if (in_array($month, [3, 4, 5], true)) return 'shoulder';
         return 'low';
-    }
-
-    private static function getSeasonMultiplier(string $season): float
-    {
-        static $cache = [];
-        if (array_key_exists($season, $cache)) return $cache[$season];
-
-        $multiplier = 1.0;
-        try {
-            $db   = \App\Models\Database::getInstance();
-            $stmt = $db->prepare("SELECT multiplier FROM seasonal_rates WHERE season_key = ? LIMIT 1");
-            $stmt->execute([$season]);
-            $row  = $stmt->fetch();
-            if ($row) $multiplier = (float)$row['multiplier'];
-        } catch (\Throwable $e) {
-            // No DB context — price at full (unmultiplied) rate rather than guess a discount.
-        }
-        return $cache[$season] = $multiplier;
     }
 
     private static function decode($value): array

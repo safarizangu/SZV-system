@@ -221,6 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             'deposit_amount' => $depositAmount,
             'quotation_synced' => !empty($existing['quotation_id']),
         ]);
+        \App\Services\LocationRegistry::touchCountry($db, $country);
 
         $s = $db->prepare("SELECT * FROM bookings WHERE booking_ref=?");
         $s->execute([$ref]);
@@ -314,27 +315,27 @@ $statusColors = [
 // feature, but cheap enough to just always fetch.
 $editPackages   = $db->query("SELECT id, name FROM packages WHERE is_active=1 ORDER BY name")->fetchAll();
 $editItineraries = $db->query("SELECT id, name FROM itineraries WHERE is_active=1 ORDER BY name")->fetchAll();
+$allCountries   = \App\Services\LocationRegistry::allCountries($db);
 
 $pageTitle = 'Bookings';
 ob_start();
 ?>
 
-<!-- Status filter pills -->
-<div class="admin-filter-pills">
-  <a href="bookings.php" class="admin-filter-pill<?= !$status?' active':'' ?>">
-    All &nbsp;<span style="opacity:.6"><?= number_format($totalRows) ?></span>
-  </a>
-  <?php foreach ($statusColors as $sv => $sc): ?>
-  <a href="?status=<?= $sv ?><?= $search?'&search='.urlencode($search):'' ?>"
-     class="admin-filter-pill admin-filter-pill--<?= $sc['badge'] ?><?= $status===$sv?' active':'' ?>">
-    <?= $sc['label'] ?> &nbsp;<span style="opacity:.6"><?= $statusCounts[$sv] ?? 0 ?></span>
-  </a>
+<datalist id="country-list">
+  <?php foreach ($allCountries as $__c): ?>
+  <option value="<?= htmlspecialchars($__c) ?>">
   <?php endforeach; ?>
-</div>
+</datalist>
 
-<!-- Search bar -->
-<form method="GET" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem">
-  <?php if ($status): ?><input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>"><?php endif; ?>
+<!-- Status filter + search, one row -->
+<form method="GET" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center">
+  <select name="status" class="admin-input" onchange="this.form.submit()"
+          style="max-width:190px;font-weight:700;<?= $status && isset($statusColors[$status]) ? 'background:'.$statusColors[$status]['bg'].';color:'.$statusColors[$status]['color'].';' : '' ?>">
+    <option value="">All (<?= number_format($totalRows) ?>)</option>
+    <?php foreach ($statusColors as $sv => $sc): ?>
+    <option value="<?= $sv ?>" <?= $status===$sv?'selected':'' ?>><?= $sc['label'] ?> (<?= $statusCounts[$sv] ?? 0 ?>)</option>
+    <?php endforeach; ?>
+  </select>
   <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
          placeholder="Search ref, name, email, phone…"
          class="admin-input" style="min-width:260px;flex:1">
@@ -416,23 +417,26 @@ ob_start();
       <td style="white-space:nowrap">
         <!-- View detail modal — Quotation/Itinerary downloads, Voucher,
              Quote and Track links all live inside the modal now, so this
-             row stays to just the 3 most-used actions. -->
-        <button onclick="viewBooking('<?= htmlspecialchars($b['booking_ref']) ?>')"
-                class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .6rem">
-          View
-        </button>
-        <!-- Email booking confirmation -->
-        <a href="../api/booking_email.php?ref=<?= urlencode($b['booking_ref']) ?>"
-           onclick="return confirmNavGuard(event, this.href, 'Send booking confirmation email to <?= htmlspecialchars(addslashes($b['email'])) ?>?')"
-           class="admin-btn admin-btn--tint-blue" style="font-size:.65rem;padding:.3rem .6rem">
-          Email
-        </a>
-        <!-- WhatsApp quick contact -->
-        <a href="https://wa.me/<?= preg_replace('/[^0-9]/','', $b['phone']??'') ?>?text=<?= urlencode('Hi '.$b['full_name'].', this is Safari Zangu regarding your booking '.$b['booking_ref'].'.') ?>"
-           target="_blank"
-           class="admin-btn admin-btn--success" style="font-size:.65rem;padding:.3rem .6rem">
-          WA
-        </a>
+             menu stays to just the 3 most-used actions. -->
+        <div class="admin-row-actions">
+          <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+          <div class="admin-row-actions-menu">
+            <button type="button" class="admin-row-actions-item" onclick="viewBooking('<?= htmlspecialchars($b['booking_ref']) ?>')">
+              <?= \App\Helpers\AdminIcon::render('eye', 14) ?> View
+            </button>
+            <!-- Email booking confirmation -->
+            <a href="../api/booking_email.php?ref=<?= urlencode($b['booking_ref']) ?>"
+               onclick="return confirmNavGuard(event, this.href, 'Send booking confirmation email to <?= htmlspecialchars(addslashes($b['email'])) ?>?')"
+               class="admin-row-actions-item">
+              <?= \App\Helpers\AdminIcon::render('email-template', 14) ?> Email
+            </a>
+            <!-- WhatsApp quick contact -->
+            <a href="https://wa.me/<?= preg_replace('/[^0-9]/','', $b['phone']??'') ?>?text=<?= urlencode('Hi '.$b['full_name'].', this is Safari Zangu regarding your booking '.$b['booking_ref'].'.') ?>"
+               target="_blank" class="admin-row-actions-item">
+              WhatsApp
+            </a>
+          </div>
+        </div>
       </td>
     </tr>
     <?php endforeach; ?>
@@ -654,7 +658,7 @@ function editBooking() {
     + field('Full Name', '<input class="admin-input" name="full_name" value="'+esc(b.full_name)+'" required>')
     + field('Email', '<input class="admin-input" type="email" name="email" value="'+esc(b.email)+'" required>')
     + field('Phone', '<input class="admin-input" name="phone" value="'+esc(b.phone)+'" required>')
-    + field('Country', '<input class="admin-input" name="country" value="'+esc(b.country)+'" placeholder="e.g. United Kingdom">')
+    + field('Country', '<input class="admin-input" name="country" list="country-list" value="'+esc(b.country)+'" placeholder="e.g. United Kingdom">')
     + field('Travel Date', '<input class="admin-input" type="date" name="travel_date" value="'+esc(b.travel_date)+'" required>')
     + field('Adults', '<input class="admin-input" type="number" min="1" name="adults" value="'+esc(b.adults||b.travelers||1)+'" required>')
     + field('Children', '<input class="admin-input" type="number" min="0" name="children" value="'+esc(b.children||0)+'">')

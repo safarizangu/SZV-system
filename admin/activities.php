@@ -23,17 +23,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     $price = (float)($_POST['price'] ?? 0);
     $unit  = $_POST['price_unit'] ?? 'per_person';
     $cat   = trim($_POST['category'] ?? '');
+    $loc   = trim($_POST['location'] ?? '');
     $act   = isset($_POST['is_active']) ? 1 : 0;
     $imgUrls = array_values(array_filter(array_map('trim', explode(',', $_POST['images_json'] ?? ''))));
     $images  = $imgUrls ? json_encode($imgUrls) : null;
     try {
         if ($id > 0) {
-            $db->prepare("UPDATE activities SET activity_key=?,name=?,description=?,price=?,price_unit=?,category=?,is_active=?,images_json=? WHERE id=?")
-               ->execute([$key,$name,$desc,$price,$unit,$cat,$act,$images,$id]);
+            $db->prepare("UPDATE activities SET activity_key=?,name=?,description=?,price=?,price_unit=?,category=?,location=?,is_active=?,images_json=? WHERE id=?")
+               ->execute([$key,$name,$desc,$price,$unit,$cat,$loc,$act,$images,$id]);
         } else {
-            $db->prepare("INSERT INTO activities(activity_key,name,description,price,price_unit,category,is_active,images_json) VALUES(?,?,?,?,?,?,?,?)")
-               ->execute([$key,$name,$desc,$price,$unit,$cat,$act,$images]);
+            $db->prepare("INSERT INTO activities(activity_key,name,description,price,price_unit,category,location,is_active,images_json) VALUES(?,?,?,?,?,?,?,?,?)")
+               ->execute([$key,$name,$desc,$price,$unit,$cat,$loc,$act,$images]);
         }
+        if ($loc !== '') \App\Services\LocationRegistry::touchLocation($db, $loc);
         $msg = 'Saved.';
     } catch(Exception $e){ $msg = 'Error: '.$e->getMessage(); }
     header('Location: activities.php?msg='.urlencode($msg)); exit;
@@ -48,9 +50,10 @@ $msg  = htmlspecialchars($_GET['msg'] ?? '');
 $edit = null;
 if (isset($_GET['edit'])) { try { $s=$db->prepare("SELECT * FROM activities WHERE id=?"); $s->execute([(int)$_GET['edit']]); $edit=$s->fetch(); } catch(Exception $e){} }
 $rows = [];
-try { $rows = $db->query("SELECT * FROM activities ORDER BY category, name LIMIT 200")->fetchAll(); }
+try { $rows = $db->query("SELECT * FROM activities ORDER BY location, category, name LIMIT 200")->fetchAll(); }
 catch(Exception $e){}
 $galleryImgs = $edit ? (json_decode($edit['images_json'] ?? '[]', true) ?: []) : [];
+$allLocations = \App\Services\LocationRegistry::allLocations($db);
 ?>
 <?php if($msg): ?><div class="admin-alert admin-alert--<?= str_starts_with($msg,'Error')?'error':'success' ?>"><?= $msg ?></div><?php endif; ?>
 <div class="admin-card" style="margin-bottom:1.5rem">
@@ -59,23 +62,29 @@ $galleryImgs = $edit ? (json_decode($edit['images_json'] ?? '[]', true) ?: []) :
   </div>
 <div class="admin-table-wrap">
 <table class="admin-table">
-<thead><tr><th>Key</th><th>Name</th><th>Category</th><th>Price</th><th>Unit</th><th>Active</th><th>Actions</th></tr></thead>
+<thead><tr><th>Key</th><th>Name</th><th>Location</th><th>Category</th><th>Price</th><th>Unit</th><th>Active</th><th>Actions</th></tr></thead>
 <tbody>
 <?php foreach ($rows as $r): ?>
 <tr>
   <td><code><?= htmlspecialchars($r['activity_key']) ?></code></td>
   <td><?= htmlspecialchars($r['name']) ?></td>
+  <td><?= htmlspecialchars($r['location']??'—') ?></td>
   <td><?= htmlspecialchars($r['category']??'—') ?></td>
   <td>$<?= number_format($r['price'],2) ?></td>
   <td><?= htmlspecialchars($r['price_unit']) ?></td>
   <td><?= $r['is_active'] ? '<span class="badge-status badge-status--green">Active</span>' : '<span class="badge-status badge-status--gray">Inactive</span>' ?></td>
   <td>
-    <a href="?edit=<?= $r['id'] ?>" class="admin-btn admin-btn--outline" style="font-size:.7rem">Edit</a>
-    <form method="POST" style="display:inline" onsubmit="return confirmSubmitGuard(event, this, 'Delete this activity?', {danger:true})">
-      <?= \App\Middleware\CsrfMiddleware::field() ?>
-      <input type="hidden" name="delete_id" value="<?= $r['id'] ?>">
-      <button class="admin-btn admin-btn--danger" style="font-size:.7rem">Delete</button>
-    </form>
+    <div class="admin-row-actions">
+      <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+      <div class="admin-row-actions-menu">
+        <a href="?edit=<?= $r['id'] ?>" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('edit', 14) ?> Edit</a>
+        <form method="POST" onsubmit="return confirmSubmitGuard(event, this, 'Delete this activity?', {danger:true})">
+          <?= \App\Middleware\CsrfMiddleware::field() ?>
+          <input type="hidden" name="delete_id" value="<?= $r['id'] ?>">
+          <button type="submit" class="admin-row-actions-item admin-row-actions-item--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?> Delete</button>
+        </form>
+      </div>
+    </div>
   </td>
 </tr>
 <?php endforeach; ?>
@@ -101,6 +110,8 @@ $galleryImgs = $edit ? (json_decode($edit['images_json'] ?? '[]', true) ?: []) :
             <input name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
           <div><label class="admin-label">Category</label>
             <input name="category" class="admin-input" value="<?= htmlspecialchars($edit['category']??'') ?>"></div>
+          <div><label class="admin-label">Location</label>
+            <input name="location" class="admin-input" list="location-list" value="<?= htmlspecialchars($edit['location']??'') ?>" placeholder="e.g. Serengeti"></div>
           <div><label class="admin-label">Price (USD)</label>
             <input name="price" data-av="required min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['price']??0 ?>"></div>
           <div><label class="admin-label">Price Unit</label>
@@ -162,6 +173,12 @@ $galleryImgs = $edit ? (json_decode($edit['images_json'] ?? '[]', true) ?: []) :
     </div>
   </div>
 </div>
+
+<datalist id="location-list">
+  <?php foreach ($allLocations as $__l): ?>
+  <option value="<?= htmlspecialchars($__l['name']) ?>">
+  <?php endforeach; ?>
+</datalist>
 
 <script src="<?= BASE_PATH ?>/assets/js/admin-gallery-picker.js"></script>
 <script>
