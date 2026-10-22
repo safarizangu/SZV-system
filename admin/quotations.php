@@ -448,4 +448,4 @@ document.getElementById('convert-form').addEventListener('submit', async functio
 
 <?php
 $content = ob_get_clean();
-require_once __DIR__ . '/../layouts/admin.php';
+require_once __DIR__ . '/../layouts/' . ($isAgentUser ? 'agent.php' : 'admin.php');

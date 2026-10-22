@@ -367,8 +367,8 @@ ob_start();
            target="_blank"
            class="admin-btn admin-btn--success" style="font-size:.65rem;padding:.3rem .55rem">WA</a>
         <?php if (!empty($r['email'])): ?>
-        <a href="../admin/quotation_new.php?from_lead=<?= $r['id'] ?>" target="_blank"
-           class="admin-btn admin-btn--tint-blue" style="font-size:.65rem;padding:.3rem .55rem">Quote ↗</a>
+        <a href="../admin/quotation_new.php?from_lead=<?= $r['id'] ?>"
+           class="admin-btn admin-btn--tint-blue" style="font-size:.65rem;padding:.3rem .55rem">Quote</a>
         <?php endif; ?>
       </td>
     </tr>

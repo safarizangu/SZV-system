@@ -85,14 +85,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_agent_rate']))
 $msg = htmlspecialchars($_GET['msg'] ?? '');
 
 // Load commissions — agents see only their own
-$comms = [];
+$page    = max(1,(int)($_GET['page'] ?? 1));
+$perPage = 50;
+$offset  = ($page-1)*$perPage;
+$comms = []; $totalRows = 0; $totalPages = 0;
 try {
+    $countSql = "SELECT COUNT(*) FROM commissions c" . ($isAgentUser ? " WHERE c.agent_id=?" : "");
+    $cstmt = $db->prepare($countSql);
+    $cstmt->execute($isAgentUser ? [$myId] : []);
+    $totalRows  = (int)$cstmt->fetchColumn();
+    $totalPages = (int)ceil($totalRows/$perPage);
+
     $commsSql = "SELECT c.*, u.full_name as agent_name, u.email as agent_email,
         u.commission_rate as agent_default_rate
         FROM commissions c
         LEFT JOIN admin_users u ON u.id=c.agent_id"
         . ($isAgentUser ? " WHERE c.agent_id=?" : "")
-        . " ORDER BY c.created_at DESC LIMIT 200";
+        . " ORDER BY c.created_at DESC LIMIT $perPage OFFSET $offset";
     $stmt = $db->prepare($commsSql);
     $stmt->execute($isAgentUser ? [$myId] : []);
     $comms = $stmt->fetchAll();
@@ -250,6 +259,16 @@ ob_start();
     </tbody>
   </table>
   </div>
+<?php if ($totalPages > 1): ?>
+<div class="pagination" style="border-top:none">
+  <span style="font-size:.75rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?> (<?= number_format($totalRows) ?> total)</span>
+  <div class="page-btns">
+    <?php for ($i=1; $i<=$totalPages; $i++): ?>
+    <a href="?page=<?= $i ?>" class="page-btn<?= $i===$page?' active':'' ?>"><?= $i ?></a>
+    <?php endfor; ?>
+  </div>
+</div>
+<?php endif; ?>
 </div>
 
 <script>

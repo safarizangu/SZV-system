@@ -105,15 +105,10 @@ ob_start();
   <div class="admin-card">
     <div class="admin-card-header"><h3>Quick Actions</h3></div>
     <div class="admin-card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
-      <a href="leads.php"        class="admin-btn admin-btn--primary" style="justify-content:center">+ Add Lead</a>
-      <a href="commissions.php"  class="admin-btn admin-btn--outline" style="justify-content:center">Commissions</a>
-      <a href="profile.php"      class="admin-btn admin-btn--muted"   style="justify-content:center;grid-column:1 / -1">Edit Profile</a>
-    </div>
-    <div class="admin-card-body" style="padding-top:0;border-top:1px solid var(--gray-100)">
-      <p style="font-size:.72rem;color:var(--gray-500);line-height:1.6">
-        Ready to put a price on a lead? Build a full quotation in the admin tools —
-        <a href="../admin/quotation_new.php" class="admin-link" target="_blank">open quotation builder ↗</a>
-      </p>
+      <a href="leads.php"               class="admin-btn admin-btn--primary" style="justify-content:center">+ Add Lead</a>
+      <a href="../admin/quotation_new.php" class="admin-btn admin-btn--primary" style="justify-content:center">+ New Quotation</a>
+      <a href="commissions.php"         class="admin-btn admin-btn--outline" style="justify-content:center">Commissions</a>
+      <a href="profile.php"             class="admin-btn admin-btn--muted"   style="justify-content:center">Edit Profile</a>
     </div>
   </div>
 

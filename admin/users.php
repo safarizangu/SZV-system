@@ -83,8 +83,15 @@ if ($editId) {
     catch(Exception $e){}
 }
 
-$users = [];
-try { $users = $db->query("SELECT * FROM admin_users ORDER BY id ASC LIMIT 200")->fetchAll(); }
+$page    = max(1,(int)($_GET['page'] ?? 1));
+$perPage = 50;
+$offset  = ($page-1)*$perPage;
+$users = []; $totalRows = 0; $totalPages = 0;
+try {
+    $totalRows  = (int)$db->query("SELECT COUNT(*) FROM admin_users")->fetchColumn();
+    $totalPages = (int)ceil($totalRows/$perPage);
+    $users = $db->query("SELECT * FROM admin_users ORDER BY id ASC LIMIT $perPage OFFSET $offset")->fetchAll();
+}
 catch(Exception $e){ $error = $e->getMessage(); }
 
 ob_start();
@@ -155,6 +162,16 @@ ob_start();
       </tbody>
     </table>
     </div>
+<?php if ($totalPages > 1): ?>
+<div class="pagination" style="border-top:none">
+  <span style="font-size:.75rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?> (<?= number_format($totalRows) ?> total)</span>
+  <div class="page-btns">
+    <?php for ($i=1; $i<=$totalPages; $i++): ?>
+    <a href="?page=<?= $i ?>" class="page-btn<?= $i===$page?' active':'' ?>"><?= $i ?></a>
+    <?php endfor; ?>
+  </div>
+</div>
+<?php endif; ?>
 </div>
 
 <div class="admin-card" style="margin-top:1rem">

@@ -39,11 +39,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         if ($ref && in_array($status, $allowed, true)) {
-            $prevStatus = $db->prepare("SELECT payment_status FROM bookings WHERE booking_ref=? LIMIT 1");
-            $prevStatus->execute([$ref]);
-            $prevStatus = $prevStatus->fetchColumn();
+            $prevRow = $db->prepare("SELECT payment_status, quotation_id FROM bookings WHERE booking_ref=? LIMIT 1");
+            $prevRow->execute([$ref]);
+            $prevRow = $prevRow->fetch();
+            $prevStatus = $prevRow['payment_status'] ?? null;
             $wasFullyPaid    = $prevStatus === 'fully_paid';
             $wasDepositPaid  = $prevStatus === 'deposit_paid';
+            $wasCancelled    = $prevStatus === 'cancelled';
 
             if ($status === 'deposit_paid') {
                 $db->prepare("UPDATE bookings SET payment_status=?, amount_paid=?, updated_at=NOW() WHERE booking_ref=?")
@@ -59,6 +61,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                    ->execute([$status, $ref]);
             }
             \App\Services\ActivityLog::record('update_status', 'booking', 0, ['booking_ref'=>$ref,'status'=>$status,'amount_paid'=>$amountPaid]);
+
+            // A genuine new cancellation — claw back any not-yet-paid
+            // commission tied to this booking's lead, and mark the lead
+            // 'lost', so an agent is never paid commission on a trip that
+            // fell through and nobody has to remember to do this by hand.
+            // Leaves an already-paid commission alone (that's a real payout
+            // dispute, not something to silently reverse) and never
+            // resurrects a lead that's already further along a different
+            // path (travelled/completed).
+            if ($status === 'cancelled' && !$wasCancelled && !empty($prevRow['quotation_id'])) {
+                try {
+                    $leadId = $db->prepare("SELECT lead_id FROM quotations WHERE id=?");
+                    $leadId->execute([(int)$prevRow['quotation_id']]);
+                    $leadId = $leadId->fetchColumn();
+                    if ($leadId) {
+                        $db->prepare("UPDATE commissions SET status='cancelled', updated_at=NOW() WHERE lead_id=? AND status NOT IN ('paid','cancelled')")
+                           ->execute([$leadId]);
+                        $db->prepare("UPDATE leads SET pipeline_stage='lost', updated_at=NOW() WHERE id=? AND pipeline_stage NOT IN ('travelled','completed','lost')")
+                           ->execute([$leadId]);
+                        \App\Services\ActivityLog::record('update_status', 'commission', (int)$leadId, ['reason'=>'booking_cancelled','booking_ref'=>$ref]);
+                    }
+                } catch (\Throwable $e) { error_log('[SZV Booking Cancel Clawback] '.$e->getMessage()); }
+            }
 
             $invoiceEmailSent = false;
             // Fires once per genuine transition INTO fully_paid — not on
@@ -425,11 +450,14 @@ ob_start();
               <?= \App\Helpers\AdminIcon::render('eye', 14) ?> View
             </button>
             <!-- Email booking confirmation -->
-            <a href="../api/booking_email.php?ref=<?= urlencode($b['booking_ref']) ?>"
-               onclick="return confirmNavGuard(event, this.href, 'Send booking confirmation email to <?= htmlspecialchars(addslashes($b['email'])) ?>?')"
-               class="admin-row-actions-item">
-              <?= \App\Helpers\AdminIcon::render('email-template', 14) ?> Email
-            </a>
+            <form method="POST" action="../api/booking_email.php" style="display:inline"
+                  onsubmit="return confirmSubmitGuard(event, this, 'Send booking confirmation email to <?= htmlspecialchars(addslashes($b['email'])) ?>?')">
+              <?= \App\Middleware\CsrfMiddleware::field() ?>
+              <input type="hidden" name="ref" value="<?= htmlspecialchars($b['booking_ref']) ?>">
+              <button type="submit" class="admin-row-actions-item">
+                <?= \App\Helpers\AdminIcon::render('email-template', 14) ?> Email
+              </button>
+            </form>
             <!-- WhatsApp quick contact -->
             <a href="https://wa.me/<?= preg_replace('/[^0-9]/','', $b['phone']??'') ?>?text=<?= urlencode('Hi '.$b['full_name'].', this is Safari Zangu regarding your booking '.$b['booking_ref'].'.') ?>"
                target="_blank" class="admin-row-actions-item">

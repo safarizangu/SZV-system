@@ -147,7 +147,9 @@ class Mailer
 
         try {
             $db  = Database::getInstance();
-            $row = $db->query("SELECT * FROM email_queue WHERE id={$queueId} LIMIT 1")->fetch();
+            $row = $db->prepare("SELECT * FROM email_queue WHERE id=? LIMIT 1");
+            $row->execute([$queueId]);
+            $row = $row->fetch();
             if (!$row || $row['status'] !== 'pending') return;
 
             $db->prepare("UPDATE email_queue SET attempts=attempts+1 WHERE id=?")->execute([$queueId]);

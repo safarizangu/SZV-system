@@ -29,7 +29,7 @@ try {
         WHERE b.payment_status != 'cancelled' AND b.travel_date = " . $db->quote($date) . "
         ORDER BY b.full_name
     ")->fetchAll();
-} catch (\Exception $e) { die('DB error: ' . $e->getMessage()); }
+} catch (\Exception $e) { error_log('[manifest_pdf] ' . $e->getMessage()); die('Could not load this document. Please try again or contact support.'); }
 
 $totalPax = array_sum(array_map(fn($b) => (int)$b['adults'] + (int)$b['children'], $bookings));
 $logoPath = BASE_PATH . '/assets/images/logo.jpeg';

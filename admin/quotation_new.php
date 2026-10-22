@@ -411,7 +411,11 @@ ob_start();
     &nbsp;·&nbsp;
     <a href="quotations.php" style="font-weight:700">← All Quotations</a>
     &nbsp;·&nbsp;
-    <a href="../api/quotation_email.php?id=<?= $id ?>" style="font-weight:700">Send Email</a>
+    <form method="POST" action="../api/quotation_email.php" style="display:inline">
+      <?= \App\Middleware\CsrfMiddleware::field() ?>
+      <input type="hidden" name="id" value="<?= $id ?>">
+      <button type="submit" style="font-weight:700;background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-family:inherit;font-size:inherit;padding:0">Send Email</button>
+    </form>
     &nbsp;·&nbsp;
     <a href="../api/quotation_pdf.php?id=<?= $id ?>" target="_blank" style="font-weight:700">PDF <?= \App\Helpers\AdminIcon::render('external-link', 12) ?></a>
     &nbsp;·&nbsp;
@@ -420,11 +424,25 @@ ob_start();
 </div>
 <?php endif; ?>
 
+<?php if ($id && ($q['status'] ?? '') === 'converted'): ?>
+<div class="admin-alert admin-alert--info">
+    <b>Linked to Booking <?= htmlspecialchars($q['booking_ref'] ?? '') ?>.</b>
+    Changes here update that booking immediately, including its total and deposit amounts.
+    <?php if ($q['booking_ref']): ?>
+    <a href="bookings.php?view=<?= urlencode($q['booking_ref']) ?>" style="font-weight:700;margin-left:.4rem">View Booking →</a>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
 <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-bottom:1.25rem;flex-wrap:wrap">
     <?php if($id): ?>
     <a href="../api/quotation_pdf.php?id=<?= $id ?>" target="_blank" class="admin-btn admin-btn--outline">PDF <?= \App\Helpers\AdminIcon::render('external-link', 13) ?></a>
     <a href="../api/quotation_itinerary_pdf.php?id=<?= $id ?>" target="_blank" class="admin-btn admin-btn--outline">Itinerary PDF <?= \App\Helpers\AdminIcon::render('external-link', 13) ?></a>
-    <a href="../api/quotation_email.php?id=<?= $id ?>" class="admin-btn admin-btn--primary">Send Email</a>
+    <form method="POST" action="../api/quotation_email.php" style="display:inline">
+      <?= \App\Middleware\CsrfMiddleware::field() ?>
+      <input type="hidden" name="id" value="<?= $id ?>">
+      <button type="submit" class="admin-btn admin-btn--primary">Send Email</button>
+    </form>
     <?php endif; ?>
     <a href="quotations.php" class="admin-btn admin-btn--muted">← All Quotations</a>
 </div>
@@ -599,13 +617,13 @@ ob_start();
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
           <div><label class="admin-label">Location / Park</label>
-            <input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="<?= $i ?>" oninput="filterDayOptions(<?= $i ?>); syncDestinationsFromDays()"
+            <input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="<?= $i ?>" oninput="scheduleFilterDayOptions(<?= $i ?>); syncDestinationsFromDays()"
                    value="<?= htmlspecialchars($day['location']??'') ?>" placeholder="e.g. Serengeti National Park"></div>
           <div><label class="admin-label">Day Description</label>
             <textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"><?= htmlspecialchars($day['description']??'') ?></textarea></div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div class="day-resource-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
 
           <!-- Accommodation -->
           <div style="border:1px solid var(--gray-200);padding:.85rem;background:#eff6ff20">
@@ -890,10 +908,9 @@ ob_start();
                class="admin-btn admin-btn--outline" style="width:100%;justify-content:center;margin-bottom:.5rem">
                 Itinerary PDF Preview <?= \App\Helpers\AdminIcon::render('external-link', 13) ?>
             </a>
-            <a href="../api/quotation_email.php?id=<?= $id ?>"
-               class="admin-btn admin-btn--success" style="width:100%;justify-content:center">
+            <button type="submit" form="send-quote-email-form" class="admin-btn admin-btn--success" style="width:100%;justify-content:center">
                 Send to Client
-            </a>
+            </button>
             <?php endif; ?>
         </div>
     </div>
@@ -902,6 +919,18 @@ ob_start();
 
 </div><!-- /grid -->
 </form>
+
+<!-- A real <form>, kept outside #quote-form since forms can't nest — the
+     "Send to Client" button above targets this one via its form="..."
+     attribute, so it still gets a full browser navigation (matching the
+     Location redirect api/quotation_email.php sends back) rather than a
+     fetch() call that couldn't follow it the same way. -->
+<?php if ($id): ?>
+<form method="POST" action="../api/quotation_email.php" id="send-quote-email-form" style="display:none">
+  <?= \App\Middleware\CsrfMiddleware::field() ?>
+  <input type="hidden" name="id" value="<?= $id ?>">
+</form>
+<?php endif; ?>
 
 <script>
 var fmt = function(n){ return '$'+Math.round(n).toLocaleString('en-US'); };
@@ -1280,6 +1309,17 @@ function locMatch(a, b) {
   return false;
 }
 
+// Debounced per-day — the location field rebuilds 3 datalists from the
+// full in-memory accommodation/park/activity arrays on every call, so an
+// un-debounced oninput firing on every keystroke gets more expensive as
+// the catalog grows. Keyed by dayIdx so typing in one day's field can't
+// cancel or delay another day's pending rebuild.
+var _filterDayOptionsTimers = {};
+function scheduleFilterDayOptions(dayIdx) {
+  if (_filterDayOptionsTimers[dayIdx]) clearTimeout(_filterDayOptionsTimers[dayIdx]);
+  _filterDayOptionsTimers[dayIdx] = setTimeout(function(){ filterDayOptions(dayIdx); }, 150);
+}
+
 function filterDayOptions(dayIdx) {
   var locInput = document.querySelector('.day-location[data-idx="'+dayIdx+'"]');
   var loc      = locInput ? locInput.value : '';
@@ -1409,10 +1449,10 @@ function peDayBlockHtml(i) {
     +'</div>'
     +'<div class="admin-card-body">'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">'
-        +'<div><label class="admin-label">Location / Park</label><input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="'+i+'" oninput="filterDayOptions('+i+'); syncDestinationsFromDays()" placeholder="e.g. Serengeti National Park"></div>'
+        +'<div><label class="admin-label">Location / Park</label><input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="'+i+'" oninput="scheduleFilterDayOptions('+i+'); syncDestinationsFromDays()" placeholder="e.g. Serengeti National Park"></div>'
         +'<div><label class="admin-label">Day Description</label><textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"></textarea></div>'
       +'</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">'
+      +'<div class="day-resource-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">'
         +'<div style="border:1px solid var(--gray-200);padding:.85rem;background:#eff6ff20">'
           +'<p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8"><?= \App\Helpers\AdminIcon::render('accommodations', 13) ?> Accommodation</p>'
           +'<input type="hidden" name="day_acc_id[]" class="day-acc-id" value="0">'
@@ -1543,7 +1583,7 @@ async function loadItinerary() {
   var id     = document.getElementById('itin_select').value;
   var adults = parseInt(document.getElementById('inp_adults').value)||2;
   document.getElementById('itinerary_id').value = id;
-  if (!id) { alert('Please select an itinerary first.'); return; }
+  if (!id) { toast('Please select an itinerary first.','err'); return; }
 
   var btn = document.getElementById('load-itin-btn');
   btn.disabled = true; btn.textContent = 'Loading…';
@@ -1552,7 +1592,7 @@ async function loadItinerary() {
     var url = (window.BASE_PATH||'')+'/api/itinerary.php?action=get&id='+id;
     var r   = await fetch(url, {credentials:'same-origin'});
     var d   = await r.json();
-    if (!d.success) { alert('Error: '+(d.message||'Failed')); btn.disabled=false; btn.textContent='Load Itinerary'; return; }
+    if (!d.success) { toast('Error: '+(d.message||'Failed'),'err'); btn.disabled=false; btn.textContent='Load Itinerary'; return; }
 
     var itin = d.data;
     var days = itin.days || [];
@@ -1641,8 +1681,8 @@ async function loadItinerary() {
     document.getElementById('excludes_ta').value = (itin.excludes||[]).join('\n');
     includesDirty = false; excludesDirty = false;
 
-    alert('Itinerary "'+itin.name+'" loaded — '+itin.duration_days+' days filled. Review and save.');
-  } catch(e) { alert('Network error: '+e.message); }
+    toast('Itinerary "'+itin.name+'" loaded — '+itin.duration_days+' days filled. Review and save.','ok');
+  } catch(e) { toast('Network error: '+e.message,'err'); }
   btn.disabled = false; btn.textContent = 'Load Itinerary';
 }
 
@@ -1819,4 +1859,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </script>
 
-<?php $content=ob_get_clean(); require_once __DIR__.'/../layouts/admin.php'; ?>
+<?php $content=ob_get_clean(); require_once __DIR__.'/../layouts/' . ($isAgentUser ? 'agent.php' : 'admin.php'); ?>

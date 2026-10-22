@@ -17,8 +17,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_id'])) {
     header('Location: packages.php'); exit;
 }
 
-$packages = [];
-try { $packages = $db->query("SELECT * FROM packages ORDER BY sort_order ASC, id ASC LIMIT 200")->fetchAll(); }
+$page    = max(1,(int)($_GET['page'] ?? 1));
+$perPage = 50;
+$offset  = ($page-1)*$perPage;
+$packages = []; $totalRows = 0; $totalPages = 0;
+try {
+    $totalRows  = (int)$db->query("SELECT COUNT(*) FROM packages")->fetchColumn();
+    $totalPages = (int)ceil($totalRows/$perPage);
+    $packages = $db->query("SELECT * FROM packages ORDER BY sort_order ASC, id ASC LIMIT $perPage OFFSET $offset")->fetchAll();
+}
 catch(\Exception $e){ error_log($e->getMessage()); }
 $levelLabels = ['budget'=>'Budget','midrange'=>'Mid-Range','highend'=>'High-End','luxury'=>'Luxury','ultra_luxury'=>'Ultra Luxury'];
 
@@ -99,5 +106,15 @@ ob_start();
 </div>
 <?php endif; ?>
 </div>
+<?php if ($totalPages > 1): ?>
+<div class="pagination" style="border-top:none">
+  <span style="font-size:.75rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?> (<?= number_format($totalRows) ?> total)</span>
+  <div class="page-btns">
+    <?php for ($i=1; $i<=$totalPages; $i++): ?>
+    <a href="?page=<?= $i ?>" class="page-btn<?= $i===$page?' active':'' ?>"><?= $i ?></a>
+    <?php endfor; ?>
+  </div>
+</div>
+<?php endif; ?>
 
 <?php $content=ob_get_clean(); require_once __DIR__.'/../layouts/admin.php'; ?>

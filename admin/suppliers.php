@@ -137,11 +137,16 @@ if (isset($_GET['edit'])) {
     try { $s = $db->prepare("SELECT * FROM suppliers WHERE id=?"); $s->execute([(int)$_GET['edit']]); $edit = $s->fetch(); }
     catch (\Exception $e) {}
 }
-$rows = [];
+$page    = max(1,(int)($_GET['page'] ?? 1));
+$perPage = 50;
+$offset  = ($page-1)*$perPage;
+$rows = []; $totalRows = 0; $totalPages = 0;
 try {
+    $totalRows  = (int)$db->query("SELECT COUNT(*) FROM suppliers")->fetchColumn();
+    $totalPages = (int)ceil($totalRows/$perPage);
     $rows = $db->query("
         SELECT s.*, (SELECT COUNT(*) FROM accommodations a WHERE a.supplier_id = s.id) AS linked_accommodations
-        FROM suppliers s ORDER BY s.is_active DESC, s.name LIMIT 200
+        FROM suppliers s ORDER BY s.is_active DESC, s.name LIMIT $perPage OFFSET $offset
     ")->fetchAll();
 } catch (\Exception $e) {}
 
@@ -199,6 +204,16 @@ ob_start();
   </tr>
   <?php endforeach; ?>
   </tbody></table></div>
+<?php if ($totalPages > 1): ?>
+<div class="pagination" style="border-top:none">
+  <span style="font-size:.75rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?> (<?= number_format($totalRows) ?> total)</span>
+  <div class="page-btns">
+    <?php for ($i=1; $i<=$totalPages; $i++): ?>
+    <a href="?page=<?= $i ?>" class="page-btn<?= $i===$page?' active':'' ?>"><?= $i ?></a>
+    <?php endfor; ?>
+  </div>
+</div>
+<?php endif; ?>
 </div>
 
 <!-- Add/Edit modal -->

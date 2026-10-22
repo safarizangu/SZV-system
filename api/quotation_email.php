@@ -2,28 +2,28 @@
 /**
  * php/quotation_email.php
  * Send a quotation by email to the client via PHPMailer.
- * Called from admin/quotations.php (POST form) or admin/quotation_new.php.
+ * Called from admin/quotations.php and admin/quotation_new.php, both via
+ * POST + CSRF — sends a real email to the client, so a plain GET link
+ * (the previous admin/quotation_new.php behavior) isn't safe here.
  */
 ob_start();
 require_once __DIR__ . '/../app/bootstrap.php';
 
 use App\Middleware\AuthMiddleware;
 AuthMiddleware::requireAdmin();
-if (!defined('SZV_PDF_INTERNAL_RENDER') && \App\Services\OwnershipScope::isScoped()) {
-    $__qid = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: ' . BASE_PATH . '/admin/quotations.php?msg=' . urlencode('Invalid request method.'));
+    exit;
+}
+\App\Middleware\CsrfMiddleware::validateOrDie();
+if (\App\Services\OwnershipScope::isScoped()) {
+    $__qid = (int)($_POST['id'] ?? 0);
     if (!\App\Services\OwnershipScope::ownsQuotation(\App\Models\Database::getInstance(), $__qid, \App\Services\OwnershipScope::currentAgentId())) {
         \App\Services\AccessGuard::denyPlain('quotation', (string)$__qid, basename($_SERVER['SCRIPT_NAME']));
     }
 }
 
-// Only the POST form path (admin/quotations.php) carries a CSRF token —
-// the existing GET "Send Email" links (admin/quotation_new.php) predate
-// this check and stay as they were.
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    \App\Middleware\CsrfMiddleware::validateOrDie();
-}
-
-$id = (int)($_POST['id'] ?? $_GET['id'] ?? 0);
+$id = (int)($_POST['id'] ?? 0);
 if (!$id) {
     header('Location: ' . BASE_PATH . '/admin/quotations.php?msg=' . urlencode('No quotation ID.'));
     exit;
@@ -39,7 +39,8 @@ try {
         exit;
     }
 } catch (Exception $e) {
-    header('Location: ' . BASE_PATH . '/admin/quotations.php?msg=' . urlencode('DB error: ' . $e->getMessage()));
+    error_log('[quotation_email] ' . $e->getMessage());
+    header('Location: ' . BASE_PATH . '/admin/quotations.php?msg=' . urlencode('Could not load this quotation. Please try again or contact support.'));
     exit;
 }
 

@@ -48,10 +48,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
 $msg  = htmlspecialchars($_GET['msg'] ?? '');
 $edit = null;
 if (isset($_GET['edit'])) { try { $s=$db->prepare("SELECT * FROM vehicles WHERE id=?"); $s->execute([(int)$_GET['edit']]); $edit=$s->fetch(); } catch(Exception $e){} }
-$rows = [];
-try { $rows = $db->query("SELECT * FROM vehicles ORDER BY level, name LIMIT 200")->fetchAll(); }
+$page    = max(1,(int)($_GET['page'] ?? 1));
+$perPage = 50;
+$offset  = ($page-1)*$perPage;
+$rows = []; $totalRows = 0; $totalPages = 0;
+try {
+    $totalRows  = (int)$db->query("SELECT COUNT(*) FROM vehicles")->fetchColumn();
+    $totalPages = (int)ceil($totalRows/$perPage);
+    $rows = $db->query("SELECT * FROM vehicles ORDER BY level, name LIMIT $perPage OFFSET $offset")->fetchAll();
+}
 catch(Exception $e){}
 $galleryImgs = $edit ? (json_decode($edit['images_json'] ?? '[]', true) ?: []) : [];
+
+// Usage count for the delete-confirm warning — see the matching comment
+// in admin/accommodations.php for why this is a soft warning rather than
+// a hard block, and why it's 3 queries total instead of one per row.
+$vehUsageBlobs = [];
+try {
+    $vehUsageBlobs = array_merge(
+        $db->query("SELECT days AS j FROM itineraries")->fetchAll(\PDO::FETCH_COLUMN),
+        $db->query("SELECT itinerary AS j FROM quotations WHERE itinerary IS NOT NULL")->fetchAll(\PDO::FETCH_COLUMN),
+        $db->query("SELECT itinerary AS j FROM packages WHERE itinerary IS NOT NULL")->fetchAll(\PDO::FETCH_COLUMN)
+    );
+} catch (\Exception $e) {}
+function vehUsageCount(array $blobs, string $name): int {
+    if ($name === '') return 0;
+    // MySQL's JSON column type re-serializes with a space after the
+    // colon ("key": "value"), not the compact form a hand-written
+    // json_encode() would use — match that, not the compact form.
+    $needle = '"vehicle_name": "' . addcslashes($name, '"\\') . '"';
+    $count = 0;
+    foreach ($blobs as $b) { if ($b && str_contains($b, $needle)) $count++; }
+    return $count;
+}
 ?>
 <?php if($msg): ?><div class="admin-alert admin-alert--<?= str_starts_with($msg,'Error')?'error':'success' ?>"><?= $msg ?></div><?php endif; ?>
 <div class="admin-card" style="margin-bottom:1.5rem">
@@ -77,7 +106,13 @@ $galleryImgs = $edit ? (json_decode($edit['images_json'] ?? '[]', true) ?: []) :
       <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
       <div class="admin-row-actions-menu">
         <a href="?edit=<?= $r['id'] ?>" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('edit', 14) ?> Edit</a>
-        <form method="POST" onsubmit="return confirmSubmitGuard(event, this, 'Delete this vehicle?', {danger:true})">
+        <?php
+        $vehUsed = vehUsageCount($vehUsageBlobs, $r['name']);
+        $vehDeleteMsg = $vehUsed > 0
+            ? "Delete this vehicle? It appears in {$vehUsed} saved itinerary/quotation/package day plan" . ($vehUsed!==1?'s':'') . " — those keep their own saved rate and won't break, but it will no longer be offered for new ones."
+            : 'Delete this vehicle?';
+        ?>
+        <form method="POST" onsubmit="return confirmSubmitGuard(event, this, '<?= htmlspecialchars(addslashes($vehDeleteMsg)) ?>', {danger:true})">
           <?= \App\Middleware\CsrfMiddleware::field() ?>
           <input type="hidden" name="delete_id" value="<?= $r['id'] ?>">
           <button type="submit" class="admin-row-actions-item admin-row-actions-item--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?> Delete</button>
@@ -88,6 +123,16 @@ $galleryImgs = $edit ? (json_decode($edit['images_json'] ?? '[]', true) ?: []) :
 </tr>
 <?php endforeach; ?>
 </tbody></table></div>
+<?php if ($totalPages > 1): ?>
+<div class="pagination" style="border-top:none">
+  <span style="font-size:.75rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?> (<?= number_format($totalRows) ?> total)</span>
+  <div class="page-btns">
+    <?php for ($i=1; $i<=$totalPages; $i++): ?>
+    <a href="?page=<?= $i ?>" class="page-btn<?= $i===$page?' active':'' ?>"><?= $i ?></a>
+    <?php endfor; ?>
+  </div>
+</div>
+<?php endif; ?>
 </div>
 
 <!-- Add/Edit modal -->

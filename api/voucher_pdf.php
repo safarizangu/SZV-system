@@ -30,7 +30,7 @@ try {
     $s->execute([$ref]);
     $b = $s->fetch();
     if (!$b) { http_response_code(404); die('Booking not found.'); }
-} catch (\Exception $e) { die('DB error: ' . $e->getMessage()); }
+} catch (\Exception $e) { error_log('[voucher_pdf] ' . $e->getMessage()); die('Could not load this document. Please try again or contact support.'); }
 
 // Same itinerary-resolution fallback as api/booking_pdf.php.
 $itinDays = [];

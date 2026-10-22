@@ -33,7 +33,7 @@ try {
     $s->execute([$ref]);
     $b = $s->fetch();
     if (!$b) { http_response_code(404); die('Booking not found.'); }
-} catch (\Exception $e) { die('DB error: '.$e->getMessage()); }
+} catch (\Exception $e) { error_log('[booking_itinerary_pdf] '.$e->getMessage()); die('Could not load this document. Please try again or contact support.'); }
 
 // Load the linked itinerary — prefer the booking's own itinerary_id (a
 // direct FK, reliable) and only fall back to matching by package name

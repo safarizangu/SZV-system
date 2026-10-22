@@ -124,3 +124,32 @@ foreach (['admin/quotation_new.php', 'admin/package_edit.php'] as $file) {
         assertTrue(str_contains($src, 'ratePerPerson'), "{$file}'s PE_ACCS no longer carries ratePerPerson — the JS preview would silently fall back to flat per-room pricing for every accommodation.");
     });
 }
+
+/**
+ * The EAC-resident-country list that drives resident park-fee pricing is
+ * hand-duplicated as a literal array in both PHP
+ * (ItineraryQuoteBuilder::EAC_RESIDENT_COUNTRIES, private) and JS
+ * (admin/quotation_new.php's PE_EAC_COUNTRIES) — unlike detectSeason()
+ * above, nothing previously caught the two drifting apart if either side
+ * were edited alone. Read via ReflectionClassConstant rather than making
+ * the PHP constant public just for this test.
+ */
+test('PHP EAC_RESIDENT_COUNTRIES and JS PE_EAC_COUNTRIES stay in sync', function () {
+    $ref = new ReflectionClassConstant(ItineraryQuoteBuilder::class, 'EAC_RESIDENT_COUNTRIES');
+    $phpList = $ref->getValue();
+    assertTrue(is_array($phpList) && count($phpList) > 0, 'Could not read EAC_RESIDENT_COUNTRIES via reflection — has it been renamed?');
+
+    $src = file_get_contents(__DIR__ . '/../../admin/quotation_new.php');
+    assertTrue($src !== false, 'Could not read admin/quotation_new.php');
+    assertTrue(
+        (bool)preg_match("/var PE_EAC_COUNTRIES\s*=\s*\[(.*?)\]/", $src, $m),
+        'Could not find "var PE_EAC_COUNTRIES = [...]" in admin/quotation_new.php — has it been renamed or removed?'
+    );
+
+    preg_match_all("/'([a-z]+)'/", $m[1], $jsMatches);
+    $jsList = $jsMatches[1];
+
+    sort($phpList);
+    sort($jsList);
+    assertSame($phpList, $jsList, 'PHP EAC_RESIDENT_COUNTRIES (' . implode(',', $phpList) . ') and JS PE_EAC_COUNTRIES (' . implode(',', $jsList) . ') have drifted apart — a country added or removed on one side needs the same change on the other.');
+});

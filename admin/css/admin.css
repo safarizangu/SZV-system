@@ -41,8 +41,8 @@
 
   --sidebar-w:   240px;
   --topbar-h:    72px;
-  --font-body:   'Times New Roman', Times, serif;
-  --font-disp:   'Times New Roman', Times, serif;
+  --font-body:   'Jost', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-disp:   'Playfair Display', Georgia, 'Times New Roman', serif;
   --radius:      2px;
   --shadow-sm:   0 1px 3px rgba(0,0,0,.07);
   --shadow-md:   0 4px 16px rgba(0,0,0,.10);
@@ -412,7 +412,7 @@ button.admin-nav-group {
 
 /* ── CARDS ──────────────────────────────────────────────────── */
 .admin-card          { background: var(--white); border: 1px solid var(--gray-200); }
-.admin-card-header   { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--gray-100); }
+.admin-card-header   { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 2px solid var(--gold); }
 .admin-card-header h2,.admin-card-header h3 { font-family: var(--font-disp); font-size: .95rem; font-weight: 700; }
 .admin-card-body     { padding: 1.25rem; }
 .admin-grid-2        { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
@@ -474,7 +474,7 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
   transition: background var(--transition), color var(--transition), border-color var(--transition);
 }
 .admin-btn--primary  { background: var(--black); color: var(--white); border-color: var(--black); }
-.admin-btn--primary:hover  { background: var(--black-hover); }
+.admin-btn--primary:hover  { background: var(--black-hover); border-color: var(--gold); }
 .admin-btn--outline  { background: var(--white); color: var(--black); border-color: var(--gray-300); }
 .admin-btn--outline:hover  { border-color: var(--black); }
 .admin-btn--success  { background: var(--green); color: var(--white); border-color: var(--green); }
@@ -758,6 +758,20 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
   div[style*="display:grid"] > * {
     min-width: 0;
   }
+
+  /* The Day-by-Day Itinerary's Accommodation/Vehicle/Park row (quotation_new.php,
+     package_edit.php, itinerary_edit.php) is the densest layout in the
+     admin panel — three side-by-side panels, each with its own
+     multi-field sub-grid. The generic ≤768px collapse below already
+     stacks it on phones, but at tablet widths (769-1024px, the realistic
+     device for an agent quoting in the field) it was still forced into
+     three equal columns with no room to breathe. Stacking it a full
+     breakpoint earlier, just for this one component, is cheaper than a
+     new accordion widget and fixes the actual complaint — each panel
+     gets the tablet's full width instead of a third of it. */
+  .day-resource-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 /* ── TABLET PORTRAIT (768px) ────────────────────────────────── */
@@ -999,7 +1013,7 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
   transition: border-color .18s;
   cursor: default;
 }
-.metric-card:hover { border-color: var(--black); }
+.metric-card:hover { border-color: var(--gold); }
 .metric-card--dark  { background: var(--black); border-color: var(--black); color: var(--white); }
 .metric-card--dark .metric-label,
 .metric-card--dark .metric-value,
@@ -1025,7 +1039,7 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 .admin-stat-value { font-family: var(--font-disp); font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
 .admin-stat-sub   { font-size: .62rem; opacity: .55; }
 .admin-stat-card  {
-  background: var(--white); border: 1.5px solid var(--gray-200);
+  background: var(--white); border: 1.5px solid var(--gray-200); border-top: 2.5px solid var(--gold);
   padding: .9rem 1.1rem; display: flex; flex-direction: column; gap: .15rem;
 }
 .admin-stat-card--amber { border-color: var(--amber-border); background: var(--amber-light); }

@@ -13,7 +13,13 @@ $pageTitle = 'Itinerary Manager';
 $msg = htmlspecialchars($_GET['msg'] ?? '');
 
 function fetchAll($db,$sql){try{return $db->query($sql)->fetchAll();}catch(\Exception $e){return[];}}
-$itineraries = fetchAll($db,"SELECT id,name,duration_days,base_price_pax,is_active,overview,includes,days FROM itineraries ORDER BY sort_order,name LIMIT 200");
+$page    = max(1,(int)($_GET['page'] ?? 1));
+$perPage = 50;
+$offset  = ($page-1)*$perPage;
+$totalRows  = 0;
+try { $totalRows = (int)$db->query("SELECT COUNT(*) FROM itineraries")->fetchColumn(); } catch(\Exception $e){}
+$totalPages = (int)ceil($totalRows/$perPage);
+$itineraries = fetchAll($db,"SELECT id,name,duration_days,base_price_pax,is_active,overview,includes,days FROM itineraries ORDER BY sort_order,name LIMIT $perPage OFFSET $offset");
 
 // Build a "Lake Manyara · Ngorongoro · Serengeti" route line per card from
 // each day's own location field — consecutive repeats collapsed (a 2-night
@@ -108,6 +114,16 @@ ob_start();
   </div>
 </a>
 <?php endforeach; ?>
+</div>
+<?php endif; ?>
+<?php if ($totalPages > 1): ?>
+<div class="pagination" style="border-top:none">
+  <span style="font-size:.75rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?> (<?= number_format($totalRows) ?> total)</span>
+  <div class="page-btns">
+    <?php for ($i=1; $i<=$totalPages; $i++): ?>
+    <a href="?page=<?= $i ?>" class="page-btn<?= $i===$page?' active':'' ?>"><?= $i ?></a>
+    <?php endfor; ?>
+  </div>
 </div>
 <?php endif; ?>
 

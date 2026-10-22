@@ -37,8 +37,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
 $msg  = htmlspecialchars($_GET['msg'] ?? '');
 $edit = null;
 if (isset($_GET['edit'])) { try { $s=$db->prepare("SELECT * FROM seasonal_rates WHERE id=?"); $s->execute([(int)$_GET['edit']]); $edit=$s->fetch(); } catch(Exception $e){} }
-$rows = [];
-try { $rows = $db->query("SELECT * FROM seasonal_rates ORDER BY start_month LIMIT 200")->fetchAll(); }
+$page    = max(1,(int)($_GET['page'] ?? 1));
+$perPage = 50;
+$offset  = ($page-1)*$perPage;
+$rows = []; $totalRows = 0; $totalPages = 0;
+try {
+    $totalRows  = (int)$db->query("SELECT COUNT(*) FROM seasonal_rates")->fetchColumn();
+    $totalPages = (int)ceil($totalRows/$perPage);
+    $rows = $db->query("SELECT * FROM seasonal_rates ORDER BY start_month LIMIT $perPage OFFSET $offset")->fetchAll();
+}
 catch(Exception $e){}
 $months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 ?>
@@ -70,6 +77,16 @@ $months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','De
 </tr>
 <?php endforeach; ?>
 </tbody></table></div>
+<?php if ($totalPages > 1): ?>
+<div class="pagination" style="border-top:none">
+  <span style="font-size:.75rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?> (<?= number_format($totalRows) ?> total)</span>
+  <div class="page-btns">
+    <?php for ($i=1; $i<=$totalPages; $i++): ?>
+    <a href="?page=<?= $i ?>" class="page-btn<?= $i===$page?' active':'' ?>"><?= $i ?></a>
+    <?php endfor; ?>
+  </div>
+</div>
+<?php endif; ?>
 </div>
 
 <!-- Add/Edit modal -->

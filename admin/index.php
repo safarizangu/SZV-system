@@ -182,6 +182,11 @@ $pendingQuotes   = (int)sv($db,"SELECT COUNT(*) FROM quotations WHERE status IN 
 $newRequests     = (int)sv($db,"SELECT COUNT(*) FROM custom_safari_requests WHERE status='new'");
 $unreadMsgs      = (int)sv($db,"SELECT COUNT(*) FROM contact_messages WHERE is_read=0");
 $pendingRem      = (int)sv($db,"SELECT COUNT(*) FROM booking_reminders WHERE status='pending'");
+// "Overdue" mirrors the same 45-days-before-travel balance deadline used
+// everywhere else in the system (BookingReminderScheduler, the Live Cost
+// Summary's "Balance — due 45 days before" label): a booking that still
+// owes money once that date has arrived or passed.
+$overdueBalances = (int)sv($db,"SELECT COUNT(*) FROM bookings WHERE payment_status NOT IN ('fully_paid','cancelled') AND travel_date <= DATE_ADD(CURDATE(), INTERVAL 45 DAY)");
 
 $recentBookings = sa($db,"SELECT * FROM bookings ORDER BY created_at DESC LIMIT 8");
 $recentQuotes   = sa($db,"SELECT * FROM quotations ORDER BY created_at DESC LIMIT 5");
@@ -211,6 +216,12 @@ ob_start();
 
 <!-- METRIC CARDS -->
 <div class="admin-metrics-grid" style="margin-bottom:1.5rem">
+  <a href="bookings.php" style="text-decoration:none">
+  <div class="metric-card <?= $overdueBalances>0?'metric-card--red':'' ?>">
+    <span class="metric-label">Overdue Balances</span>
+    <span class="metric-value"><?= $overdueBalances ?></span>
+    <span class="metric-sub">Due within 45 days of travel, not yet paid</span>
+  </div></a>
   <a href="bookings.php" style="text-decoration:none">
   <div class="metric-card">
     <span class="metric-label">Bookings</span>

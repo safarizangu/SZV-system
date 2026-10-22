@@ -463,7 +463,7 @@ ob_start();
             <textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"><?= htmlspecialchars($day['description']??'') ?></textarea></div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div class="day-resource-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
 
           <!-- Accommodation -->
           <div class="itin-panel itin-panel--blue">
@@ -1258,7 +1258,7 @@ function peDayBlockHtml(i) {
         +'<div><label class="admin-label">Location / Park</label><input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="'+i+'" oninput="filterDayOptions('+i+')" placeholder="e.g. Serengeti National Park"></div>'
         +'<div><label class="admin-label">Day Description</label><textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"></textarea></div>'
       +'</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">'
+      +'<div class="day-resource-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">'
         +'<div class="itin-panel itin-panel--blue">'
           +'<p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8"><?= \App\Helpers\AdminIcon::render('accommodations', 13) ?> Accommodation</p>'
           +'<input type="hidden" name="day_acc_id[]" class="day-acc-id" value="0">'
@@ -1804,12 +1804,12 @@ calcTotals();
 // the next page load instead.
 async function loadPkgItinerary() {
   var id = document.getElementById('pkg_itin_select').value;
-  if (!id) { alert('Select an itinerary first.'); return; }
+  if (!id) { toast('Select an itinerary first.','err'); return; }
 
   try {
     var r = await fetch((window.BASE_PATH||'')+'/api/itinerary.php?action=get&id='+id, {credentials:'same-origin'});
     var d = await r.json();
-    if (!d.success) { alert('Error: '+d.message); return; }
+    if (!d.success) { toast('Error: '+d.message,'err'); return; }
 
     var itin = d.data;
 
@@ -1888,8 +1888,8 @@ async function loadPkgItinerary() {
     });
 
     calcItinTotal();
-    alert('Itinerary "'+itin.name+'" loaded — '+itin.duration_days+' days filled. Review and save.');
-  } catch(e) { alert('Error: '+e.message); }
+    toast('Itinerary "'+itin.name+'" loaded — '+itin.duration_days+' days filled. Review and save.','ok');
+  } catch(e) { toast('Error: '+e.message,'err'); }
 }
 
 // ── Link this package to an itinerary template permanently. Unlike
@@ -1899,7 +1899,7 @@ async function loadPkgItinerary() {
 // the Day-by-Day Itinerary section becomes the read-only, linked view.
 async function linkPkgItinerary() {
   var id = document.getElementById('pkg_itin_select').value;
-  if (!id) { alert('Select an itinerary first.'); return; }
+  if (!id) { toast('Select an itinerary first.','err'); return; }
   var ok = await confirmDialog('Link this package to that itinerary template? Its pricing and day-by-day display will then always follow the template — edit the itinerary in the Itinerary Manager instead of here.');
   if (!ok) return;
   window.location = (window.BASE_PATH||'') + '/admin/package_edit.php?id=<?= $id ?>&link=' + id;

@@ -267,7 +267,7 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
   </div>
 </main>
 
-<script src="<?= BASE_PATH ?>/admin/js/admin-validator.js"></script>
+<script src="<?= BASE_PATH ?>/admin/js/admin-validator.js?v=<?= @filemtime(__DIR__ . '/../admin/js/admin-validator.js') ?: time() ?>"></script>
 <script src="<?= BASE_PATH ?>/admin/js/admin.js?v=<?= @filemtime(__DIR__ . '/../admin/js/admin.js') ?: time() ?>"></script>
 <script>
 // ── Sidebar toggle (mobile) ──────────────────────────────────

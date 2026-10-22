@@ -31,7 +31,7 @@ try {
     $s->execute([$id]);
     $q = $s->fetch();
     if (!$q) die('Quotation not found.');
-} catch(Exception $e) { die('DB error: '.$e->getMessage()); }
+} catch(Exception $e) { error_log('[quotation_itinerary_pdf] '.$e->getMessage()); die('Could not load this document. Please try again or contact support.'); }
 
 // Same priority quotation_pdf.php always used for pricing: the
 // quotation's own itinerary/includes/excludes snapshot columns win when

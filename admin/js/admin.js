@@ -238,6 +238,21 @@
   (function () {
     var openWrap = null;
 
+    // ARIA roles for the dropdown — the toggle button already carries
+    // aria-haspopup/aria-expanded from its own markup; this is the one
+    // piece a screen reader needs to announce the panel as a menu rather
+    // than an unlabeled group of links. Applied once per menu (idempotent,
+    // safe to call again) rather than requiring every page that renders
+    // this markup to set it itself.
+    function ensureMenuRoles(menu) {
+      if (!menu || menu.getAttribute('role') === 'menu') return;
+      menu.setAttribute('role', 'menu');
+      menu.querySelectorAll('.admin-row-actions-item').forEach(function (item) {
+        item.setAttribute('role', 'menuitem');
+      });
+    }
+    document.querySelectorAll('.admin-row-actions-menu').forEach(ensureMenuRoles);
+
     function closeMenu() {
       if (!openWrap) return;
       var menu = openWrap.querySelector('.admin-row-actions-menu');
@@ -252,6 +267,7 @@
       var toggle = wrap.querySelector('.admin-row-actions-toggle');
       var menu   = wrap.querySelector('.admin-row-actions-menu');
       if (!toggle || !menu) return;
+      ensureMenuRoles(menu);
 
       menu.style.display = 'block';
       var tRect  = toggle.getBoundingClientRect();

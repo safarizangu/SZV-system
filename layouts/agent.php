@@ -15,17 +15,27 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
 <body class="agent-body">
 
 <header class="agent-navbar">
+  <?php
+    // Absolute, BASE_PATH-rooted hrefs — this layout is now also
+    // included from admin/quotation_new.php and admin/quotations.php
+    // (rendered with agent chrome when the logged-in user is an
+    // agent), which live in a different directory than agent-portal/.
+    // A relative "leads.php" from there would resolve to the
+    // non-existent admin/leads.php instead of agent-portal/leads.php.
+    $cur = basename($_SERVER['PHP_SELF']);
+    $agentBase = BASE_PATH . '/agent-portal/';
+  ?>
   <div class="agent-navbar-left">
-    <a href="index.php" class="agent-brand">
+    <a href="<?= $agentBase ?>index.php" class="agent-brand">
       <span class="agent-brand-mark">SZV</span>
       <span class="agent-brand-sub">Agent Portal</span>
     </a>
-    <?php $cur = basename($_SERVER['PHP_SELF']); ?>
     <nav class="agent-nav-links" id="agentNavLinks">
-      <a href="index.php" class="agent-nav-link<?= $cur==='index.php'?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('dashboard', 14) ?> Dashboard</a>
-      <a href="leads.php" class="agent-nav-link<?= $cur==='leads.php'?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('leads', 14) ?> Leads</a>
-      <a href="commissions.php" class="agent-nav-link<?= $cur==='commissions.php'?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('commissions', 14) ?> Commissions</a>
-      <a href="profile.php" class="agent-nav-link<?= $cur==='profile.php'?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('key', 14) ?> Profile</a>
+      <a href="<?= $agentBase ?>index.php" class="agent-nav-link<?= $cur==='index.php'?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('dashboard', 14) ?> Dashboard</a>
+      <a href="<?= $agentBase ?>leads.php" class="agent-nav-link<?= $cur==='leads.php'?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('leads', 14) ?> Leads</a>
+      <a href="<?= BASE_PATH ?>/admin/quotations.php" class="agent-nav-link<?= in_array($cur,['quotations.php','quotation_new.php'])?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('quotations', 14) ?> Quotations</a>
+      <a href="<?= $agentBase ?>commissions.php" class="agent-nav-link<?= $cur==='commissions.php'?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('commissions', 14) ?> Commissions</a>
+      <a href="<?= $agentBase ?>profile.php" class="agent-nav-link<?= $cur==='profile.php'?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('key', 14) ?> Profile</a>
     </nav>
   </div>
   <div class="agent-navbar-right">
@@ -37,11 +47,11 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
         if (mb_strlen($agentInitials) >= 2) break;
       }
     ?>
-    <a href="profile.php" class="agent-profile-link" title="<?= htmlspecialchars($agentDisplayName) ?>">
+    <a href="<?= $agentBase ?>profile.php" class="agent-profile-link" title="<?= htmlspecialchars($agentDisplayName) ?>">
       <span class="agent-profile-avatar"><?= htmlspecialchars($agentInitials ?: 'A') ?></span>
       <span class="agent-profile-name"><?= htmlspecialchars($agentDisplayName) ?></span>
     </a>
-    <a href="logout.php" class="agent-signout">Sign Out</a>
+    <a href="<?= $agentBase ?>logout.php" class="agent-signout">Sign Out</a>
     <button class="agent-hamburger" id="agentHamburger" aria-label="Open menu" aria-expanded="false">
       <span></span><span></span><span></span>
     </button>
@@ -55,7 +65,7 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
   </div>
 </main>
 
-<script src="<?= BASE_PATH ?>/admin/js/admin-validator.js"></script>
+<script src="<?= BASE_PATH ?>/admin/js/admin-validator.js?v=<?= @filemtime(__DIR__ . '/../admin/js/admin-validator.js') ?: time() ?>"></script>
 <script src="<?= BASE_PATH ?>/admin/js/admin.js?v=<?= @filemtime(__DIR__ . '/../admin/js/admin.js') ?: time() ?>"></script>
 <script>
 (function () {

@@ -30,26 +30,37 @@ try { $agents = $db->query("SELECT id, full_name, username, commission_rate, tar
 catch (\Exception $e) {}
 
 $monthStart = date('Y-m-01');
+
+// Three aggregate queries total, regardless of how many agents there are
+// — grouped by agent_id and merged in PHP below — instead of three
+// per-agent queries each (3N+1 total before this).
+$leadsByAgent = [];
+try {
+    $s = $db->prepare("SELECT agent_id, COUNT(*) c FROM leads WHERE created_at >= ? GROUP BY agent_id");
+    $s->execute([$monthStart]);
+    foreach ($s->fetchAll() as $r) $leadsByAgent[(int)$r['agent_id']] = (int)$r['c'];
+} catch (\Exception $e) {}
+
+$mtdByAgent = [];
+try {
+    $s = $db->prepare("SELECT agent_id, COUNT(*) c, COALESCE(SUM(booking_value),0) v FROM commissions WHERE created_at >= ? GROUP BY agent_id");
+    $s->execute([$monthStart]);
+    foreach ($s->fetchAll() as $r) $mtdByAgent[(int)$r['agent_id']] = ['c' => (int)$r['c'], 'v' => (float)$r['v']];
+} catch (\Exception $e) {}
+
+$statusByAgent = [];
+try {
+    foreach ($db->query("SELECT agent_id, status, COALESCE(SUM(commission_amount),0) v FROM commissions GROUP BY agent_id, status")->fetchAll() as $r) {
+        $statusByAgent[(int)$r['agent_id']][$r['status']] = (float)$r['v'];
+    }
+} catch (\Exception $e) {}
+
 foreach ($agents as &$a) {
     $aid = (int)$a['id'];
-    try {
-        $s = $db->prepare("SELECT COUNT(*) FROM leads WHERE agent_id=? AND created_at >= ?");
-        $s->execute([$aid, $monthStart]);
-        $a['leads_mtd'] = (int)$s->fetchColumn();
-    } catch (\Exception $e) { $a['leads_mtd'] = 0; }
-    try {
-        $s = $db->prepare("SELECT COUNT(*) c, COALESCE(SUM(booking_value),0) v FROM commissions WHERE agent_id=? AND created_at >= ?");
-        $s->execute([$aid, $monthStart]);
-        $row = $s->fetch();
-        $a['bookings_mtd'] = (int)($row['c'] ?? 0);
-        $a['value_mtd']    = (float)($row['v'] ?? 0);
-    } catch (\Exception $e) { $a['bookings_mtd'] = 0; $a['value_mtd'] = 0; }
-    try {
-        $s = $db->prepare("SELECT status, COALESCE(SUM(commission_amount),0) v FROM commissions WHERE agent_id=? GROUP BY status");
-        $s->execute([$aid]);
-        $a['commission_by_status'] = [];
-        foreach ($s->fetchAll() as $r) $a['commission_by_status'][$r['status']] = (float)$r['v'];
-    } catch (\Exception $e) { $a['commission_by_status'] = []; }
+    $a['leads_mtd']           = $leadsByAgent[$aid] ?? 0;
+    $a['bookings_mtd']        = $mtdByAgent[$aid]['c'] ?? 0;
+    $a['value_mtd']           = $mtdByAgent[$aid]['v'] ?? 0.0;
+    $a['commission_by_status']= $statusByAgent[$aid] ?? [];
 }
 unset($a);
 

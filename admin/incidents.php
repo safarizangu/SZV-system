@@ -71,15 +71,20 @@ $msg    = htmlspecialchars($_GET['msg'] ?? '');
 $filter = trim($_GET['filter'] ?? 'open');
 $where  = $filter === 'open' ? "WHERE status='open'" : ($filter === 'resolved' ? "WHERE status='resolved'" : '');
 
-$rows = [];
+$page    = max(1,(int)($_GET['page'] ?? 1));
+$perPage = 50;
+$offset  = ($page-1)*$perPage;
+$rows = []; $totalRows = 0; $totalPages = 0;
 try {
+    $totalRows  = (int)$db->query("SELECT COUNT(*) FROM incidents i $where")->fetchColumn();
+    $totalPages = (int)ceil($totalRows/$perPage);
     $rows = $db->query("
         SELECT i.*, a.full_name AS reporter_name
         FROM incidents i
         LEFT JOIN admin_users a ON a.id = i.reported_by
         $where
         ORDER BY i.severity='critical' DESC, i.severity='high' DESC, i.occurred_at DESC
-        LIMIT 200
+        LIMIT $perPage OFFSET $offset
     ")->fetchAll();
 } catch (\Exception $e) {}
 
@@ -151,6 +156,16 @@ ob_start();
   </tr>
   <?php endforeach; ?>
   </tbody></table></div>
+<?php if ($totalPages > 1): ?>
+<div class="pagination" style="border-top:none">
+  <span style="font-size:.75rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?> (<?= number_format($totalRows) ?> total)</span>
+  <div class="page-btns">
+    <?php for ($i=1; $i<=$totalPages; $i++): ?>
+    <a href="?page=<?= $i ?>&filter=<?= urlencode($filter) ?>" class="page-btn<?= $i===$page?' active':'' ?>"><?= $i ?></a>
+    <?php endfor; ?>
+  </div>
+</div>
+<?php endif; ?>
 </div>
 
 <!-- Log Incident modal -->

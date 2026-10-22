@@ -31,8 +31,15 @@ $where  = '';
 if ($filter === 'published') $where = 'WHERE is_published=1';
 elseif ($filter === 'unpublished') $where = 'WHERE is_published=0';
 
-$rows = [];
-try { $rows = $db->query("SELECT * FROM reviews $where ORDER BY submitted_at DESC LIMIT 200")->fetchAll(); }
+$page    = max(1,(int)($_GET['page'] ?? 1));
+$perPage = 50;
+$offset  = ($page-1)*$perPage;
+$rows = []; $totalRows = 0; $totalPages = 0;
+try {
+    $totalRows  = (int)$db->query("SELECT COUNT(*) FROM reviews $where")->fetchColumn();
+    $totalPages = (int)ceil($totalRows/$perPage);
+    $rows = $db->query("SELECT * FROM reviews $where ORDER BY submitted_at DESC LIMIT $perPage OFFSET $offset")->fetchAll();
+}
 catch (\Exception $e) {}
 
 $summary = ['avg_rating' => 0, 'avg_nps' => 0, 'total' => 0, 'published' => 0];
@@ -116,6 +123,16 @@ ob_start();
   </tr>
   <?php endforeach; ?>
   </tbody></table></div>
+<?php if ($totalPages > 1): ?>
+<div class="pagination" style="border-top:none">
+  <span style="font-size:.75rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?> (<?= number_format($totalRows) ?> total)</span>
+  <div class="page-btns">
+    <?php for ($i=1; $i<=$totalPages; $i++): ?>
+    <a href="?page=<?= $i ?>&filter=<?= urlencode($filter) ?>" class="page-btn<?= $i===$page?' active':'' ?>"><?= $i ?></a>
+    <?php endfor; ?>
+  </div>
+</div>
+<?php endif; ?>
 </div>
 
 <?php

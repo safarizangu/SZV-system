@@ -26,7 +26,7 @@ try {
     $s->execute([$id]);
     $itin = $s->fetch();
     if (!$itin) die('Itinerary not found.');
-} catch (Exception $e) { die('DB error: ' . $e->getMessage()); }
+} catch (Exception $e) { error_log('[itinerary_pdf] ' . $e->getMessage()); die('Could not load this document. Please try again or contact support.'); }
 
 $days     = json_decode($itin['days']     ?? '[]', true) ?: [];
 $includes = json_decode($itin['includes'] ?? '[]', true) ?: [];

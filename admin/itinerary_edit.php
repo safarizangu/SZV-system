@@ -250,7 +250,7 @@ ob_start();
         <textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"><?= htmlspecialchars($day['description']??'') ?></textarea></div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+    <div class="day-resource-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
 
       <!-- Accommodation -->
       <div style="border:1px solid #e5e7eb;padding:.85rem;background:#eff6ff20">
@@ -366,11 +366,21 @@ ob_start();
       </div>
       <div id="day-other-<?= $i ?>">
         <?php foreach($day['other_items'] as $oi=>$ot): ?>
-        <div class="other-item" style="display:grid;grid-template-columns:2fr 100px auto;gap:.35rem;align-items:end;margin-bottom:.4rem">
-          <input class="admin-input day-other-name" value="<?= htmlspecialchars($ot['name']??'') ?>" placeholder="Item name" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
-          <input type="number" step="0.01" class="admin-input day-other-amount" value="<?= (float)($ot['amount']??0) ?>" placeholder="$" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
-          <button type="button" onclick="this.closest('.other-item').remove();saveDayOther(<?= $i ?>)"
-                  class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?></button>
+        <div class="other-item" style="border:1px solid var(--gray-200);border-radius:2px;padding:.5rem;margin-bottom:.5rem">
+          <div style="display:flex;gap:.35rem;margin-bottom:.35rem">
+            <input class="admin-input day-other-name" value="<?= htmlspecialchars($ot['name']??'') ?>" placeholder="Item name" style="font-size:.78rem;flex:1" oninput="saveDayOther(<?= $i ?>)">
+            <button type="button" onclick="this.closest('.other-item').remove();saveDayOther(<?= $i ?>)"
+                    class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render('trash', 14) ?></button>
+          </div>
+          <div style="display:grid;grid-template-columns:70px 55px 1fr 150px;gap:.35rem;align-items:center">
+            <input type="number" step="0.01" class="admin-input day-other-amount" value="<?= (float)($ot['amount']??0) ?>" placeholder="$/unit" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
+            <input type="number" min="1" class="admin-input day-other-qty" title="Number of units" value="<?= (int)($ot['qty']??1) ?>" placeholder="Qty" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
+            <input class="admin-input day-other-unit" title="What a unit is called (e.g. Box, Trip, Vehicle) — type your own, independent of traveler count" value="<?= htmlspecialchars($ot['unit']??'') ?>" placeholder="Unit name (optional)" style="font-size:.78rem" oninput="saveDayOther(<?= $i ?>)">
+            <select class="admin-input day-other-perpax" style="font-size:.72rem" title="Whether this cost multiplies by the number of travelers" onchange="saveDayOther(<?= $i ?>)">
+              <option value="0" <?= empty($ot['per_pax'])?'selected':'' ?>>Flat (not per guest)</option>
+              <option value="1" <?= !empty($ot['per_pax'])?'selected':'' ?>>× Number of guests</option>
+            </select>
+          </div>
         </div>
         <?php endforeach; ?>
       </div>
@@ -446,7 +456,7 @@ function itinDayBlockHtml(i) {
         +'<div><label class="admin-label">Location / Park</label><input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="'+i+'" oninput="filterDayOptions('+i+')" placeholder="e.g. Serengeti National Park"></div>'
         +'<div><label class="admin-label">Day Description</label><textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"></textarea></div>'
       +'</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">'
+      +'<div class="day-resource-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">'
         +'<div style="border:1px solid #e5e7eb;padding:.85rem;background:#eff6ff20">'
           +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8;display:flex;align-items:center;gap:.35rem"><?= \App\Helpers\AdminIcon::render('accommodations', 13) ?> Accommodation</p>'
           +'<input type="hidden" name="day_acc_id[]" class="day-acc-id" value="0">'
@@ -622,14 +632,27 @@ function calcItinTotal() {
     total += meals * pax;
 
     // Activities
+    var actCost = 0;
     block.querySelectorAll('.act-item').forEach(function(row){
       var price = parseFloat((row.querySelector('.day-act-price')||{}).value)||0;
       var type  = (row.querySelector('.day-act-type')||{}).value||'included';
-      if(type==='included') total += price * pax;
+      if(type==='included') { total += price * pax; actCost += price * pax; }
+    });
+
+    // Other costs — same Qty/Unit Name/per-guest fields as
+    // quotation_new.php and package_edit.php's Other Costs rows.
+    var otherCost = 0;
+    block.querySelectorAll('.other-item').forEach(function(row){
+      var unitPrice = parseFloat((row.querySelector('.day-other-amount')||{}).value)||0;
+      var qty       = parseInt((row.querySelector('.day-other-qty')||{}).value)||1;
+      var perPax    = (row.querySelector('.day-other-perpax')||{}).value==='1';
+      var amt = unitPrice * (perPax ? qty * pax : qty);
+      total += amt;
+      otherCost += amt;
     });
 
     // Day cost badge
-    var dayCost = parkFee*pax + meals*pax + accRate*accRooms + vehRate;
+    var dayCost = parkFee*pax + meals*pax + accRate*accRooms + vehRate + actCost + otherCost;
     var badge = block.querySelector('.day-cost-badge');
     if(badge) badge.textContent='$'+Math.round(dayCost).toLocaleString();
   });
@@ -684,10 +707,17 @@ function addDayOther(dayIdx) {
   var container=document.getElementById('day-other-'+dayIdx);
   var div=document.createElement('div');
   div.className='other-item';
-  div.style.cssText='display:grid;grid-template-columns:2fr 100px auto;gap:.35rem;align-items:end;margin-bottom:.4rem';
-  div.innerHTML='<input class="admin-input day-other-name" placeholder="Item name" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
-    +'<input type="number" step="0.01" class="admin-input day-other-amount" value="0" placeholder="$" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
-    +'<button type="button" onclick="this.closest(\'.other-item\').remove();saveDayOther('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger">'+<?= $trashIconJs ?>+'</button>';
+  div.style.cssText='border:1px solid var(--gray-200);border-radius:2px;padding:.5rem;margin-bottom:.5rem';
+  div.innerHTML='<div style="display:flex;gap:.35rem;margin-bottom:.35rem">'
+      +'<input class="admin-input day-other-name" placeholder="Item name" style="font-size:.78rem;flex:1" oninput="saveDayOther('+dayIdx+')">'
+      +'<button type="button" onclick="this.closest(\'.other-item\').remove();saveDayOther('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger">'+<?= $trashIconJs ?>+'</button>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:70px 55px 1fr 150px;gap:.35rem;align-items:center">'
+      +'<input type="number" step="0.01" class="admin-input day-other-amount" value="0" placeholder="$/unit" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
+      +'<input type="number" min="1" class="admin-input day-other-qty" title="Number of units" value="1" placeholder="Qty" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
+      +'<input class="admin-input day-other-unit" title="What a unit is called (e.g. Box, Trip, Vehicle) — type your own, independent of traveler count" placeholder="Unit name (optional)" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
+      +'<select class="admin-input day-other-perpax" style="font-size:.72rem" title="Whether this cost multiplies by the number of travelers" onchange="saveDayOther('+dayIdx+')"><option value="0">Flat (not per guest)</option><option value="1">× Number of guests</option></select>'
+    +'</div>';
   container.appendChild(div);
 }
 
@@ -697,9 +727,16 @@ function saveDayOther(dayIdx) {
   container.querySelectorAll('.other-item').forEach(function(row){
     var name=row.querySelector('.day-other-name').value.trim();
     if(!name) return;
-    items.push({name:name, amount:parseFloat(row.querySelector('.day-other-amount').value)||0});
+    items.push({
+      name:name,
+      amount:parseFloat(row.querySelector('.day-other-amount').value)||0,
+      qty:parseInt(row.querySelector('.day-other-qty').value)||1,
+      unit:(row.querySelector('.day-other-unit')||{}).value||'',
+      per_pax:row.querySelector('.day-other-perpax').value==='1'
+    });
   });
   document.getElementById('other-json-'+dayIdx).value=JSON.stringify(items);
+  calcItinTotal();
 }
 
 // ── Sync day count with duration input ────────────────────

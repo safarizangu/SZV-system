@@ -1,20 +1,27 @@
 <?php
 /**
  * Send booking confirmation email with full itinerary
- * GET: api/booking_email.php?ref=SZVXXX
+ * POST: api/booking_email.php (ref=SZVXXX, _csrf=...) — sends a real email
+ * to the customer, so this requires POST + CSRF like every other
+ * state-changing action, not a plain GET link.
  * Auth: Admin session required
  */
 require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
 AuthMiddleware::requireAdmin();
-if (!defined('SZV_PDF_INTERNAL_RENDER') && \App\Services\OwnershipScope::isScoped()) {
-    $__ref = strtoupper(trim($_GET['ref'] ?? $_POST['ref'] ?? ''));
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: ../admin/bookings.php?msg=' . urlencode('Invalid request method.'));
+    exit;
+}
+\App\Middleware\CsrfMiddleware::validateOrDie();
+if (\App\Services\OwnershipScope::isScoped()) {
+    $__ref = strtoupper(trim($_POST['ref'] ?? ''));
     if (!\App\Services\OwnershipScope::ownsBooking(\App\Models\Database::getInstance(), $__ref, \App\Services\OwnershipScope::currentAgentId())) {
         \App\Services\AccessGuard::denyPlain('booking', $__ref, basename($_SERVER['SCRIPT_NAME']));
     }
 }
 
-$ref = strtoupper(trim($_GET['ref'] ?? ''));
+$ref = strtoupper(trim($_POST['ref'] ?? ''));
 if (!$ref) {
     header('Location: ../admin/bookings.php?msg='.urlencode('No booking reference.'));
     exit;
@@ -32,7 +39,8 @@ try {
         exit;
     }
 } catch (\Exception $e) {
-    header('Location: ../admin/bookings.php?msg='.urlencode('DB error: '.$e->getMessage()));
+    error_log('[booking_email] '.$e->getMessage());
+    header('Location: ../admin/bookings.php?msg='.urlencode('Could not load this booking. Please try again or contact support.'));
     exit;
 }
 

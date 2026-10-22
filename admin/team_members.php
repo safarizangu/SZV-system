@@ -53,8 +53,15 @@ if (isset($_GET['edit'])) {
     catch(Exception $e){}
     try { $stmt=$db->prepare("SELECT * FROM team_members WHERE id=?"); $stmt->execute([(int)$_GET['edit']]); $edit=$stmt->fetch(); } catch(Exception $e){}
 }
-$members = [];
-try { $members = $db->query("SELECT * FROM team_members ORDER BY sort_order ASC, id ASC LIMIT 200")->fetchAll(); }
+$page    = max(1,(int)($_GET['page'] ?? 1));
+$perPage = 50;
+$offset  = ($page-1)*$perPage;
+$members = []; $totalRows = 0; $totalPages = 0;
+try {
+    $totalRows  = (int)$db->query("SELECT COUNT(*) FROM team_members")->fetchColumn();
+    $totalPages = (int)ceil($totalRows/$perPage);
+    $members = $db->query("SELECT * FROM team_members ORDER BY sort_order ASC, id ASC LIMIT $perPage OFFSET $offset")->fetchAll();
+}
 catch(Exception $e){ error_log($e->getMessage()); }
 ?>
 <?php if($msg): ?><div class="admin-alert admin-alert--<?= str_starts_with($msg,'Error')?'error':'success' ?>"><?= $msg ?></div><?php endif; ?>
@@ -95,6 +102,16 @@ catch(Exception $e){ error_log($e->getMessage()); }
 </tbody>
 </table>
 </div>
+<?php if ($totalPages > 1): ?>
+<div class="pagination" style="border-top:none">
+  <span style="font-size:.75rem;color:var(--gray-500)">Page <?= $page ?> of <?= $totalPages ?> (<?= number_format($totalRows) ?> total)</span>
+  <div class="page-btns">
+    <?php for ($i=1; $i<=$totalPages; $i++): ?>
+    <a href="?page=<?= $i ?>" class="page-btn<?= $i===$page?' active':'' ?>"><?= $i ?></a>
+    <?php endfor; ?>
+  </div>
+</div>
+<?php endif; ?>
 </div>
 
 <!-- Add/Edit modal -->
