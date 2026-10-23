@@ -33,7 +33,6 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
     <nav class="agent-nav-links" id="agentNavLinks">
       <a href="<?= $agentBase ?>index.php" class="agent-nav-link<?= $cur==='index.php'?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('dashboard', 14) ?> Dashboard</a>
       <a href="<?= $agentBase ?>leads.php" class="agent-nav-link<?= $cur==='leads.php'?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('leads', 14) ?> Leads</a>
-      <a href="<?= BASE_PATH ?>/admin/quotations.php" class="agent-nav-link<?= in_array($cur,['quotations.php','quotation_new.php'])?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('quotations', 14) ?> Quotations</a>
       <a href="<?= $agentBase ?>commissions.php" class="agent-nav-link<?= $cur==='commissions.php'?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('commissions', 14) ?> Commissions</a>
       <a href="<?= $agentBase ?>profile.php" class="agent-nav-link<?= $cur==='profile.php'?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('key', 14) ?> Profile</a>
     </nav>

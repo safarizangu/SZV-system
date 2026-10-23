@@ -105,10 +105,9 @@ ob_start();
   <div class="admin-card">
     <div class="admin-card-header"><h3>Quick Actions</h3></div>
     <div class="admin-card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
-      <a href="leads.php"               class="admin-btn admin-btn--primary" style="justify-content:center">+ Add Lead</a>
-      <a href="../admin/quotation_new.php" class="admin-btn admin-btn--primary" style="justify-content:center">+ New Quotation</a>
-      <a href="commissions.php"         class="admin-btn admin-btn--outline" style="justify-content:center">Commissions</a>
-      <a href="profile.php"             class="admin-btn admin-btn--muted"   style="justify-content:center">Edit Profile</a>
+      <a href="leads.php"       class="admin-btn admin-btn--primary" style="justify-content:center">+ Add Lead</a>
+      <a href="commissions.php" class="admin-btn admin-btn--outline" style="justify-content:center">Commissions</a>
+      <a href="profile.php"     class="admin-btn admin-btn--muted"   style="justify-content:center;grid-column:span 2">Edit Profile</a>
     </div>
   </div>
 

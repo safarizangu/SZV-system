@@ -366,10 +366,6 @@ ob_start();
         <a href="https://wa.me/<?= preg_replace('/[^0-9]/','',($r['phone']??'')) ?>?text=<?= urlencode('Hi '.$r['full_name'].',') ?>"
            target="_blank"
            class="admin-btn admin-btn--success" style="font-size:.65rem;padding:.3rem .55rem">WA</a>
-        <?php if (!empty($r['email'])): ?>
-        <a href="../admin/quotation_new.php?from_lead=<?= $r['id'] ?>"
-           class="admin-btn admin-btn--tint-blue" style="font-size:.65rem;padding:.3rem .55rem">Quote</a>
-        <?php endif; ?>
       </td>
     </tr>
     <?php endforeach; ?>
