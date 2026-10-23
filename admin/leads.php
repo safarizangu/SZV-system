@@ -60,9 +60,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if (!in_array($stage, $allowed, true)) {
             echo json_encode(['success'=>false,'message'=>'Invalid stage.']); exit;
         }
-        // Per-user permission override — doesn't apply to agents, who are
-        // already scoped to their own leads via $isAgentUser below.
-        if (!$isAgentUser && !AuthMiddleware::canChangeStatus()) {
+        // Stage changes are an admin-panel-only action — agents can create
+        // and view their own leads but never move them through the
+        // pipeline themselves (that includes marking 'booked', which
+        // creates a commission). The per-user permission override below
+        // doesn't apply to agents for the same reason; they're blocked
+        // outright regardless of it.
+        if ($isAgentUser) {
+            echo json_encode(['success'=>false,'message'=>'Permission denied — lead status is managed by the admin team.']); exit;
+        }
+        if (!AuthMiddleware::canChangeStatus()) {
             echo json_encode(['success'=>false,'message'=>'Permission denied.']); exit;
         }
 
@@ -212,6 +219,9 @@ ob_start();
       </td>
       <td style="font-size:.82rem"><?= htmlspecialchars($r['budget_range'] ?? '—') ?></td>
       <td>
+        <?php if ($isAgentUser): ?>
+        <span class="badge-status badge-status--<?= $sc['badge'] ?>"><?= ucfirst($r['pipeline_stage']) ?></span>
+        <?php else: ?>
         <select onchange="updateStage(<?= $r['id'] ?>, this.value, this)"
                 data-prev="<?= htmlspecialchars($r['pipeline_stage']) ?>"
                 style="border:1.5px solid var(--gray-200);padding:.25rem .5rem;font-size:.7rem;background:<?= $sc['bg'] ?>;color:<?= $sc['text'] ?>;font-weight:700;max-width:120px;cursor:pointer">
@@ -219,6 +229,7 @@ ob_start();
           <option value="<?= $s ?>" <?= $r['pipeline_stage']===$s?'selected':'' ?>><?= ucfirst($s) ?></option>
           <?php endforeach; ?>
         </select>
+        <?php endif; ?>
       </td>
       <td style="white-space:nowrap">
         <div class="admin-row-actions">

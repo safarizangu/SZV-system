@@ -35,6 +35,7 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
       <a href="<?= $agentBase ?>leads.php" class="agent-nav-link<?= $cur==='leads.php'?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('leads', 14) ?> Leads</a>
       <a href="<?= $agentBase ?>commissions.php" class="agent-nav-link<?= $cur==='commissions.php'?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('commissions', 14) ?> Commissions</a>
       <a href="<?= $agentBase ?>profile.php" class="agent-nav-link<?= $cur==='profile.php'?' active':'' ?>"><?= \App\Helpers\AdminIcon::render('key', 14) ?> Profile</a>
+      <a href="<?= $agentBase ?>logout.php" class="agent-nav-link agent-nav-link--signout"><?= \App\Helpers\AdminIcon::render('logout', 14) ?> Sign Out</a>
     </nav>
   </div>
   <div class="agent-navbar-right">

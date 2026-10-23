@@ -56,6 +56,13 @@
 .agent-nav-link:hover  { color: var(--white); background: rgba(255,255,255,.08); }
 .agent-nav-link.active { color: var(--gold); background: rgba(255,255,255,.1); }
 
+/* Duplicate of .agent-signout, placed at the end of the dropdown nav so
+   Sign Out is still reachable on small screens — see the (max-width:900px)
+   block below for why the standalone top-right one can't be relied on
+   there. Hidden here on desktop, where the top-right one already works. */
+.agent-nav-link--signout { display: none; color: #ff8080; }
+.agent-nav-link--signout:hover { color: var(--white); background: rgba(255,80,80,.15); }
+
 .agent-navbar-right { display: flex; align-items: center; gap: 1rem; flex-shrink: 0; }
 .agent-profile-link { display: inline-flex; align-items: center; gap: .55rem; text-decoration: none; }
 .agent-profile-name  { font-size: .7rem; font-weight: 600; color: rgba(255,255,255,.75); }
@@ -111,7 +118,18 @@
   }
   .agent-nav-links.open { display: flex; }
   .agent-nav-link { padding: .65rem .85rem; }
+  .agent-nav-link--signout {
+    display: flex;
+    margin-top: .35rem;
+    padding-top: .85rem;
+    border-top: 1px solid rgba(255,255,255,.1);
+  }
   .agent-profile-name { display: none; }
+  /* The standalone top-right Sign Out link doesn't reliably fit next to
+     the avatar and hamburger at narrow widths (it was getting pushed off
+     the edge of the screen, unreachable) — the copy inside the dropdown
+     above takes over here instead. */
+  .agent-navbar-right > .agent-signout { display: none; }
   .agent-content { padding: 1.5rem 1.25rem 2.5rem; }
 }
 @media (max-width: 480px) {

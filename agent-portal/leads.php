@@ -184,40 +184,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         exit;
     }
 
-    // Agent's client wants something bespoke — no pricing decided yet, so
-    // this lands in the same custom_safari_requests queue the public
-    // enquiry form feeds, tagged with submitted_by_agent_id (the one
-    // stored exception in OwnershipScope — see its class doc) so the agent
-    // keeps visibility of it even once an admin builds the quotation.
+    // Agent's client wants something bespoke — no pricing decided yet.
+    // Stored as a `leads` row (pipeline_stage 'lead'), exactly like
+    // add_direct_booking does, so it shows up immediately in the agent's
+    // own My Leads list and in admin's Leads Pipeline — rather than the
+    // separate custom_safari_requests queue, which agents have no
+    // visibility into once submitted (that was the bug: the request was
+    // saved, just somewhere the agent could never see it again).
     if ($action === 'add_custom_request') {
         $fullName = trim($_POST['full_name'] ?? '');
         $email    = trim($_POST['email']     ?? '');
         if (!$fullName || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             echo json_encode(['success'=>false,'message'=>'Client name and a valid email are required.']); exit;
         }
+        $phone        = trim($_POST['phone'] ?? '');
+        $country      = trim($_POST['country'] ?? '');
+        $adults       = max(1, (int)($_POST['adults']   ?? 2));
+        $children     = max(0, (int)($_POST['children'] ?? 0));
+        $startDate    = !empty($_POST['start_date']) ? $_POST['start_date'] : null;
+        $duration     = max(1, (int)($_POST['duration_days'] ?? 7));
+        $flexible     = !empty($_POST['flexible_dates']);
         $destinations = array_filter(array_map('trim', explode(',', trim($_POST['destinations'] ?? ''))));
+        $budget       = trim($_POST['total_budget'] ?? '');
+        $message      = trim($_POST['notes'] ?? '');
 
-        $data = [
-            'full_name'              => $fullName,
-            'email'                  => $email,
-            'phone'                  => trim($_POST['phone'] ?? ''),
-            'country'                => trim($_POST['country'] ?? ''),
-            'adults'                 => max(1, (int)($_POST['adults']   ?? 2)),
-            'children'               => max(0, (int)($_POST['children'] ?? 0)),
-            'start_date'             => !empty($_POST['start_date']) ? $_POST['start_date'] : null,
-            'duration_days'          => max(1, (int)($_POST['duration_days'] ?? 7)),
-            'flexible_dates'         => !empty($_POST['flexible_dates']) ? 'Yes' : 'No',
-            'destinations'           => json_encode($destinations),
-            'total_budget'           => trim($_POST['total_budget'] ?? ''),
-            'message'                => trim($_POST['notes'] ?? ''),
-            'submitted_by_agent_id'  => $myId,
-        ];
+        $notesParts   = ['Duration: ' . $duration . ' day' . ($duration === 1 ? '' : 's') . ($flexible ? ' (dates flexible)' : '')];
+        if ($message !== '') $notesParts[] = $message;
+
         try {
-            $newId = (new \App\Models\CustomSafariRequest())->create($data);
-            \App\Services\ActivityLog::record('create', 'custom_request', $newId, ['full_name'=>$fullName, 'via'=>'agent_portal', 'agent_id'=>$myId]);
+            $db->prepare("
+                INSERT INTO leads
+                    (full_name, email, phone, country, source, pipeline_stage,
+                     budget_range, travel_date, party_size, destinations, notes, agent_id, created_at)
+                VALUES
+                    (?,?,?,?, 'agent_custom_request', 'lead',
+                     ?,?,?,?,?, ?, NOW())
+            ")->execute([
+                $fullName, $email, $phone, $country,
+                $budget, $startDate, $adults + $children, implode(', ', $destinations), implode("\n\n", $notesParts), $myId,
+            ]);
+            $newId = (int)$db->lastInsertId();
+            \App\Services\ActivityLog::record('create', 'lead', $newId, ['full_name'=>$fullName, 'via'=>'agent_portal_custom_request', 'agent_id'=>$myId]);
             try {
-                \App\Mail\Mailer::queue('custom_request_ack', array_merge($data, ['to_email'=>$email, 'to_name'=>$fullName]));
-                \App\Mail\Mailer::queueAdmin('custom_request_admin', $data);
+                \App\Mail\Mailer::queue('custom_request_ack', [
+                    'to_email' => $email, 'to_name' => $fullName, 'full_name' => $fullName, 'client_name' => $fullName,
+                ]);
             } catch (\Exception $e) {}
             echo json_encode(['success'=>true,'id'=>$newId]);
         } catch (\Exception $e) {
@@ -226,20 +237,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         exit;
     }
 
-    if ($action === 'update_stage') {
-        $allowed = ['lead','qualified','quoted','negotiation','booked','travelled','completed','lost'];
-        $stage   = trim($_POST['stage'] ?? '');
-        $id      = (int)($_POST['id']   ?? 0);
-        if (!in_array($stage, $allowed, true)) {
-            echo json_encode(['success'=>false,'message'=>'Invalid stage.']); exit;
-        }
-        $result = \App\Services\PipelineSync::setLeadStageManual($db, $id, $stage, true, $myId);
-        if (!$result['ok']) {
-            echo json_encode(['success'=>false,'message'=>$result['message']]); exit;
-        }
-        echo json_encode(['success'=>true, 'commission_created'=>$result['commission_created']]);
-        exit;
-    }
+    // Lead stage is admin-only — agents can create and view leads but
+    // changing the pipeline stage (including marking a lead 'booked',
+    // which creates a commission) is a deliberate admin-panel-only
+    // action, not something agents self-report. There is intentionally
+    // no 'update_stage' handler on this page any more.
 
     echo json_encode(['success'=>false,'message'=>'Unknown action']);
     exit;
@@ -300,22 +302,18 @@ ob_start();
   <?php endforeach; ?>
 </datalist>
 
-<!-- Stage pills -->
+<!-- Stage filter — same select-dropdown pattern as admin/leads.php -->
 <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem;align-items:center;justify-content:space-between">
-  <div class="admin-filter-pills" style="margin-bottom:0">
-    <a href="leads.php" class="admin-filter-pill<?= !$stageFilter?' active':'' ?>">
-      All &nbsp;<span style="opacity:.6"><?= array_sum($stageCounts) ?></span>
-    </a>
-    <?php foreach($stages as $s):
-      $sc = $stageColors[$s];
-      $pillMod = in_array($sc['badge'], ['amber','green','red','blue','dark'], true) ? ' admin-filter-pill--'.$sc['badge'] : '';
-    ?>
-    <a href="?stage=<?= $s ?>" class="admin-filter-pill<?= $pillMod ?><?= $stageFilter===$s?' active':'' ?>">
-      <?= ucfirst($s) ?> &nbsp;<span style="opacity:.6"><?= $stageCounts[$s] ?></span>
-    </a>
-    <?php endforeach; ?>
-  </div>
-  <button onclick="openAddModal()" class="admin-btn admin-btn--primary" style="font-size:.72rem">+ New Client</button>
+  <form method="GET" style="margin:0">
+    <select name="stage" class="admin-input" onchange="this.form.submit()"
+            style="max-width:190px;font-weight:700;<?= $stageFilter && isset($stageColors[$stageFilter]) ? 'background:'.$stageColors[$stageFilter]['bg'].';color:'.$stageColors[$stageFilter]['text'].';' : '' ?>">
+      <option value="">All (<?= array_sum($stageCounts) ?>)</option>
+      <?php foreach($stages as $s): ?>
+      <option value="<?= $s ?>" <?= $stageFilter===$s?'selected':'' ?>><?= ucfirst($s) ?> (<?= $stageCounts[$s] ?>)</option>
+      <?php endforeach; ?>
+    </select>
+  </form>
+  <button onclick="openAddModal()" class="admin-btn admin-btn--primary" style="font-size:.72rem">+ New Lead</button>
 </div>
 
 <!-- Leads Table -->
@@ -352,25 +350,21 @@ ob_start();
       </td>
       <td style="font-size:.82rem"><?= htmlspecialchars($r['budget_range'] ?? '—') ?></td>
       <td>
-        <select onchange="updateStage(<?= $r['id'] ?>, this.value, this)"
-                data-prev="<?= htmlspecialchars($r['pipeline_stage']) ?>"
-                style="border:1.5px solid var(--gray-200);padding:.25rem .5rem;font-size:.7rem;background:<?= $sc['bg'] ?>;color:<?= $sc['text'] ?>;font-weight:700;max-width:120px;cursor:pointer">
-          <?php foreach ($stages as $s): ?>
-          <option value="<?= $s ?>" <?= $r['pipeline_stage']===$s?'selected':'' ?>><?= ucfirst($s) ?></option>
-          <?php endforeach; ?>
-        </select>
+        <span class="badge-status badge-status--<?= $sc['badge'] ?>"><?= ucfirst($r['pipeline_stage']) ?></span>
       </td>
       <td style="white-space:nowrap">
-        <a href="mailto:<?= htmlspecialchars($r['email']) ?>"
-           class="admin-btn admin-btn--outline" style="font-size:.65rem;padding:.3rem .55rem"><?= \App\Helpers\AdminIcon::render('messages', 12) ?></a>
-        <a href="https://wa.me/<?= preg_replace('/[^0-9]/','',($r['phone']??'')) ?>?text=<?= urlencode('Hi '.$r['full_name'].',') ?>"
-           target="_blank"
-           class="admin-btn admin-btn--success" style="font-size:.65rem;padding:.3rem .55rem">WA</a>
+        <div class="admin-row-actions">
+          <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false"><?= \App\Helpers\AdminIcon::render('dots-vertical', 16) ?></button>
+          <div class="admin-row-actions-menu">
+            <a href="mailto:<?= htmlspecialchars($r['email']) ?>" class="admin-row-actions-item"><?= \App\Helpers\AdminIcon::render('messages', 14) ?> Email</a>
+            <a href="https://wa.me/<?= preg_replace('/[^0-9]/','',($r['phone']??'')) ?>?text=<?= urlencode('Hi '.$r['full_name'].',') ?>" target="_blank" class="admin-row-actions-item">WhatsApp</a>
+          </div>
+        </div>
       </td>
     </tr>
     <?php endforeach; ?>
     <?php if (empty($rows)): ?>
-    <tr><td colspan="9" class="admin-empty">No leads yet. Click "+ New Client" to book a package or submit a custom request.</td></tr>
+    <tr><td colspan="9" class="admin-empty">No leads yet. Click "+ New Lead" to book a package or submit a custom request.</td></tr>
     <?php endif; ?>
   </tbody>
 </table>
@@ -389,11 +383,11 @@ ob_start();
 </div>
 <?php endif; ?>
 
-<!-- ── New Client Modal — choose a path, then fill its form ─── -->
+<!-- ── New Lead Modal — choose a path, then fill its form ─── -->
 <div id="addLeadModal" class="admin-modal-overlay">
   <div class="admin-modal" style="max-width:640px">
     <div class="admin-modal-header" style="position:sticky;top:0;background:var(--white);z-index:1">
-      <span class="admin-modal-title" id="nc-title">New Client</span>
+      <span class="admin-modal-title" id="nc-title">New Lead</span>
       <button onclick="closeAddModal()" class="admin-icon-btn admin-modal-close"><?= \App\Helpers\AdminIcon::render('close', 18) ?></button>
     </div>
     <div class="admin-modal-body">
@@ -593,10 +587,8 @@ ob_start();
 </style>
 
 <script>
-var STAGE_COLORS = <?= json_encode($stageColors) ?>;
-
 var NC_SCREENS = ['choice', 'booking', 'booking-done', 'request'];
-var NC_TITLES  = {choice: 'New Client', booking: 'Direct Booking', 'booking-done': 'Booking Submitted', request: 'Custom Request'};
+var NC_TITLES  = {choice: 'New Lead', booking: 'Direct Booking', 'booking-done': 'Booking Submitted', request: 'Custom Request'};
 
 function openAddModal() {
     document.getElementById('addLeadModal').classList.add('open');
@@ -721,31 +713,6 @@ async function submitCustomRequest() {
     } catch(e) {
         status.textContent = 'Network error.'; status.style.color = 'var(--red)';
     }
-}
-
-async function updateStage(id, stage, sel) {
-    var msg = stage === 'booked'
-        ? 'Mark this lead as Booked? This creates your commission record for it.'
-        : 'Change this lead\'s stage to "'+sel.options[sel.selectedIndex].text+'"?';
-    if (!(await confirmStatusChange(sel, msg, {danger: stage==='lost'}))) return;
-    var fd = new FormData();
-    fd.append('action','update_stage');
-    fd.append('id', id);
-    fd.append('stage', stage);
-    fd.append('_csrf', window.CSRF_TOKEN || '');
-    try {
-        var r = await fetch('leads.php',{method:'POST',body:fd});
-        var d = await r.json();
-        if (d.success) {
-            var sc = STAGE_COLORS[stage] || {bg:'var(--gray-100)',text:'var(--gray-700)'};
-            sel.style.background = sc.bg; sel.style.color = sc.text;
-            sel.dataset.prev = stage;
-            toast(d.commission_created ? 'Stage → '+stage+' — commission created' : 'Stage → '+stage,'ok');
-        } else {
-            sel.value = sel.dataset.prev;
-            toast(d.message || 'Failed','err');
-        }
-    } catch(e) { sel.value = sel.dataset.prev; toast('Failed','err'); }
 }
 
 function toast(msg, type) {
