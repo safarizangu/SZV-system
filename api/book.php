@@ -47,12 +47,18 @@ try {
     respond(['success' => false, 'message' => 'Too many requests. Please wait and try again.']);
 }
 
-if (($_POST['payment_method'] ?? '') !== 'paypal_callback') {
-    try {
-        CsrfMiddleware::validateOrDie();
-    } catch (Exception $e) {
-        respond(['success' => false, 'message' => 'Security token expired. Please refresh the page and try again.']);
-    }
+// API-3/SEC-6: payment_method was previously attacker-controlled input
+// that skipped CSRF validation entirely when set to the literal string
+// 'paypal_callback' — confirmed by grep that nothing in this codebase
+// actually sends that value (there's no PayPal webhook/IPN endpoint;
+// api/paypal_create_order.php and api/record_payment.php, the real
+// PayPal flow, are separate endpoints with their own CSRF handling), so
+// this was a dead branch that only ever weakened this public write
+// endpoint. CSRF is now required unconditionally.
+try {
+    CsrfMiddleware::validateOrDie();
+} catch (Exception $e) {
+    respond(['success' => false, 'message' => 'Security token expired. Please refresh the page and try again.']);
 }
 
 // Honeypot — silently pretend success (no redirect field, so the
