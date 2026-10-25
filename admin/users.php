@@ -26,7 +26,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_user'])) {
     $canChangeStatus  = isset($_POST['can_change_status'])  ? 1 : 0;
     $canDeleteRecords = isset($_POST['can_delete_records']) ? 1 : 0;
 
-    if (!$username) {
+    // SEC-3: a plain 'admin' account had no privilege-boundary check at
+    // all here — it could set role=superadmin on itself or any other
+    // account, bypassing every per-account can_change_status/
+    // can_delete_records restriction (AuthMiddleware::canChangeStatus()/
+    // canDeleteRecords() both special-case superadmin to always pass).
+    // Only an acting superadmin may grant the superadmin role, or modify
+    // an account that already holds it.
+    $actingIsSuperadmin = ($_SESSION['admin_role'] ?? '') === 'superadmin';
+    $targetWasSuperadmin = false;
+    if ($id > 0) {
+        $ts = $db->prepare("SELECT role FROM admin_users WHERE id=?");
+        $ts->execute([$id]);
+        $targetWasSuperadmin = ($ts->fetchColumn() === 'superadmin');
+    }
+    if (!$actingIsSuperadmin && ($role === 'superadmin' || $targetWasSuperadmin)) {
+        $error = 'Only a superadmin can grant the superadmin role or modify a superadmin account.';
+    } elseif (!$username) {
         $error = 'Username is required.';
     } elseif ($newPw) {
         if (strlen($newPw) < 10) {
@@ -70,6 +86,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
     $myId  = $_SESSION['admin_user_id'] ?? 0;
     if ($delId === $myId) { $error = 'You cannot delete your own account.'; }
     else {
+        // SEC-3: same privilege boundary as the save handler above — a
+        // plain admin could otherwise delete a superadmin account outright.
+        $ds = $db->prepare("SELECT role FROM admin_users WHERE id=?");
+        $ds->execute([$delId]);
+        $targetRole = $ds->fetchColumn();
+        if ($targetRole === 'superadmin' && ($_SESSION['admin_role'] ?? '') !== 'superadmin') {
+            $error = 'Only a superadmin can delete a superadmin account.';
+        }
+    }
+    if (!$error && $delId !== $myId) {
         try { $db->prepare("DELETE FROM admin_users WHERE id=?")->execute([$delId]); }
         catch(Exception $e){ $error = $e->getMessage(); }
         if (!$error) { header('Location: users.php?msg='.urlencode('User deleted.')); exit; }
