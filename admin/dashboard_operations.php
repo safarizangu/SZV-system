@@ -67,7 +67,7 @@ $cc = ['arrivals' => [], 'departures' => [], 'inSafari' => [], 'guests' => 0, 'g
 try {
     $rows = $db->query("
         SELECT b.booking_ref, b.full_name, b.travelers, b.travel_date,
-               COALESCE(p.duration_days, i.duration_days, 0) AS nights,
+               GREATEST(COALESCE(p.duration_days, i.duration_days, 0) - 1, 0) AS nights,
                ba.staff_id, ba.vehicle_id
         FROM bookings b
         LEFT JOIN packages p ON p.id = b.package_id
@@ -75,8 +75,8 @@ try {
         LEFT JOIN booking_assignments ba ON ba.booking_ref = b.booking_ref
         WHERE b.payment_status != 'cancelled'
           AND (b.travel_date = CURDATE()
-               OR DATE_ADD(b.travel_date, INTERVAL COALESCE(p.duration_days, i.duration_days, 0) DAY) = CURDATE()
-               OR (b.travel_date <= CURDATE() AND DATE_ADD(b.travel_date, INTERVAL COALESCE(p.duration_days, i.duration_days, 0) DAY) > CURDATE()))
+               OR DATE_ADD(b.travel_date, INTERVAL GREATEST(COALESCE(p.duration_days, i.duration_days, 0) - 1, 0) DAY) = CURDATE()
+               OR (b.travel_date <= CURDATE() AND DATE_ADD(b.travel_date, INTERVAL GREATEST(COALESCE(p.duration_days, i.duration_days, 0) - 1, 0) DAY) > CURDATE()))
     ")->fetchAll();
     foreach ($rows as $r) {
         $end = date('Y-m-d', strtotime($r['travel_date'] . ' +' . (int)$r['nights'] . ' days'));

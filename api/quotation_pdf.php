@@ -306,7 +306,7 @@ $paypalEmail = defined('PAYPAL_EMAIL')      ? PAYPAL_EMAIL      : 'Contact us';
   <div class="sec-title">Safari Summary</div>
   <div class="info-card four-col">
     <div class="field"><label>Destination</label><span><?= htmlspecialchars($destStr) ?></span></div>
-    <div class="field"><label>Duration</label><span><?= (int)$q['duration_days'] ?> nights</span></div>
+    <div class="field"><label>Duration</label><span><?= (int)$q['duration_days'] ?> days / <?= max(0,(int)$q['duration_days']-1) ?> nights</span></div>
     <div class="field"><label>Travelers</label>
       <span><?= (int)($q['adults']??2) ?> adult<?= (int)($q['adults']??2)!==1?'s':'' ?>
         <?= (int)($q['children']??0) > 0 ? ', '.(int)$q['children'].' child'.((int)$q['children']!==1?'ren':'') : '' ?>

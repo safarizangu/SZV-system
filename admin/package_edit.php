@@ -77,10 +77,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pkg'])) {
     // fee, no accommodation rooms, no activities/other items), which is
     // why this section couldn't look or behave like the Itinerary
     // Manager no matter how it was styled.
+    // If the first day is flagged as an arrival day (airport pickup +
+    // overnight), it's labelled "Day 0" and every day after it shifts
+    // down by one so touring starts at "Day 1" — see admin/itinerary_edit.php
+    // for the identical rule and why day_is_arrival[0] is explicitly keyed
+    // rather than day_is_arrival[] (unchecked checkboxes don't submit).
+    $arrivalDay = !empty($_POST['day_is_arrival'][0]);
     $itinerary = [];
     foreach ($_POST['day_title']??[] as $i=>$title) {
         $itinerary[] = [
-            'day'                 => $i+1,
+            'day'                 => $arrivalDay ? $i : $i+1,
+            'is_arrival'          => ($i===0 && $arrivalDay),
             'title'               => trim($title),
             'description'         => trim(($_POST['day_desc']??[])[$i]??''),
             'location'            => trim(($_POST['day_location']??[])[$i]??''),
@@ -242,8 +249,15 @@ $excludes   = $pkg ? implode("\n",json_decode($pkg['excludes']??'[]',true)?:[]) 
 $bd         = $pkg ? (json_decode($pkg['cost_breakdown']??'{}',true)?:[]) : [];
 $galleryImgs= $pkg ? (json_decode($pkg['gallery_images']??'[]',true)?:[]) : [];
 
-// Ensure itinerary has exactly durationDays slots
-while(count($itinerary) < $durationDays) $itinerary[]=['day'=>count($itinerary)+1,'title'=>'','description'=>''];
+// Ensure itinerary has exactly durationDays slots. Whether Day 1 is
+// flagged as an arrival day determines whether a freshly-padded day's
+// number continues from 0 or from 1 — see the save handler above for the
+// authoritative version of this same rule.
+$arrivalDayLoaded = !empty($itinerary[0]['is_arrival']);
+while(count($itinerary) < $durationDays) {
+    $n = count($itinerary);
+    $itinerary[] = ['day'=>$arrivalDayLoaded ? $n : $n+1,'is_arrival'=>false,'title'=>'','description'=>''];
+}
 $itinerary = array_slice($itinerary, 0, $durationDays);
 
 // The cost breakdown used to duplicate accommodation/vehicle/park/activity
@@ -302,7 +316,7 @@ ob_start();
         <input name="name" class="admin-input" required value="<?= htmlspecialchars($pkg['name']??'') ?>"></div>
       <div><label class="admin-label">URL Slug *</label>
         <input name="slug" class="admin-input" required pattern="[a-z0-9-]+" value="<?= htmlspecialchars($pkg['slug']??'') ?>"></div>
-      <div><label class="admin-label">Duration (nights)</label>
+      <div><label class="admin-label">Duration (days)</label>
         <input name="duration_days" type="number" min="1" max="60" class="admin-input" id="duration_days"
                value="<?= $durationDays ?>" oninput="syncItineraryDays(this.value)"></div>
       <div><label class="admin-label">Sort Order</label>
@@ -442,12 +456,16 @@ ob_start();
     <div class="day-block itinerary-day" data-day="<?= $i ?>" style="margin-bottom:1rem;border-left:3px solid var(--black)">
       <div class="admin-card-header" style="background:var(--gray-50)">
         <h3 style="font-size:.85rem">
-          <span class="day-num-label" style="font-family:'Times New Roman',Times,serif;color:var(--black);margin-right:.5rem">Day <?= $i+1 ?></span>
+          <span class="day-num-label" style="font-family:'Times New Roman',Times,serif;color:var(--black);margin-right:.5rem">Day <?= $day['day'] ?? $i+1 ?></span>
           <input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem"
                  placeholder="Day title e.g. Arusha → Tarangire"
                  value="<?= htmlspecialchars($day['title']??'') ?>">
         </h3>
         <div style="display:flex;align-items:center;gap:.5rem">
+          <label class="day-arrival-toggle" style="display:<?= $i===0?'inline-flex':'none' ?>;align-items:center;gap:.3rem;font-size:.65rem;color:var(--gray-500);font-weight:600;cursor:pointer;white-space:nowrap">
+            <input type="checkbox" name="day_is_arrival[<?= $i ?>]" value="1" <?= !empty($day['is_arrival'])?'checked':'' ?> onchange="renumberDays()">
+            Arrival day — pickup &amp; overnight (Day 0)
+          </label>
           <span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span>
           <button type="button" onclick="deleteDay(this)" class="admin-icon-btn admin-icon-btn--danger" title="Delete this day"><?= \App\Helpers\AdminIcon::render('trash', 14) ?></button>
         </div>
@@ -540,7 +558,7 @@ ob_start();
         <!-- Activities for this day -->
         <div style="margin-bottom:1rem">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-            <p class="day-acts-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day <?= $i+1 ?>)</p>
+            <p class="day-acts-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day <?= $day['day'] ?? $i+1 ?>)</p>
             <button type="button" onclick="addDayActivity(<?= $i ?>)" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>
           </div>
           <datalist id="pe-act-list-<?= $i ?>">
@@ -573,7 +591,7 @@ ob_start();
         <!-- Other items for this day -->
         <div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-            <p class="day-other-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day <?= $i+1 ?>)</p>
+            <p class="day-other-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day <?= $day['day'] ?? $i+1 ?>)</p>
             <button type="button" onclick="addDayOther(<?= $i ?>)" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>
           </div>
           <div id="day-other-<?= $i ?>">
@@ -1227,7 +1245,7 @@ function syncIncludesExcludesCore(force) {
 // ── Itinerary sync with duration_days ──────────────────────
 // Reference data for building a new day-block's datalists dynamically —
 // same accommodations/vehicles/park fees the PHP-rendered day-blocks
-// already use, output once here so a freshly-added day (when Nights is
+// already use, output once here so a freshly-added day (when Duration is
 // increased) gets the exact same autocomplete options.
 var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'ratePerPerson'=>(float)$a['rate_per_person'],'singleSupp'=>(float)$a['single_supplement'],'childRate'=>(float)$a['child_rate'],'level'=>$a['level'],'location'=>$a['location']??''], $accommodations)) ?>;
 function peAccLookup(accName) {
@@ -1238,19 +1256,34 @@ var PE_VEHS  = <?= json_encode(array_map(fn($v) => ['name'=>$v['name'],'id'=>(in
 var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee'],'childFee'=>(float)$p['child_fee'],'vehicleFee'=>(float)$p['vehicle_fee'],'location'=>$p['location']??''], $parkFees)) ?>;
 var PE_ACTS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'price'=>(float)$a['price'],'location'=>$a['location']??''], $activities_db)) ?>;
 
+// Whether the first day-block's "arrival day" checkbox is checked — index
+// 0 always already exists in the DOM (a package itinerary can never have
+// 0 days), so newly-added days just need to read it, not track it.
+function isArrivalDayFlagged() {
+  var first = document.querySelector('#itinerary-rows .day-block');
+  var cb = first ? first.querySelector('.day-arrival-toggle input[type=checkbox]') : null;
+  return !!(cb && cb.checked);
+}
+
 function peDayBlockHtml(i) {
   var accOpts  = PE_ACCS.map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-rate="'+a.rate+'">'; }).join('');
   var vehOpts  = PE_VEHS.map(function(v){ return '<option value="'+v.name+'" data-id="'+v.id+'" data-rate="'+v.rate+'">'; }).join('');
   var parkOpts = PE_PARKS.map(function(p){ return '<option value="'+p.name+'" data-id="'+p.id+'" data-fee="'+p.fee+'">'; }).join('');
   var actOpts  = PE_ACTS.map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-price="'+a.price+'">'; }).join('');
+  var dayNum   = isArrivalDayFlagged() ? i : i+1;
 
   return ''
     +'<div class="admin-card-header" style="background:var(--gray-50)">'
       +'<h3 style="font-size:.85rem">'
-        +'<span class="day-num-label" style="font-family:\'Times New Roman\',Times,serif;color:var(--black);margin-right:.5rem">Day '+(i+1)+'</span>'
+        +'<span class="day-num-label" style="font-family:\'Times New Roman\',Times,serif;color:var(--black);margin-right:.5rem">Day '+dayNum+'</span>'
         +'<input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem" placeholder="Day title e.g. Arusha → Tarangire">'
       +'</h3>'
-      +'<div style="display:flex;align-items:center;gap:.5rem"><span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span>'
+      +'<div style="display:flex;align-items:center;gap:.5rem">'
+        +'<label class="day-arrival-toggle" style="display:none;align-items:center;gap:.3rem;font-size:.65rem;color:var(--gray-500);font-weight:600;cursor:pointer;white-space:nowrap">'
+          +'<input type="checkbox" name="day_is_arrival['+i+']" value="1" onchange="renumberDays()">'
+          +'Arrival day — pickup &amp; overnight (Day 0)'
+        +'</label>'
+        +'<span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span>'
         +'<button type="button" onclick="deleteDay(this)" class="admin-icon-btn admin-icon-btn--danger" title="Delete this day"><?= \App\Helpers\AdminIcon::render('trash', 14) ?></button></div>'
     +'</div>'
     +'<div class="admin-card-body">'
@@ -1295,7 +1328,7 @@ function peDayBlockHtml(i) {
       +'</div>'
       +'<div style="margin-bottom:1rem">'
         +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
-          +'<p class="day-acts-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day '+(i+1)+')</p>'
+          +'<p class="day-acts-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day '+dayNum+')</p>'
           +'<button type="button" onclick="addDayActivity('+i+')" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>'
         +'</div>'
         +'<datalist id="pe-act-list-'+i+'">'+actOpts+'</datalist>'
@@ -1304,7 +1337,7 @@ function peDayBlockHtml(i) {
       +'</div>'
       +'<div>'
         +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
-          +'<p class="day-other-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day '+(i+1)+')</p>'
+          +'<p class="day-other-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day '+dayNum+')</p>'
           +'<button type="button" onclick="addDayOther('+i+')" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>'
         +'</div>'
         +'<div id="day-other-'+i+'"></div>'
@@ -1365,8 +1398,12 @@ async function deleteDay(btn) {
 
 function renumberDays() {
   var blocks = document.querySelectorAll('.day-block');
+  var arrival = isArrivalDayFlagged();
   blocks.forEach(function (block, idx) {
-    var n2 = idx + 1;
+    var toggle = block.querySelector('.day-arrival-toggle');
+    if (toggle) toggle.style.display = (idx === 0) ? 'inline-flex' : 'none';
+
+    var n2 = (idx === 0 && arrival) ? 0 : (arrival ? idx : idx + 1);
     var dayLabel = block.querySelector('.day-num-label');
     if (dayLabel) dayLabel.textContent = 'Day ' + n2;
     var actsLabel = block.querySelector('.day-acts-label');

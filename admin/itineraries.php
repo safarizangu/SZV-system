@@ -102,7 +102,7 @@ ob_start();
     <?php endif; ?>
 
     <div class="itin-meta-row">
-      <span><?= \App\Helpers\AdminIcon::render('clock', 12) ?> <strong><?= $it['duration_days'] ?></strong> night<?= $it['duration_days']!=1?'s':'' ?></span>
+      <span><?= \App\Helpers\AdminIcon::render('clock', 12) ?> <strong><?= $it['duration_days'] ?></strong> day<?= $it['duration_days']!=1?'s':'' ?> / <strong><?= max(0,$it['duration_days']-1) ?></strong> night<?= max(0,$it['duration_days']-1)!=1?'s':'' ?></span>
       <span><strong><?= $it['base_price_pax']>0 ? '$'.number_format($it['base_price_pax'],0) : '—' ?></strong> /pp</span>
       <span><strong><?= $it['day_count'] ?></strong> day<?= $it['day_count']!=1?'s':'' ?> configured</span>
       <span><strong><?= $it['includes_count'] ?></strong> includes</span>

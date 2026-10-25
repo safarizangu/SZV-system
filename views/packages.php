@@ -89,7 +89,7 @@ try {
         <div>
           <div class="pkg-section-header" data-pkg-card="true">
             <h2 class="display-2"><?= htmlspecialchars($pkg['name']) ?></h2>
-            <p class="eyebrow mt-2"><?= (int)$pkg['duration_days'] ?> Days · <?= (int)$pkg['duration_days'] - 1 ?> Nights · duration: <?= (int)$pkg['duration_days'] - 1 ?> nights</p>
+            <p class="eyebrow mt-2"><?= (int)$pkg['duration_days'] ?> Days · <?= max(0, (int)$pkg['duration_days'] - 1) ?> Nights</p>
             <div class="divider-line"></div>
             <p style="color:var(--black);font-weight:500;line-height:1.8;max-width:580px"><?= htmlspecialchars($pkg['overview'] ?? $pkg['description'] ?? '') ?></p>
           </div>

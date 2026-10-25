@@ -94,7 +94,7 @@ $includes = array_slice(json_decode($pkg['itin_includes'] ?? '[]', true) ?: [], 
 
 $prompt = $tonePrompt . "\n\n"
     . 'Package: ' . $pkg['name'] . "\n"
-    . 'Duration: ' . $pkg['duration_days'] . ' nights' . "\n"
+    . 'Duration: ' . $pkg['duration_days'] . ' days / ' . max(0, (int)$pkg['duration_days'] - 1) . ' nights' . "\n"
     . 'Price: from $' . $pkg['price_1pax'] . ' per person' . "\n"
     . 'Accommodation: ' . ucwords(str_replace('_', ' ', $pkg['accommodation_level'] ?? '')) . "\n"
     . 'Description: ' . ($pkg['short_description'] ?: $pkg['itin_overview'] ?: '') . "\n"

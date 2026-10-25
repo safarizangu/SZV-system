@@ -732,7 +732,7 @@ function selectPackage(idx) {
   document.getElementById('txHighlights').value = incl.slice(0,5).join('\n');
 
   // Set default badge
-  document.getElementById('txBadge').value = pkg.duration_days + ' NIGHTS';
+  document.getElementById('txBadge').value = (pkg.duration_days-1) + ' NIGHTS';
 
   // Update image strip
   buildImgStrip(pkg);
@@ -1076,7 +1076,7 @@ function renderHero(pkg, theme, img, w, h) {
   ctx.fillStyle = tg; ctx.fillRect(0,0,w,h*0.22);
 
   if (document.getElementById('elLogo').checked) drawLogo(theme, w, 58, pad);
-  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value || pkg.duration_days+' NIGHTS', w, h);
+  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value || (pkg.duration_days-1)+' NIGHTS', w, h);
 
   var y = h - 56;
   if (document.getElementById('elCTA').checked) {
@@ -1150,7 +1150,7 @@ function renderSplit(pkg, theme, img, w, h) {
   }
 
   var stats = [
-    {l:'DURATION', v: pkg.duration_days+' nights'},
+    {l:'DURATION', v: (pkg.duration_days-1)+' nights'},
     {l:'FROM',     v: '$'+Number(pkg.price_1pax).toLocaleString()+'/pp'},
     {l:'STYLE',    v: ucw(pkg.accommodation_level)},
   ];
@@ -1172,7 +1172,7 @@ function renderSplit(pkg, theme, img, w, h) {
     ctx.font='bold '+Math.round(w*0.02)+'px Arial'; ctx.fillStyle=S.accent;
     ctx.fillText((document.getElementById('txCTA').value||'safarizanguven.com').toUpperCase(), rx, h-56);
   }
-  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||pkg.duration_days+'N', w, h);
+  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||(pkg.duration_days-1)+'N', w, h);
 }
 
 function renderMosaic(pkg, theme, img, w, h) {
@@ -1196,7 +1196,7 @@ function renderMosaic(pkg, theme, img, w, h) {
   ctx.fillStyle=tg2; ctx.fillRect(0,0,w,h*0.22);
 
   if (document.getElementById('elLogo').checked) drawLogo(theme,w,56,pad);
-  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||pkg.duration_days+' NIGHTS',w,h);
+  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||(pkg.duration_days-1)+' NIGHTS',w,h);
 
   var y = h-56;
   if (document.getElementById('elCTA').checked) {
@@ -1253,7 +1253,7 @@ function renderMinimal(pkg, theme, img, w, h) {
   if (document.getElementById('elDivider').checked) {
     ctx.fillStyle=hexRgba(theme.text,0.12); ctx.fillRect(pad,y,w-pad*2,1); y+=36;
   }
-  var facts = [{l:'Duration',v:pkg.duration_days+' Nights'},{l:'From',v:'$'+Number(pkg.price_1pax).toLocaleString()+'/pp'},{l:'Accommodation',v:ucw(pkg.accommodation_level)}];
+  var facts = [{l:'Duration',v:(pkg.duration_days-1)+' Nights'},{l:'From',v:'$'+Number(pkg.price_1pax).toLocaleString()+'/pp'},{l:'Accommodation',v:ucw(pkg.accommodation_level)}];
   var cw2=(w-pad*2)/facts.length;
   facts.forEach(function(f,i){
     var cx2=pad+i*cw2;
@@ -1287,7 +1287,7 @@ function renderItinerary(pkg, theme, img, w, h) {
   drawAccentBar(pad,y,100,3); y+=32;
   if (document.getElementById('elPrice').checked) {
     ctx.font='bold '+Math.round(w*0.026)+'px Arial'; ctx.fillStyle=S.accent;
-    ctx.fillText(pkg.duration_days+' NIGHTS  ·  FROM $'+Number(pkg.price_1pax).toLocaleString()+'/PP', pad, y); y+=64;
+    ctx.fillText((pkg.duration_days-1)+' NIGHTS  ·  FROM $'+Number(pkg.price_1pax).toLocaleString()+'/PP', pad, y); y+=64;
   }
   var days = pkg.itin_days_arr.length ? pkg.itin_days_arr : pkg.itin_arr||[];
   var maxD = Math.min(days.length, S.size==='story'?7:5);
@@ -1310,7 +1310,7 @@ function renderItinerary(pkg, theme, img, w, h) {
     ctx.font='bold '+Math.round(w*0.022)+'px Arial'; ctx.fillStyle=S.accent;
     ctx.fillText((document.getElementById('txCTA').value||'safarizanguven.com').toUpperCase(), pad, h-52);
   }
-  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||pkg.duration_days+' NIGHTS',w,h);
+  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||(pkg.duration_days-1)+' NIGHTS',w,h);
 }
 
 function renderPrice(pkg, theme, img, w, h) {
@@ -1318,7 +1318,7 @@ function renderPrice(pkg, theme, img, w, h) {
   var ov  = parseInt(document.getElementById('rOverlay').value)/100;
   if (img) { clipDraw(img,0,0,w,h); ctx.fillStyle=hexRgba(theme.bg,ov); ctx.fillRect(0,0,w,h); }
   if (document.getElementById('elLogo').checked) drawLogo(theme,w,56,pad);
-  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||pkg.duration_days+' NIGHTS',w,h);
+  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||(pkg.duration_days-1)+' NIGHTS',w,h);
   var cw3=Math.round(w*0.76), ch=Math.round(h*0.52), cx3=(w-cw3)/2, cy3=(h-ch)/2;
   ctx.fillStyle=hexRgba(theme.bg,0.9); ctx.fillRect(cx3,cy3,cw3,ch);
   drawAccentBar(cx3,cy3,cw3,4);
@@ -1328,7 +1328,7 @@ function renderPrice(pkg, theme, img, w, h) {
   var tag=document.getElementById('txTagline').value||pkg.short_description||'';
   if (tag) { ctx.font=Math.round(w*0.022)+'px Arial'; ctx.fillStyle=theme.sub; ctx.fillText(tag.substr(0,55),w/2,iy); iy+=44; }
   ctx.fillStyle=hexRgba(S.accent,0.25); ctx.fillRect(cx3+50,iy,cw3-100,1); iy+=40;
-  var tiers=[{l:'DURATION',v:pkg.duration_days+' Nights'},{l:'FROM',v:'$'+Number(pkg.price_1pax).toLocaleString()},{l:'STYLE',v:ucw(pkg.accommodation_level)}];
+  var tiers=[{l:'DURATION',v:(pkg.duration_days-1)+' Nights'},{l:'FROM',v:'$'+Number(pkg.price_1pax).toLocaleString()},{l:'STYLE',v:ucw(pkg.accommodation_level)}];
   var tw2=(cw3-60)/3;
   tiers.forEach(function(t,i){
     var tx2=cx3+30+i*tw2+tw2/2;
@@ -1377,7 +1377,7 @@ function renderStoryTpl(pkg, theme, img, w, h) {
     ctx.font='bold '+Math.round(w*0.052)+'px '+S.font; ctx.fillStyle=S.accent;
     ctx.fillText('$'+Number(pkg.price_1pax).toLocaleString(),w/2,Math.round(h*0.56));
     ctx.font=Math.round(w*0.024)+'px Arial'; ctx.fillStyle=theme.sub;
-    ctx.fillText('per person · '+pkg.duration_days+' nights',w/2,Math.round(h*0.60));
+    ctx.fillText('per person · '+(pkg.duration_days-1)+' nights',w/2,Math.round(h*0.60));
   }
 
   // Highlights as pills in centre
@@ -1400,7 +1400,7 @@ function renderStoryTpl(pkg, theme, img, w, h) {
     ctx.fillText(cta2.toUpperCase(), w/2, h-70);
   }
   ctx.textAlign='left';
-  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||pkg.duration_days+'N',w,h);
+  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||(pkg.duration_days-1)+'N',w,h);
 }
 
 function renderFeature(pkg, theme, img, w, h) {
@@ -1417,7 +1417,7 @@ function renderFeature(pkg, theme, img, w, h) {
   drawAccentBar(0,imgH,w,4);
 
   if (document.getElementById('elLogo').checked) drawLogo(theme,w,48,pad);
-  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||pkg.duration_days+' NIGHTS',w,h);
+  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||(pkg.duration_days-1)+' NIGHTS',w,h);
 
   var y2=imgH+60;
   var headline=applyCase(document.getElementById('txHeadline').value||pkg.name);
@@ -1428,7 +1428,7 @@ function renderFeature(pkg, theme, img, w, h) {
   var tag=document.getElementById('txTagline').value||pkg.short_description||'';
   if (tag) { wrapText(tag, pad, y2, w-pad*2, Math.round(w*0.026), theme.sub, 'normal', 1.6, 2); y2+=textH(tag,Math.round(w*0.026),w-pad*2)+32; }
   if (document.getElementById('elDivider').checked) { ctx.fillStyle=hexRgba(S.accent,0.3); ctx.fillRect(pad,y2,w-pad*2,1); y2+=28; }
-  var facts2=[pkg.duration_days+' Nights', '$'+Number(pkg.price_1pax).toLocaleString()+'/pp', ucw(pkg.accommodation_level)];
+  var facts2=[(pkg.duration_days-1)+' Nights', '$'+Number(pkg.price_1pax).toLocaleString()+'/pp', ucw(pkg.accommodation_level)];
   var fw=(w-pad*2)/facts2.length;
   facts2.forEach(function(f,i){
     ctx.font='bold '+Math.round(w*0.03)+'px '+S.font; ctx.fillStyle=theme.text; ctx.fillText(f, pad+i*fw, y2+28);
@@ -1476,7 +1476,7 @@ function renderDarkFull(pkg, theme, img, w, h) {
     ctx.font='bold '+Math.round(w*0.018)+'px Arial'; ctx.fillStyle=hexRgba(theme.text,0.35);
     ctx.textAlign='right'; ctx.fillText((document.getElementById('txCTA').value||'safarizanguven.com').toUpperCase(), w-pad, h-70); ctx.textAlign='left';
   }
-  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||pkg.duration_days+' NIGHTS',w,h);
+  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||(pkg.duration_days-1)+' NIGHTS',w,h);
 }
 
 /* ── Utils ────────────────────────────────────────────────── */
@@ -1578,7 +1578,7 @@ function copyHashtags() {
 /* ── Stats ────────────────────────────────────────────────── */
 function updateStats(pkg) {
   var html='<div class="pm-stat-grid">';
-  [{l:'Duration',v:pkg.duration_days+' nights'},{l:'Price',v:'$'+Number(pkg.price_1pax).toLocaleString()+'/pp'}].forEach(function(s){
+  [{l:'Duration',v:(pkg.duration_days-1)+' nights'},{l:'Price',v:'$'+Number(pkg.price_1pax).toLocaleString()+'/pp'}].forEach(function(s){
     html+='<div class="pm-stat-cell"><div class="pm-stat-label">'+s.l+'</div><div class="pm-stat-val">'+s.v+'</div></div>';
   });
   html+='</div>';

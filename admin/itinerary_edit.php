@@ -20,11 +20,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_itin'])) {
     $includes = array_values(array_filter(array_map('trim',explode("\n",$_POST['includes']??''))));
     $excludes = array_values(array_filter(array_map('trim',explode("\n",$_POST['excludes']??''))));
 
-    // Build days JSON from posted arrays
+    // Build days JSON from posted arrays. If the first day is flagged as
+    // an arrival day (airport pickup + overnight, nothing touring-related
+    // happens yet), it's labelled "Day 0" and every day after it shifts
+    // down by one so actual touring starts at "Day 1" — see day_is_arrival
+    // below. Only index 0's flag is ever read; it's keyed explicitly
+    // (day_is_arrival[0]) rather than day_is_arrival[] because unchecked
+    // checkboxes don't submit at all, which would otherwise misalign a
+    // plain array against day position the moment any other day's (unused)
+    // checkbox were checked instead.
+    $arrivalDay = !empty($_POST['day_is_arrival'][0]);
     $days = [];
     for ($i=0; $i<$dur; $i++) {
         $days[] = [
-            'day'                 => $i+1,
+            'day'                 => $arrivalDay ? $i : $i+1,
+            'is_arrival'          => ($i===0 && $arrivalDay),
             'title'               => trim(($_POST['day_title'][$i]??'')),
             'description'         => trim(($_POST['day_desc'][$i]??'')),
             'location'            => trim(($_POST['day_location'][$i]??'')),
@@ -134,7 +144,15 @@ if ($editId) {
     }
 }
 $dur = (int)($itin['duration_days']??5);
-while (count($days)<$dur) $days[]=['day'=>count($days)+1,'title'=>'','description'=>'','location'=>'','accommodation_id'=>0,'accommodation_name'=>'','accommodation_rate'=>0,'accommodation_rooms'=>1,'vehicle_id'=>0,'vehicle_name'=>'','vehicle_rate'=>0,'park_fee_id'=>0,'park_fee_name'=>'','park_adult_fee'=>0,'meals_cost_pp'=>20,'activities'=>[],'other_items'=>[]];
+// Padding for a shorter-than-duration_days load only; whether Day 1 is
+// flagged as an arrival day determines whether a freshly-padded day's
+// number continues from 0 or from 1 — see the save handler above for the
+// authoritative version of this same rule.
+$arrivalDayLoaded = !empty($days[0]['is_arrival']);
+while (count($days)<$dur) {
+    $n = count($days);
+    $days[] = ['day'=>$arrivalDayLoaded ? $n : $n+1,'is_arrival'=>false,'title'=>'','description'=>'','location'=>'','accommodation_id'=>0,'accommodation_name'=>'','accommodation_rate'=>0,'accommodation_rooms'=>1,'vehicle_id'=>0,'vehicle_name'=>'','vehicle_rate'=>0,'park_fee_id'=>0,'park_fee_name'=>'','park_adult_fee'=>0,'meals_cost_pp'=>20,'activities'=>[],'other_items'=>[]];
+}
 $days = array_slice($days,0,$dur);
 $trashIconJs = json_encode(\App\Helpers\AdminIcon::render('trash', 14));
 
@@ -190,7 +208,7 @@ ob_start();
         <input name="sort_order" type="number" class="admin-input" value="<?= (int)($itin['sort_order']??0) ?>"></div>
     </div>
     <div style="display:grid;grid-template-columns:60px 1fr;gap:1rem;margin-bottom:1rem;align-items:end">
-      <div><label class="admin-label">Nights</label>
+      <div><label class="admin-label">Days</label>
         <input name="duration_days" type="number" min="1" max="30" class="admin-input" id="dur_input"
                value="<?= $dur ?>" oninput="syncDayCount(this.value)"></div>
       <div><label class="admin-label">Overview</label>
@@ -227,12 +245,16 @@ ob_start();
 <div class="day-block admin-card" data-day="<?= $i ?>" style="margin-bottom:1rem;border-left:3px solid var(--black)">
   <div class="admin-card-header" style="background:var(--gray-50)">
     <h3 style="font-size:.85rem">
-      <span class="day-num-label" style="font-family:'Times New Roman',Times,serif;color:var(--black);margin-right:.5rem">Day <?= $i+1 ?></span>
+      <span class="day-num-label" style="font-family:'Times New Roman',Times,serif;color:var(--black);margin-right:.5rem">Day <?= $day['day'] ?></span>
       <input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem"
              placeholder="Day title e.g. Arusha → Tarangire"
              value="<?= htmlspecialchars($day['title']) ?>">
     </h3>
     <div style="display:flex;align-items:center;gap:.5rem">
+      <label class="day-arrival-toggle" style="display:<?= $i===0?'inline-flex':'none' ?>;align-items:center;gap:.3rem;font-size:.65rem;color:var(--gray-500);font-weight:600;cursor:pointer;white-space:nowrap">
+        <input type="checkbox" name="day_is_arrival[<?= $i ?>]" value="1" <?= !empty($day['is_arrival'])?'checked':'' ?> onchange="renumberDays()">
+        Arrival day — pickup &amp; overnight (Day 0)
+      </label>
       <span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span>
       <button type="button" onclick="deleteDay(this)" class="admin-icon-btn admin-icon-btn--danger" title="Delete this day"><?= \App\Helpers\AdminIcon::render('trash', 14) ?></button>
     </div>
@@ -327,7 +349,7 @@ ob_start();
     <!-- Activities for this day -->
     <div style="margin-bottom:1rem">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-        <p class="day-acts-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day <?= $i+1 ?>)</p>
+        <p class="day-acts-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day <?= $day['day'] ?>)</p>
         <button type="button" onclick="addDayActivity(<?= $i ?>)" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>
       </div>
       <datalist id="act-list-<?= $i ?>">
@@ -361,7 +383,7 @@ ob_start();
     <!-- Other items for this day -->
     <div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-        <p class="day-other-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day <?= $i+1 ?>)</p>
+        <p class="day-other-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day <?= $day['day'] ?>)</p>
         <button type="button" onclick="addDayOther(<?= $i ?>)" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>
       </div>
       <div id="day-other-<?= $i ?>">
@@ -426,7 +448,7 @@ ob_start();
 
 <script>
 // ── Reference data + day-block template, for dynamically adding days
-//    when "Nights" is increased (syncDayCount below) — mirrors the exact
+//    when "Days" is increased (syncDayCount below) — mirrors the exact
 //    PHP-rendered markup above so a day added via JS behaves identically
 //    to one rendered server-side (same class names, same datalist ids). ──
 var ITIN_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'level'=>$a['level'],'location'=>$a['location']??''], $accommodations)) ?>;
@@ -436,19 +458,34 @@ var ITIN_ACTS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(
 var ITIN_GENERIC_ACTS = <?= json_encode($genericActivityLabels) ?>;
 var ITIN_GENERIC_ACT_OPTS = ITIN_GENERIC_ACTS.map(function(g){ return '<option value="'+g+'">'; }).join('');
 
+// Whether the first day-block's "arrival day" checkbox is checked — index
+// 0 always already exists in the DOM (an itinerary can never have 0 days),
+// so newly-added days just need to read it, not track it themselves.
+function isArrivalDayFlagged() {
+  var first = document.querySelector('#days-container .day-block');
+  var cb = first ? first.querySelector('.day-arrival-toggle input[type=checkbox]') : null;
+  return !!(cb && cb.checked);
+}
+
 function itinDayBlockHtml(i) {
   var accOpts  = ITIN_ACCS.map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-rate="'+a.rate+'" data-level="'+a.level+'">'; }).join('');
   var vehOpts  = ITIN_VEHS.map(function(v){ return '<option value="'+v.name+'" data-id="'+v.id+'" data-rate="'+v.rate+'">'; }).join('');
   var parkOpts = ITIN_PARKS.map(function(p){ return '<option value="'+p.name+'" data-id="'+p.id+'" data-fee="'+p.fee+'">'; }).join('');
   var actOpts  = ITIN_ACTS.map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-price="'+a.price+'">'; }).join('') + ITIN_GENERIC_ACT_OPTS;
+  var dayNum   = isArrivalDayFlagged() ? i : i+1;
 
   return ''
     +'<div class="admin-card-header" style="background:var(--gray-50)">'
       +'<h3 style="font-size:.85rem">'
-        +'<span class="day-num-label" style="font-family:\'Times New Roman\',Times,serif;color:var(--black);margin-right:.5rem">Day '+(i+1)+'</span>'
+        +'<span class="day-num-label" style="font-family:\'Times New Roman\',Times,serif;color:var(--black);margin-right:.5rem">Day '+dayNum+'</span>'
         +'<input name="day_title[]" class="admin-input" style="display:inline;width:auto;min-width:200px;font-size:.85rem;border:none;background:transparent;font-weight:600;padding:.15rem .35rem" placeholder="Day title e.g. Arusha → Tarangire">'
       +'</h3>'
-      +'<div style="display:flex;align-items:center;gap:.5rem"><span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span>'
+      +'<div style="display:flex;align-items:center;gap:.5rem">'
+        +'<label class="day-arrival-toggle" style="display:none;align-items:center;gap:.3rem;font-size:.65rem;color:var(--gray-500);font-weight:600;cursor:pointer;white-space:nowrap">'
+          +'<input type="checkbox" name="day_is_arrival['+i+']" value="1" onchange="renumberDays()">'
+          +'Arrival day — pickup &amp; overnight (Day 0)'
+        +'</label>'
+        +'<span class="day-cost-badge" style="font-size:.65rem;background:var(--black);color:var(--white);padding:.2rem .6rem;font-weight:600">$0</span>'
         +'<button type="button" onclick="deleteDay(this)" class="admin-icon-btn admin-icon-btn--danger" title="Delete this day">'+<?= $trashIconJs ?>+'</button></div>'
     +'</div>'
     +'<div class="admin-card-body">'
@@ -493,7 +530,7 @@ function itinDayBlockHtml(i) {
       +'</div>'
       +'<div style="margin-bottom:1rem">'
         +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
-          +'<p class="day-acts-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day '+(i+1)+')</p>'
+          +'<p class="day-acts-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Activities (Day '+dayNum+')</p>'
           +'<button type="button" onclick="addDayActivity('+i+')" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>'
         +'</div>'
         +'<datalist id="act-list-'+i+'">'+actOpts+'</datalist>'
@@ -502,7 +539,7 @@ function itinDayBlockHtml(i) {
       +'</div>'
       +'<div>'
         +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
-          +'<p class="day-other-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day '+(i+1)+')</p>'
+          +'<p class="day-other-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-500)">Other Costs (Day '+dayNum+')</p>'
           +'<button type="button" onclick="addDayOther('+i+')" class="admin-btn admin-btn--muted" style="font-size:.6rem;padding:.2rem .55rem">+ Add</button>'
         +'</div>'
         +'<div id="day-other-'+i+'"></div>'
@@ -762,13 +799,13 @@ function syncDayCount(n) {
 }
 
 // ── Delete a single day, from anywhere in the itinerary ─────────
-// Unlike shortening via the Nights field above (which only ever trims
+// Unlike shortening via the Days field above (which only ever trims
 // from the end), this removes one specific day-block and shifts every
 // day after it up. Every day_*[] field is an array-append ("[]") name,
 // not an explicit day_title[3]-style index, so the form submission
 // already reindexes correctly from DOM order alone once the block is
 // gone — renumberDays() only has to fix the *visible* "Day N" labels and
-// the Nights count, which don't update themselves on their own. Each
+// the Days count, which don't update themselves on their own. Each
 // day-block's internal ids (acc-list-N, day-acts-N, etc.) and their
 // onclick handlers stay as originally built — they only need to stay
 // self-consistent within their own moved block, not match the new
@@ -791,8 +828,16 @@ async function deleteDay(btn) {
 
 function renumberDays() {
   var blocks = document.querySelectorAll('.day-block');
+  var arrival = isArrivalDayFlagged();
   blocks.forEach(function (block, idx) {
-    var n2 = idx + 1;
+    // Only the first block's checkbox ever controls anything — show it
+    // there, hide it everywhere else (deleting the original Day 1 just
+    // makes the next day's own, already-present-but-hidden checkbox
+    // reachable in its place, no extra wiring needed).
+    var toggle = block.querySelector('.day-arrival-toggle');
+    if (toggle) toggle.style.display = (idx === 0) ? 'inline-flex' : 'none';
+
+    var n2 = (idx === 0 && arrival) ? 0 : (arrival ? idx : idx + 1);
     var dayLabel = block.querySelector('.day-num-label');
     if (dayLabel) dayLabel.textContent = 'Day ' + n2;
     var actsLabel = block.querySelector('.day-acts-label');

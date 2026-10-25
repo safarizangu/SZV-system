@@ -44,15 +44,22 @@ class AccommodationAvailability
 
             foreach ($stmt->fetchAll() as $row) {
                 $days = json_decode($row['days'] ?? '[]', true) ?: [];
-                foreach ($days as $day) {
+                // Calendar date comes from each day's ARRAY POSITION, not
+                // its stored 'day' label — the label can start at 0 for an
+                // itinerary with a flagged arrival day (see
+                // admin/itinerary_edit.php), but the first day-block is
+                // always the travel_date itself regardless of what it's
+                // labelled, and every day after it is still exactly one
+                // calendar day later. Position is the one thing that never
+                // changes meaning.
+                foreach ($days as $dayIdx => $day) {
                     $accName = trim($day['accommodation_name'] ?? '');
                     if (strcasecmp($accName, $accommodationName) !== 0) continue;
 
                     $rooms = (int)($day['accommodation_rooms'] ?? 1);
                     if ($rooms <= 0) continue;
 
-                    $dayNum = (int)($day['day'] ?? 1);
-                    $date   = date('Y-m-d', strtotime($row['travel_date'] . ' +' . ($dayNum - 1) . ' days'));
+                    $date = date('Y-m-d', strtotime($row['travel_date'] . ' +' . $dayIdx . ' days'));
                     if ($date < $rangeStart || $date > $rangeEnd) continue;
 
                     $committed[$date] = ($committed[$date] ?? 0) + $rooms;

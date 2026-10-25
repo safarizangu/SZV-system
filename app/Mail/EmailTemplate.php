@@ -629,7 +629,7 @@ HTML;
         " . self::sectionTitle('Safari Overview') . "
         <table width='100%' cellpadding='0' cellspacing='0' border='0' style='border-collapse:collapse'>
           " . self::tableRow('Destination',    $destStr) . "
-          " . self::tableRow('Duration',       $duration . ' nights') . "
+          " . self::tableRow('Duration',       $duration . ' days / ' . max(0, $duration - 1) . ' nights') . "
           " . self::tableRow('Start Date',     $startDate) . "
           " . self::tableRow('Travelers',      $adults . ' adult' . ($adults !== 1 ? 's' : '') . ($children > 0 ? ' + ' . $children . ' child' . ($children !== 1 ? 'ren' : '') : '')) . "
           " . self::tableRow('Accommodation',  $accLevel) . "
@@ -675,7 +675,7 @@ HTML;
             'title'   => 'Safari Quotation',
             'preview' => 'Your personalised Tanzania safari quotation is ready. Grand total: USD $' . number_format($grand, 0) . '.',
             'html'    => $html,
-            'text'    => "Dear {$name},\n\nYour safari quotation {$ref} is ready.\n\nPackage: {$package}\nDuration: {$duration} nights\nGrand Total: USD \$" . number_format($grand, 0) . "\nPer Person: USD \$" . number_format($perPerson, 0) . "\nValid Until: {$valid}\n\nWhatsApp us to confirm: " . self::CONTACT_PHONE . "\n\nSafari Zangu Ventures",
+            'text'    => "Dear {$name},\n\nYour safari quotation {$ref} is ready.\n\nPackage: {$package}\nDuration: {$duration} days / " . max(0, $duration - 1) . " nights\nGrand Total: USD \$" . number_format($grand, 0) . "\nPer Person: USD \$" . number_format($perPerson, 0) . "\nValid Until: {$valid}\n\nWhatsApp us to confirm: " . self::CONTACT_PHONE . "\n\nSafari Zangu Ventures",
         ];
     }
 
