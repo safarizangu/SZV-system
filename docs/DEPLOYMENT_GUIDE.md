@@ -82,6 +82,7 @@ composer install --no-dev --optimize-autoloader
 */2 * * * * php8.3 /home/u662187129/domains/safarizanguven.com/public_html/api/cron/process_email_queue.php
 0 * * * * php8.3 /home/u662187129/domains/safarizanguven.com/public_html/api/cron/process_reminders.php
 0 3 * * * php8.3 /home/u662187129/domains/safarizanguven.com/public_html/api/cron/process_quotation_expiry.php
+0 4 * * 0 php8.3 /home/u662187129/domains/safarizanguven.com/public_html/api/cron/prune_analytics_events.php
 0 2 * * * /home/u662187129/domains/safarizanguven.com/public_html/cron/backup.sh
 
 ### STEP 7 — Smoke test production
