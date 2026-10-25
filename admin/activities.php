@@ -152,18 +152,18 @@ function actUsageCount(array $blobs, string $name): int {
         <input type="hidden" name="save" value="1">
         <input type="hidden" name="id"   value="<?= $edit['id']??0 ?>">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
-          <div><label class="admin-label">Key (unique slug)</label>
-            <input name="activity_key" data-av="required slug" class="admin-input" required value="<?= htmlspecialchars($edit['activity_key']??'') ?>"></div>
-          <div><label class="admin-label">Name</label>
-            <input name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
-          <div><label class="admin-label">Category</label>
-            <input name="category" class="admin-input" value="<?= htmlspecialchars($edit['category']??'') ?>"></div>
-          <div><label class="admin-label">Location</label>
-            <input name="location" class="admin-input" list="location-list" value="<?= htmlspecialchars($edit['location']??'') ?>" placeholder="e.g. Serengeti"></div>
-          <div><label class="admin-label">Price (USD)</label>
-            <input name="price" data-av="required min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['price']??0 ?>"></div>
-          <div><label class="admin-label">Price Unit</label>
-            <select name="price_unit" class="admin-input">
+          <div><label class="admin-label" for="activity_key">Key (unique slug)</label>
+            <input id="activity_key" name="activity_key" data-av="required slug" class="admin-input" required value="<?= htmlspecialchars($edit['activity_key']??'') ?>"></div>
+          <div><label class="admin-label" for="name">Name</label>
+            <input id="name" name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
+          <div><label class="admin-label" for="category">Category</label>
+            <input id="category" name="category" class="admin-input" value="<?= htmlspecialchars($edit['category']??'') ?>"></div>
+          <div><label class="admin-label" for="location">Location</label>
+            <input id="location" name="location" class="admin-input" list="location-list" value="<?= htmlspecialchars($edit['location']??'') ?>" placeholder="e.g. Serengeti"></div>
+          <div><label class="admin-label" for="price">Price (USD)</label>
+            <input id="price" name="price" data-av="required min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['price']??0 ?>"></div>
+          <div><label class="admin-label" for="price_unit">Price Unit</label>
+            <select id="price_unit" name="price_unit" class="admin-input">
               <?php foreach(['per_person'=>'Per Person','per_group'=>'Per Group','flat'=>'Flat Fee'] as $v=>$l): ?>
               <option value="<?= $v ?>" <?= ($edit['price_unit']??'per_person')===$v?'selected':'' ?>><?= $l ?></option>
               <?php endforeach; ?>
@@ -176,8 +176,8 @@ function actUsageCount(array $blobs, string $name): int {
             </label>
           </div>
         </div>
-        <div style="margin-top:1rem"><label class="admin-label">Description</label>
-          <textarea name="description" class="admin-input" rows="2"><?= htmlspecialchars($edit['description']??'') ?></textarea></div>
+        <div style="margin-top:1rem"><label class="admin-label" for="description">Description</label>
+          <textarea id="description" name="description" class="admin-input" rows="2"><?= htmlspecialchars($edit['description']??'') ?></textarea></div>
 
         <!-- Images -->
         <div style="margin-top:1rem">

@@ -92,21 +92,21 @@ ob_start();
         <?= \App\Middleware\CsrfMiddleware::field() ?>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:1rem">
           <div class="admin-form-group">
-            <label class="admin-label">Full Name</label>
-            <input name="full_name" class="admin-input" required value="<?= htmlspecialchars($user['full_name'] ?? '') ?>">
+            <label class="admin-label" for="full_name">Full Name</label>
+            <input id="full_name" name="full_name" class="admin-input" required value="<?= htmlspecialchars($user['full_name'] ?? '') ?>">
           </div>
           <div class="admin-form-group">
-            <label class="admin-label">Email</label>
-            <input type="email" name="email" class="admin-input" required value="<?= htmlspecialchars($user['email'] ?? '') ?>">
+            <label class="admin-label" for="email">Email</label>
+            <input id="email" type="email" name="email" class="admin-input" required value="<?= htmlspecialchars($user['email'] ?? '') ?>">
           </div>
           <div class="admin-form-group">
-            <label class="admin-label">Phone</label>
-            <input name="phone" class="admin-input" value="<?= htmlspecialchars($user['phone'] ?? '') ?>">
+            <label class="admin-label" for="phone">Phone</label>
+            <input id="phone" name="phone" class="admin-input" value="<?= htmlspecialchars($user['phone'] ?? '') ?>">
           </div>
         </div>
         <div class="admin-form-group">
-          <label class="admin-label">Bio</label>
-          <textarea name="bio" class="admin-input" rows="3" style="max-width:640px"><?= htmlspecialchars($user['bio'] ?? '') ?></textarea>
+          <label class="admin-label" for="bio">Bio</label>
+          <textarea id="bio" name="bio" class="admin-input" rows="3" style="max-width:640px"><?= htmlspecialchars($user['bio'] ?? '') ?></textarea>
         </div>
         <div style="display:flex;gap:.75rem;margin-top:1.25rem">
           <button type="submit" class="admin-btn admin-btn--primary">Save Changes</button>

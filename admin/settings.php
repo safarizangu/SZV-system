@@ -179,28 +179,28 @@ ob_start();
         <input type="hidden" name="update_business_rules" value="1">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr));gap:1rem;margin-bottom:1rem">
           <div>
-            <label class="admin-label">Deposit (%)</label>
-            <input type="number" name="deposit_percent" class="admin-input" min="0" max="100" step="1"
+            <label class="admin-label" for="deposit_percent">Deposit (%)</label>
+            <input id="deposit_percent" type="number" name="deposit_percent" class="admin-input" min="0" max="100" step="1"
                    value="<?= (int)DEPOSIT_PERCENT ?>">
           </div>
           <div>
-            <label class="admin-label">Balance Due <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(days before travel)</span></label>
-            <input type="number" name="balance_days" class="admin-input" min="0" step="1"
+            <label class="admin-label" for="balance_days">Balance Due <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(days before travel)</span></label>
+            <input id="balance_days" type="number" name="balance_days" class="admin-input" min="0" step="1"
                    value="<?= (int)BALANCE_DAYS ?>">
           </div>
           <div>
-            <label class="admin-label">VAT Rate (%)</label>
-            <input type="number" name="vat_rate" class="admin-input" min="0" max="100" step="0.1"
+            <label class="admin-label" for="vat_rate">VAT Rate (%)</label>
+            <input id="vat_rate" type="number" name="vat_rate" class="admin-input" min="0" max="100" step="0.1"
                    value="<?= rtrim(rtrim(number_format(VAT_RATE*100,2,'.',''),'0'),'.') ?>">
           </div>
           <div>
-            <label class="admin-label">Service Charge (%)</label>
-            <input type="number" name="service_charge_rate" class="admin-input" min="0" max="100" step="0.1"
+            <label class="admin-label" for="service_charge_rate">Service Charge (%)</label>
+            <input id="service_charge_rate" type="number" name="service_charge_rate" class="admin-input" min="0" max="100" step="0.1"
                    value="<?= rtrim(rtrim(number_format(SERVICE_CHARGE_RATE*100,2,'.',''),'0'),'.') ?>">
           </div>
           <div>
-            <label class="admin-label">Display USD→GBP Rate <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(shown only, never charged)</span></label>
-            <input type="number" name="gbp_rate" class="admin-input" min="0" step="0.001"
+            <label class="admin-label" for="gbp_rate">Display USD→GBP Rate <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(shown only, never charged)</span></label>
+            <input id="gbp_rate" type="number" name="gbp_rate" class="admin-input" min="0" step="0.001"
                    value="<?= rtrim(rtrim(number_format(GBP_RATE,4,'.',''),'0'),'.') ?>">
           </div>
         </div>
@@ -221,16 +221,16 @@ ob_start();
         <input type="hidden" name="update_contact" value="1">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:1rem;margin-bottom:1.25rem">
           <div>
-            <label class="admin-label">Site Email <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(general contact)</span></label>
-            <input type="email" name="site_email" class="admin-input" value="<?= htmlspecialchars(SITE_EMAIL) ?>">
+            <label class="admin-label" for="site_email">Site Email <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(general contact)</span></label>
+            <input id="site_email" type="email" name="site_email" class="admin-input" value="<?= htmlspecialchars(SITE_EMAIL) ?>">
           </div>
           <div>
-            <label class="admin-label">Admin Email <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(internal notifications)</span></label>
-            <input type="email" name="admin_email" class="admin-input" value="<?= htmlspecialchars(ADMIN_EMAIL) ?>">
+            <label class="admin-label" for="admin_email">Admin Email <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(internal notifications)</span></label>
+            <input id="admin_email" type="email" name="admin_email" class="admin-input" value="<?= htmlspecialchars(ADMIN_EMAIL) ?>">
           </div>
           <div>
-            <label class="admin-label">WhatsApp Number <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(digits only, country code first)</span></label>
-            <input type="text" name="whatsapp_number" class="admin-input" value="<?= htmlspecialchars(WHATSAPP_NUMBER) ?>">
+            <label class="admin-label" for="whatsapp_number">WhatsApp Number <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(digits only, country code first)</span></label>
+            <input id="whatsapp_number" type="text" name="whatsapp_number" class="admin-input" value="<?= htmlspecialchars(WHATSAPP_NUMBER) ?>">
           </div>
         </div>
         <button type="submit" class="admin-btn admin-btn--primary">Save Contact Details</button>
@@ -250,24 +250,24 @@ ob_start();
         <input type="hidden" name="update_bank" value="1">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:1rem;margin-bottom:1.25rem">
           <div>
-            <label class="admin-label">Bank Name</label>
-            <input type="text" name="bank_name" class="admin-input" value="<?= htmlspecialchars(BANK_NAME) ?>">
+            <label class="admin-label" for="bank_name">Bank Name</label>
+            <input id="bank_name" type="text" name="bank_name" class="admin-input" value="<?= htmlspecialchars(BANK_NAME) ?>">
           </div>
           <div>
-            <label class="admin-label">Account Name</label>
-            <input type="text" name="bank_account_name" class="admin-input" value="<?= htmlspecialchars(BANK_ACCOUNT_NAME) ?>">
+            <label class="admin-label" for="bank_account_name">Account Name</label>
+            <input id="bank_account_name" type="text" name="bank_account_name" class="admin-input" value="<?= htmlspecialchars(BANK_ACCOUNT_NAME) ?>">
           </div>
           <div>
-            <label class="admin-label">Account Number</label>
-            <input type="text" name="bank_account_no" class="admin-input" value="<?= htmlspecialchars(BANK_ACCOUNT_NO) ?>">
+            <label class="admin-label" for="bank_account_no">Account Number</label>
+            <input id="bank_account_no" type="text" name="bank_account_no" class="admin-input" value="<?= htmlspecialchars(BANK_ACCOUNT_NO) ?>">
           </div>
           <div>
-            <label class="admin-label">SWIFT Code</label>
-            <input type="text" name="bank_swift" class="admin-input" value="<?= htmlspecialchars(BANK_SWIFT) ?>">
+            <label class="admin-label" for="bank_swift">SWIFT Code</label>
+            <input id="bank_swift" type="text" name="bank_swift" class="admin-input" value="<?= htmlspecialchars(BANK_SWIFT) ?>">
           </div>
           <div>
-            <label class="admin-label">Wise Email <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(for Wise transfers)</span></label>
-            <input type="email" name="wise_email" class="admin-input" value="<?= htmlspecialchars(WISE_EMAIL) ?>">
+            <label class="admin-label" for="wise_email">Wise Email <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(for Wise transfers)</span></label>
+            <input id="wise_email" type="email" name="wise_email" class="admin-input" value="<?= htmlspecialchars(WISE_EMAIL) ?>">
           </div>
         </div>
         <button type="submit" class="admin-btn admin-btn--primary">Save Bank Details</button>
@@ -288,18 +288,18 @@ ob_start();
         <input type="hidden" name="update_lead_rules" value="1">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:1rem;margin-bottom:1rem">
           <div>
-            <label class="admin-label">Default Commission Rate (%) <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(no rate set on the agent)</span></label>
-            <input type="number" name="default_commission_rate" class="admin-input" min="0" max="100" step="0.5"
+            <label class="admin-label" for="default_commission_rate">Default Commission Rate (%) <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(no rate set on the agent)</span></label>
+            <input id="default_commission_rate" type="number" name="default_commission_rate" class="admin-input" min="0" max="100" step="0.5"
                    value="<?= rtrim(rtrim(number_format(DEFAULT_COMMISSION_RATE,2,'.',''),'0'),'.') ?>">
           </div>
           <div>
-            <label class="admin-label">Quotation Validity <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(days from today)</span></label>
-            <input type="number" name="quotation_validity_days" class="admin-input" min="1" step="1"
+            <label class="admin-label" for="quotation_validity_days">Quotation Validity <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(days from today)</span></label>
+            <input id="quotation_validity_days" type="number" name="quotation_validity_days" class="admin-input" min="1" step="1"
                    value="<?= (int)QUOTATION_VALIDITY_DAYS ?>">
           </div>
           <div>
-            <label class="admin-label">Max Party Size <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(adults + children, public booking)</span></label>
-            <input type="number" name="max_party_size" class="admin-input" min="1" max="200" step="1"
+            <label class="admin-label" for="max_party_size">Max Party Size <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(adults + children, public booking)</span></label>
+            <input id="max_party_size" type="number" name="max_party_size" class="admin-input" min="1" max="200" step="1"
                    value="<?= (int)MAX_PARTY_SIZE ?>">
           </div>
         </div>
@@ -355,8 +355,8 @@ ob_start();
           </label>
         </div>
         <div style="margin-bottom:1rem;max-width:280px">
-          <label class="admin-label">Supplier Contract Max Size <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(MB)</span></label>
-          <input type="number" name="supplier_contract_max_mb" class="admin-input" min="1" max="100" step="1"
+          <label class="admin-label" for="supplier_contract_max_mb">Supplier Contract Max Size <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(MB)</span></label>
+          <input id="supplier_contract_max_mb" type="number" name="supplier_contract_max_mb" class="admin-input" min="1" max="100" step="1"
                  value="<?= (int)SUPPLIER_CONTRACT_MAX_MB ?>">
         </div>
         <button type="submit" class="admin-btn admin-btn--primary">Save Platform Controls</button>
@@ -377,18 +377,18 @@ ob_start();
         <input type="hidden" name="update_security" value="1">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:1rem;margin-bottom:1rem">
           <div>
-            <label class="admin-label">Session Timeout <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(minutes of inactivity, 5–480)</span></label>
-            <input type="number" name="session_timeout_minutes" class="admin-input" min="5" max="480" step="5"
+            <label class="admin-label" for="session_timeout_minutes">Session Timeout <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(minutes of inactivity, 5–480)</span></label>
+            <input id="session_timeout_minutes" type="number" name="session_timeout_minutes" class="admin-input" min="5" max="480" step="5"
                    value="<?= (int)SESSION_TIMEOUT_MINUTES ?>">
           </div>
           <div>
-            <label class="admin-label">Track Booking Attempts <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(before lockout)</span></label>
-            <input type="number" name="track_lockout_attempts" class="admin-input" min="1" max="20" step="1"
+            <label class="admin-label" for="track_lockout_attempts">Track Booking Attempts <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(before lockout)</span></label>
+            <input id="track_lockout_attempts" type="number" name="track_lockout_attempts" class="admin-input" min="1" max="20" step="1"
                    value="<?= (int)TRACK_LOCKOUT_ATTEMPTS ?>">
           </div>
           <div>
-            <label class="admin-label">Track Booking Lockout <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(minutes)</span></label>
-            <input type="number" name="track_lockout_minutes" class="admin-input" min="1" max="1440" step="1"
+            <label class="admin-label" for="track_lockout_minutes">Track Booking Lockout <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(minutes)</span></label>
+            <input id="track_lockout_minutes" type="number" name="track_lockout_minutes" class="admin-input" min="1" max="1440" step="1"
                    value="<?= (int)TRACK_LOCKOUT_MINUTES ?>">
           </div>
         </div>

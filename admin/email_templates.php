@@ -97,8 +97,8 @@ ob_start();
       <input type="hidden" name="template_key" value="<?= htmlspecialchars($editKey) ?>">
 
       <div style="margin-bottom:1rem">
-        <label class="admin-label">Subject Line *</label>
-        <input class="admin-input" name="subject" required
+        <label class="admin-label" for="subject">Subject Line *</label>
+        <input id="subject" class="admin-input" name="subject" required
                value="<?= htmlspecialchars($editData['subject'] ?? 'Safari Zangu — '.ucwords(str_replace('_',' ',$editKey))) ?>">
         <small style="font-size:.65rem;color:var(--gray-500)">Use {client_name}, {booking_ref}, {package_name} etc as placeholders</small>
       </div>
@@ -124,7 +124,7 @@ ob_start();
 
       <!-- Live Preview -->
       <div style="margin-bottom:1rem">
-        <label class="admin-label">Preview</label>
+        <label class="admin-label" for="mobile-preview">Preview</label>
         <div style="display:flex;gap:.5rem;margin-bottom:.5rem">
           <button type="button" onclick="updatePreview()" class="admin-btn admin-btn--outline" style="font-size:.68rem">Refresh Preview</button>
           <label style="display:flex;align-items:center;gap:.35rem;font-size:.72rem">

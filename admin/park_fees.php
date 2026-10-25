@@ -105,26 +105,26 @@ $allCountries = \App\Services\LocationRegistry::allCountries($db);
         <input type="hidden" name="save" value="1">
         <input type="hidden" name="id"   value="<?= $edit['id']??0 ?>">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
-          <div><label class="admin-label">Park Key</label>
-            <input name="park_key" data-av="required slug" class="admin-input" required value="<?= htmlspecialchars($edit['park_key']??'') ?>"></div>
-          <div><label class="admin-label">Park Name</label>
-            <input name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
-          <div><label class="admin-label">Location / Area</label>
-            <input name="location" class="admin-input" list="location-list" value="<?= htmlspecialchars($edit['location']??'') ?>" placeholder="e.g. Serengeti"></div>
-          <div><label class="admin-label">Country</label>
-            <input name="country" class="admin-input" list="country-list" value="<?= htmlspecialchars($edit['country']??'Tanzania') ?>"></div>
-          <div><label class="admin-label">Non-Resident Adult (USD)</label>
-            <input name="adult_fee" data-av="required min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['adult_fee']??0 ?>"></div>
-          <div><label class="admin-label">Non-Resident Child (USD)</label>
-            <input name="child_fee" data-av="min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['child_fee']??0 ?>"></div>
-          <div><label class="admin-label">Vehicle Entry Fee (USD)</label>
-            <input name="vehicle_fee" data-av="min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['vehicle_fee']??0 ?>"></div>
-          <div><label class="admin-label">Resident Adult (USD)</label>
-            <input name="resident_adult" type="number" step="0.01" class="admin-input" value="<?= $edit['resident_adult']??0 ?>"></div>
-          <div><label class="admin-label">Resident Child (USD)</label>
-            <input name="resident_child" type="number" step="0.01" class="admin-input" value="<?= $edit['resident_child']??0 ?>"></div>
-          <div><label class="admin-label">Fee Unit</label>
-            <input name="fee_unit" class="admin-input" value="<?= htmlspecialchars($edit['fee_unit']??'per_person_per_entry') ?>"></div>
+          <div><label class="admin-label" for="park_key">Park Key</label>
+            <input id="park_key" name="park_key" data-av="required slug" class="admin-input" required value="<?= htmlspecialchars($edit['park_key']??'') ?>"></div>
+          <div><label class="admin-label" for="name">Park Name</label>
+            <input id="name" name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
+          <div><label class="admin-label" for="location">Location / Area</label>
+            <input id="location" name="location" class="admin-input" list="location-list" value="<?= htmlspecialchars($edit['location']??'') ?>" placeholder="e.g. Serengeti"></div>
+          <div><label class="admin-label" for="country">Country</label>
+            <input id="country" name="country" class="admin-input" list="country-list" value="<?= htmlspecialchars($edit['country']??'Tanzania') ?>"></div>
+          <div><label class="admin-label" for="adult_fee">Non-Resident Adult (USD)</label>
+            <input id="adult_fee" name="adult_fee" data-av="required min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['adult_fee']??0 ?>"></div>
+          <div><label class="admin-label" for="child_fee">Non-Resident Child (USD)</label>
+            <input id="child_fee" name="child_fee" data-av="min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['child_fee']??0 ?>"></div>
+          <div><label class="admin-label" for="vehicle_fee">Vehicle Entry Fee (USD)</label>
+            <input id="vehicle_fee" name="vehicle_fee" data-av="min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['vehicle_fee']??0 ?>"></div>
+          <div><label class="admin-label" for="resident_adult">Resident Adult (USD)</label>
+            <input id="resident_adult" name="resident_adult" type="number" step="0.01" class="admin-input" value="<?= $edit['resident_adult']??0 ?>"></div>
+          <div><label class="admin-label" for="resident_child">Resident Child (USD)</label>
+            <input id="resident_child" name="resident_child" type="number" step="0.01" class="admin-input" value="<?= $edit['resident_child']??0 ?>"></div>
+          <div><label class="admin-label" for="fee_unit">Fee Unit</label>
+            <input id="fee_unit" name="fee_unit" class="admin-input" value="<?= htmlspecialchars($edit['fee_unit']??'per_person_per_entry') ?>"></div>
           <div style="display:flex;align-items:flex-end">
             <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;padding-bottom:.5rem">
               <input type="checkbox" name="is_active" value="1" <?= ($edit['is_active']??1)?'checked':'' ?>>
@@ -132,8 +132,8 @@ $allCountries = \App\Services\LocationRegistry::allCountries($db);
             </label>
           </div>
         </div>
-        <div style="margin-top:1rem"><label class="admin-label">Notes</label>
-          <textarea name="notes" class="admin-input" rows="2"><?= htmlspecialchars($edit['notes']??'') ?></textarea></div>
+        <div style="margin-top:1rem"><label class="admin-label" for="notes">Notes</label>
+          <textarea id="notes" name="notes" class="admin-input" rows="2"><?= htmlspecialchars($edit['notes']??'') ?></textarea></div>
         <div style="margin-top:1rem;display:flex;gap:.5rem">
           <button class="admin-btn admin-btn--primary">Save</button>
           <button type="button" onclick="closeFormModal()" class="admin-btn admin-btn--outline">Cancel</button>

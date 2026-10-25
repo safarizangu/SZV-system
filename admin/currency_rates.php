@@ -142,20 +142,20 @@ ob_start();
         <input type="hidden" name="save" value="1">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">
           <div>
-            <label class="admin-label">Code <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(ISO 4217)</span></label>
-            <input name="code" maxlength="3" class="admin-input" placeholder="AUD" required style="text-transform:uppercase">
+            <label class="admin-label" for="code">Code <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(ISO 4217)</span></label>
+            <input id="code" name="code" maxlength="3" class="admin-input" placeholder="AUD" required style="text-transform:uppercase">
           </div>
           <div>
-            <label class="admin-label">Rate <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(per $1)</span></label>
-            <input type="number" step="0.0001" min="0.0001" name="rate_to_usd" class="admin-input" placeholder="1.50" required>
+            <label class="admin-label" for="rate_to_usd">Rate <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(per $1)</span></label>
+            <input id="rate_to_usd" type="number" step="0.0001" min="0.0001" name="rate_to_usd" class="admin-input" placeholder="1.50" required>
           </div>
           <div>
-            <label class="admin-label">Name</label>
-            <input name="name" class="admin-input" placeholder="Australian Dollar" required>
+            <label class="admin-label" for="name">Name</label>
+            <input id="name" name="name" class="admin-input" placeholder="Australian Dollar" required>
           </div>
           <div>
-            <label class="admin-label">Symbol</label>
-            <input name="symbol" class="admin-input" placeholder="A$" required>
+            <label class="admin-label" for="symbol">Symbol</label>
+            <input id="symbol" name="symbol" class="admin-input" placeholder="A$" required>
           </div>
         </div>
         <div style="display:flex;gap:.5rem">

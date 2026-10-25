@@ -194,25 +194,25 @@ ob_start();
   </div>
   <div class="admin-card-body">
     <div style="display:grid;grid-template-columns:2fr 1fr 1fr 80px;gap:1rem;margin-bottom:1rem">
-      <div><label class="admin-label">Name *</label>
-        <input name="name" class="admin-input" required value="<?= htmlspecialchars($itin['name']??'') ?>" placeholder="e.g. Classic Safari – 5 Days"></div>
-      <div><label class="admin-label">Slug *</label>
-        <input name="slug" class="admin-input" required pattern="[a-z0-9-]+" value="<?= htmlspecialchars($itin['slug']??'') ?>"></div>
-      <div><label class="admin-label">Accommodation Level</label>
-        <select name="accommodation_level" class="admin-input" onchange="filterAllDayOptions()">
+      <div><label class="admin-label" for="name">Name *</label>
+        <input id="name" name="name" class="admin-input" required value="<?= htmlspecialchars($itin['name']??'') ?>" placeholder="e.g. Classic Safari – 5 Days"></div>
+      <div><label class="admin-label" for="slug">Slug *</label>
+        <input id="slug" name="slug" class="admin-input" required pattern="[a-z0-9-]+" value="<?= htmlspecialchars($itin['slug']??'') ?>"></div>
+      <div><label class="admin-label" for="accommodation_level">Accommodation Level</label>
+        <select id="accommodation_level" name="accommodation_level" class="admin-input" onchange="filterAllDayOptions()">
           <?php foreach(['budget'=>'Budget','midrange'=>'Mid-Range','highend'=>'High-End','luxury'=>'Luxury','ultra_luxury'=>'Ultra Luxury'] as $v=>$l): ?>
           <option value="<?= $v ?>" <?= ($itin['accommodation_level']??'midrange')===$v?'selected':'' ?>><?= $l ?></option>
           <?php endforeach; ?>
         </select></div>
-      <div><label class="admin-label">Sort</label>
-        <input name="sort_order" type="number" class="admin-input" value="<?= (int)($itin['sort_order']??0) ?>"></div>
+      <div><label class="admin-label" for="sort_order">Sort</label>
+        <input id="sort_order" name="sort_order" type="number" class="admin-input" value="<?= (int)($itin['sort_order']??0) ?>"></div>
     </div>
     <div style="display:grid;grid-template-columns:60px 1fr;gap:1rem;margin-bottom:1rem;align-items:end">
-      <div><label class="admin-label">Days</label>
+      <div><label class="admin-label" for="dur_input">Days</label>
         <input name="duration_days" type="number" min="1" max="30" class="admin-input" id="dur_input"
                value="<?= $dur ?>" oninput="syncDayCount(this.value)"></div>
-      <div><label class="admin-label">Overview</label>
-        <textarea name="overview" class="admin-input" rows="2"><?= htmlspecialchars($itin['overview']??'') ?></textarea></div>
+      <div><label class="admin-label" for="overview">Overview</label>
+        <textarea id="overview" name="overview" class="admin-input" rows="2"><?= htmlspecialchars($itin['overview']??'') ?></textarea></div>
     </div>
     <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
       <input type="checkbox" name="is_active" value="1" <?= ($itin['is_active']??1)?'checked':'' ?>>
@@ -264,12 +264,12 @@ ob_start();
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
       <!-- Location -->
-      <div><label class="admin-label">Location / Park</label>
-        <input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="<?= $i ?>" oninput="filterDayOptions(<?= $i ?>)"
+      <div><label class="admin-label" for="day_location-<?= $i ?>">Location / Park</label>
+        <input id="day_location-<?= $i ?>" name="day_location[]" class="admin-input day-location" list="location-list" data-idx="<?= $i ?>" oninput="filterDayOptions(<?= $i ?>)"
                value="<?= htmlspecialchars($day['location']??'') ?>" placeholder="e.g. Serengeti National Park"></div>
       <!-- Description -->
-      <div><label class="admin-label">Day Description</label>
-        <textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"><?= htmlspecialchars($day['description']??'') ?></textarea></div>
+      <div><label class="admin-label" for="day_desc-<?= $i ?>">Day Description</label>
+        <textarea id="day_desc-<?= $i ?>" name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"><?= htmlspecialchars($day['description']??'') ?></textarea></div>
     </div>
 
     <div class="day-resource-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
@@ -278,8 +278,8 @@ ob_start();
       <div style="border:1px solid #e5e7eb;padding:.85rem;background:#eff6ff20">
         <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8;display:flex;align-items:center;gap:.35rem"><?= \App\Helpers\AdminIcon::render('accommodations', 13) ?> Accommodation</p>
         <input type="hidden" name="day_acc_id[]" class="day-acc-id" value="<?= (int)($day['accommodation_id']??0) ?>">
-        <div style="margin-bottom:.45rem"><label class="admin-label">Property</label>
-          <input name="day_acc_name[]" class="admin-input day-acc-name" list="acc-list-<?= $i ?>"
+        <div style="margin-bottom:.45rem"><label class="admin-label" for="day_acc_name-<?= $i ?>">Property</label>
+          <input id="day_acc_name-<?= $i ?>" name="day_acc_name[]" class="admin-input day-acc-name" list="acc-list-<?= $i ?>"
                  value="<?= htmlspecialchars($day['accommodation_name']??'') ?>"
                  oninput="calcItinTotal()" onchange="fillDayAcc(this,<?= $i ?>)"
                  placeholder="Select or type">
@@ -290,11 +290,11 @@ ob_start();
           </datalist>
         </div>
         <div style="display:grid;grid-template-columns:1fr 60px;gap:.35rem">
-          <div><label class="admin-label">Rate/Room/Night</label>
-            <input name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate"
+          <div><label class="admin-label" for="day_acc_rate-<?= $i ?>">Rate/Room/Night</label>
+            <input id="day_acc_rate-<?= $i ?>" name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate"
                    value="<?= (float)($day['accommodation_rate']??0) ?>" oninput="calcItinTotal()"></div>
-          <div><label class="admin-label">Rooms</label>
-            <input name="day_acc_rooms[]" type="number" min="1" class="admin-input"
+          <div><label class="admin-label" for="day_acc_rooms-<?= $i ?>">Rooms</label>
+            <input id="day_acc_rooms-<?= $i ?>" name="day_acc_rooms[]" type="number" min="1" class="admin-input"
                    value="<?= (int)($day['accommodation_rooms']??1) ?>" oninput="calcItinTotal()"></div>
         </div>
       </div>
@@ -303,8 +303,8 @@ ob_start();
       <div style="border:1px solid #e5e7eb;padding:.85rem;background:#f0fdf420">
         <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534;display:flex;align-items:center;gap:.35rem"><?= \App\Helpers\AdminIcon::render('fleet', 13) ?> Vehicle</p>
         <input type="hidden" name="day_veh_id[]" class="day-veh-id" value="<?= (int)($day['vehicle_id']??0) ?>">
-        <div style="margin-bottom:.45rem"><label class="admin-label">Vehicle</label>
-          <input name="day_veh_name[]" class="admin-input day-veh-name" list="veh-list-<?= $i ?>"
+        <div style="margin-bottom:.45rem"><label class="admin-label" for="day_veh_name-<?= $i ?>">Vehicle</label>
+          <input id="day_veh_name-<?= $i ?>" name="day_veh_name[]" class="admin-input day-veh-name" list="veh-list-<?= $i ?>"
                  value="<?= htmlspecialchars($day['vehicle_name']??'') ?>"
                  oninput="calcItinTotal()" onchange="fillDayVeh(this,<?= $i ?>)"
                  placeholder="Select or type">
@@ -314,8 +314,8 @@ ob_start();
             <?php endforeach; ?>
           </datalist>
         </div>
-        <div><label class="admin-label">Daily Rate (incl. fuel+driver)</label>
-          <input name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate"
+        <div><label class="admin-label" for="day_veh_rate-<?= $i ?>">Daily Rate (incl. fuel+driver)</label>
+          <input id="day_veh_rate-<?= $i ?>" name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate"
                  value="<?= (float)($day['vehicle_rate']??0) ?>" oninput="calcItinTotal()"></div>
       </div>
 
@@ -323,8 +323,8 @@ ob_start();
       <div style="border:1px solid #e5e7eb;padding:.85rem;background:#fef3e220">
         <p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e;display:flex;align-items:center;gap:.35rem"><?= \App\Helpers\AdminIcon::render('park-fees', 13) ?> Park & Meals</p>
         <input type="hidden" name="day_park_id[]" value="<?= (int)($day['park_fee_id']??0) ?>">
-        <div style="margin-bottom:.45rem"><label class="admin-label">Park / Area</label>
-          <input name="day_park_name[]" class="admin-input" list="park-list-<?= $i ?>"
+        <div style="margin-bottom:.45rem"><label class="admin-label" for="day_park_name-<?= $i ?>">Park / Area</label>
+          <input id="day_park_name-<?= $i ?>" name="day_park_name[]" class="admin-input" list="park-list-<?= $i ?>"
                  value="<?= htmlspecialchars($day['park_fee_name']??'') ?>"
                  oninput="calcItinTotal()" onchange="fillDayPark(this,<?= $i ?>)"
                  placeholder="Select or leave blank">
@@ -335,11 +335,11 @@ ob_start();
           </datalist>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem">
-          <div><label class="admin-label">Adult Fee</label>
-            <input name="day_park_fee[]" type="number" step="0.01" class="admin-input day-park-fee"
+          <div><label class="admin-label" for="day_park_fee-<?= $i ?>">Adult Fee</label>
+            <input id="day_park_fee-<?= $i ?>" name="day_park_fee[]" type="number" step="0.01" class="admin-input day-park-fee"
                    value="<?= (float)($day['park_adult_fee']??0) ?>" oninput="calcItinTotal()"></div>
-          <div><label class="admin-label">Meals/pp</label>
-            <input name="day_meals_pp[]" type="number" step="0.01" class="admin-input"
+          <div><label class="admin-label" for="day_meals_pp-<?= $i ?>">Meals/pp</label>
+            <input id="day_meals_pp-<?= $i ?>" name="day_meals_pp[]" type="number" step="0.01" class="admin-input"
                    value="<?= (float)($day['meals_cost_pp']??20) ?>" oninput="calcItinTotal()"></div>
         </div>
       </div>
@@ -422,10 +422,10 @@ ob_start();
   </div>
   <div class="admin-card-body">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem"><?= \App\Helpers\AdminIcon::render('check', 12) ?> Included</label>
-        <textarea name="includes" class="admin-input" rows="6"><?= htmlspecialchars($includes) ?></textarea></div>
-      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem"><?= \App\Helpers\AdminIcon::render('close', 12) ?> Not Included</label>
-        <textarea name="excludes" class="admin-input" rows="6"><?= htmlspecialchars($excludes) ?></textarea></div>
+      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem" for="includes"><?= \App\Helpers\AdminIcon::render('check', 12) ?> Included</label>
+        <textarea id="includes" name="includes" class="admin-input" rows="6"><?= htmlspecialchars($includes) ?></textarea></div>
+      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem" for="excludes"><?= \App\Helpers\AdminIcon::render('close', 12) ?> Not Included</label>
+        <textarea id="excludes" name="excludes" class="admin-input" rows="6"><?= htmlspecialchars($excludes) ?></textarea></div>
     </div>
   </div>
 </div>
@@ -490,41 +490,41 @@ function itinDayBlockHtml(i) {
     +'</div>'
     +'<div class="admin-card-body">'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">'
-        +'<div><label class="admin-label">Location / Park</label><input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="'+i+'" oninput="filterDayOptions('+i+')" placeholder="e.g. Serengeti National Park"></div>'
-        +'<div><label class="admin-label">Day Description</label><textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"></textarea></div>'
+        +'<div><label class="admin-label" for="day_location-2-'+i+'">Location / Park</label><input id="day_location-2-'+i+'" name="day_location[]" class="admin-input day-location" list="location-list" data-idx="'+i+'" oninput="filterDayOptions('+i+')" placeholder="e.g. Serengeti National Park"></div>'
+        +'<div><label class="admin-label" for="day_desc-2-'+i+'">Day Description</label><textarea id="day_desc-2-'+i+'" name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"></textarea></div>'
       +'</div>'
       +'<div class="day-resource-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">'
         +'<div style="border:1px solid #e5e7eb;padding:.85rem;background:#eff6ff20">'
           +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8;display:flex;align-items:center;gap:.35rem"><?= \App\Helpers\AdminIcon::render('accommodations', 13) ?> Accommodation</p>'
           +'<input type="hidden" name="day_acc_id[]" class="day-acc-id" value="0">'
-          +'<div style="margin-bottom:.45rem"><label class="admin-label">Property</label>'
-            +'<input name="day_acc_name[]" class="admin-input day-acc-name" list="acc-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayAcc(this,'+i+')" placeholder="Select or type">'
+          +'<div style="margin-bottom:.45rem"><label class="admin-label" for="day_acc_name-2-'+i+'">Property</label>'
+            +'<input id="day_acc_name-2-'+i+'" name="day_acc_name[]" class="admin-input day-acc-name" list="acc-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayAcc(this,'+i+')" placeholder="Select or type">'
             +'<datalist id="acc-list-'+i+'">'+accOpts+'</datalist>'
           +'</div>'
           +'<div style="display:grid;grid-template-columns:1fr 60px;gap:.35rem">'
-            +'<div><label class="admin-label">Rate/Room/Night</label><input name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate" value="0" oninput="calcItinTotal()"></div>'
-            +'<div><label class="admin-label">Rooms</label><input name="day_acc_rooms[]" type="number" min="1" class="admin-input" value="1" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label" for="day_acc_rate-2-'+i+'">Rate/Room/Night</label><input id="day_acc_rate-2-'+i+'" name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate" value="0" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label" for="day_acc_rooms-2-'+i+'">Rooms</label><input id="day_acc_rooms-2-'+i+'" name="day_acc_rooms[]" type="number" min="1" class="admin-input" value="1" oninput="calcItinTotal()"></div>'
           +'</div>'
         +'</div>'
         +'<div style="border:1px solid #e5e7eb;padding:.85rem;background:#f0fdf420">'
           +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534;display:flex;align-items:center;gap:.35rem"><?= \App\Helpers\AdminIcon::render('fleet', 13) ?> Vehicle</p>'
           +'<input type="hidden" name="day_veh_id[]" class="day-veh-id" value="0">'
-          +'<div style="margin-bottom:.45rem"><label class="admin-label">Vehicle</label>'
-            +'<input name="day_veh_name[]" class="admin-input day-veh-name" list="veh-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayVeh(this,'+i+')" placeholder="Select or type">'
+          +'<div style="margin-bottom:.45rem"><label class="admin-label" for="day_veh_name-2-'+i+'">Vehicle</label>'
+            +'<input id="day_veh_name-2-'+i+'" name="day_veh_name[]" class="admin-input day-veh-name" list="veh-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayVeh(this,'+i+')" placeholder="Select or type">'
             +'<datalist id="veh-list-'+i+'">'+vehOpts+'</datalist>'
           +'</div>'
-          +'<div><label class="admin-label">Daily Rate (incl. fuel+driver)</label><input name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate" value="0" oninput="calcItinTotal()"></div>'
+          +'<div><label class="admin-label" for="day_veh_rate-2-'+i+'">Daily Rate (incl. fuel+driver)</label><input id="day_veh_rate-2-'+i+'" name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate" value="0" oninput="calcItinTotal()"></div>'
         +'</div>'
         +'<div style="border:1px solid #e5e7eb;padding:.85rem;background:#fef3e220">'
           +'<p style="font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e;display:flex;align-items:center;gap:.35rem"><?= \App\Helpers\AdminIcon::render('park-fees', 13) ?> Park &amp; Meals</p>'
           +'<input type="hidden" name="day_park_id[]" value="0">'
-          +'<div style="margin-bottom:.45rem"><label class="admin-label">Park / Area</label>'
-            +'<input name="day_park_name[]" class="admin-input" list="park-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayPark(this,'+i+')" placeholder="Select or leave blank">'
+          +'<div style="margin-bottom:.45rem"><label class="admin-label" for="day_park_name-2-'+i+'">Park / Area</label>'
+            +'<input id="day_park_name-2-'+i+'" name="day_park_name[]" class="admin-input" list="park-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayPark(this,'+i+')" placeholder="Select or leave blank">'
             +'<datalist id="park-list-'+i+'">'+parkOpts+'</datalist>'
           +'</div>'
           +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem">'
-            +'<div><label class="admin-label">Adult Fee</label><input name="day_park_fee[]" type="number" step="0.01" class="admin-input day-park-fee" value="0" oninput="calcItinTotal()"></div>'
-            +'<div><label class="admin-label">Meals/pp</label><input name="day_meals_pp[]" type="number" step="0.01" class="admin-input" value="20" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label" for="day_park_fee-2-'+i+'">Adult Fee</label><input id="day_park_fee-2-'+i+'" name="day_park_fee[]" type="number" step="0.01" class="admin-input day-park-fee" value="0" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label" for="day_meals_pp-2-'+i+'">Meals/pp</label><input id="day_meals_pp-2-'+i+'" name="day_meals_pp[]" type="number" step="0.01" class="admin-input" value="20" oninput="calcItinTotal()"></div>'
           +'</div>'
         +'</div>'
       +'</div>'

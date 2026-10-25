@@ -305,30 +305,30 @@ ob_start();
         <input type="hidden" name="add_reminder" value="1">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
           <div>
-            <label class="admin-label">Booking Ref *</label>
-            <input name="booking_ref" class="admin-input" placeholder="SZV2026…" required>
+            <label class="admin-label" for="booking_ref">Booking Ref *</label>
+            <input id="booking_ref" name="booking_ref" class="admin-input" placeholder="SZV2026…" required>
           </div>
           <div>
-            <label class="admin-label">Type</label>
-            <select name="type" class="admin-input">
+            <label class="admin-label" for="type">Type</label>
+            <select id="type" name="type" class="admin-input">
               <?php foreach($typeLabels as $v=>$l): ?>
               <option value="<?= $v ?>"><?= $l ?></option>
               <?php endforeach; ?>
             </select>
           </div>
           <div>
-            <label class="admin-label">Send At *</label>
-            <input name="send_at" type="datetime-local" class="admin-input" required
+            <label class="admin-label" for="send_at">Send At *</label>
+            <input id="send_at" name="send_at" type="datetime-local" class="admin-input" required
                    min="<?= date('Y-m-d\TH:i') ?>">
           </div>
           <div>
-            <label class="admin-label">Subject</label>
-            <input name="subject" class="admin-input" placeholder="Leave blank for default…">
+            <label class="admin-label" for="subject">Subject</label>
+            <input id="subject" name="subject" class="admin-input" placeholder="Leave blank for default…">
           </div>
         </div>
         <div style="margin-bottom:.85rem">
-          <label class="admin-label">Custom Body (optional — leave blank for template)</label>
-          <textarea name="body" class="admin-input" rows="3" placeholder="Custom email body…"></textarea>
+          <label class="admin-label" for="body">Custom Body (optional — leave blank for template)</label>
+          <textarea id="body" name="body" class="admin-input" rows="3" placeholder="Custom email body…"></textarea>
         </div>
         <div style="display:flex;gap:.5rem">
           <button type="submit" class="admin-btn admin-btn--primary">Schedule Reminder</button>

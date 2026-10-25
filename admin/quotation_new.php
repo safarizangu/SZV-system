@@ -487,36 +487,36 @@ ob_start();
     <div class="admin-card-header"><h3>Client & Trip Details</h3></div>
     <div class="admin-card-body">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-            <div><label class="admin-label">Client Name *</label>
-                <input name="client_name" class="admin-input" required
+            <div><label class="admin-label" for="client_name">Client Name *</label>
+                <input id="client_name" name="client_name" class="admin-input" required
                        value="<?= htmlspecialchars($q['client_name']??$cr['full_name']??$lead['full_name']??'') ?>"></div>
-            <div><label class="admin-label">Email *</label>
-                <input name="client_email" type="email" class="admin-input" required
+            <div><label class="admin-label" for="client_email">Email *</label>
+                <input id="client_email" name="client_email" type="email" class="admin-input" required
                        value="<?= htmlspecialchars($q['client_email']??$cr['email']??$lead['email']??'') ?>"></div>
-            <div><label class="admin-label">Phone / WhatsApp</label>
-                <input name="client_phone" class="admin-input"
+            <div><label class="admin-label" for="client_phone">Phone / WhatsApp</label>
+                <input id="client_phone" name="client_phone" class="admin-input"
                        value="<?= htmlspecialchars($q['client_phone']??$cr['phone']??$lead['phone']??'') ?>"></div>
-            <div><label class="admin-label">Country</label>
-                <input name="client_country" class="admin-input" list="country-list" oninput="calcTotals()"
+            <div><label class="admin-label" for="client_country">Country</label>
+                <input id="client_country" name="client_country" class="admin-input" list="country-list" oninput="calcTotals()"
                        value="<?= htmlspecialchars($q['client_country']??$cr['country']??$lead['country']??'') ?>"></div>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem">
-            <div><label class="admin-label">Package</label>
-                <input name="package_name" class="admin-input" list="pkg-list"
+            <div><label class="admin-label" for="package_name">Package</label>
+                <input id="package_name" name="package_name" class="admin-input" list="pkg-list"
                        value="<?= htmlspecialchars($q['package_name']??$lead['package_name']??'') ?>">
                 <datalist id="pkg-list">
                     <?php foreach($packages as $p): ?>
                     <option value="<?= htmlspecialchars($p['name']) ?>">
                     <?php endforeach; ?>
                 </datalist></div>
-            <div><label class="admin-label">Start Date</label>
-                <input name="start_date" type="date" class="admin-input" onchange="calcTotals()"
+            <div><label class="admin-label" for="start_date">Start Date</label>
+                <input id="start_date" name="start_date" type="date" class="admin-input" onchange="calcTotals()"
                        value="<?= htmlspecialchars($q['start_date']??$cr['start_date']??$lead['travel_date']??'') ?>"></div>
-            <div><label class="admin-label">Destinations (comma-sep)</label>
-                <input name="destinations" class="admin-input"
+            <div><label class="admin-label" for="destinations">Destinations (comma-sep)</label>
+                <input id="destinations" name="destinations" class="admin-input"
                        value="<?= htmlspecialchars(is_string($q['destinations']??null) ? implode(', ', json_decode($q['destinations']??'[]',true)??[]) : '') ?>"></div>
-            <div><label class="admin-label">Duration (days)</label>
+            <div><label class="admin-label" for="inp_duration">Duration (days)</label>
                 <input name="duration_days" type="number" min="1" class="admin-input" id="inp_duration"
                        value="<?= $qDuration ?>" oninput="syncItineraryDays(this.value)"></div>
         </div>
@@ -528,36 +528,36 @@ ob_start();
     <div class="admin-card-header"><h3>Additional Details</h3></div>
     <div class="admin-card-body">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
-            <div><label class="admin-label">Accommodation Level</label>
-                <select name="accommodation_level" class="admin-input" onchange="filterAllDayOptions()">
+            <div><label class="admin-label" for="accommodation_level">Accommodation Level</label>
+                <select id="accommodation_level" name="accommodation_level" class="admin-input" onchange="filterAllDayOptions()">
                     <?php foreach(['budget'=>'Budget-Friendly','midrange'=>'Mid-Range','highend'=>'High-End','luxury'=>'Luxury','ultra_luxury'=>'Ultra Luxury'] as $v=>$l): ?>
                     <option value="<?= $v ?>" <?= ($q['accommodation_level']??'midrange')===$v?'selected':'' ?>><?= $l ?></option>
                     <?php endforeach; ?>
                 </select></div>
-            <div><label class="admin-label">Meal Plan</label>
-                <select name="meal_plan" class="admin-input">
+            <div><label class="admin-label" for="meal_plan">Meal Plan</label>
+                <select id="meal_plan" name="meal_plan" class="admin-input">
                     <?php foreach(['fb'=>'Full Board (B+L+D)','hb'=>'Half Board','bb'=>'Bed & Breakfast','ai'=>'All Inclusive'] as $v=>$l): ?>
                     <option value="<?= $v ?>" <?= ($q['meal_plan']??'fb')===$v?'selected':'' ?>><?= $l ?></option>
                     <?php endforeach; ?>
                 </select></div>
-            <div><label class="admin-label">Guide Language</label>
-                <select name="guide_language" class="admin-input">
+            <div><label class="admin-label" for="guide_language">Guide Language</label>
+                <select id="guide_language" name="guide_language" class="admin-input">
                     <?php foreach(['english'=>'English','french'=>'French','german'=>'German','italian'=>'Italian','spanish'=>'Spanish','chinese'=>'Mandarin'] as $v=>$l): ?>
                     <option value="<?= $v ?>" <?= ($q['guide_language']??'english')===$v?'selected':'' ?>><?= $l ?></option>
                     <?php endforeach; ?>
                 </select></div>
-            <div><label class="admin-label">Valid Until</label>
-                <input name="valid_until" type="date" class="admin-input"
+            <div><label class="admin-label" for="valid_until">Valid Until</label>
+                <input id="valid_until" name="valid_until" type="date" class="admin-input"
                        value="<?= $q['valid_until'] ?? date('Y-m-d', strtotime('+' . QUOTATION_VALIDITY_DAYS . ' days')) ?>"></div>
-            <div><label class="admin-label">Status</label>
-                <select name="status" class="admin-input">
+            <div><label class="admin-label" for="status">Status</label>
+                <select id="status" name="status" class="admin-input">
                     <?php foreach(['draft'=>'Draft','sent'=>'Sent','viewed'=>'Viewed','negotiating'=>'Negotiating','accepted'=>'Accepted','declined'=>'Declined / Rejected'] as $v=>$l): ?>
                     <option value="<?= $v ?>" <?= ($q['status']??'draft')===$v?'selected':'' ?>><?= $l ?></option>
                     <?php endforeach; ?>
                 </select></div>
         </div>
-        <div><label class="admin-label">Notes / Special Requests</label>
-            <textarea name="notes" class="admin-input" rows="3"
+        <div><label class="admin-label" for="notes">Notes / Special Requests</label>
+            <textarea id="notes" name="notes" class="admin-input" rows="3"
                       placeholder="Any special requirements, inclusions, or notes for the client…"><?= htmlspecialchars($q['notes']??$cr['message']??$lead['notes']??'') ?></textarea></div>
     </div>
 </div>
@@ -571,7 +571,7 @@ ob_start();
   <div class="admin-card-body">
     <div style="display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:end">
       <div>
-        <label class="admin-label">Select Itinerary</label>
+        <label class="admin-label" for="itin_select">Select Itinerary</label>
         <select id="itin_select" class="admin-input">
           <option value="">— Choose an itinerary template —</option>
           <?php
@@ -634,11 +634,11 @@ ob_start();
       <div class="admin-card-body">
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-          <div><label class="admin-label">Location / Park</label>
-            <input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="<?= $i ?>" oninput="scheduleFilterDayOptions(<?= $i ?>); syncDestinationsFromDays()"
+          <div><label class="admin-label" for="day_location-<?= $i ?>">Location / Park</label>
+            <input id="day_location-<?= $i ?>" name="day_location[]" class="admin-input day-location" list="location-list" data-idx="<?= $i ?>" oninput="scheduleFilterDayOptions(<?= $i ?>); syncDestinationsFromDays()"
                    value="<?= htmlspecialchars($day['location']??'') ?>" placeholder="e.g. Serengeti National Park"></div>
-          <div><label class="admin-label">Day Description</label>
-            <textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"><?= htmlspecialchars($day['description']??'') ?></textarea></div>
+          <div><label class="admin-label" for="day_desc-<?= $i ?>">Day Description</label>
+            <textarea id="day_desc-<?= $i ?>" name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"><?= htmlspecialchars($day['description']??'') ?></textarea></div>
         </div>
 
         <div class="day-resource-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
@@ -647,8 +647,8 @@ ob_start();
           <div style="border:1px solid var(--gray-200);padding:.85rem;background:#eff6ff20">
             <p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8"><?= \App\Helpers\AdminIcon::render('accommodations', 13) ?> Accommodation</p>
             <input type="hidden" name="day_acc_id[]" class="day-acc-id" value="<?= (int)($day['accommodation_id']??0) ?>">
-            <div style="margin-bottom:.45rem"><label class="admin-label">Property</label>
-              <input name="day_acc_name[]" class="admin-input day-acc-name" list="qn-acc-list-<?= $i ?>"
+            <div style="margin-bottom:.45rem"><label class="admin-label" for="day_acc_name-<?= $i ?>">Property</label>
+              <input id="day_acc_name-<?= $i ?>" name="day_acc_name[]" class="admin-input day-acc-name" list="qn-acc-list-<?= $i ?>"
                      value="<?= htmlspecialchars($day['accommodation_name']??'') ?>"
                      oninput="calcItinTotal()" onchange="fillDayAcc(this,<?= $i ?>)"
                      placeholder="Select or type">
@@ -659,11 +659,11 @@ ob_start();
               </datalist>
             </div>
             <div class="admin-field-pair" style="display:grid;grid-template-columns:1fr 60px;gap:.35rem">
-              <div><label class="admin-label">Rate/Room/Night</label>
-                <input name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate"
+              <div><label class="admin-label" for="day_acc_rate-<?= $i ?>">Rate/Room/Night</label>
+                <input id="day_acc_rate-<?= $i ?>" name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate"
                        value="<?= (float)($day['accommodation_rate']??0) ?>" oninput="calcItinTotal()"></div>
-              <div><label class="admin-label">Rooms</label>
-                <input name="day_acc_rooms[]" type="number" min="1" class="admin-input"
+              <div><label class="admin-label" for="day_acc_rooms-<?= $i ?>">Rooms</label>
+                <input id="day_acc_rooms-<?= $i ?>" name="day_acc_rooms[]" type="number" min="1" class="admin-input"
                        value="<?= (int)($day['accommodation_rooms']??1) ?>" oninput="calcItinTotal()"></div>
             </div>
           </div>
@@ -672,8 +672,8 @@ ob_start();
           <div style="border:1px solid var(--gray-200);padding:.85rem;background:#f0fdf420">
             <p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534"><?= \App\Helpers\AdminIcon::render('fleet', 13) ?> Vehicle</p>
             <input type="hidden" name="day_veh_id[]" class="day-veh-id" value="<?= (int)($day['vehicle_id']??0) ?>">
-            <div style="margin-bottom:.45rem"><label class="admin-label">Vehicle</label>
-              <input name="day_veh_name[]" class="admin-input day-veh-name" list="qn-veh-list-<?= $i ?>"
+            <div style="margin-bottom:.45rem"><label class="admin-label" for="day_veh_name-<?= $i ?>">Vehicle</label>
+              <input id="day_veh_name-<?= $i ?>" name="day_veh_name[]" class="admin-input day-veh-name" list="qn-veh-list-<?= $i ?>"
                      value="<?= htmlspecialchars($day['vehicle_name']??'') ?>"
                      oninput="calcItinTotal()" onchange="fillDayVeh(this,<?= $i ?>)"
                      placeholder="Select or type">
@@ -683,8 +683,8 @@ ob_start();
                 <?php endforeach; ?>
               </datalist>
             </div>
-            <div><label class="admin-label">Daily Rate (incl. fuel+driver)</label>
-              <input name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate"
+            <div><label class="admin-label" for="day_veh_rate-<?= $i ?>">Daily Rate (incl. fuel+driver)</label>
+              <input id="day_veh_rate-<?= $i ?>" name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate"
                      value="<?= (float)($day['vehicle_rate']??0) ?>" oninput="calcItinTotal()"></div>
           </div>
 
@@ -692,8 +692,8 @@ ob_start();
           <div style="border:1px solid var(--gray-200);padding:.85rem;background:#fef3e220">
             <p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e"><?= \App\Helpers\AdminIcon::render('park-fees', 13) ?> Park &amp; Meals</p>
             <input type="hidden" name="day_park_id[]" value="<?= (int)($day['park_fee_id']??0) ?>">
-            <div style="margin-bottom:.45rem"><label class="admin-label">Park / Area</label>
-              <input name="day_park_name[]" class="admin-input" list="qn-park-list-<?= $i ?>"
+            <div style="margin-bottom:.45rem"><label class="admin-label" for="day_park_name-<?= $i ?>">Park / Area</label>
+              <input id="day_park_name-<?= $i ?>" name="day_park_name[]" class="admin-input" list="qn-park-list-<?= $i ?>"
                      value="<?= htmlspecialchars($day['park_fee_name']??'') ?>"
                      oninput="calcItinTotal()" onchange="fillDayPark(this,<?= $i ?>)"
                      placeholder="Select or leave blank">
@@ -704,11 +704,11 @@ ob_start();
               </datalist>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem">
-              <div><label class="admin-label">Adult Fee</label>
-                <input name="day_park_fee[]" type="number" step="0.01" class="admin-input day-park-fee"
+              <div><label class="admin-label" for="day_park_fee-<?= $i ?>">Adult Fee</label>
+                <input id="day_park_fee-<?= $i ?>" name="day_park_fee[]" type="number" step="0.01" class="admin-input day-park-fee"
                        value="<?= (float)($day['park_adult_fee']??0) ?>" oninput="calcItinTotal()"></div>
-              <div><label class="admin-label">Meals/pp</label>
-                <input name="day_meals_pp[]" type="number" step="0.01" class="admin-input"
+              <div><label class="admin-label" for="day_meals_pp-<?= $i ?>">Meals/pp</label>
+                <input id="day_meals_pp-<?= $i ?>" name="day_meals_pp[]" type="number" step="0.01" class="admin-input"
                        value="<?= (float)($day['meals_cost_pp']??20) ?>" oninput="calcItinTotal()"></div>
             </div>
           </div>
@@ -797,9 +797,9 @@ ob_start();
   </div>
   <div class="admin-card-body">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem;color:#166534"><?= \App\Helpers\AdminIcon::render('check', 11) ?> Included</label>
+      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem;color:#166534" for="includes_ta"><?= \App\Helpers\AdminIcon::render('check', 11) ?> Included</label>
         <textarea name="includes" id="includes_ta" class="admin-input" rows="8"><?= htmlspecialchars($qIncludes) ?></textarea></div>
-      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem;color:#991b1b"><?= \App\Helpers\AdminIcon::render('close', 11) ?> Not Included</label>
+      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem;color:#991b1b" for="excludes_ta"><?= \App\Helpers\AdminIcon::render('close', 11) ?> Not Included</label>
         <textarea name="excludes" id="excludes_ta" class="admin-input" rows="8"><?= htmlspecialchars($qExcludes) ?></textarea></div>
     </div>
     <p style="font-size:.68rem;color:var(--gray-500);margin-top:.5rem">Sync pulls the linked itinerary template's own list when linked, or builds a starting Includes list from what's actually in the Day-by-Day Itinerary above — Excludes still needs typing, since things like visas or insurance aren't part of the itinerary. Edit the result freely afterward.</p>
@@ -858,31 +858,31 @@ ob_start();
            field set/order to admin/package_edit.php's equivalent aside.
            Discount is the one addition specific to a real quotation. -->
       <div style="background:var(--gray-50);border:1px solid var(--gray-200);padding:1rem">
-        <label class="admin-label">Adults</label>
+        <label class="admin-label" for="inp_adults">Adults</label>
         <input name="adults" type="number" min="1" class="admin-input" id="inp_adults"
                value="<?= $qAdults ?>" style="margin-bottom:.75rem" oninput="calcTotals()">
 
-        <label class="admin-label">Children</label>
+        <label class="admin-label" for="inp_children">Children</label>
         <input name="children" type="number" min="0" class="admin-input" id="inp_children"
                value="<?= $qChildren ?>" style="margin-bottom:.75rem" oninput="calcTotals()">
 
-        <label class="admin-label">Infants <span style="font-weight:600;color:var(--gray-500)">— always free, no service charge</span></label>
-        <input name="infants" type="number" min="0" class="admin-input"
+        <label class="admin-label" for="infants">Infants <span style="font-weight:600;color:var(--gray-500)">— always free, no service charge</span></label>
+        <input id="infants" name="infants" type="number" min="0" class="admin-input"
                value="<?= (int)($q['infants']??0) ?>" style="margin-bottom:.75rem">
 
-        <label class="admin-label">Service Charge — Adults ($ / person)</label>
+        <label class="admin-label" for="service_charge_adult">Service Charge — Adults ($ / person)</label>
         <input name="service_charge_adult" type="number" step="0.01" class="admin-input" id="service_charge_adult"
                value="<?= $qSvcAdultPax ?>" oninput="calcTotals()" placeholder="e.g. 100" style="margin-bottom:.75rem">
 
-        <label class="admin-label">Service Charge — Children ($ / person)</label>
+        <label class="admin-label" for="service_charge_child">Service Charge — Children ($ / person)</label>
         <input name="service_charge_child" type="number" step="0.01" class="admin-input" id="service_charge_child"
                value="<?= $qSvcChildPax ?>" oninput="calcTotals()" placeholder="e.g. 100" style="margin-bottom:.75rem">
 
-        <label class="admin-label">Markup (%) <span style="font-weight:600;color:var(--gray-500)">— applied before discount/VAT</span></label>
+        <label class="admin-label" for="inp_markup">Markup (%) <span style="font-weight:600;color:var(--gray-500)">— applied before discount/VAT</span></label>
         <input name="markup_pct" type="number" min="0" max="100" step="0.5" class="admin-input" id="inp_markup"
                value="<?= $qMarkupPct ?>" oninput="calcTotals()" style="margin-bottom:.75rem">
 
-        <label class="admin-label">Discount (%)</label>
+        <label class="admin-label" for="inp_discount">Discount (%)</label>
         <input name="discount_pct" type="number" min="0" max="50" step="0.5" class="admin-input" id="inp_discount"
                value="<?= $qDiscountPct ?>" oninput="calcTotals()" style="margin-bottom:1rem">
         <p style="font-size:.68rem;color:var(--gray-500);line-height:1.5">Everything above comes from the Day-by-Day Itinerary.</p>
@@ -1482,41 +1482,41 @@ function peDayBlockHtml(i) {
     +'</div>'
     +'<div class="admin-card-body">'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">'
-        +'<div><label class="admin-label">Location / Park</label><input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="'+i+'" oninput="scheduleFilterDayOptions('+i+'); syncDestinationsFromDays()" placeholder="e.g. Serengeti National Park"></div>'
-        +'<div><label class="admin-label">Day Description</label><textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"></textarea></div>'
+        +'<div><label class="admin-label" for="day_location-2-'+i+'">Location / Park</label><input id="day_location-2-'+i+'" name="day_location[]" class="admin-input day-location" list="location-list" data-idx="'+i+'" oninput="scheduleFilterDayOptions('+i+'); syncDestinationsFromDays()" placeholder="e.g. Serengeti National Park"></div>'
+        +'<div><label class="admin-label" for="day_desc-2-'+i+'">Day Description</label><textarea id="day_desc-2-'+i+'" name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"></textarea></div>'
       +'</div>'
       +'<div class="day-resource-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">'
         +'<div style="border:1px solid var(--gray-200);padding:.85rem;background:#eff6ff20">'
           +'<p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8"><?= \App\Helpers\AdminIcon::render('accommodations', 13) ?> Accommodation</p>'
           +'<input type="hidden" name="day_acc_id[]" class="day-acc-id" value="0">'
-          +'<div style="margin-bottom:.45rem"><label class="admin-label">Property</label>'
-            +'<input name="day_acc_name[]" class="admin-input day-acc-name" list="qn-acc-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayAcc(this,'+i+')" placeholder="Select or type">'
+          +'<div style="margin-bottom:.45rem"><label class="admin-label" for="day_acc_name-2-'+i+'">Property</label>'
+            +'<input id="day_acc_name-2-'+i+'" name="day_acc_name[]" class="admin-input day-acc-name" list="qn-acc-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayAcc(this,'+i+')" placeholder="Select or type">'
             +'<datalist id="qn-acc-list-'+i+'">'+accOpts+'</datalist>'
           +'</div>'
           +'<div class="admin-field-pair" style="display:grid;grid-template-columns:1fr 60px;gap:.35rem">'
-            +'<div><label class="admin-label">Rate/Room/Night</label><input name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate" value="0" oninput="calcItinTotal()"></div>'
-            +'<div><label class="admin-label">Rooms</label><input name="day_acc_rooms[]" type="number" min="1" class="admin-input" value="1" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label" for="day_acc_rate-2-'+i+'">Rate/Room/Night</label><input id="day_acc_rate-2-'+i+'" name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate" value="0" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label" for="day_acc_rooms-2-'+i+'">Rooms</label><input id="day_acc_rooms-2-'+i+'" name="day_acc_rooms[]" type="number" min="1" class="admin-input" value="1" oninput="calcItinTotal()"></div>'
           +'</div>'
         +'</div>'
         +'<div style="border:1px solid var(--gray-200);padding:.85rem;background:#f0fdf420">'
           +'<p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534"><?= \App\Helpers\AdminIcon::render('fleet', 13) ?> Vehicle</p>'
           +'<input type="hidden" name="day_veh_id[]" class="day-veh-id" value="0">'
-          +'<div style="margin-bottom:.45rem"><label class="admin-label">Vehicle</label>'
-            +'<input name="day_veh_name[]" class="admin-input day-veh-name" list="qn-veh-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayVeh(this,'+i+')" placeholder="Select or type">'
+          +'<div style="margin-bottom:.45rem"><label class="admin-label" for="day_veh_name-2-'+i+'">Vehicle</label>'
+            +'<input id="day_veh_name-2-'+i+'" name="day_veh_name[]" class="admin-input day-veh-name" list="qn-veh-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayVeh(this,'+i+')" placeholder="Select or type">'
             +'<datalist id="qn-veh-list-'+i+'">'+vehOpts+'</datalist>'
           +'</div>'
-          +'<div><label class="admin-label">Daily Rate (incl. fuel+driver)</label><input name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate" value="0" oninput="calcItinTotal()"></div>'
+          +'<div><label class="admin-label" for="day_veh_rate-2-'+i+'">Daily Rate (incl. fuel+driver)</label><input id="day_veh_rate-2-'+i+'" name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate" value="0" oninput="calcItinTotal()"></div>'
         +'</div>'
         +'<div style="border:1px solid var(--gray-200);padding:.85rem;background:#fef3e220">'
           +'<p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e"><?= \App\Helpers\AdminIcon::render('park-fees', 13) ?> Park &amp; Meals</p>'
           +'<input type="hidden" name="day_park_id[]" value="0">'
-          +'<div style="margin-bottom:.45rem"><label class="admin-label">Park / Area</label>'
-            +'<input name="day_park_name[]" class="admin-input" list="qn-park-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayPark(this,'+i+')" placeholder="Select or leave blank">'
+          +'<div style="margin-bottom:.45rem"><label class="admin-label" for="day_park_name-2-'+i+'">Park / Area</label>'
+            +'<input id="day_park_name-2-'+i+'" name="day_park_name[]" class="admin-input" list="qn-park-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayPark(this,'+i+')" placeholder="Select or leave blank">'
             +'<datalist id="qn-park-list-'+i+'">'+parkOpts+'</datalist>'
           +'</div>'
           +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem">'
-            +'<div><label class="admin-label">Adult Fee</label><input name="day_park_fee[]" type="number" step="0.01" class="admin-input day-park-fee" value="0" oninput="calcItinTotal()"></div>'
-            +'<div><label class="admin-label">Meals/pp</label><input name="day_meals_pp[]" type="number" step="0.01" class="admin-input" value="20" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label" for="day_park_fee-2-'+i+'">Adult Fee</label><input id="day_park_fee-2-'+i+'" name="day_park_fee[]" type="number" step="0.01" class="admin-input day-park-fee" value="0" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label" for="day_meals_pp-2-'+i+'">Meals/pp</label><input id="day_meals_pp-2-'+i+'" name="day_meals_pp[]" type="number" step="0.01" class="admin-input" value="20" oninput="calcItinTotal()"></div>'
           +'</div>'
         +'</div>'
       +'</div>'
