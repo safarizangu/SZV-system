@@ -35,6 +35,13 @@ ServerSignature Off
   # Block hidden files except .well-known (for SSL certs)
   RewriteRule ^\.(?!well-known) - [F,L]
 
+  # Block stray .json/.txt/.log files anywhere in the tree — added after a
+  # prior scan tool's leftover report files (folder_tree.txt,
+  # security_report.json, etc.) were found live-exposed in the web root.
+  # robots.txt is the one legitimate public .txt file and is exempted.
+  RewriteCond %{REQUEST_URI} !robots\.txt$
+  RewriteRule \.(json|txt|log)$ - [F,L]
+
   # Block sensitive directories
   RewriteRule ^(app|config|database|storage|sql|tests|cron)/  - [F,L]
 
