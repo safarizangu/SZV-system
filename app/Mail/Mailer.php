@@ -241,6 +241,16 @@ class Mailer
             if (!empty($row['attachments'])) {
                 $files = json_decode($row['attachments'], true) ?: [];
                 foreach ($files as $file) {
+                    // PERF-1: a 'lazy_render' entry defers PDF generation to
+                    // here — inside the background-dispatched/cron send,
+                    // never the original guest-facing request — instead of
+                    // requiring the caller to have already rendered the file
+                    // before queue() was even called. See
+                    // self::resolveLazyAttachment() for the full rationale.
+                    if (!empty($file['lazy_render'])) {
+                        $file = self::resolveLazyAttachment($file);
+                        if (!$file) continue;
+                    }
                     if (!empty($file['path']) && is_file($file['path'])) {
                         $mail->addAttachment($file['path'], $file['name'] ?? basename($file['path']));
                     } else {
@@ -260,6 +270,47 @@ class Mailer
             $db->prepare("UPDATE email_queue SET status=IF(attempts>=3,'failed',status), last_error=? WHERE id=?")
                ->execute([$err, $row['id']]);
             return false;
+        }
+    }
+
+    /**
+     * PERF-1: renders a PDF on demand, inside the background-dispatched
+     * or cron-processed send — never the original request. Previously
+     * api/book.php (and a couple of other callers) rendered PDFs
+     * synchronously via App\Services\PdfRenderer before ever calling
+     * queue(), measured adding ~0.76s to the public booking request for
+     * two attachments; the email-send itself was already async (see
+     * dispatchBackground() above), it was specifically the PDF rendering
+     * that wasn't. A caller now passes
+     * ['lazy_render' => 'quotation', 'arg' => $quotationId, 'name' => $fileName]
+     * instead of a pre-rendered ['path' => ..., 'name' => ...], and this
+     * resolves it to the latter at send time. Unknown render types return
+     * null (skipped, logged) rather than guessing.
+     *
+     * @param array{lazy_render:string,arg:int|string,name:string} $spec
+     * @return array{path:string,name:string}|null
+     */
+    private static function resolveLazyAttachment(array $spec): ?array
+    {
+        $renderers = [
+            'quotation'            => [\App\Services\PdfRenderer::class, 'renderQuotation'],
+            'quotation_itinerary'  => [\App\Services\PdfRenderer::class, 'renderQuotationItinerary'],
+            'quotation_invoice'    => [\App\Services\PdfRenderer::class, 'renderQuotationInvoice'],
+            'booking'              => [\App\Services\PdfRenderer::class, 'renderBooking'],
+            'booking_invoice'      => [\App\Services\PdfRenderer::class, 'renderBookingInvoice'],
+            'booking_itinerary'    => [\App\Services\PdfRenderer::class, 'renderBookingItinerary'],
+            'voucher'              => [\App\Services\PdfRenderer::class, 'renderVoucher'],
+        ];
+        $type = $spec['lazy_render'] ?? '';
+        if (!isset($renderers[$type]) || !isset($spec['arg'])) {
+            error_log('[SZV Mailer] Unknown lazy_render attachment type: ' . $type);
+            return null;
+        }
+        try {
+            return call_user_func($renderers[$type], $spec['arg'], $spec['name'] ?? $type);
+        } catch (\Throwable $e) {
+            error_log('[SZV Mailer] lazy_render (' . $type . ') failed: ' . $e->getMessage());
+            return null;
         }
     }
 

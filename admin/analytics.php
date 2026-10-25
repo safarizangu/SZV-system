@@ -16,6 +16,19 @@ $ranges = ['7'=>'Last 7 days','30'=>'Last 30 days','90'=>'Last 90 days','365'=>'
 if (!isset($ranges[$range])) $range = '30';
 $since = "DATE_SUB(NOW(), INTERVAL {$range} DAY)";
 
+// PERF-3: every page-load event this app actually fires is named either
+// exactly 'page_view' or '<page>_page_view' (confirmed against the live
+// distinct event_name values) — a known, small, fixed set, so this
+// replaces the leading-wildcard `event_name LIKE '%page_view%'` used
+// throughout this file below. A leading-wildcard LIKE can't use any
+// index (confirmed via EXPLAIN — full scan every time); an IN-list can,
+// same as any other exact-match filter. Add any new *_page_view tracking
+// event to this list alongside wiring it up wherever it's fired from.
+const PAGE_VIEW_EVENTS = ['page_view','home_page_view','packages_page_view','about_page_view','contact_page_view','book_page_view','track_page_view'];
+$pageViewIn    = "'" . implode("','", PAGE_VIEW_EVENTS) . "'";
+$pageViewSql   = "event_name IN ($pageViewIn)";
+$notPageViewSql = "event_name NOT IN ($pageViewIn)";
+
 // ── Helper: safe query ──────────────────────────────────────────
 function aq($db, $sql, $params = []) {
     try {
@@ -38,8 +51,8 @@ function aqv($db, $sql, $params = []) {
 // ── 1. Total events in range ────────────────────────────────────
 $totalEvents  = aqv($db, "SELECT COUNT(*) FROM analytics_events WHERE created_at >= $since");
 $uniqueIPs    = aqv($db, "SELECT COUNT(DISTINCT ip_address) FROM analytics_events WHERE created_at >= $since");
-$pageViews    = aqv($db, "SELECT COUNT(*) FROM analytics_events WHERE event_name LIKE '%page_view%' AND created_at >= $since");
-$interactions = aqv($db, "SELECT COUNT(*) FROM analytics_events WHERE event_name NOT LIKE '%page_view%' AND created_at >= $since");
+$pageViews    = aqv($db, "SELECT COUNT(*) FROM analytics_events WHERE $pageViewSql AND created_at >= $since");
+$interactions = aqv($db, "SELECT COUNT(*) FROM analytics_events WHERE $notPageViewSql AND created_at >= $since");
 
 // ── 2. Event breakdown ──────────────────────────────────────────
 $eventBreakdown = aq($db, "
@@ -57,7 +70,7 @@ $topPages = aq($db, "
     SELECT page_url, COUNT(*) as views,
            COUNT(DISTINCT ip_address) as unique_visitors
     FROM analytics_events
-    WHERE event_name LIKE '%page_view%' AND created_at >= $since
+    WHERE $pageViewSql AND created_at >= $since
     GROUP BY page_url
     ORDER BY views DESC
     LIMIT 10
@@ -119,7 +132,7 @@ $hourlyDist = aq($db, "
 
 // ── 8. Conversion funnel ────────────────────────────────────────
 $funnel = [
-    'page_views'          => aqv($db, "SELECT COUNT(DISTINCT ip_address) FROM analytics_events WHERE event_name LIKE '%page_view%' AND created_at >= $since"),
+    'page_views'          => aqv($db, "SELECT COUNT(DISTINCT ip_address) FROM analytics_events WHERE $pageViewSql AND created_at >= $since"),
     'package_views'       => aqv($db, "SELECT COUNT(DISTINCT ip_address) FROM analytics_events WHERE event_name='package_view' AND created_at >= $since"),
     'book_now_clicks'     => aqv($db, "SELECT COUNT(DISTINCT ip_address) FROM analytics_events WHERE event_name='book_now_click' AND created_at >= $since"),
     'whatsapp_clicks'     => aqv($db, "SELECT COUNT(DISTINCT ip_address) FROM analytics_events WHERE event_name='whatsapp_click' AND created_at >= $since"),

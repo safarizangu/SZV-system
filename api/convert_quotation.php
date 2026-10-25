@@ -12,7 +12,6 @@ use App\Helpers\Formatter;
 use App\Mail\Mailer;
 use App\Services\BookingReminderScheduler;
 use App\Models\Customer;
-use App\Services\PdfRenderer;
 
 function qrespond(array $d): void {
     ob_end_clean();
@@ -153,15 +152,16 @@ try {
         WHERE id=?
     ")->execute([$ref, $id]);
 
-    // Render the quotation the client already saw, plus its itinerary as
-    // a separate PDF, to attach to the confirmation email — same numbers,
+    // PERF-1: the quotation the client already saw, plus its itinerary as
+    // a separate PDF, attached to the confirmation email — same numbers,
     // no surprises between what they were quoted and what they're now
-    // being sent as their booking's cost breakdown.
-    $attachments = [];
-    $pdfFile = PdfRenderer::renderQuotation($id, 'Quotation-' . $ref);
-    if ($pdfFile) $attachments[] = $pdfFile;
-    $itinFile = PdfRenderer::renderQuotationItinerary($id, 'Itinerary-' . $ref);
-    if ($itinFile) $attachments[] = $itinFile;
+    // being sent as their booking's cost breakdown. Rendered lazily (see
+    // Mailer::resolveLazyAttachment()) inside the background-dispatched
+    // send instead of synchronously on this request.
+    $attachments = [
+        ['lazy_render' => 'quotation',           'arg' => $id, 'name' => 'Quotation-' . $ref],
+        ['lazy_render' => 'quotation_itinerary',  'arg' => $id, 'name' => 'Itinerary-' . $ref],
+    ];
 
     // Queue confirmation email — same branded template the direct-booking path uses
     try {
