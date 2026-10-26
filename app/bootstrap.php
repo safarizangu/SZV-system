@@ -80,8 +80,48 @@ if (php_sapi_name() !== 'cli') {
     $__szvIsApi = str_contains($_SERVER['SCRIPT_NAME'] ?? '', '/api/');
     $__szvDebug = defined('APP_DEBUG') && APP_DEBUG;
 
-    $__szvHandleFatal = function (string $message, string $file, int $line) use (&$__szvIsApi, &$__szvDebug): void {
+    // DEVOPS-5: previously nothing alerted anyone to a fatal error — the
+    // only way to notice one was tailing a log by hand (see
+    // docs/SECURITY_CHECKLIST.md's Monitoring section), on a site taking
+    // live PayPal payments. Sends a direct SMTP email (bypassing the
+    // email_queue/DB entirely — if the fatal error IS a DB outage, this
+    // still has to work) to ADMIN_EMAIL, throttled to at most one every 15
+    // minutes via a lock file's mtime, so one bad request can't flood the
+    // inbox. Best-effort only: every failure here is swallowed so the
+    // alert mechanism itself can never cause a second fatal error.
+    $__szvAlertAdmin = function (string $message, string $file, int $line): void {
+        try {
+            if (!defined('ADMIN_EMAIL') || !ADMIN_EMAIL || !class_exists('\PHPMailer\PHPMailer\PHPMailer')) return;
+            $throttleFile = __DIR__ . '/../storage/logs/.fatal_alert_throttle';
+            if (is_file($throttleFile) && (time() - filemtime($throttleFile)) < 900) return;
+            @touch($throttleFile);
+
+            $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+            $mail->isSMTP();
+            $mail->Host       = SMTP_HOST;
+            $mail->SMTPAuth   = true;
+            $mail->Username   = SMTP_USERNAME;
+            $mail->Password   = SMTP_PASSWORD;
+            $mail->SMTPSecure = SMTP_SECURE === 'ssl'
+                ? \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS : \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port    = SMTP_PORT;
+            $mail->Timeout = 8;
+            $mail->setFrom(MAIL_FROM_EMAIL, MAIL_FROM_NAME);
+            $mail->addAddress(ADMIN_EMAIL);
+            $mail->Subject = '[Safari Zangu] Server error — ' . ($_SERVER['HTTP_HOST'] ?? 'unknown host');
+            $mail->Body    = "A server error occurred:\n\n{$message}\nin {$file}:{$line}\n\n"
+                . 'URL: ' . ($_SERVER['REQUEST_URI'] ?? 'CLI') . "\n"
+                . 'Time: ' . date('Y-m-d H:i:s') . "\n\n"
+                . "(Further alerts are suppressed for 15 minutes.)";
+            $mail->send();
+        } catch (\Throwable $e) {
+            error_log('[SZV AlertAdmin] failed to send fatal-error alert: ' . $e->getMessage());
+        }
+    };
+
+    $__szvHandleFatal = function (string $message, string $file, int $line) use (&$__szvIsApi, &$__szvDebug, &$__szvAlertAdmin): void {
         error_log("[SZV Uncaught] $message in $file:$line");
+        $__szvAlertAdmin($message, $file, $line);
         if (headers_sent()) return;
         while (ob_get_level()) { ob_end_clean(); }
         http_response_code(500);

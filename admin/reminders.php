@@ -70,18 +70,27 @@ try {
     )->fetchColumn();
 } catch(\Exception $e){}
 
-// Read reminders log
+// Read reminders log (DEVOPS-2: moved from /var/log/szv_reminders.log — a
+// root-owned path nothing in this codebase could ever write to —
+// to storage/logs/reminders.log, which api/cron/process_reminders.php
+// now actually writes via App\Helpers\AppLog).
 $logLines=[];
-$logFile='/var/log/szv_reminders.log';
+$logFile=__DIR__.'/../storage/logs/reminders.log';
 if(file_exists($logFile)){
     $l=array_filter(explode("\n",shell_exec("tail -15 ".escapeshellarg($logFile))??""));
     $logLines=array_reverse(array_values($l));
 }
 
-// Cron status
-$cronActive = false;
-$cronOutput = shell_exec('crontab -u www-data -l 2>/dev/null') ?? '';
-$cronActive = str_contains($cronOutput, 'process_reminders.php');
+// Cron status — previously ran `crontab -u www-data -l` and searched its
+// output for this script's name. That only ever reflects a *Unix*
+// crontab; on Hostinger shared hosting, cron jobs are configured through
+// hPanel instead (see docs/DEPLOYMENT_GUIDE.md Step 6) and are not a
+// crontab entry the PHP process can see at all — so this always reported
+// "Not Set" in production regardless of whether the cron was actually
+// running. Checking the log's own recency instead works the same way in
+// both environments and is a direct observation, not an assumption about
+// how cron happens to be configured.
+$cronActive = file_exists($logFile) && (time() - filemtime($logFile)) < 90 * 60; // ran hourly — 90min buffer
 
 $typeLabels = [
     'deposit_due' => 'Deposit Due',

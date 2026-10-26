@@ -1,14 +1,20 @@
 <?php
 /**
  * Reminder Processor
- * Cron: 0 * * * * /usr/bin/php /var/www/html/safari-zangu/php/process_reminders.php
- * (runs once per hour)
+ * Cron (Hostinger Control Panel → Cron Jobs): run hourly —
+ *   0 * * * * php8.3 /home/u662187129/domains/safarizanguven.com/public_html/api/cron/process_reminders.php
  */
 require_once __DIR__ . '/../../app/bootstrap.php';
 use App\Mail\Mailer;
+use App\Helpers\AppLog;
 
-$isCli   = php_sapi_name() === 'cli';
-$hasKey  = isset($_GET['key']) && hash_equals($_GET['key'], 'szv-cron-2026');
+// DEVOPS-2: this used to check against a hardcoded literal ('szv-cron-2026')
+// instead of the CRON_SECRET every other cron/*.php script reads from
+// .env — not configurable per-environment, and a fixed secret baked into
+// source control. Brought in line with the others.
+$isCli      = php_sapi_name() === 'cli';
+$cronSecret = defined('CRON_SECRET') ? CRON_SECRET : '';
+$hasKey     = $cronSecret !== '' && isset($_GET['key']) && hash_equals($cronSecret, $_GET['key']);
 if (!$isCli && !$hasKey) { http_response_code(403); exit('Forbidden'); }
 
 $db = \App\Models\Database::getInstance();
@@ -42,7 +48,9 @@ foreach ($due as $r) {
     if (!$template) {
         // Unknown/custom type — nothing to render; leave it pending rather
         // than silently dropping it, and move on.
-        echo '[' . date('H:i:s') . '] Skipped reminder id ' . $r['id'] . ' — no template for type "' . $r['type'] . '"' . "\n";
+        $line = 'Skipped reminder id ' . $r['id'] . ' — no template for type "' . $r['type'] . '"';
+        echo '[' . date('H:i:s') . '] ' . $line . "\n";
+        AppLog::write('reminders', $line);
         continue;
     }
 
@@ -60,7 +68,9 @@ foreach ($due as $r) {
         $rebooked->execute([$r['email'], $r['booking_ref'], $r['booking_created_at']]);
         if ($rebooked->fetchColumn()) {
             $db->prepare("UPDATE booking_reminders SET status='cancelled' WHERE id=?")->execute([$r['id']]);
-            echo '[' . date('H:i:s') . '] Skipped win_back for ' . $r['booking_ref'] . ' — guest already rebooked' . "\n";
+            $line = 'Skipped win_back for ' . $r['booking_ref'] . ' — guest already rebooked';
+            echo '[' . date('H:i:s') . '] ' . $line . "\n";
+            AppLog::write('reminders', $line);
             continue;
         }
     }
@@ -97,12 +107,16 @@ foreach ($due as $r) {
         $db->prepare("UPDATE booking_reminders SET status='sent', sent_at=NOW() WHERE id=?")
            ->execute([$r['id']]);
 
-        echo '[' . date('H:i:s') . '] Queued reminder: ' . $r['type'] . ' for ' . $r['booking_ref'] . "\n";
+        $line = 'Queued reminder: ' . $r['type'] . ' for ' . $r['booking_ref'];
+        echo '[' . date('H:i:s') . '] ' . $line . "\n";
+        AppLog::write('reminders', $line);
 
     } catch (\Exception $e) {
         $db->prepare("UPDATE booking_reminders SET status='failed' WHERE id=?")->execute([$r['id']]);
         echo 'Failed: ' . $e->getMessage() . "\n";
+        AppLog::write('reminders', 'Failed: ' . $e->getMessage());
     }
 }
 
 echo "Done.\n";
+AppLog::write('reminders', 'Done.');

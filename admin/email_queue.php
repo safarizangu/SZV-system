@@ -72,9 +72,12 @@ try {
     $emails=$stmt->fetchAll();
 } catch(\Exception $e){ error_log($e->getMessage()); }
 
-// Read last 20 lines of email log
+// Read last 20 lines of email log (DEVOPS-2: moved from /var/log/szv_email.log
+// — a root-owned path nothing in this codebase could ever write to — to
+// storage/logs/email.log, which api/cron/process_email_queue.php now
+// actually writes via App\Helpers\AppLog).
 $logLines=[];
-$logFile='/var/log/szv_email.log';
+$logFile=__DIR__.'/../storage/logs/email.log';
 if(file_exists($logFile)){
     $lines=array_filter(explode("\n",shell_exec("tail -20 ".escapeshellarg($logFile))??""));
     $logLines=array_reverse(array_values($lines));
@@ -205,7 +208,7 @@ ob_start();
 <!-- Cron Live Log -->
 <div class="admin-card">
   <div class="admin-card-header">
-    <h3>Live Email Log <span style="font-size:.72rem;color:var(--gray-500)">— /var/log/szv_email.log (last 20 lines)</span></h3>
+    <h3>Live Email Log <span style="font-size:.72rem;color:var(--gray-500)">— storage/logs/email.log (last 20 lines)</span></h3>
     <button onclick="refreshLog()" class="admin-btn admin-btn--outline" style="font-size:.68rem"><?= \App\Helpers\AdminIcon::render('refresh', 12) ?> Refresh</button>
   </div>
   <div class="admin-card-body" style="padding:0">
@@ -224,7 +227,7 @@ ob_start();
 <!-- Cron status bar -->
 <div style="margin-top:1rem;display:flex;align-items:center;gap:1rem;font-size:.75rem;color:var(--gray-500);flex-wrap:wrap">
   <span>Cron: email queue every <strong>2 min</strong> · reminders every <strong>1 hour</strong></span>
-  <span>Logs: <code>/var/log/szv_email.log</code> · <code>/var/log/szv_reminders.log</code></span>
+  <span>Logs: <code>storage/logs/email.log</code> · <code>storage/logs/reminders.log</code></span>
   <a href="reminders.php" style="color:var(--black);font-weight:600;font-size:.72rem">View Reminders →</a>
 </div>
 

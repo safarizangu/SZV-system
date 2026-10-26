@@ -43,7 +43,11 @@ ServerSignature Off
   RewriteRule \.(json|txt|log)$ - [F,L]
 
   # Block sensitive directories
-  RewriteRule ^(app|config|database|storage|sql|tests|cron)/  - [F,L]
+  # DEVOPS-4: vendor/ was never in this list — vendor/autoload.php and any
+  # other non-.json/.txt/.log file inside it was directly web-fetchable
+  # (confirmed via curl); only files ending .json/.txt/.log happened to be
+  # caught incidentally by the extension rule above.
+  RewriteRule ^(app|config|database|storage|sql|tests|cron|vendor)/  - [F,L]
 
   # Block sensitive directories from web access
   RewriteRule ^sql/      - [F,L]
@@ -52,6 +56,7 @@ ServerSignature Off
   RewriteRule ^storage/  - [F,L]
   RewriteRule ^database/ - [F,L]
   RewriteRule ^tests/    - [F,L]
+  RewriteRule ^vendor/   - [F,L]
   RewriteRule ^cron/     - [F,L]
 
   # Block api/cron from browser access (cron only, not AJAX)
@@ -80,7 +85,10 @@ ServerSignature Off
 </IfModule>
 
 # ── Block sensitive file types ────────────────────────────────
-<FilesMatch "\.(env|env\.example|py|sh|sql|log|bak|swp|gitignore|md)$">
+# DEVOPS-4: composer.lock has no .json/.txt/.log extension so it wasn't
+# caught by the rewrite rule above — confirmed fetchable via curl,
+# disclosing exact dependency versions (e.g. dompdf 3.1.6).
+<FilesMatch "\.(env|env\.example|py|sh|sql|log|bak|swp|gitignore|md)$|^composer\.(json|lock)$">
   Order allow,deny
   Deny from all
 </FilesMatch>
