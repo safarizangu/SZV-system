@@ -64,7 +64,13 @@ $data = [
     'adults'                 => max(1, (int)($_POST['adults']                        ?? 1)),
     'children'               => max(0, (int)($_POST['children']                      ?? 0)),
     'infants'                => max(0, (int)($_POST['infants']                       ?? 0)),
-    'start_date'             => Formatter::sanitize($_POST['start_date']             ?? ''),
+    'rooms'                  => isset($_POST['rooms']) && $_POST['rooms'] !== '' ? max(1, (int)$_POST['rooms']) : null,
+    'airport_pickup'         => !empty($_POST['airport_pickup']) ? 1 : 0,
+    // Pre-existing bug, found while testing: 'Preferred Start Date' has
+    // always been optional on the form (no required attribute), but an
+    // empty string here fails to save at all — MySQL's strict mode
+    // rejects '' for a DATE column. NULL is what "not specified" means.
+    'start_date'             => Formatter::sanitize($_POST['start_date'] ?? '') ?: null,
     'duration_days'          => max(1, (int)($_POST['duration_days']                 ?? 5)),
     'flexible_dates'         => Formatter::sanitize($_POST['flexible_dates']         ?? 'Yes'),
     'destinations'           => $destinations,

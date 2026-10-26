@@ -44,12 +44,14 @@ class Booking
         $stmt = $this->db->prepare("
             INSERT INTO bookings
                 (booking_ref, customer_id, full_name, email, phone, country, travelers, adults, children,
+                 rooms, airport_pickup,
                  package_id, package_name, accommodation_level,
                  travel_date, special_request, trip_extension,
                  total_amount, deposit_amount,
                  payment_status, payment_method, created_at)
             VALUES
                 (:ref, :customer_id, :name, :email, :phone, :country, :travelers, :adults, :children,
+                 :rooms, :airport_pickup,
                  :pkg_id, :pkg_name, :acc_level,
                  :travel_date, :special_request, :trip_extension,
                  :total, :deposit,
@@ -65,6 +67,8 @@ class Booking
             'travelers'      => (int)$data['travelers'],
             'adults'         => (int)($data['adults'] ?? $data['travelers']),
             'children'       => (int)($data['children'] ?? 0),
+            'rooms'          => isset($data['rooms']) ? (int)$data['rooms'] : null,
+            'airport_pickup' => !empty($data['airport_pickup']) ? 1 : 0,
             'pkg_id'         => $data['package_id'] ?? null,
             'pkg_name'       => $data['package_name'] ?? '',
             'acc_level'      => $data['accommodation_level'] ?? 'midrange',

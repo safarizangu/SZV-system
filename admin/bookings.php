@@ -146,6 +146,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $travelDate = trim($_POST['travel_date'] ?? '');
         $adults    = (int)($_POST['adults'] ?? 0);
         $children  = max(0, (int)($_POST['children'] ?? 0));
+        $rooms     = isset($_POST['rooms']) && $_POST['rooms'] !== '' ? max(1, (int)$_POST['rooms']) : null;
+        $airportPickup = !empty($_POST['airport_pickup']) ? 1 : 0;
         $accLevel  = trim($_POST['accommodation_level'] ?? '');
         $specialRequest = trim($_POST['special_request'] ?? '');
         $totalAmount   = (float)($_POST['total_amount'] ?? -1);
@@ -189,11 +191,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         $db->prepare("UPDATE bookings SET
                 full_name=?, email=?, phone=?, country=?, travel_date=?, adults=?, children=?,
+                rooms=?, airport_pickup=?,
                 accommodation_level=?, special_request=?, total_amount=?, deposit_amount=?,
                 package_id=?, package_name=?, itinerary_id=?, updated_at=NOW()
               WHERE booking_ref=?")
            ->execute([
                 $fullName, $email, $phone, $country, $travelDate, $adults, $children,
+                $rooms, $airportPickup,
                 $accLevel, $specialRequest, $totalAmount, $depositAmount,
                 $packageIdVal, $packageName, $itineraryIdVal,
                 $ref,
@@ -590,6 +594,8 @@ async function viewBooking(ref) {
     ['Travel Date',    '<strong>'+travelDate+'</strong>'],
     ['Total Amount',   b.total_amount   ? '<strong>USD $'+Number(b.total_amount).toLocaleString('en-US',{minimumFractionDigits:2})+'</strong>' : '—'],
   ];
+  if (b.rooms) rows.push(['Rooms Requested', b.rooms]);
+  if (b.airport_pickup == 1) rows.push(['Airport Pickup (Day 0)', 'Yes — needs pickup + overnight before the tour starts']);
   // Once a real payment is on file, show what was actually received
   // (amount_paid — entered by hand or via PayPal) instead of the merely
   // suggested deposit_amount, same real-vs-suggested distinction the
@@ -690,12 +696,14 @@ function editBooking() {
     + field('Travel Date', '<input class="admin-input" type="date" name="travel_date" value="'+esc(b.travel_date)+'" required>')
     + field('Adults', '<input class="admin-input" type="number" min="1" name="adults" value="'+esc(b.adults||b.travelers||1)+'" required>')
     + field('Children', '<input class="admin-input" type="number" min="0" name="children" value="'+esc(b.children||0)+'">')
+    + field('Rooms', '<input class="admin-input" type="number" min="1" name="rooms" value="'+esc(b.rooms||'')+'" placeholder="Optional">')
     + field('Accommodation Level', '<select class="admin-input" name="accommodation_level">'+accOptions+'</select>')
     + field('Package', '<select class="admin-input" name="package_id">'+pkgOptions+'</select>')
     + field('Itinerary', '<select class="admin-input" name="itinerary_id">'+itinOptions+'</select>')
     + field('Total Amount (USD)', '<input class="admin-input" type="number" min="0" step="0.01" name="total_amount" value="'+esc(b.total_amount)+'" required>')
     + field('Deposit Amount (USD)', '<input class="admin-input" type="number" min="0" step="0.01" name="deposit_amount" value="'+esc(b.deposit_amount)+'" required>')
     + '</div>'
+    + field('Airport Pickup (Day 0)', '<label style="display:flex;align-items:center;gap:.5rem;font-weight:400;cursor:pointer"><input type="checkbox" name="airport_pickup" value="1" style="width:auto;margin:0"'+(b.airport_pickup==1?' checked':'')+'> Needs pickup + overnight before the tour starts</label>')
     + field('Special Request', '<textarea class="admin-input" name="special_request" rows="3">'+esc(b.special_request)+'</textarea>')
     + '<div style="display:flex;gap:.5rem;padding-top:.5rem">'
     + '<button type="submit" class="admin-btn admin-btn--primary">Save Changes</button>'

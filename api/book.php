@@ -79,6 +79,8 @@ $data = [
     'adults'              => $adults,
     'children'            => $children,
     'travelers'           => $travelers,
+    'rooms'               => isset($_POST['rooms']) && $_POST['rooms'] !== '' ? max(1, (int)$_POST['rooms']) : null,
+    'airport_pickup'      => !empty($_POST['airport_pickup']) ? 1 : 0,
     'package_id'          => (int)($_POST['package_id']                        ?? 0),
     'accommodation_level' => Formatter::sanitize($_POST['accommodation_level']  ?? 'midrange'),
     'travel_date'         => Formatter::sanitize($_POST['travel_date']          ?? ''),
@@ -177,12 +179,14 @@ try {
     $stmt = $pdo->prepare("
         INSERT INTO bookings
             (booking_ref, customer_id, full_name, email, phone, country, travelers, adults, children,
+             rooms, airport_pickup,
              package_id, package_name, accommodation_level,
              travel_date, special_request, trip_extension,
              total_amount, deposit_amount,
              payment_status, payment_method, created_at)
         VALUES
             (:ref, :customer_id, :name, :email, :phone, :country, :travelers, :adults, :children,
+             :rooms, :airport_pickup,
              :pkg_id, :pkg_name, :acc_level,
              :travel_date, :special_request, :trip_extension,
              :total, :deposit,
@@ -198,6 +202,8 @@ try {
         'travelers'      => $data['travelers'],
         'adults'         => $data['adults'],
         'children'       => $data['children'],
+        'rooms'          => $data['rooms'],
+        'airport_pickup' => $data['airport_pickup'],
         'pkg_id'         => $data['package_id'],
         'pkg_name'       => $data['package_name'],
         'acc_level'      => $data['accommodation_level'],

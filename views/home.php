@@ -452,16 +452,24 @@ try {
                        data-validate="min:0 max:20 integer" data-label="Children">
               </div>
             </div>
-            <div class="form-group">
-              <label class="form-label" for="cs-rooms">Room Configuration</label>
-              <select id="cs-rooms" name="room_layout" class="form-control-sz">
-                <option value="">— Select —</option>
-                <option value="double">Double rooms (couples sharing)</option>
-                <option value="twin">Twin rooms (separate beds)</option>
-                <option value="mix">Mix of double &amp; twin</option>
-                <option value="family">Family rooms</option>
-                <option value="single">Single occupancy</option>
-              </select>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="cs-rooms">Room Configuration</label>
+                <select id="cs-rooms" name="room_layout" class="form-control-sz">
+                  <option value="">— Select —</option>
+                  <option value="double">Double rooms (couples sharing)</option>
+                  <option value="twin">Twin rooms (separate beds)</option>
+                  <option value="mix">Mix of double &amp; twin</option>
+                  <option value="family">Family rooms</option>
+                  <option value="single">Single occupancy</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="cs-num-rooms">Number of Rooms <span class="sz-hint">Optional</span></label>
+                <input type="number" id="cs-num-rooms" name="rooms" class="form-control-sz"
+                       min="1" max="20" placeholder="e.g. 2"
+                       data-validate="min:1 max:20 integer" data-label="Number of rooms">
+              </div>
             </div>
           </div>
 
@@ -481,6 +489,13 @@ try {
                        min="1" max="60" value="7" placeholder="e.g. 7"
                        data-validate="required min:1 max:60 integer" data-label="Duration" required>
               </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="display:flex;align-items:center;gap:.5rem;font-weight:500;cursor:pointer">
+                <input type="checkbox" id="cs-airport-pickup" name="airport_pickup" value="1" style="width:auto;margin:0">
+                Airport pickup, with overnight before the tour starts
+                <span class="sz-hint">Adds an extra night (Day 0) ahead of the duration above</span>
+              </label>
             </div>
             <div class="form-group">
               <label class="form-label" for="cs-flex">Date Flexibility</label>

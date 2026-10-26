@@ -368,6 +368,8 @@ function viewRequest(r) {
     row('Phone / WA',     r.phone ? '<a href="https://wa.me/'+r.phone.replace(/[^0-9]/g,'')+'" target="_blank" style="color:#25D366;font-weight:600">'+r.phone+'</a>' : '—') +
     row('Country',        r.country) +
     row('Group',          group) +
+    row('Rooms Requested', r.rooms) +
+    row('Airport Pickup (Day 0)', r.airport_pickup == 1 ? 'Yes — needs pickup + overnight before the tour starts' : '') +
     row('Duration',       r.duration_days ? r.duration_days + ' days' : '') +
     row('Start Date',     r.start_date ? new Date(r.start_date).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}) : '') +
     row('Flexible Dates', r.flexible_dates) +

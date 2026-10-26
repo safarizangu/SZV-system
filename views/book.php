@@ -183,6 +183,28 @@ try {
 
             <div class="form-row">
               <div class="form-group">
+                <label class="form-label" for="rooms">
+                  Number of Rooms
+                  <span class="sz-hint">Optional — leave blank if unsure</span>
+                </label>
+                <input type="number" id="rooms" name="rooms"
+                       class="form-control-sz"
+                       min="1" max="20"
+                       placeholder="e.g. 2"
+                       data-validate="min:1 max:20 integer"
+                       data-label="Number of rooms">
+              </div>
+              <div class="form-group" style="display:flex;align-items:flex-end">
+                <label class="form-label" style="display:flex;align-items:center;gap:.5rem;font-weight:500;cursor:pointer;margin-bottom:.1rem">
+                  <input type="checkbox" id="airport-pickup" name="airport_pickup" value="1" style="width:auto;margin:0">
+                  Airport pickup, with overnight before the tour starts
+                  <span class="sz-hint">Adds an extra night (Day 0) ahead of your selected dates</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
                 <label class="form-label" for="travel-date">
                   Travel Date <span class="sz-required">*</span>
                   <span class="sz-hint">First day of safari</span>
