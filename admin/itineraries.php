@@ -12,7 +12,6 @@ $pageTitle = 'Itinerary Manager';
 
 $msg = htmlspecialchars($_GET['msg'] ?? '');
 
-function fetchAll($db,$sql){try{return $db->query($sql)->fetchAll();}catch(\Exception $e){return[];}}
 $page    = max(1,(int)($_GET['page'] ?? 1));
 $perPage = 50;
 $offset  = ($page-1)*$perPage;

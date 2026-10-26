@@ -255,6 +255,17 @@ if (!function_exists('decodeJsonField')) {
     }
 }
 
+// ARCH-7: was redefined identically as a bare global function in 4
+// separate admin/*.php files (itineraries.php, itinerary_edit.php,
+// package_edit.php, quotation_new.php) — a "Cannot redeclare" fatal
+// risk if any two of them were ever included in the same request.
+if (!function_exists('fetchAll')) {
+    function fetchAll(\PDO $db, string $sql): array {
+        try { return $db->query($sql)->fetchAll(); }
+        catch (\Exception $e) { return []; }
+    }
+}
+
 if (!function_exists('getAllPackages')) {
     function getAllPackages(): array {
         try {

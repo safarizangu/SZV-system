@@ -16,7 +16,6 @@ try {
         $p["gallery"]       = json_decode($p["gallery_images"] ?? "[]", true) ?: [];
         $p["includes_arr"]  = json_decode($p["includes"]       ?? "[]", true) ?: [];
         $p["excludes_arr"]  = json_decode($p["excludes"]       ?? "[]", true) ?: [];
-        $p["itinerary_arr"] = json_decode($p["itinerary"]      ?? "[]", true) ?: [];
         $pkgMap[$p["slug"]] = $p;
     }
     unset($p);

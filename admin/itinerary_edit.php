@@ -119,7 +119,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
 }
 
 // Load reference data
-function fetchAll($db,$sql){try{return $db->query($sql)->fetchAll();}catch(\Exception $e){return[];}}
 $accommodations = fetchAll($db,"SELECT id,name,level,location,rate_per_room,rate_per_person FROM accommodations WHERE is_active=1 ORDER BY level,name");
 $vehicles       = fetchAll($db,"SELECT id,name,daily_rate,fuel_cost_day,driver_cost_day FROM vehicles WHERE is_active=1 ORDER BY name");
 $parkFees       = fetchAll($db,"SELECT id,name,location,adult_fee,child_fee FROM park_fees WHERE is_active=1 ORDER BY name");

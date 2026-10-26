@@ -12,15 +12,25 @@ $trackPwd = $_SESSION['_track_pwd_' . $ref] ?? null;
 if ($trackPwd) unset($_SESSION['_track_pwd_' . $ref]);
 
 // ── Fetch booking ─────────────────────────────────────────
+// SEC-7/ARCH-9: ref+travel_date is a deliberately weaker proof than the
+// Track Booking password — needed here because a guest lands on this
+// page immediately after booking, before any password email has
+// necessarily arrived (see track.php's own stronger, password-gated
+// lookup for the ongoing case). booking_ref itself is high-entropy
+// (random_bytes(5), ~40 bits — see Formatter::generateRef()), but
+// travel_date alone is a small, guessable space if a ref ever leaks
+// (shared in a WhatsApp message, a screenshot, browser history) — this
+// lookup had no rate limiting at all, unlike every password-gated one
+// elsewhere in the app. Reuses the same per-IP lockfile mechanism.
 $booking = null;
 if ($ref && $date) {
     try {
-        $pdo  = Database::getInstance();
-        $stmt = $pdo->prepare(
-            "SELECT * FROM bookings WHERE booking_ref = ? AND travel_date = ? LIMIT 1"
-        );
-        $stmt->execute([$ref, $date]);
-        $booking = $stmt->fetch();
+        if (\App\Middleware\RateLimiter::check('confirmation_lookup', 10, 900)) {
+            // ARCH-9: was its own copy of this exact query, independently
+            // from api/paypal_create_order.php and api/record_payment.php —
+            // now all three call the one canonical method.
+            $booking = (new \App\Models\Booking())->findByRefAndDate($ref, $date);
+        }
     } catch (Exception $e) {
         error_log('[SZV Confirm] ' . $e->getMessage());
     }

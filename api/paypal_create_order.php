@@ -53,9 +53,10 @@ try {
     if ($password !== '') {
         $booking = \App\Services\BookingTracking::verify($pdo, $ref, $password);
     } else {
-        $stmt = $pdo->prepare("SELECT * FROM bookings WHERE booking_ref = ? AND travel_date = ? LIMIT 1");
-        $stmt->execute([$ref, $travelDate]);
-        $booking = $stmt->fetch();
+        // ARCH-9: was its own copy of this exact query, independently
+        // from views/confirmation.php and api/record_payment.php — now
+        // all three call the one canonical method.
+        $booking = (new \App\Models\Booking())->findByRefAndDate($ref, $travelDate);
     }
 
     if (!$booking) {
