@@ -86,13 +86,23 @@ class PdfRenderer
             define('SZV_PDF_INTERNAL_RENDER', true);
         }
 
+        // ARCH-4: $_GET is swapped out and an output buffer opened right
+        // below, before the included script runs; both MUST be restored/
+        // closed even if that include throws partway through — previously
+        // only the success path did either ($_GET = $prevGet and
+        // ob_get_clean() below), so an exception left the buffer open and
+        // $_GET permanently pointing at $getParams for the rest of the
+        // request. $obLevelBefore pins exactly how many buffers were open
+        // before this call, so the finally block below only ever cleans up
+        // a buffer this call itself opened, never one it didn't.
+        $prevGet       = $_GET;
+        $obLevelBefore = ob_get_level();
+
         try {
-            $prevGet = $_GET;
-            $_GET    = $getParams;
+            $_GET = $getParams;
             ob_start();
             (function () use ($file) { include $file; })();
             $html = ob_get_clean();
-            $_GET = $prevGet;
 
             // dompdf tries to fetch AND cache Google Fonts locally; a common
             // failure (fwrite(): $stream must be of type resource, false
@@ -123,6 +133,9 @@ class PdfRenderer
         } catch (\Throwable $e) {
             error_log('[PdfRenderer] Failed to render ' . $file . ': ' . $e->getMessage());
             return null;
+        } finally {
+            while (ob_get_level() > $obLevelBefore) { ob_end_clean(); }
+            $_GET = $prevGet;
         }
     }
 }

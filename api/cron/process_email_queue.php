@@ -23,6 +23,7 @@ if (!$isCli && !$hasKey) {
 }
 
 use App\Mail\Mailer;
+use App\Helpers\AppLog;
 
 $db     = \App\Models\Database::getInstance();
 $maxPer = 20; // max emails per run
@@ -51,11 +52,16 @@ foreach ($rows as $row) {
 
     if (Mailer::sendRow($row, 20)) {
         $sent++;
-        echo '[' . date('Y-m-d H:i:s') . '] SENT: ' . $row['to_email'] . ' — ' . $row['subject'] . "\n";
+        $line = 'SENT: ' . $row['to_email'] . ' — ' . $row['subject'];
+        echo '[' . date('Y-m-d H:i:s') . '] ' . $line . "\n";
+        AppLog::write('email', $line);
     } else {
         $failed++;
-        echo '[' . date('Y-m-d H:i:s') . '] FAILED: ' . $row['to_email'] . "\n";
+        $line = 'FAILED: ' . $row['to_email'];
+        echo '[' . date('Y-m-d H:i:s') . '] ' . $line . "\n";
+        AppLog::write('email', $line);
     }
 }
 
 echo '[' . date('Y-m-d H:i:s') . "] Done. Sent: {$sent} Failed: {$failed}\n";
+AppLog::write('email', "Done. Sent: {$sent} Failed: {$failed}");

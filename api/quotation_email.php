@@ -274,22 +274,20 @@ $emailBody = "Dear {$q['client_name']},\n\n"
 //
 // Sent as two separate PDFs (Quotation + Itinerary) rather than one
 // combined document, so the client can open pricing and the day-by-day
-// plan independently.
+// plan independently. PERF-1: rendered lazily (see
+// Mailer::resolveLazyAttachment()) inside the background-dispatched send
+// rather than synchronously on this request — so, unlike before, success
+// here no longer implies the PDFs rendered successfully; a render
+// failure now surfaces the same way an email-send failure would
+// (email_queue.last_error / the error log), not as an immediate message
+// on this page.
 $queued        = false;
 $error         = '';
 $pdfAttachNote = '';
-$attachments   = [];
-
-$rendered = \App\Services\PdfRenderer::renderQuotation($id, 'Quotation-' . $q['quote_ref']);
-if ($rendered) {
-    $attachments[] = $rendered;
-} else {
-    $pdfAttachNote = ' (PDF attachment failed — check the error log)';
-}
-$renderedItin = \App\Services\PdfRenderer::renderQuotationItinerary($id, 'Itinerary-' . $q['quote_ref']);
-if ($renderedItin) {
-    $attachments[] = $renderedItin;
-}
+$attachments   = [
+    ['lazy_render' => 'quotation',           'arg' => $id, 'name' => 'Quotation-' . $q['quote_ref']],
+    ['lazy_render' => 'quotation_itinerary', 'arg' => $id, 'name' => 'Itinerary-' . $q['quote_ref']],
+];
 
 try {
     // queueRaw() also makes an immediate send attempt in this same

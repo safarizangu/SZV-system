@@ -9,7 +9,6 @@ try {
         $p['gallery']      = json_decode($p['gallery_images'] ?? '[]', true) ?: [];
         $p['includes_arr'] = json_decode($p['includes']       ?? '[]', true) ?: [];
         $p['excludes_arr'] = json_decode($p['excludes']       ?? '[]', true) ?: [];
-        $p['itinerary_arr']= json_decode($p['itinerary']      ?? '[]', true) ?: [];
         $pkgMap[$p['slug']] = $p;
     }
 } catch (\Exception $e) {
@@ -296,7 +295,7 @@ try {
     </div>
 
     <div class="text-center mt-5 fade-in">
-      <a href="<?= BASE_PATH ?>/packages.php" class="btn-sz-dark">View All Packages & Full Itineraries</a>
+      <a href="<?= BASE_PATH ?>/packages.php" class="btn-sz-dark view-all-packages-btn">View All Packages & Full Itineraries</a>
     </div>
   </div>
 </section>
@@ -671,7 +670,6 @@ try {
         $p["gallery"]       = json_decode($p["gallery_images"] ?? "[]", true) ?: [];
         $p["includes_arr"]  = json_decode($p["includes"]       ?? "[]", true) ?: [];
         $p["excludes_arr"]  = json_decode($p["excludes"]       ?? "[]", true) ?: [];
-        $p["itinerary_arr"] = json_decode($p["itinerary"]      ?? "[]", true) ?: [];
         $pkgMap[$p["slug"]] = $p;
     }
     unset($p);

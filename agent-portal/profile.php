@@ -73,25 +73,25 @@ ob_start();
         <input type="hidden" name="update_profile" value="1">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:1rem;margin-bottom:1rem">
           <div class="admin-form-group" style="margin-bottom:0">
-            <label class="admin-label">Username</label>
-            <input class="admin-input" value="<?= htmlspecialchars($me['username']) ?>" disabled style="opacity:.6">
+            <label class="admin-label" for="profile-username">Username</label>
+            <input id="profile-username" class="admin-input" value="<?= htmlspecialchars($me['username']) ?>" disabled style="opacity:.6">
           </div>
           <div class="admin-form-group" style="margin-bottom:0">
-            <label class="admin-label">Email</label>
-            <input class="admin-input" value="<?= htmlspecialchars($me['email'] ?? '') ?>" disabled style="opacity:.6">
+            <label class="admin-label" for="profile-email">Email</label>
+            <input id="profile-email" class="admin-input" value="<?= htmlspecialchars($me['email'] ?? '') ?>" disabled style="opacity:.6">
           </div>
           <div class="admin-form-group" style="margin-bottom:0">
-            <label class="admin-label">Full Name *</label>
-            <input name="full_name" class="admin-input" required value="<?= htmlspecialchars($me['full_name'] ?? '') ?>">
+            <label class="admin-label" for="full_name">Full Name *</label>
+            <input id="full_name" name="full_name" class="admin-input" required value="<?= htmlspecialchars($me['full_name'] ?? '') ?>">
           </div>
           <div class="admin-form-group" style="margin-bottom:0">
-            <label class="admin-label">Phone (WhatsApp)</label>
-            <input name="phone" class="admin-input" value="<?= htmlspecialchars($me['phone'] ?? '') ?>" placeholder="+255 7XX XXX XXX">
+            <label class="admin-label" for="phone">Phone (WhatsApp)</label>
+            <input id="phone" name="phone" class="admin-input" value="<?= htmlspecialchars($me['phone'] ?? '') ?>" placeholder="+255 7XX XXX XXX">
           </div>
         </div>
         <div class="admin-form-group" style="margin-bottom:1.25rem">
-          <label class="admin-label">Bio</label>
-          <textarea name="bio" class="admin-input" rows="3" placeholder="A short note about yourself (optional)" style="max-width:640px"><?= htmlspecialchars($me['bio'] ?? '') ?></textarea>
+          <label class="admin-label" for="bio">Bio</label>
+          <textarea id="bio" name="bio" class="admin-input" rows="3" placeholder="A short note about yourself (optional)" style="max-width:640px"><?= htmlspecialchars($me['bio'] ?? '') ?></textarea>
         </div>
         <button type="submit" class="admin-btn admin-btn--primary">Save Changes</button>
       </form>
@@ -108,16 +108,16 @@ ob_start();
         <input type="hidden" name="update_password" value="1">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:1rem">
           <div class="admin-form-group" style="margin-bottom:0">
-            <label class="admin-label">Current Password</label>
-            <input type="password" name="current_password" class="admin-input" required autocomplete="current-password">
+            <label class="admin-label" for="current_password">Current Password</label>
+            <input id="current_password" type="password" name="current_password" class="admin-input" required autocomplete="current-password">
           </div>
           <div class="admin-form-group" style="margin-bottom:0">
-            <label class="admin-label">New Password <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(min 10 characters)</span></label>
-            <input type="password" name="new_password" class="admin-input" required autocomplete="new-password" minlength="10">
+            <label class="admin-label" for="new_password">New Password <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(min 10 characters)</span></label>
+            <input id="new_password" type="password" name="new_password" class="admin-input" required autocomplete="new-password" minlength="10">
           </div>
           <div class="admin-form-group" style="margin-bottom:0">
-            <label class="admin-label">Confirm New Password</label>
-            <input type="password" name="confirm_password" class="admin-input" required autocomplete="new-password" minlength="10">
+            <label class="admin-label" for="confirm_password">Confirm New Password</label>
+            <input id="confirm_password" type="password" name="confirm_password" class="admin-input" required autocomplete="new-password" minlength="10">
           </div>
         </div>
         <button type="submit" class="admin-btn admin-btn--primary" style="margin-top:1.25rem">Update Password</button>

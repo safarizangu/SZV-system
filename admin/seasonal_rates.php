@@ -102,29 +102,29 @@ $months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','De
         <input type="hidden" name="save" value="1">
         <input type="hidden" name="id"   value="<?= $edit['id']??0 ?>">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-          <div><label class="admin-label">Season Name</label>
-            <input name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
-          <div><label class="admin-label">Key</label>
-            <input name="season_key" data-av="required slug" class="admin-input" required value="<?= htmlspecialchars($edit['season_key']??'') ?>"></div>
-          <div><label class="admin-label">Multiplier (1.0=100%)</label>
-            <input name="multiplier" data-av="required min:0 max:3" type="number" step="0.01" min="0" max="3" class="admin-input" value="<?= $edit['multiplier']??1.0 ?>"></div>
-          <div><label class="admin-label">Start Month</label>
-            <select name="start_month" class="admin-input">
+          <div><label class="admin-label" for="name">Season Name</label>
+            <input id="name" name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
+          <div><label class="admin-label" for="season_key">Key</label>
+            <input id="season_key" name="season_key" data-av="required slug" class="admin-input" required value="<?= htmlspecialchars($edit['season_key']??'') ?>"></div>
+          <div><label class="admin-label" for="multiplier">Multiplier (1.0=100%)</label>
+            <input id="multiplier" name="multiplier" data-av="required min:0 max:3" type="number" step="0.01" min="0" max="3" class="admin-input" value="<?= $edit['multiplier']??1.0 ?>"></div>
+          <div><label class="admin-label" for="start_month">Start Month</label>
+            <select id="start_month" name="start_month" class="admin-input">
               <?php for($i=1;$i<=12;$i++): ?>
               <option value="<?= $i ?>" <?= ($edit['start_month']??1)==$i?'selected':'' ?>><?= $months[$i-1] ?></option>
               <?php endfor; ?>
             </select>
           </div>
-          <div><label class="admin-label">End Month</label>
-            <select name="end_month" class="admin-input">
+          <div><label class="admin-label" for="end_month">End Month</label>
+            <select id="end_month" name="end_month" class="admin-input">
               <?php for($i=1;$i<=12;$i++): ?>
               <option value="<?= $i ?>" <?= ($edit['end_month']??12)==$i?'selected':'' ?>><?= $months[$i-1] ?></option>
               <?php endfor; ?>
             </select>
           </div>
         </div>
-        <div style="margin-top:1rem"><label class="admin-label">Description</label>
-          <textarea name="description" class="admin-input" rows="2"><?= htmlspecialchars($edit['description']??'') ?></textarea></div>
+        <div style="margin-top:1rem"><label class="admin-label" for="description">Description</label>
+          <textarea id="description" name="description" class="admin-input" rows="2"><?= htmlspecialchars($edit['description']??'') ?></textarea></div>
         <div style="margin-top:1rem;display:flex;gap:.5rem">
           <button class="admin-btn admin-btn--primary">Save</button>
           <button type="button" onclick="closeFormModal()" class="admin-btn admin-btn--outline">Cancel</button>

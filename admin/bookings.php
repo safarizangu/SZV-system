@@ -673,7 +673,7 @@ function editBooking() {
 
   function field(label, inputHtml) {
     return '<div style="margin-bottom:.85rem">'
-      + '<label class="admin-label" style="display:block;margin-bottom:.3rem">'+label+'</label>'
+      + '<label class="admin-label" style="display:block;margin-bottom:.3rem" for="full_name">'+label+'</label>'
       + inputHtml
       + '</div>';
   }
@@ -683,7 +683,7 @@ function editBooking() {
 
   var html = '<form id="editBookingForm" style="padding:1.25rem 1.5rem">'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">'
-    + field('Full Name', '<input class="admin-input" name="full_name" value="'+esc(b.full_name)+'" required>')
+    + field('Full Name', '<input id="full_name" class="admin-input" name="full_name" value="'+esc(b.full_name)+'" required>')
     + field('Email', '<input class="admin-input" type="email" name="email" value="'+esc(b.email)+'" required>')
     + field('Phone', '<input class="admin-input" name="phone" value="'+esc(b.phone)+'" required>')
     + field('Country', '<input class="admin-input" name="country" list="country-list" value="'+esc(b.country)+'" placeholder="e.g. United Kingdom">')

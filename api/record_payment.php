@@ -52,26 +52,51 @@ if ($amountPaid === null) {
 
 try {
     $pdo = \App\Models\Database::getInstance();
-    // Same dual-credential rule as api/paypal_create_order.php.
+    // Same dual-credential rule as api/paypal_create_order.php. This
+    // first lookup is just authentication/identification, not locked —
+    // the row is re-read under lock immediately below before anything
+    // that matters reads or writes amount_paid.
     if ($password !== '') {
-        $booking = \App\Services\BookingTracking::verify($pdo, $ref, $password);
+        $authBooking = \App\Services\BookingTracking::verify($pdo, $ref, $password);
     } else {
-        $stmt = $pdo->prepare("SELECT * FROM bookings WHERE booking_ref = ? AND travel_date = ? LIMIT 1");
-        $stmt->execute([$ref, $travelDate]);
-        $booking = $stmt->fetch();
+        // ARCH-9: was its own copy of this exact query, independently
+        // from views/confirmation.php and api/paypal_create_order.php —
+        // now all three call the one canonical method.
+        $authBooking = (new \App\Models\Booking())->findByRefAndDate($ref, $travelDate);
     }
 
+    if (!$authBooking) {
+        pay_respond(['success' => false, 'message' => 'Booking not found.']);
+    }
+
+    // API-4: lock this booking's row for the rest of the request. Without
+    // this, two near-simultaneous calls for the same booking (a
+    // double-click, a retried request) could both read the same stale
+    // amount_paid/paypal_order_id, both pass the "already applied" check
+    // below, and both credit the same PayPal payment — double-crediting
+    // amount_paid and double-sending the invoice email. The second
+    // transaction's SELECT ... FOR UPDATE blocks until the first commits,
+    // then sees the already-updated row and correctly short-circuits on
+    // the paypal_order_id replay check instead.
+    $pdo->beginTransaction();
+    $lockStmt = $pdo->prepare("SELECT * FROM bookings WHERE booking_ref = ? LIMIT 1 FOR UPDATE");
+    $lockStmt->execute([$ref]);
+    $booking = $lockStmt->fetch();
+
     if (!$booking) {
+        $pdo->rollBack();
         pay_respond(['success' => false, 'message' => 'Booking not found.']);
     }
 
     // Don't double-process a completed payment
     if ($booking['payment_status'] === 'fully_paid') {
+        $pdo->commit();
         pay_respond(['success' => true, 'status' => 'fully_paid', 'message' => 'Already fully paid.']);
     }
 
     // This exact PayPal order was already applied to this booking — idempotent replay, not a new payment.
     if (!empty($booking['paypal_order_id']) && $booking['paypal_order_id'] === $orderId) {
+        $pdo->commit();
         pay_respond(['success' => true, 'status' => $booking['payment_status'],
                      'message' => 'Payment already recorded.']);
     }
@@ -92,6 +117,7 @@ try {
         SET payment_status=?, amount_paid=?, payment_method='paypal', paypal_order_id=?, updated_at=NOW()
         WHERE booking_ref=?
     ")->execute([$newStatus, $newTotalPaid, $orderId, $ref]);
+    $pdo->commit();
 
     // Branded Invoice/Deposit-Receipt email with the real Quotation and
     // Itinerary PDFs attached — the same documents admin/bookings.php's
@@ -122,6 +148,7 @@ try {
                  'message' => 'Payment recorded. Status: ' . $newStatus]);
 
 } catch (\Exception $e) {
+    if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
     error_log('[SZV RecordPayment] ' . $e->getMessage());
     pay_respond(['success' => false, 'message' => 'Could not record payment. Please contact us.']);
 }

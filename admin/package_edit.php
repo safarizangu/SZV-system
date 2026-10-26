@@ -52,7 +52,6 @@ if ($id > 0 && !empty($_GET['link']) && $pkg) {
     } catch (\Exception $e) {}
 }
 
-function fetchAll($db,$sql){try{return $db->query($sql)->fetchAll();}catch(\Exception $e){return[];}}
 $accommodations = fetchAll($db,"SELECT id,name,level,location,rate_per_room,rate_per_person,single_supplement,child_rate FROM accommodations WHERE is_active=1 ORDER BY level,name");
 $vehicles       = fetchAll($db,"SELECT id,name,daily_rate,fuel_cost_day,driver_cost_day,capacity FROM vehicles WHERE is_active=1 ORDER BY name");
 $parkFees       = fetchAll($db,"SELECT id,name,location,adult_fee,child_fee,vehicle_fee FROM park_fees WHERE is_active=1 ORDER BY name");
@@ -312,20 +311,20 @@ ob_start();
   <div class="admin-card-header"><h3>Basic Information</h3></div>
   <div class="admin-card-body">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-      <div><label class="admin-label">Package Name *</label>
-        <input name="name" class="admin-input" required value="<?= htmlspecialchars($pkg['name']??'') ?>"></div>
-      <div><label class="admin-label">URL Slug *</label>
-        <input name="slug" class="admin-input" required pattern="[a-z0-9-]+" value="<?= htmlspecialchars($pkg['slug']??'') ?>"></div>
-      <div><label class="admin-label">Duration (days)</label>
+      <div><label class="admin-label" for="name">Package Name *</label>
+        <input id="name" name="name" class="admin-input" required value="<?= htmlspecialchars($pkg['name']??'') ?>"></div>
+      <div><label class="admin-label" for="slug">URL Slug *</label>
+        <input id="slug" name="slug" class="admin-input" required pattern="[a-z0-9-]+" value="<?= htmlspecialchars($pkg['slug']??'') ?>"></div>
+      <div><label class="admin-label" for="duration_days">Duration (days)</label>
         <input name="duration_days" type="number" min="1" max="60" class="admin-input" id="duration_days"
                value="<?= $durationDays ?>" oninput="syncItineraryDays(this.value)"></div>
-      <div><label class="admin-label">Sort Order</label>
-        <input name="sort_order" type="number" class="admin-input" value="<?= (int)($pkg['sort_order']??0) ?>"></div>
+      <div><label class="admin-label" for="sort_order">Sort Order</label>
+        <input id="sort_order" name="sort_order" type="number" class="admin-input" value="<?= (int)($pkg['sort_order']??0) ?>"></div>
     </div>
-    <div style="margin-bottom:1rem"><label class="admin-label">Short Description (card)</label>
-      <textarea name="short_description" class="admin-input" rows="2"><?= htmlspecialchars($pkg['short_description']??'') ?></textarea></div>
-    <div><label class="admin-label">Full Overview</label>
-      <textarea name="overview" class="admin-input" rows="4"><?= htmlspecialchars($pkg['overview']??'') ?></textarea></div>
+    <div style="margin-bottom:1rem"><label class="admin-label" for="short_description">Short Description (card)</label>
+      <textarea id="short_description" name="short_description" class="admin-input" rows="2"><?= htmlspecialchars($pkg['short_description']??'') ?></textarea></div>
+    <div><label class="admin-label" for="overview">Full Overview</label>
+      <textarea id="overview" name="overview" class="admin-input" rows="4"><?= htmlspecialchars($pkg['overview']??'') ?></textarea></div>
   </div>
 </div>
 
@@ -350,7 +349,7 @@ ob_start();
       <?php else: ?>
       <?php foreach($galleryImgs as $imgUrl): ?>
       <div class="selected-img-item" data-url="<?= htmlspecialchars($imgUrl) ?>" style="position:relative;border:1.5px solid #e5e7eb;background:#fff">
-        <img src="<?= htmlspecialchars(BASE_PATH . $imgUrl) ?>" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" loading="lazy">
+        <img src="<?= htmlspecialchars(BASE_PATH . $imgUrl) ?>" alt="" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" loading="lazy">
         <button type="button" onclick="removeSelectedImg(this)"
                 style="position:absolute;top:3px;right:3px;background:rgba(220,38,38,.9);border:none;color:#fff;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:.6rem;display:flex;align-items:center;justify-content:center">✕</button>
       </div>
@@ -383,7 +382,7 @@ ob_start();
   <div class="admin-card-body">
     <div style="display:grid;grid-template-columns:1fr auto<?= $id ? ' auto' : '' ?>;gap:.75rem;align-items:end">
       <div>
-        <label class="admin-label">Select Itinerary</label>
+        <label class="admin-label" for="pkg_itin_select">Select Itinerary</label>
         <select id="pkg_itin_select" class="admin-input">
           <option value="">— Select an itinerary template —</option>
           <?php
@@ -474,11 +473,11 @@ ob_start();
       <div class="admin-card-body">
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-          <div><label class="admin-label">Location / Park</label>
-            <input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="<?= $i ?>" oninput="filterDayOptions(<?= $i ?>)"
+          <div><label class="admin-label" for="day_location-<?= $i ?>">Location / Park</label>
+            <input id="day_location-<?= $i ?>" name="day_location[]" class="admin-input day-location" list="location-list" data-idx="<?= $i ?>" oninput="filterDayOptions(<?= $i ?>)"
                    value="<?= htmlspecialchars($day['location']??'') ?>" placeholder="e.g. Serengeti National Park"></div>
-          <div><label class="admin-label">Day Description</label>
-            <textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"><?= htmlspecialchars($day['description']??'') ?></textarea></div>
+          <div><label class="admin-label" for="day_desc-<?= $i ?>">Day Description</label>
+            <textarea id="day_desc-<?= $i ?>" name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"><?= htmlspecialchars($day['description']??'') ?></textarea></div>
         </div>
 
         <div class="day-resource-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
@@ -487,8 +486,8 @@ ob_start();
           <div class="itin-panel itin-panel--blue">
             <p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8"><?= \App\Helpers\AdminIcon::render('accommodations', 13) ?> Accommodation</p>
             <input type="hidden" name="day_acc_id[]" class="day-acc-id" value="<?= (int)($day['accommodation_id']??0) ?>">
-            <div style="margin-bottom:.45rem"><label class="admin-label">Property</label>
-              <input name="day_acc_name[]" class="admin-input day-acc-name" list="pe-acc-list-<?= $i ?>"
+            <div style="margin-bottom:.45rem"><label class="admin-label" for="day_acc_name-<?= $i ?>">Property</label>
+              <input id="day_acc_name-<?= $i ?>" name="day_acc_name[]" class="admin-input day-acc-name" list="pe-acc-list-<?= $i ?>"
                      value="<?= htmlspecialchars($day['accommodation_name']??'') ?>"
                      oninput="calcItinTotal()" onchange="fillDayAcc(this,<?= $i ?>)"
                      placeholder="Select or type">
@@ -499,11 +498,11 @@ ob_start();
               </datalist>
             </div>
             <div class="admin-field-pair" style="display:grid;grid-template-columns:1fr 60px;gap:.35rem">
-              <div><label class="admin-label">Rate/Room/Night</label>
-                <input name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate"
+              <div><label class="admin-label" for="day_acc_rate-<?= $i ?>">Rate/Room/Night</label>
+                <input id="day_acc_rate-<?= $i ?>" name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate"
                        value="<?= (float)($day['accommodation_rate']??0) ?>" oninput="calcItinTotal()"></div>
-              <div><label class="admin-label">Rooms</label>
-                <input name="day_acc_rooms[]" type="number" min="1" class="admin-input"
+              <div><label class="admin-label" for="day_acc_rooms-<?= $i ?>">Rooms</label>
+                <input id="day_acc_rooms-<?= $i ?>" name="day_acc_rooms[]" type="number" min="1" class="admin-input"
                        value="<?= (int)($day['accommodation_rooms']??1) ?>" oninput="calcItinTotal()"></div>
             </div>
           </div>
@@ -512,8 +511,8 @@ ob_start();
           <div class="itin-panel itin-panel--green">
             <p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534"><?= \App\Helpers\AdminIcon::render('fleet', 13) ?> Vehicle</p>
             <input type="hidden" name="day_veh_id[]" class="day-veh-id" value="<?= (int)($day['vehicle_id']??0) ?>">
-            <div style="margin-bottom:.45rem"><label class="admin-label">Vehicle</label>
-              <input name="day_veh_name[]" class="admin-input day-veh-name" list="pe-veh-list-<?= $i ?>"
+            <div style="margin-bottom:.45rem"><label class="admin-label" for="day_veh_name-<?= $i ?>">Vehicle</label>
+              <input id="day_veh_name-<?= $i ?>" name="day_veh_name[]" class="admin-input day-veh-name" list="pe-veh-list-<?= $i ?>"
                      value="<?= htmlspecialchars($day['vehicle_name']??'') ?>"
                      oninput="calcItinTotal()" onchange="fillDayVeh(this,<?= $i ?>)"
                      placeholder="Select or type">
@@ -523,8 +522,8 @@ ob_start();
                 <?php endforeach; ?>
               </datalist>
             </div>
-            <div><label class="admin-label">Daily Rate (incl. fuel+driver)</label>
-              <input name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate"
+            <div><label class="admin-label" for="day_veh_rate-<?= $i ?>">Daily Rate (incl. fuel+driver)</label>
+              <input id="day_veh_rate-<?= $i ?>" name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate"
                      value="<?= (float)($day['vehicle_rate']??0) ?>" oninput="calcItinTotal()"></div>
           </div>
 
@@ -532,8 +531,8 @@ ob_start();
           <div class="itin-panel itin-panel--amber">
             <p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e"><?= \App\Helpers\AdminIcon::render('park-fees', 13) ?> Park &amp; Meals</p>
             <input type="hidden" name="day_park_id[]" value="<?= (int)($day['park_fee_id']??0) ?>">
-            <div style="margin-bottom:.45rem"><label class="admin-label">Park / Area</label>
-              <input name="day_park_name[]" class="admin-input" list="pe-park-list-<?= $i ?>"
+            <div style="margin-bottom:.45rem"><label class="admin-label" for="day_park_name-<?= $i ?>">Park / Area</label>
+              <input id="day_park_name-<?= $i ?>" name="day_park_name[]" class="admin-input" list="pe-park-list-<?= $i ?>"
                      value="<?= htmlspecialchars($day['park_fee_name']??'') ?>"
                      oninput="calcItinTotal()" onchange="fillDayPark(this,<?= $i ?>)"
                      placeholder="Select or leave blank">
@@ -544,11 +543,11 @@ ob_start();
               </datalist>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem">
-              <div><label class="admin-label">Adult Fee</label>
-                <input name="day_park_fee[]" type="number" step="0.01" class="admin-input day-park-fee"
+              <div><label class="admin-label" for="day_park_fee-<?= $i ?>">Adult Fee</label>
+                <input id="day_park_fee-<?= $i ?>" name="day_park_fee[]" type="number" step="0.01" class="admin-input day-park-fee"
                        value="<?= (float)($day['park_adult_fee']??0) ?>" oninput="calcItinTotal()"></div>
-              <div><label class="admin-label">Meals/pp</label>
-                <input name="day_meals_pp[]" type="number" step="0.01" class="admin-input"
+              <div><label class="admin-label" for="day_meals_pp-<?= $i ?>">Meals/pp</label>
+                <input id="day_meals_pp-<?= $i ?>" name="day_meals_pp[]" type="number" step="0.01" class="admin-input"
                        value="<?= (float)($day['meals_cost_pp']??20) ?>" oninput="calcItinTotal()"></div>
             </div>
           </div>
@@ -638,9 +637,9 @@ ob_start();
   </div>
   <div class="admin-card-body">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem;color:#166534"><?= \App\Helpers\AdminIcon::render('check', 11) ?> Included</label>
+      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem;color:#166534" for="includes_ta"><?= \App\Helpers\AdminIcon::render('check', 11) ?> Included</label>
         <textarea name="includes" id="includes_ta" class="admin-input" rows="8"><?= htmlspecialchars($includes) ?></textarea></div>
-      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem;color:#991b1b"><?= \App\Helpers\AdminIcon::render('close', 11) ?> Not Included</label>
+      <div><label class="admin-label" style="display:flex;align-items:center;gap:.3rem;color:#991b1b" for="excludes_ta"><?= \App\Helpers\AdminIcon::render('close', 11) ?> Not Included</label>
         <textarea name="excludes" id="excludes_ta" class="admin-input" rows="8"><?= htmlspecialchars($excludes) ?></textarea></div>
     </div>
     <p style="font-size:.68rem;color:var(--gray-500);margin-top:.5rem">Sync pulls the linked itinerary template's own list when linked<?php if(!$isLinked): ?>, or builds a starting Includes list from what's actually in the Day-by-Day Itinerary above — Excludes still needs typing, since things like visas or insurance aren't part of the itinerary<?php endif; ?>. Edit the result freely afterward.</p>
@@ -663,7 +662,7 @@ ob_start();
 
       <!-- Read-only summary — itemized, matching what ItineraryQuoteBuilder
            actually computes (see calcTotals() below) -->
-      <div>
+      <div class="admin-table-wrap"> <!-- UIUX-3 -->
         <table style="width:100%;font-size:.85rem;border-collapse:collapse">
           <thead>
             <tr style="border-bottom:2px solid var(--gray-200)">
@@ -688,25 +687,25 @@ ob_start();
            Charge. Identical field set/order to admin/quotation_new.php's
            equivalent aside. -->
       <div style="background:var(--gray-50);border:1px solid var(--gray-200);padding:1rem">
-        <label class="admin-label">Adults</label>
+        <label class="admin-label" for="pe_adults">Adults</label>
         <input type="number" name="adults" id="pe_adults" min="1" max="20"
                value="<?= $bdAdults ?>" class="admin-input" style="margin-bottom:.75rem"
                oninput="calcTotals()" title="Used for both the itinerary day badges above and this summary">
 
-        <label class="admin-label">Children</label>
+        <label class="admin-label" for="pe_children">Children</label>
         <input type="number" name="children" id="pe_children" min="0" max="20"
                value="<?= $bdChildren ?>" class="admin-input" style="margin-bottom:.75rem"
                oninput="calcTotals()">
 
-        <label class="admin-label">Infants <span style="font-weight:600;color:var(--gray-500)">— always free, no service charge</span></label>
+        <label class="admin-label" for="pe_infants">Infants <span style="font-weight:600;color:var(--gray-500)">— always free, no service charge</span></label>
         <input type="number" name="infants" id="pe_infants" min="0" max="20"
                value="<?= $bdInfants ?>" class="admin-input" style="margin-bottom:.75rem">
 
-        <label class="admin-label">Service Charge — Adults ($ / person)</label>
+        <label class="admin-label" for="service_charge_adult">Service Charge — Adults ($ / person)</label>
         <input name="service_charge_adult" type="number" step="0.01" class="admin-input" id="service_charge_adult"
                value="<?= $bdSvcAdultPax ?>" oninput="calcTotals()" placeholder="e.g. 50" style="margin-bottom:.75rem">
 
-        <label class="admin-label">Service Charge — Children ($ / person)</label>
+        <label class="admin-label" for="service_charge_child">Service Charge — Children ($ / person)</label>
         <input name="service_charge_child" type="number" step="0.01" class="admin-input" id="service_charge_child"
                value="<?= $bdSvcChildPax ?>" oninput="calcTotals()" placeholder="e.g. 50">
         <p style="font-size:.68rem;color:var(--gray-500);margin-top:.5rem;line-height:1.5">Everything above comes from the Day-by-Day Itinerary.</p>
@@ -715,8 +714,8 @@ ob_start();
     </div>
 
     <!-- NOTES -->
-    <div style="margin-top:1.25rem"><label class="admin-label">Pricing Notes (shown to guests)</label>
-      <textarea name="breakdown_notes" class="admin-input" rows="2" placeholder="e.g. Based on 2 travelers sharing."><?= htmlspecialchars($bd['notes']??'') ?></textarea></div>
+    <div style="margin-top:1.25rem"><label class="admin-label" for="breakdown_notes">Pricing Notes (shown to guests)</label>
+      <textarea id="breakdown_notes" name="breakdown_notes" class="admin-input" rows="2" placeholder="e.g. Based on 2 travelers sharing."><?= htmlspecialchars($bd['notes']??'') ?></textarea></div>
 
   </div>
 </div>
@@ -733,13 +732,13 @@ ob_start();
   <div class="admin-card-body">
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;align-items:end">
       <div>
-        <label class="admin-label">Operational Cost ($, per person)</label>
+        <label class="admin-label" for="pe_op_cost">Operational Cost ($, per person)</label>
         <input type="number" step="0.01" min="0" name="operational_cost" id="pe_op_cost" class="admin-input"
                value="<?= htmlspecialchars((string)($pkg['operational_cost'] ?? 0)) ?>" oninput="calcMargin()" placeholder="0.00">
       </div>
       <div>
-        <label class="admin-label">Package Tier</label>
-        <select name="package_tier" class="admin-input">
+        <label class="admin-label" for="package_tier">Package Tier</label>
+        <select id="package_tier" name="package_tier" class="admin-input">
           <option value="">— Not set —</option>
           <?php foreach(['BUDGET','MIDRANGE','COMFORT','LUXURY','ULTRA_LUXURY'] as $t): ?>
           <option value="<?= $t ?>" <?= ($pkg['package_tier']??'')===$t?'selected':'' ?>><?= ucwords(strtolower(str_replace('_',' ',$t))) ?></option>
@@ -781,8 +780,8 @@ ob_start();
   <div class="admin-card" style="margin-bottom:1rem">
     <div class="admin-card-header"><h3>Settings</h3></div>
     <div class="admin-card-body">
-      <div style="margin-bottom:.85rem"><label class="admin-label">Accommodation Level</label>
-        <select name="accommodation_level" class="admin-input" onchange="filterAllDayOptions()">
+      <div style="margin-bottom:.85rem"><label class="admin-label" for="accommodation_level">Accommodation Level</label>
+        <select id="accommodation_level" name="accommodation_level" class="admin-input" onchange="filterAllDayOptions()">
           <?php foreach(['budget'=>'Budget-Friendly','midrange'=>'Mid-Range','highend'=>'High-End','luxury'=>'Luxury','ultra_luxury'=>'Ultra Luxury'] as $v=>$l): ?>
           <option value="<?= $v ?>" <?= ($pkg['accommodation_level']??'midrange')===$v?'selected':'' ?>><?= $l ?></option>
           <?php endforeach; ?>
@@ -832,17 +831,17 @@ ob_start();
     <div class="admin-modal-body">
       <div id="veh-err" class="admin-alert admin-alert--error" style="display:none"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-        <div><label class="admin-label">Vehicle Name *</label>
+        <div><label class="admin-label" for="veh-name">Vehicle Name *</label>
           <input id="veh-name" class="admin-input" placeholder="e.g. Toyota Hilux"></div>
-        <div><label class="admin-label">Capacity (seats)</label>
+        <div><label class="admin-label" for="veh-cap">Capacity (seats)</label>
           <input id="veh-cap" type="number" min="1" class="admin-input" value="6"></div>
-        <div><label class="admin-label">Daily Rate ($)</label>
+        <div><label class="admin-label" for="veh-rate">Daily Rate ($)</label>
           <input id="veh-rate" type="number" step="1" class="admin-input" value="250"></div>
-        <div><label class="admin-label">Fuel/Day ($)</label>
+        <div><label class="admin-label" for="veh-fuel">Fuel/Day ($)</label>
           <input id="veh-fuel" type="number" step="1" class="admin-input" value="50"></div>
-        <div><label class="admin-label">Driver/Day ($)</label>
+        <div><label class="admin-label" for="veh-driver">Driver/Day ($)</label>
           <input id="veh-driver" type="number" step="1" class="admin-input" value="50"></div>
-        <div><label class="admin-label">Level</label>
+        <div><label class="admin-label" for="veh-level">Level</label>
           <select id="veh-level" class="admin-input">
             <option value="standard">Standard</option>
             <option value="luxury">Luxury</option>
@@ -882,7 +881,17 @@ ob_start();
   </div>
 </div>
 
+<script src="js/pricing_shared.js"></script>
 <script>
+// ARCH-1: this page's DOM-id convention, read by the shared functions in
+// js/pricing_shared.js (fillDayAcc, fillDayVeh, fillDayPark,
+// filterDayOptions, addDayActivity, renumberDays).
+window.PE_IDS = {
+  adults: 'pe_adults', children: 'pe_children', duration: 'duration_days',
+  accList: 'pe-acc-list-', vehList: 'pe-veh-list-', parkList: 'pe-park-list-', actList: 'pe-act-list-'
+};
+window.PE_CLOSE_ICON_HTML = <?= json_encode(\App\Helpers\AdminIcon::render('close', 14)) ?>;
+
 var fmt = function(n){ return '$'+Math.round(n).toLocaleString('en-US'); };
 // Single source of truth is config/app.php's VAT_RATE constant — mirrored
 // here instead of hardcoding 0.18 so this preview can't drift from it.
@@ -1127,25 +1136,6 @@ function calcMargin() {
   el.style.color = margin < 20 ? '#dc2626' : (margin < 40 ? '#b45309' : '#16a34a');
 }
 
-function escapeHtml(s) {
-  var d = document.createElement('div');
-  d.textContent = s == null ? '' : String(s);
-  return d.innerHTML;
-}
-
-// Park child fee, looked up from PE_PARKS (same reference data used for
-// the datalists) — mirrors ItineraryQuoteBuilder::lookupParkChildFee()
-// server-side so this live preview matches the real saved calculation.
-function parkChildFee(parkName) {
-  for (var i=0; i<PE_PARKS.length; i++) {
-    if (PE_PARKS[i].name === parkName) return PE_PARKS[i].childFee||0;
-  }
-  return 0;
-}
-function peParkLookup(parkName) {
-  for (var i=0; i<PE_PARKS.length; i++) if (PE_PARKS[i].name === parkName) return PE_PARKS[i];
-  return null;
-}
 
 // ── Includes/Excludes sync ────────────────────────────────────
 // Responsive sync: every itinerary-affecting change (accommodation,
@@ -1160,10 +1150,6 @@ function peParkLookup(parkName) {
 var includesDirty = <?= json_encode($includes !== '') ?>, excludesDirty = <?= json_encode($excludes !== '') ?>;
 var autoSyncTimer = null, autoSyncInProgress = false;
 
-function scheduleAutoSync() {
-  if (autoSyncTimer) clearTimeout(autoSyncTimer);
-  autoSyncTimer = setTimeout(function(){ syncIncludesExcludesCore(false); }, 600);
-}
 
 (function(){
   var incEl = document.getElementById('includes_ta'), excEl = document.getElementById('excludes_ta');
@@ -1171,7 +1157,6 @@ function scheduleAutoSync() {
   if (excEl) excEl.addEventListener('input', function(){ if (!autoSyncInProgress) excludesDirty = true; });
 })();
 
-function syncIncludesExcludes() { return syncIncludesExcludesCore(true); }
 
 function syncIncludesExcludesCore(force) {
   autoSyncInProgress = true;
@@ -1248,22 +1233,9 @@ function syncIncludesExcludesCore(force) {
 // already use, output once here so a freshly-added day (when Duration is
 // increased) gets the exact same autocomplete options.
 var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'ratePerPerson'=>(float)$a['rate_per_person'],'singleSupp'=>(float)$a['single_supplement'],'childRate'=>(float)$a['child_rate'],'level'=>$a['level'],'location'=>$a['location']??''], $accommodations)) ?>;
-function peAccLookup(accName) {
-  for (var i=0; i<PE_ACCS.length; i++) if (PE_ACCS[i].name === accName) return PE_ACCS[i];
-  return null;
-}
 var PE_VEHS  = <?= json_encode(array_map(fn($v) => ['name'=>$v['name'],'id'=>(int)$v['id'],'rate'=>(float)$v['daily_rate']+(float)$v['fuel_cost_day']+(float)$v['driver_cost_day']], $vehicles)) ?>;
 var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee'],'childFee'=>(float)$p['child_fee'],'vehicleFee'=>(float)$p['vehicle_fee'],'location'=>$p['location']??''], $parkFees)) ?>;
 var PE_ACTS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'price'=>(float)$a['price'],'location'=>$a['location']??''], $activities_db)) ?>;
-
-// Whether the first day-block's "arrival day" checkbox is checked — index
-// 0 always already exists in the DOM (a package itinerary can never have
-// 0 days), so newly-added days just need to read it, not track it.
-function isArrivalDayFlagged() {
-  var first = document.querySelector('#itinerary-rows .day-block');
-  var cb = first ? first.querySelector('.day-arrival-toggle input[type=checkbox]') : null;
-  return !!(cb && cb.checked);
-}
 
 function peDayBlockHtml(i) {
   var accOpts  = PE_ACCS.map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-rate="'+a.rate+'">'; }).join('');
@@ -1288,41 +1260,41 @@ function peDayBlockHtml(i) {
     +'</div>'
     +'<div class="admin-card-body">'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">'
-        +'<div><label class="admin-label">Location / Park</label><input name="day_location[]" class="admin-input day-location" list="location-list" data-idx="'+i+'" oninput="filterDayOptions('+i+')" placeholder="e.g. Serengeti National Park"></div>'
-        +'<div><label class="admin-label">Day Description</label><textarea name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"></textarea></div>'
+        +'<div><label class="admin-label" for="day_location-2-'+i+'">Location / Park</label><input id="day_location-2-'+i+'" name="day_location[]" class="admin-input day-location" list="location-list" data-idx="'+i+'" oninput="filterDayOptions('+i+')" placeholder="e.g. Serengeti National Park"></div>'
+        +'<div><label class="admin-label" for="day_desc-2-'+i+'">Day Description</label><textarea id="day_desc-2-'+i+'" name="day_desc[]" class="admin-input" rows="2" placeholder="What happens this day…"></textarea></div>'
       +'</div>'
       +'<div class="day-resource-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">'
         +'<div class="itin-panel itin-panel--blue">'
           +'<p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#1d4ed8"><?= \App\Helpers\AdminIcon::render('accommodations', 13) ?> Accommodation</p>'
           +'<input type="hidden" name="day_acc_id[]" class="day-acc-id" value="0">'
-          +'<div style="margin-bottom:.45rem"><label class="admin-label">Property</label>'
-            +'<input name="day_acc_name[]" class="admin-input day-acc-name" list="pe-acc-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayAcc(this,'+i+')" placeholder="Select or type">'
+          +'<div style="margin-bottom:.45rem"><label class="admin-label" for="day_acc_name-2-'+i+'">Property</label>'
+            +'<input id="day_acc_name-2-'+i+'" name="day_acc_name[]" class="admin-input day-acc-name" list="pe-acc-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayAcc(this,'+i+')" placeholder="Select or type">'
             +'<datalist id="pe-acc-list-'+i+'">'+accOpts+'</datalist>'
           +'</div>'
           +'<div class="admin-field-pair" style="display:grid;grid-template-columns:1fr 60px;gap:.35rem">'
-            +'<div><label class="admin-label">Rate/Room/Night</label><input name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate" value="0" oninput="calcItinTotal()"></div>'
-            +'<div><label class="admin-label">Rooms</label><input name="day_acc_rooms[]" type="number" min="1" class="admin-input" value="1" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label" for="day_acc_rate-2-'+i+'">Rate/Room/Night</label><input id="day_acc_rate-2-'+i+'" name="day_acc_rate[]" type="number" step="1" class="admin-input day-acc-rate" value="0" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label" for="day_acc_rooms-2-'+i+'">Rooms</label><input id="day_acc_rooms-2-'+i+'" name="day_acc_rooms[]" type="number" min="1" class="admin-input" value="1" oninput="calcItinTotal()"></div>'
           +'</div>'
         +'</div>'
         +'<div class="itin-panel itin-panel--green">'
           +'<p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#166534"><?= \App\Helpers\AdminIcon::render('fleet', 13) ?> Vehicle</p>'
           +'<input type="hidden" name="day_veh_id[]" class="day-veh-id" value="0">'
-          +'<div style="margin-bottom:.45rem"><label class="admin-label">Vehicle</label>'
-            +'<input name="day_veh_name[]" class="admin-input day-veh-name" list="pe-veh-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayVeh(this,'+i+')" placeholder="Select or type">'
+          +'<div style="margin-bottom:.45rem"><label class="admin-label" for="day_veh_name-2-'+i+'">Vehicle</label>'
+            +'<input id="day_veh_name-2-'+i+'" name="day_veh_name[]" class="admin-input day-veh-name" list="pe-veh-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayVeh(this,'+i+')" placeholder="Select or type">'
             +'<datalist id="pe-veh-list-'+i+'">'+vehOpts+'</datalist>'
           +'</div>'
-          +'<div><label class="admin-label">Daily Rate (incl. fuel+driver)</label><input name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate" value="0" oninput="calcItinTotal()"></div>'
+          +'<div><label class="admin-label" for="day_veh_rate-2-'+i+'">Daily Rate (incl. fuel+driver)</label><input id="day_veh_rate-2-'+i+'" name="day_veh_rate[]" type="number" step="1" class="admin-input day-veh-rate" value="0" oninput="calcItinTotal()"></div>'
         +'</div>'
         +'<div class="itin-panel itin-panel--amber">'
           +'<p style="display:flex;align-items:center;gap:.4rem;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem;color:#92400e"><?= \App\Helpers\AdminIcon::render('park-fees', 13) ?> Park &amp; Meals</p>'
           +'<input type="hidden" name="day_park_id[]" value="0">'
-          +'<div style="margin-bottom:.45rem"><label class="admin-label">Park / Area</label>'
-            +'<input name="day_park_name[]" class="admin-input" list="pe-park-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayPark(this,'+i+')" placeholder="Select or leave blank">'
+          +'<div style="margin-bottom:.45rem"><label class="admin-label" for="day_park_name-2-'+i+'">Park / Area</label>'
+            +'<input id="day_park_name-2-'+i+'" name="day_park_name[]" class="admin-input" list="pe-park-list-'+i+'" oninput="calcItinTotal()" onchange="fillDayPark(this,'+i+')" placeholder="Select or leave blank">'
             +'<datalist id="pe-park-list-'+i+'">'+parkOpts+'</datalist>'
           +'</div>'
           +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem">'
-            +'<div><label class="admin-label">Adult Fee</label><input name="day_park_fee[]" type="number" step="0.01" class="admin-input day-park-fee" value="0" oninput="calcItinTotal()"></div>'
-            +'<div><label class="admin-label">Meals/pp</label><input name="day_meals_pp[]" type="number" step="0.01" class="admin-input" value="20" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label" for="day_park_fee-2-'+i+'">Adult Fee</label><input id="day_park_fee-2-'+i+'" name="day_park_fee[]" type="number" step="0.01" class="admin-input day-park-fee" value="0" oninput="calcItinTotal()"></div>'
+            +'<div><label class="admin-label" for="day_meals_pp-2-'+i+'">Meals/pp</label><input id="day_meals_pp-2-'+i+'" name="day_meals_pp[]" type="number" step="0.01" class="admin-input" value="20" oninput="calcItinTotal()"></div>'
           +'</div>'
         +'</div>'
       +'</div>'
@@ -1396,119 +1368,6 @@ async function deleteDay(btn) {
   calcItinTotal();
 }
 
-function renumberDays() {
-  var blocks = document.querySelectorAll('.day-block');
-  var arrival = isArrivalDayFlagged();
-  blocks.forEach(function (block, idx) {
-    var toggle = block.querySelector('.day-arrival-toggle');
-    if (toggle) toggle.style.display = (idx === 0) ? 'inline-flex' : 'none';
-
-    var n2 = (idx === 0 && arrival) ? 0 : (arrival ? idx : idx + 1);
-    var dayLabel = block.querySelector('.day-num-label');
-    if (dayLabel) dayLabel.textContent = 'Day ' + n2;
-    var actsLabel = block.querySelector('.day-acts-label');
-    if (actsLabel) actsLabel.textContent = 'Activities (Day ' + n2 + ')';
-    var otherLabel = block.querySelector('.day-other-label');
-    if (otherLabel) otherLabel.textContent = 'Other Costs (Day ' + n2 + ')';
-    block.dataset.day = idx;
-  });
-  var count = blocks.length;
-  var durInput = document.getElementById('duration_days');
-  if (durInput) durInput.value = count;
-  document.getElementById('itinerary-count').textContent = count + ' day' + (count!==1?'s':'') + ' · matches duration above';
-}
-
-// ── Per-day auto-fill from datalists ───────────────────────
-function fillDayAcc(input, dayIdx) {
-  var opts=document.querySelectorAll('#pe-acc-list-'+dayIdx+' option');
-  for(var i=0;i<opts.length;i++){
-    if(opts[i].value===input.value){
-      var block=input.closest('.day-block');
-      if(opts[i].dataset.rate) block.querySelector('.day-acc-rate').value=opts[i].dataset.rate;
-      if(opts[i].dataset.id)   block.querySelector('.day-acc-id').value=opts[i].dataset.id;
-      calcItinTotal(); break;
-    }
-  }
-}
-function fillDayVeh(input, dayIdx) {
-  var opts=document.querySelectorAll('#pe-veh-list-'+dayIdx+' option');
-  for(var i=0;i<opts.length;i++){
-    if(opts[i].value===input.value){
-      var block=input.closest('.day-block');
-      if(opts[i].dataset.rate) block.querySelector('.day-veh-rate').value=opts[i].dataset.rate;
-      if(opts[i].dataset.id)   block.querySelector('.day-veh-id').value=opts[i].dataset.id;
-      calcItinTotal(); break;
-    }
-  }
-}
-function fillDayPark(input, dayIdx) {
-  var opts=document.querySelectorAll('#pe-park-list-'+dayIdx+' option');
-  for(var i=0;i<opts.length;i++){
-    if(opts[i].value===input.value){
-      var block=input.closest('.day-block');
-      if(opts[i].dataset.fee) block.querySelector('.day-park-fee').value=opts[i].dataset.fee;
-      calcItinTotal(); break;
-    }
-  }
-}
-
-// ── Smart location/level filter for Accommodation + Park options ────
-// Narrows each day's Accommodation and Park/Area datalist down to the
-// entries whose own `location` shares a significant word with what's
-// typed in that day's own Location field — not a plain substring check,
-// because this app's location strings are sub-area names ("Central
-// Serengeti", "Northern Serengeti", "Western Serengeti Corridor") that
-// don't contain one another as substrings even though they're all
-// "Serengeti"; a pure indexOf() match would silently show nothing for
-// most real combinations. Tokenizing both sides and matching on any
-// shared 4+ letter word (park/region names) catches all of these.
-// Further narrows Accommodation by the package's overall Accommodation
-// Level. Only trims the *suggestions* — the field stays free text via
-// <datalist>. Looked up by the day's stable build index (data-idx / the
-// N in pe-acc-list-N, pe-park-list-N), not DOM position — those ids
-// never change even after a day is deleted and the rest renumber.
-function locMatch(a, b) {
-  if (!a || !b) return true;
-  var ta = a.toLowerCase().match(/[a-z]{4,}/g) || [];
-  var tb = b.toLowerCase().match(/[a-z]{4,}/g) || [];
-  for (var i = 0; i < ta.length; i++) { if (tb.indexOf(ta[i]) !== -1) return true; }
-  return false;
-}
-
-function filterDayOptions(dayIdx) {
-  var locInput = document.querySelector('.day-location[data-idx="'+dayIdx+'"]');
-  var loc      = locInput ? locInput.value : '';
-  var level    = (document.querySelector('[name="accommodation_level"]')||{}).value || '';
-
-  var accList = document.getElementById('pe-acc-list-'+dayIdx);
-  if (accList) {
-    accList.innerHTML = PE_ACCS
-      .filter(function(a){ return (!level || a.level===level) && locMatch(loc, a.location); })
-      .map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-rate="'+a.rate+'">'; })
-      .join('');
-  }
-  var parkList = document.getElementById('pe-park-list-'+dayIdx);
-  if (parkList) {
-    parkList.innerHTML = PE_PARKS
-      .filter(function(p){ return locMatch(loc, p.location); })
-      .map(function(p){ return '<option value="'+p.name+'" data-id="'+p.id+'" data-fee="'+p.fee+'">'; })
-      .join('');
-  }
-  var actList = document.getElementById('pe-act-list-'+dayIdx);
-  if (actList) {
-    actList.innerHTML = PE_ACTS
-      .filter(function(a){ return locMatch(loc, a.location); })
-      .map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-price="'+a.price+'">'; })
-      .join('');
-  }
-}
-
-function filterAllDayOptions() {
-  document.querySelectorAll('.day-location').forEach(function(input){
-    filterDayOptions(input.dataset.idx);
-  });
-}
-
 // ── Calculate itinerary total across all days (mirrors
 //    admin/itineraries.php's calcItinTotal — same field roles, same
 //    once-per-property accommodation/vehicle counting) ────────────
@@ -1558,73 +1417,6 @@ function calcItinTotal() {
   // Children.
   calcTotals();
   scheduleAutoSync();
-}
-
-// ── Activities per day ────────────────────────────────────
-function addDayActivity(dayIdx) {
-  var container = document.getElementById('day-acts-'+dayIdx);
-  var defaultQty = (parseInt((document.getElementById('pe_adults')||{}).value)||1) + (parseInt((document.getElementById('pe_children')||{}).value)||0);
-  var div = document.createElement('div');
-  div.className='act-item';
-  div.style.cssText='display:grid;grid-template-columns:2fr 80px 60px 90px auto;gap:.35rem;align-items:end;margin-bottom:.4rem';
-  div.innerHTML='<input class="admin-input day-act-name" list="pe-act-list-'+dayIdx+'" placeholder="Activity name" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
-    +'<input type="number" step="0.01" class="admin-input day-act-price" value="0" placeholder="$/pp" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
-    +'<input type="number" min="1" class="admin-input day-act-qty" title="How many travelers this activity covers" value="'+defaultQty+'" placeholder="Qty" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
-    +'<select class="admin-input day-act-type" style="font-size:.72rem" onchange="saveDayActs('+dayIdx+')"><option value="included">Included</option><option value="optional">Optional</option></select>'
-    +'<button type="button" onclick="this.closest(\'.act-item\').remove();saveDayActs('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render("close", 14) ?></button>';
-  container.appendChild(div);
-  div.querySelector('.day-act-name').addEventListener('change', function(){
-    var opts=document.querySelectorAll('#pe-act-list-'+dayIdx+' option');
-    for(var i=0;i<opts.length;i++){
-      if(opts[i].value===this.value && opts[i].dataset.price){
-        div.querySelector('.day-act-price').value=opts[i].dataset.price;
-        saveDayActs(dayIdx); break;
-      }
-    }
-  });
-}
-
-function saveDayActs(dayIdx) {
-  var container = document.getElementById('day-acts-'+dayIdx);
-  var acts=[];
-  container.querySelectorAll('.act-item').forEach(function(row){
-    var name=row.querySelector('.day-act-name').value.trim();
-    if(!name) return;
-    acts.push({name:name, price_pp:parseFloat(row.querySelector('.day-act-price').value)||0, qty:parseInt(row.querySelector('.day-act-qty').value)||1, type:row.querySelector('.day-act-type').value});
-  });
-  document.getElementById('acts-json-'+dayIdx).value=JSON.stringify(acts);
-  calcItinTotal();
-}
-
-// ── Other items per day ───────────────────────────────────
-function addDayOther(dayIdx) {
-  var container=document.getElementById('day-other-'+dayIdx);
-  var div=document.createElement('div');
-  div.className='other-item';
-  div.style.cssText='border:1px solid var(--gray-200);border-radius:2px;padding:.5rem;margin-bottom:.5rem';
-  div.innerHTML='<div style="display:flex;gap:.35rem;margin-bottom:.35rem">'
-      +'<input class="admin-input day-other-name" placeholder="Item name" style="font-size:.78rem;flex:1" oninput="saveDayOther('+dayIdx+')">'
-      +'<button type="button" onclick="this.closest(\'.other-item\').remove();saveDayOther('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render("close", 14) ?></button>'
-    +'</div>'
-    +'<div style="display:grid;grid-template-columns:70px 55px 1fr 150px;gap:.35rem;align-items:center">'
-      +'<input type="number" step="0.01" class="admin-input day-other-amount" value="0" placeholder="$/unit" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
-      +'<input type="number" min="1" class="admin-input day-other-qty" title="Number of units" value="1" placeholder="Qty" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
-      +'<input class="admin-input day-other-unit" title="What a unit is called (e.g. Box, Trip, Vehicle) — type your own, independent of traveler count" placeholder="Unit name (optional)" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
-      +'<select class="admin-input day-other-perpax" style="font-size:.72rem" title="Whether this cost multiplies by the number of travelers" onchange="saveDayOther('+dayIdx+')"><option value="0">Flat (not per guest)</option><option value="1">× Number of guests</option></select>'
-    +'</div>';
-  container.appendChild(div);
-}
-
-function saveDayOther(dayIdx) {
-  var container=document.getElementById('day-other-'+dayIdx);
-  var items=[];
-  container.querySelectorAll('.other-item').forEach(function(row){
-    var name=row.querySelector('.day-other-name').value.trim();
-    if(!name) return;
-    items.push({name:name, amount:parseFloat(row.querySelector('.day-other-amount').value)||0, qty:parseInt(row.querySelector('.day-other-qty').value)||1, unit:(row.querySelector('.day-other-unit')||{}).value||'', per_pax:row.querySelector('.day-other-perpax').value==='1'});
-  });
-  document.getElementById('other-json-'+dayIdx).value=JSON.stringify(items);
-  calcItinTotal();
 }
 
 // ── Add Vehicle to DB ──────────────────────────────────────
@@ -1758,7 +1550,7 @@ function renderPickerGrid() {
     var div = document.createElement('div');
     div.style.cssText='position:relative;cursor:pointer;border:2.5px solid '+(isSelected?'#0a0a0a':'#e5e7eb')+';overflow:hidden;transition:border-color .15s';
     div.dataset.url = img.url;
-    div.innerHTML = '<img src="'+(window.BASE_PATH||'')+img.url+'" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" loading="lazy">'
+    div.innerHTML = '<img src="'+(window.BASE_PATH||'')+img.url+'" alt="" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" loading="lazy">'
       +'<div style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:'+(isSelected?'#0a0a0a':'rgba(255,255,255,.8)')+';border:2px solid '+(isSelected?'#0a0a0a':'#e5e7eb')+';display:flex;align-items:center;justify-content:center;font-size:.65rem;color:white;transition:all .15s" class="chk">'
       +(isSelected?'✓':'')+'</div>'
       +'<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.55);color:#fff;font-size:.58rem;padding:.2rem .4rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+img.filename+'</div>';
@@ -1802,7 +1594,7 @@ function applyGallerySelection() {
     div.className='selected-img-item';
     div.dataset.url=url;
     div.style.cssText='position:relative;border:1.5px solid #e5e7eb;background:#fff';
-    div.innerHTML='<img src="'+(window.BASE_PATH||'')+url+'" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" loading="lazy">'
+    div.innerHTML='<img src="'+(window.BASE_PATH||'')+url+'" alt="" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" loading="lazy">'
       +'<button type="button" onclick="removeSelectedImg(this)" style="position:absolute;top:3px;right:3px;background:rgba(220,38,38,.9);border:none;color:#fff;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:.6rem;display:flex;align-items:center;justify-content:center">✕</button>';
     container.appendChild(div);
   });

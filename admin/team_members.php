@@ -127,21 +127,21 @@ catch(Exception $e){ error_log($e->getMessage()); }
         <input type="hidden" name="save" value="1">
         <input type="hidden" name="id" value="<?= $edit['id'] ?? 0 ?>">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-          <div><label class="admin-label">Name *</label>
-            <input name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
-          <div><label class="admin-label">Role / Title</label>
-            <input name="role" class="admin-input" value="<?= htmlspecialchars($edit['role']??'') ?>"></div>
-          <div><label class="admin-label">Email</label>
-            <input name="email" data-av="email" type="email" class="admin-input" value="<?= htmlspecialchars($edit['email']??'') ?>"></div>
-          <div><label class="admin-label">Phone</label>
-            <input name="phone" class="admin-input" value="<?= htmlspecialchars($edit['phone']??'') ?>"></div>
-          <div><label class="admin-label">LinkedIn URL</label>
-            <input name="linkedin_url" data-av="url" class="admin-input" value="<?= htmlspecialchars($edit['linkedin_url']??'') ?>"></div>
-          <div><label class="admin-label">Sort Order</label>
-            <input name="sort_order" data-av="integer min:0" type="number" class="admin-input" value="<?= $edit['sort_order']??0 ?>"></div>
+          <div><label class="admin-label" for="name">Name *</label>
+            <input id="name" name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
+          <div><label class="admin-label" for="role">Role / Title</label>
+            <input id="role" name="role" class="admin-input" value="<?= htmlspecialchars($edit['role']??'') ?>"></div>
+          <div><label class="admin-label" for="email">Email</label>
+            <input id="email" name="email" data-av="email" type="email" class="admin-input" value="<?= htmlspecialchars($edit['email']??'') ?>"></div>
+          <div><label class="admin-label" for="phone">Phone</label>
+            <input id="phone" name="phone" class="admin-input" value="<?= htmlspecialchars($edit['phone']??'') ?>"></div>
+          <div><label class="admin-label" for="linkedin_url">LinkedIn URL</label>
+            <input id="linkedin_url" name="linkedin_url" data-av="url" class="admin-input" value="<?= htmlspecialchars($edit['linkedin_url']??'') ?>"></div>
+          <div><label class="admin-label" for="sort_order">Sort Order</label>
+            <input id="sort_order" name="sort_order" data-av="integer min:0" type="number" class="admin-input" value="<?= $edit['sort_order']??0 ?>"></div>
         </div>
         <div style="margin-top:1rem">
-          <label class="admin-label">Photo</label>
+          <label class="admin-label" for="tm-photo-url">Photo</label>
           <input type="hidden" name="photo_url" id="tm-photo-url" value="<?= htmlspecialchars($edit['photo_url']??'') ?>">
           <div style="display:flex;align-items:center;gap:.85rem">
             <img id="tm-photo-preview" src="<?= htmlspecialchars(($edit['photo_url']??'') ? BASE_PATH.$edit['photo_url'] : '') ?>"
@@ -150,8 +150,8 @@ catch(Exception $e){ error_log($e->getMessage()); }
             <span id="tm-photo-status" style="font-size:.75rem;color:var(--gray-500)"></span>
           </div>
         </div>
-        <div style="margin-top:1rem"><label class="admin-label">Bio</label>
-          <textarea name="bio" class="admin-input" rows="3"><?= htmlspecialchars($edit['bio']??'') ?></textarea></div>
+        <div style="margin-top:1rem"><label class="admin-label" for="bio">Bio</label>
+          <textarea id="bio" name="bio" class="admin-input" rows="3"><?= htmlspecialchars($edit['bio']??'') ?></textarea></div>
         <div style="margin-top:.75rem">
           <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
             <input type="checkbox" name="is_active" value="1" <?= ($edit['is_active']??1) ? 'checked' : '' ?>>

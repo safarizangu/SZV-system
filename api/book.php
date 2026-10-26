@@ -18,7 +18,6 @@ use App\Mail\Mailer;
 use App\Services\BookingReminderScheduler;
 use App\Models\Customer;
 use App\Services\ItineraryQuoteBuilder;
-use App\Services\PdfRenderer;
 
 // ── Helper: send JSON and exit cleanly ────────────────────
 function respond(array $payload): void {
@@ -47,12 +46,18 @@ try {
     respond(['success' => false, 'message' => 'Too many requests. Please wait and try again.']);
 }
 
-if (($_POST['payment_method'] ?? '') !== 'paypal_callback') {
-    try {
-        CsrfMiddleware::validateOrDie();
-    } catch (Exception $e) {
-        respond(['success' => false, 'message' => 'Security token expired. Please refresh the page and try again.']);
-    }
+// API-3/SEC-6: payment_method was previously attacker-controlled input
+// that skipped CSRF validation entirely when set to the literal string
+// 'paypal_callback' — confirmed by grep that nothing in this codebase
+// actually sends that value (there's no PayPal webhook/IPN endpoint;
+// api/paypal_create_order.php and api/record_payment.php, the real
+// PayPal flow, are separate endpoints with their own CSRF handling), so
+// this was a dead branch that only ever weakened this public write
+// endpoint. CSRF is now required unconditionally.
+try {
+    CsrfMiddleware::validateOrDie();
+} catch (Exception $e) {
+    respond(['success' => false, 'message' => 'Security token expired. Please refresh the page and try again.']);
 }
 
 // Honeypot — silently pretend success (no redirect field, so the
@@ -262,22 +267,20 @@ if ($builtQuote && $quoteTotals) {
     }
 }
 
-// ── Render two separate PDFs — Quotation (pricing) and Itinerary
-//    (day-by-day) — to attach to the confirmation email, instead of one
-//    long combined document ──
-$attachments = [];
-$pdfFile = $quotationId
-    ? PdfRenderer::renderQuotation($quotationId, 'Quotation-' . $ref)
-    : PdfRenderer::renderBooking($ref, 'Booking-' . $ref);
-if ($pdfFile) {
-    $attachments[] = $pdfFile;
-}
-$itinFile = $quotationId
-    ? PdfRenderer::renderQuotationItinerary($quotationId, 'Itinerary-' . $ref)
-    : PdfRenderer::renderBookingItinerary($ref, 'Itinerary-' . $ref);
-if ($itinFile) {
-    $attachments[] = $itinFile;
-}
+// ── PERF-1: two separate PDFs — Quotation (pricing) and Itinerary
+//    (day-by-day) — attached to the confirmation email, instead of one
+//    long combined document. Previously rendered synchronously right
+//    here (measured ~0.76s added to this guest-facing request); now
+//    deferred via Mailer::resolveLazyAttachment(), which renders them
+//    inside the background-dispatched/cron send instead. ──
+$attachments = [
+    $quotationId
+        ? ['lazy_render' => 'quotation', 'arg' => $quotationId, 'name' => 'Quotation-' . $ref]
+        : ['lazy_render' => 'booking', 'arg' => $ref, 'name' => 'Booking-' . $ref],
+    $quotationId
+        ? ['lazy_render' => 'quotation_itinerary', 'arg' => $quotationId, 'name' => 'Itinerary-' . $ref]
+        : ['lazy_render' => 'booking_itinerary', 'arg' => $ref, 'name' => 'Itinerary-' . $ref],
+];
 
 // ── Send confirmation email via the queue (silent — never crash the response) ──
 try {

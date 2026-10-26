@@ -36,6 +36,30 @@
     setTimeout(function () { t.remove(); }, 3500);
   };
 
+  // ── Focus trap ────────────────────────────────────────────────
+  // Confines Tab/Shift+Tab cycling within `container` while it's the
+  // active modal — Tab on the last focusable element wraps to the
+  // first, Shift+Tab on the first wraps to the last, so keyboard focus
+  // can never silently land on the page behind the modal while it's
+  // open. Returns a function that removes the trap.
+  function trapFocusWithin(container) {
+    function focusables() {
+      return Array.prototype.slice.call(
+        container.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+      ).filter(function (el) { return el.offsetParent !== null; });
+    }
+    function onKey(e) {
+      if (e.key !== 'Tab') return;
+      var items = focusables();
+      if (!items.length) return;
+      var first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+    container.addEventListener('keydown', onKey);
+    return function () { container.removeEventListener('keydown', onKey); };
+  }
+
   // ── Modal open/close ─────────────────────────────────────────
   // Toggles the 'open' class on an .admin-modal-overlay by id. Also
   // wires every .admin-modal-overlay already in the page (event
@@ -62,6 +86,113 @@
       el.classList.remove('open');
     });
   });
+
+  // ── Modal accessibility (ARIA + focus management) ────────────
+  // This does NOT live inside openModal()/closeModal() above, because
+  // only 1 of the ~19 admin/agent-portal files with a modal (
+  // currency_rates.php) actually calls those — every other one defines
+  // its own page-local openXModal()/closeXModal() that just toggles the
+  // 'open' class directly (confirmed by reading every one of them), so
+  // accessibility behavior that only lived in the two shared functions
+  // above would silently cover almost none of the real modals. Watching
+  // the class itself, however it gets toggled, covers all of them
+  // uniformly with zero per-page markup or script changes, and will
+  // keep covering any future modal/open-function without needing to
+  // remember to wire it in.
+  //
+  // On the 'open' class appearing: sets role="dialog", aria-modal, and
+  // aria-labelledby (pointing at the modal's own .admin-modal-title,
+  // id generated on first use if it doesn't already have one); moves
+  // focus into the dialog if nothing inside it already has focus by the
+  // time this runs (a few pages, e.g. admin/leads.php's openAddModal(),
+  // already focus a specific field themselves — this only ever adds a
+  // fallback, never overrides a deliberate choice); and traps Tab
+  // cycling inside the dialog while open.
+  // On 'open' disappearing: removes the trap and restores focus to
+  // whatever had it before the modal opened.
+  var modalA11yState = new WeakMap(); // overlay el -> {removeTrap, prevFocus}
+
+  // Tracks focus continuously, outside the observer callback, because the
+  // callback itself only fires async (a microtask after the class change)
+  // — by then, a page that focuses a field synchronously right after its
+  // own classList.add('open') (several do) has already moved focus
+  // *into* the modal, so reading document.activeElement at observer-fire
+  // time would wrongly capture that field as "where focus came from"
+  // instead of the actual trigger element outside the modal.
+  var lastExternalFocus = null;
+  document.addEventListener('focusin', function (e) {
+    if (!e.target.closest('.admin-modal-overlay.open')) lastExternalFocus = e.target;
+  }, true);
+
+  function modalOpened(el) {
+    var dialog = el.querySelector('.admin-modal');
+    if (dialog) {
+      if (!dialog.hasAttribute('role')) dialog.setAttribute('role', 'dialog');
+      dialog.setAttribute('aria-modal', 'true');
+      var titleEl = dialog.querySelector('.admin-modal-title');
+      if (titleEl) {
+        if (!titleEl.id) titleEl.id = (el.id || ('modal-' + Math.random().toString(36).slice(2))) + '-title';
+        dialog.setAttribute('aria-labelledby', titleEl.id);
+      }
+    }
+    modalA11yState.set(el, {
+      removeTrap: dialog ? trapFocusWithin(dialog) : function () {},
+      prevFocus: lastExternalFocus || document.activeElement
+    });
+    setTimeout(function () {
+      if (dialog && dialog.contains(document.activeElement)) return; // page already focused something itself
+      var target = dialog && (
+        dialog.querySelector('input:not([type=hidden]):not([disabled]), select, textarea') ||
+        dialog.querySelector('.admin-modal-close') ||
+        dialog
+      );
+      if (target) {
+        if (target === dialog && !target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+        target.focus();
+      }
+    }, 30);
+  }
+
+  function modalClosed(el) {
+    var state = modalA11yState.get(el);
+    if (!state) return;
+    state.removeTrap();
+    if (state.prevFocus && state.prevFocus.focus) state.prevFocus.focus();
+    modalA11yState.delete(el);
+  }
+
+  function observeModal(el) {
+    if (el._a11yModalObserved) return;
+    // confirmDialog()/promptDialog() overlays already implement this
+    // exact same behavior inline (they're created already-open and torn
+    // down via .remove(), not the open-class toggle this observer
+    // watches for) — skip them so they aren't handled twice.
+    if (el.classList.contains('confirm-dialog-overlay')) return;
+    el._a11yModalObserved = true;
+    var wasOpen = el.classList.contains('open');
+    if (wasOpen) modalOpened(el);
+    new MutationObserver(function (mutations) {
+      mutations.forEach(function (m) {
+        if (m.attributeName !== 'class') return;
+        var isOpen = el.classList.contains('open');
+        if (isOpen === wasOpen) return;
+        wasOpen = isOpen;
+        if (isOpen) modalOpened(el); else modalClosed(el);
+      });
+    }).observe(el, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  document.querySelectorAll('.admin-modal-overlay').forEach(observeModal);
+  // Covers overlays added to the DOM after this script runs too.
+  new MutationObserver(function (mutations) {
+    mutations.forEach(function (m) {
+      (m.addedNodes || []).forEach(function (node) {
+        if (node.nodeType !== 1) return;
+        if (node.classList && node.classList.contains('admin-modal-overlay')) observeModal(node);
+        if (node.querySelectorAll) node.querySelectorAll('.admin-modal-overlay').forEach(observeModal);
+      });
+    });
+  }).observe(document.body, { childList: true, subtree: true });
 
   // ── Confirm-before-change for status <select> dropdowns ──────
   // A status/stage <select> that fires its change immediately (no
@@ -110,9 +241,11 @@
       document.body.appendChild(overlay);
 
       var prevFocus = document.activeElement;
+      var removeFocusTrap = trapFocusWithin(overlay.querySelector('.confirm-dialog'));
       function cleanup(result) {
         overlay.remove();
         document.removeEventListener('keydown', onKey);
+        removeFocusTrap();
         if (prevFocus && prevFocus.focus) prevFocus.focus();
         resolve(result);
       }
@@ -166,9 +299,11 @@
       document.body.appendChild(overlay);
 
       var prevFocus = document.activeElement;
+      var removeFocusTrap = trapFocusWithin(overlay.querySelector('.confirm-dialog'));
       function cleanup(result) {
         overlay.remove();
         document.removeEventListener('keydown', onKey);
+        removeFocusTrap();
         if (prevFocus && prevFocus.focus) prevFocus.focus();
         resolve(result);
       }
@@ -253,17 +388,29 @@
     }
     document.querySelectorAll('.admin-row-actions-menu').forEach(ensureMenuRoles);
 
-    function closeMenu() {
+    // A11Y-8: previously ensureMenuRoles() set correct menu/menuitem
+    // roles but nothing moved focus into the menu on open, restored it
+    // to the toggle on close, or let arrow keys move between items — a
+    // half-implemented ARIA menu pattern (a screen reader would announce
+    // "menu", then nothing worked the way that announcement promises).
+    function closeMenu(restoreFocus) {
       if (!openWrap) return;
       var menu = openWrap.querySelector('.admin-row-actions-menu');
       var toggle = openWrap.querySelector('.admin-row-actions-toggle');
       if (menu) menu.style.display = 'none';
-      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', 'false');
+        if (restoreFocus) toggle.focus();
+      }
       openWrap = null;
     }
 
+    function menuItems(wrap) {
+      return Array.prototype.slice.call(wrap.querySelectorAll('.admin-row-actions-item'));
+    }
+
     function openMenu(wrap) {
-      closeMenu();
+      closeMenu(false);
       var toggle = wrap.querySelector('.admin-row-actions-toggle');
       var menu   = wrap.querySelector('.admin-row-actions-menu');
       if (!toggle || !menu) return;
@@ -282,6 +429,9 @@
 
       toggle.setAttribute('aria-expanded', 'true');
       openWrap = wrap;
+
+      var items = menuItems(wrap);
+      if (items.length) items[0].focus();
     }
 
     document.addEventListener('click', function (e) {
@@ -289,12 +439,36 @@
       if (toggle) {
         e.stopPropagation();
         var wrap = toggle.closest('.admin-row-actions');
-        if (openWrap === wrap) closeMenu(); else openMenu(wrap);
+        if (openWrap === wrap) closeMenu(false); else openMenu(wrap);
         return;
       }
-      if (openWrap && !openWrap.contains(e.target)) closeMenu();
+      if (openWrap && !openWrap.contains(e.target)) closeMenu(false);
     });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenu(); });
+    document.addEventListener('keydown', function (e) {
+      if (!openWrap) return;
+      if (e.key === 'Escape') { closeMenu(true); return; }
+      var items = menuItems(openWrap);
+      if (!items.length) return;
+      var idx = items.indexOf(document.activeElement);
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        items[idx < 0 || idx === items.length - 1 ? 0 : idx + 1].focus();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        items[idx <= 0 ? items.length - 1 : idx - 1].focus();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        items[0].focus();
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        items[items.length - 1].focus();
+      } else if (e.key === 'Tab') {
+        // Tabbing out of the menu is a close, same as a backdrop click —
+        // don't trap focus inside a transient dropdown the way a modal
+        // traps it; the menu just shouldn't still claim to be open.
+        closeMenu(false);
+      }
+    });
     // Capture phase so this also fires for a scroll inside a nested
     // scrollable ancestor (e.g. .admin-table-wrap), which doesn't bubble.
     window.addEventListener('scroll', closeMenu, true);

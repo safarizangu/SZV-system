@@ -1,10 +1,9 @@
 <?php
 // SZV_ITINERARY_PDF_v1 — marker for fix_quotation_email.py, don't remove.
 require_once __DIR__ . '/../app/bootstrap.php';
-if (empty($_SESSION['admin_authenticated']) || $_SESSION['admin_authenticated'] !== true) {
-    http_response_code(403);
-    die('Access denied.');
-}
+// SEC-9: was a direct $_SESSION check, bypassing AuthMiddleware::requireAdmin()
+// entirely — the 30-min inactivity timeout never applied here.
+\App\Middleware\AuthMiddleware::requireAdmin();
 
 /**
  * Itinerary PDF — printable day-by-day itinerary document.

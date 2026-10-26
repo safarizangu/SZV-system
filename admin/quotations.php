@@ -353,13 +353,13 @@ ob_start();
         <input type="hidden" id="convert-quote-id" name="quotation_id">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
           <div>
-            <label class="admin-label">Travel Date *</label>
+            <label class="admin-label" for="convert-travel-date">Travel Date *</label>
             <input type="date" id="convert-travel-date" name="travel_date" class="admin-input" required
                    min="<?= date('Y-m-d', strtotime('+1 day')) ?>">
           </div>
           <div>
-            <label class="admin-label">Payment Method</label>
-            <select name="payment_method" class="admin-input">
+            <label class="admin-label" for="payment_method">Payment Method</label>
+            <select id="payment_method" name="payment_method" class="admin-input">
               <option value="bank_transfer">Bank Transfer</option>
               <option value="paypal">PayPal</option>
               <option value="wise">Wise</option>
@@ -368,8 +368,8 @@ ob_start();
           </div>
         </div>
         <div style="margin-bottom:1.25rem">
-          <label class="admin-label">Special Requests / Notes</label>
-          <textarea name="special_requests" class="admin-input" rows="2" placeholder="Any notes from the client…"></textarea>
+          <label class="admin-label" for="special_requests">Special Requests / Notes</label>
+          <textarea id="special_requests" name="special_requests" class="admin-input" rows="2" placeholder="Any notes from the client…"></textarea>
         </div>
         <div id="convert-error" class="admin-alert admin-alert--error" style="display:none"></div>
         <div style="display:flex;gap:.75rem;justify-content:flex-end">

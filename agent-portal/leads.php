@@ -420,23 +420,23 @@ ob_start();
       <div id="nc-screen-booking" style="display:none">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:.85rem">
           <div>
-            <label class="admin-label">Client Full Name *</label>
+            <label class="admin-label" for="db-name">Client Full Name *</label>
             <input id="db-name" class="admin-input" placeholder="Jane Smith" required>
           </div>
           <div>
-            <label class="admin-label">Email *</label>
+            <label class="admin-label" for="db-email">Email *</label>
             <input id="db-email" type="email" class="admin-input" placeholder="jane@email.com" required>
           </div>
           <div>
-            <label class="admin-label">Phone (WhatsApp)</label>
+            <label class="admin-label" for="db-phone">Phone (WhatsApp)</label>
             <input id="db-phone" class="admin-input" placeholder="+44 7700 900000">
           </div>
           <div>
-            <label class="admin-label">Country</label>
+            <label class="admin-label" for="db-country">Country</label>
             <input id="db-country" class="admin-input" list="country-list" placeholder="United Kingdom">
           </div>
           <div>
-            <label class="admin-label">Package *</label>
+            <label class="admin-label" for="db-package">Package *</label>
             <select id="db-package" class="admin-input" required onchange="ncUpdateEstimate()">
               <option value="">— Select package —</option>
               <?php foreach ($packages as $pkg): ?>
@@ -445,19 +445,19 @@ ob_start();
             </select>
           </div>
           <div>
-            <label class="admin-label">Travel Date *</label>
+            <label class="admin-label" for="db-travel-date">Travel Date *</label>
             <input id="db-travel-date" type="date" class="admin-input" min="<?= date('Y-m-d') ?>" style="font-family:monospace" required>
           </div>
           <div>
-            <label class="admin-label">Adults</label>
+            <label class="admin-label" for="db-adults">Adults</label>
             <input id="db-adults" type="number" min="1" max="20" value="2" class="admin-input" onchange="ncUpdateEstimate()">
           </div>
           <div>
-            <label class="admin-label">Children</label>
+            <label class="admin-label" for="db-children">Children</label>
             <input id="db-children" type="number" min="0" max="20" value="0" class="admin-input" onchange="ncUpdateEstimate()">
           </div>
           <div>
-            <label class="admin-label">Accommodation Level</label>
+            <label class="admin-label" for="db-acc-level">Accommodation Level</label>
             <select id="db-acc-level" class="admin-input">
               <option value="budget">Budget</option>
               <option value="midrange" selected>Mid-range</option>
@@ -467,7 +467,7 @@ ob_start();
         </div>
         <div id="db-estimate" style="font-size:.78rem;color:var(--gray-500);margin-bottom:1rem;display:none"></div>
         <div style="margin-bottom:1.25rem">
-          <label class="admin-label">Special Requests</label>
+          <label class="admin-label" for="db-notes">Special Requests</label>
           <textarea id="db-notes" class="admin-input" rows="3" placeholder="Anything our team should know before confirming..."></textarea>
         </div>
         <div style="display:flex;gap:.5rem">
@@ -504,43 +504,43 @@ ob_start();
       <div id="nc-screen-request" style="display:none">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:.85rem">
           <div>
-            <label class="admin-label">Client Full Name *</label>
+            <label class="admin-label" for="cr-name">Client Full Name *</label>
             <input id="cr-name" class="admin-input" placeholder="Jane Smith" required>
           </div>
           <div>
-            <label class="admin-label">Email *</label>
+            <label class="admin-label" for="cr-email">Email *</label>
             <input id="cr-email" type="email" class="admin-input" placeholder="jane@email.com" required>
           </div>
           <div>
-            <label class="admin-label">Phone (WhatsApp)</label>
+            <label class="admin-label" for="cr-phone">Phone (WhatsApp)</label>
             <input id="cr-phone" class="admin-input" placeholder="+44 7700 900000">
           </div>
           <div>
-            <label class="admin-label">Country</label>
+            <label class="admin-label" for="cr-country">Country</label>
             <input id="cr-country" class="admin-input" list="country-list" placeholder="United Kingdom">
           </div>
           <div>
-            <label class="admin-label">Destinations</label>
+            <label class="admin-label" for="cr-destinations">Destinations</label>
             <input id="cr-destinations" class="admin-input" placeholder="Serengeti, Zanzibar, Ngorongoro">
           </div>
           <div>
-            <label class="admin-label">Preferred Start Date</label>
+            <label class="admin-label" for="cr-start-date">Preferred Start Date</label>
             <input id="cr-start-date" type="date" class="admin-input" min="<?= date('Y-m-d') ?>" style="font-family:monospace">
           </div>
           <div>
-            <label class="admin-label">Duration (days)</label>
+            <label class="admin-label" for="cr-duration">Duration (days)</label>
             <input id="cr-duration" type="number" min="1" max="60" value="7" class="admin-input">
           </div>
           <div>
-            <label class="admin-label">Adults</label>
+            <label class="admin-label" for="cr-adults">Adults</label>
             <input id="cr-adults" type="number" min="1" max="20" value="2" class="admin-input">
           </div>
           <div>
-            <label class="admin-label">Children</label>
+            <label class="admin-label" for="cr-children">Children</label>
             <input id="cr-children" type="number" min="0" max="20" value="0" class="admin-input">
           </div>
           <div>
-            <label class="admin-label">Budget Range (USD)</label>
+            <label class="admin-label" for="cr-budget">Budget Range (USD)</label>
             <select id="cr-budget" class="admin-input">
               <option value="">— Select range —</option>
               <option value="Under $1,000">Under $1,000</option>
@@ -558,7 +558,7 @@ ob_start();
           </div>
         </div>
         <div style="margin-bottom:1.25rem">
-          <label class="admin-label">What are they looking for?</label>
+          <label class="admin-label" for="cr-notes">What are they looking for?</label>
           <textarea id="cr-notes" class="admin-input" rows="3" placeholder="Describe what the client wants — experiences, pace, special occasions..."></textarea>
         </div>
         <div style="display:flex;gap:.5rem">

@@ -5,31 +5,32 @@
 ### Must Do
 - [ ] Change admin password (min 10 chars, uppercase + number)
 - [ ] Create `.env` from `.env.example` — real DB credentials
-- [ ] Remove `.git` from server: `rm -rf /var/www/html/safari-zangu/.git`
+- [ ] Remove `.git` from server: `rm -rf <public_html>/.git`
 - [ ] Set `APP_ENV=production` in `.env`
 - [ ] Uncomment HSTS header in `.htaccess` after confirming HTTPS
 - [ ] Replace `G-XXXXXXXXXX` with real GA4 ID in `layouts/head.php`
 - [ ] Switch PayPal to `live` mode in `config/app.php`
 - [ ] Set real `ADMIN_EMAIL` in config
 - [ ] Verify SPF/DKIM/DMARC DNS records on Hostinger
-- [ ] Run `sudo crontab -u www-data -l` — verify cron is set
+- [ ] Verify cron is set: Hostinger hPanel → Advanced → Cron Jobs (list,
+      not `crontab -l` — Hostinger shared hosting gives no shell/sudo
+      access to a real Unix crontab)
 
 ### Database
 - [ ] Change DB password from default
 - [ ] Remove phpMyAdmin from production (or restrict to admin IP)
-- [ ] Backup DB weekly (Hostinger scheduled backups)
+- [ ] Backup DB weekly — covered by `cron/backup.sh` (see
+      `docs/DEPLOYMENT_GUIDE.md` Step 6); also check whether the current
+      Hostinger plan includes its own automatic backups as a second,
+      independent layer
 
 ### File Permissions
-```bash
-# Web server should not own PHP files
-sudo find /var/www/html/safari-zangu -type f -name "*.php" -exec chmod 644 {} \;
-sudo find /var/www/html/safari-zangu -type d -exec chmod 755 {} \;
-# Assets need write access for gallery uploads
-sudo chmod -R 775 /var/www/html/safari-zangu/assets/images/
-sudo chown -R www-data:www-data /var/www/html/safari-zangu/assets/images/
-# Storage must not be world-readable
-sudo chmod 700 /tmp/szv_ratelimit/
-```
+See `docs/DEPLOYMENT_GUIDE.md` Step 4 — Hostinger shared hosting gives no
+`sudo` and no separate `www-data` user to `chown` to (the hosting account
+itself already owns every file), so the commands that used to be here
+(`sudo find ... chmod`, `sudo chown www-data:www-data ...`) never actually
+ran there. Permissions needing write access (`assets/images/`, `storage/`)
+are `chmod 775`'d as that same account, nothing more.
 
 ## Implemented Security Features
 
@@ -59,14 +60,28 @@ sudo chmod 700 /tmp/szv_ratelimit/
 
 ## Monitoring
 
+DEVOPS-5: there is no automated alerting (no Sentry/Bugsnag/uptime
+service) — a fatal error now also emails `ADMIN_EMAIL` (see
+`app/bootstrap.php`'s exception handler, throttled to at most one email
+per 15 minutes so an incident can't flood the inbox), but regularly
+checking the below is still the only way to catch anything short of a
+hard fatal (slow SMTP, a rising failed-payment rate, etc.). Recommended,
+not yet set up (needs an external account, so it can't be done from
+code): a free-tier uptime monitor (e.g. UptimeRobot) pinging
+`https://safarizanguven.com/` and alerting by email/SMS on downtime.
+
 Check these regularly:
 ```bash
 # Failed login attempts
 grep "login" /tmp/szv_ratelimit/*.json | head -20
 
-# PHP errors
-sudo tail -f /var/log/apache2/error.log
+# Email queue failures — now a real, checked-in file (previously
+# /var/log/szv_email.log, which required root to create and that nothing
+# ever wrote to — see admin/email_queue.php)
+tail -f storage/logs/email.log
+tail -f storage/logs/reminders.log
 
-# Email queue failures
-sudo tail -f /var/log/szv_email.log
+# PHP errors — Hostinger shared hosting has no shell access to
+# /var/log/apache2/error.log; check hPanel → Advanced → PHP Configuration
+# (error log viewer), or ask Hostinger support for the current path
 ```

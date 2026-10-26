@@ -131,24 +131,24 @@ $roleLabels = ['guide_driver' => 'Guide-Driver', 'guide' => 'Guide Only', 'drive
         <input type="hidden" name="save" value="1">
         <input type="hidden" name="id" value="<?= $edit['id'] ?? 0 ?>">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-          <div><label class="admin-label">Full Name</label>
-            <input name="full_name" class="admin-input" required value="<?= htmlspecialchars($edit['full_name'] ?? '') ?>"></div>
-          <div><label class="admin-label">Role</label>
-            <select name="role" class="admin-input">
+          <div><label class="admin-label" for="full_name">Full Name</label>
+            <input id="full_name" name="full_name" class="admin-input" required value="<?= htmlspecialchars($edit['full_name'] ?? '') ?>"></div>
+          <div><label class="admin-label" for="role">Role</label>
+            <select id="role" name="role" class="admin-input">
               <?php foreach ($roleLabels as $v => $l): ?>
               <option value="<?= $v ?>" <?= ($edit['role'] ?? 'guide_driver') === $v ? 'selected' : '' ?>><?= $l ?></option>
               <?php endforeach; ?>
             </select></div>
-          <div><label class="admin-label">Phone</label>
-            <input name="phone" class="admin-input" value="<?= htmlspecialchars($edit['phone'] ?? '') ?>"></div>
-          <div><label class="admin-label">Email</label>
-            <input name="email" type="email" class="admin-input" value="<?= htmlspecialchars($edit['email'] ?? '') ?>"></div>
-          <div><label class="admin-label">Languages</label>
-            <input name="languages" class="admin-input" placeholder="English, Swahili, French" value="<?= htmlspecialchars($edit['languages'] ?? '') ?>"></div>
-          <div><label class="admin-label">License Number</label>
-            <input name="license_number" class="admin-input" value="<?= htmlspecialchars($edit['license_number'] ?? '') ?>"></div>
-          <div><label class="admin-label">Daily Rate (USD)</label>
-            <input name="daily_rate" type="number" step="0.01" min="0" class="admin-input" value="<?= $edit['daily_rate'] ?? 0 ?>"></div>
+          <div><label class="admin-label" for="phone">Phone</label>
+            <input id="phone" name="phone" class="admin-input" value="<?= htmlspecialchars($edit['phone'] ?? '') ?>"></div>
+          <div><label class="admin-label" for="email">Email</label>
+            <input id="email" name="email" type="email" class="admin-input" value="<?= htmlspecialchars($edit['email'] ?? '') ?>"></div>
+          <div><label class="admin-label" for="languages">Languages</label>
+            <input id="languages" name="languages" class="admin-input" placeholder="English, Swahili, French" value="<?= htmlspecialchars($edit['languages'] ?? '') ?>"></div>
+          <div><label class="admin-label" for="license_number">License Number</label>
+            <input id="license_number" name="license_number" class="admin-input" value="<?= htmlspecialchars($edit['license_number'] ?? '') ?>"></div>
+          <div><label class="admin-label" for="daily_rate">Daily Rate (USD)</label>
+            <input id="daily_rate" name="daily_rate" type="number" step="0.01" min="0" class="admin-input" value="<?= $edit['daily_rate'] ?? 0 ?>"></div>
           <div style="display:flex;align-items:flex-end">
             <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;padding-bottom:.5rem">
               <input type="checkbox" name="is_active" value="1" <?= ($edit['is_active'] ?? 1) ? 'checked' : '' ?>>
@@ -156,8 +156,8 @@ $roleLabels = ['guide_driver' => 'Guide-Driver', 'guide' => 'Guide Only', 'drive
             </label>
           </div>
         </div>
-        <div style="margin-top:1rem"><label class="admin-label">Notes</label>
-          <textarea name="notes" class="admin-input" rows="2"><?= htmlspecialchars($edit['notes'] ?? '') ?></textarea></div>
+        <div style="margin-top:1rem"><label class="admin-label" for="notes">Notes</label>
+          <textarea id="notes" name="notes" class="admin-input" rows="2"><?= htmlspecialchars($edit['notes'] ?? '') ?></textarea></div>
         <div style="margin-top:1rem;display:flex;gap:.5rem">
           <button class="admin-btn admin-btn--primary">Save</button>
           <button type="button" onclick="closeFormModal()" class="admin-btn admin-btn--outline">Cancel</button>

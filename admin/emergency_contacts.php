@@ -61,9 +61,9 @@ ob_start();
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
         <?php foreach ($fields as $key => $label): ?>
         <div<?= $key === 'notes' ? ' style="grid-column:1/-1"' : '' ?>>
-          <label class="admin-label"><?= $label ?></label>
+          <label class="admin-label" for="key"><?= $label ?></label>
           <?php if ($key === 'notes'): ?>
-          <textarea name="<?= $key ?>" class="admin-input" rows="3"><?= htmlspecialchars($current[$key] ?? '') ?></textarea>
+          <textarea id="key" name="<?= $key ?>" class="admin-input" rows="3"><?= htmlspecialchars($current[$key] ?? '') ?></textarea>
           <?php else: ?>
           <input name="<?= $key ?>" class="admin-input" value="<?= htmlspecialchars($current[$key] ?? '') ?>">
           <?php endif; ?>

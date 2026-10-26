@@ -26,7 +26,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_user'])) {
     $canChangeStatus  = isset($_POST['can_change_status'])  ? 1 : 0;
     $canDeleteRecords = isset($_POST['can_delete_records']) ? 1 : 0;
 
-    if (!$username) {
+    // SEC-3: a plain 'admin' account had no privilege-boundary check at
+    // all here — it could set role=superadmin on itself or any other
+    // account, bypassing every per-account can_change_status/
+    // can_delete_records restriction (AuthMiddleware::canChangeStatus()/
+    // canDeleteRecords() both special-case superadmin to always pass).
+    // Only an acting superadmin may grant the superadmin role, or modify
+    // an account that already holds it.
+    $actingIsSuperadmin = ($_SESSION['admin_role'] ?? '') === 'superadmin';
+    $targetWasSuperadmin = false;
+    if ($id > 0) {
+        $ts = $db->prepare("SELECT role FROM admin_users WHERE id=?");
+        $ts->execute([$id]);
+        $targetWasSuperadmin = ($ts->fetchColumn() === 'superadmin');
+    }
+    if (!$actingIsSuperadmin && ($role === 'superadmin' || $targetWasSuperadmin)) {
+        $error = 'Only a superadmin can grant the superadmin role or modify a superadmin account.';
+    } elseif (!$username) {
         $error = 'Username is required.';
     } elseif ($newPw) {
         if (strlen($newPw) < 10) {
@@ -70,6 +86,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
     $myId  = $_SESSION['admin_user_id'] ?? 0;
     if ($delId === $myId) { $error = 'You cannot delete your own account.'; }
     else {
+        // SEC-3: same privilege boundary as the save handler above — a
+        // plain admin could otherwise delete a superadmin account outright.
+        $ds = $db->prepare("SELECT role FROM admin_users WHERE id=?");
+        $ds->execute([$delId]);
+        $targetRole = $ds->fetchColumn();
+        if ($targetRole === 'superadmin' && ($_SESSION['admin_role'] ?? '') !== 'superadmin') {
+            $error = 'Only a superadmin can delete a superadmin account.';
+        }
+    }
+    if (!$error && $delId !== $myId) {
         try { $db->prepare("DELETE FROM admin_users WHERE id=?")->execute([$delId]); }
         catch(Exception $e){ $error = $e->getMessage(); }
         if (!$error) { header('Location: users.php?msg='.urlencode('User deleted.')); exit; }
@@ -196,30 +222,30 @@ ob_start();
         <input type="hidden" name="save_user" value="1">
         <input type="hidden" name="id" value="<?= $editUser ? $editUser['id'] : 0 ?>">
         <div class="admin-form-group">
-          <label class="admin-label">Username *</label>
-          <input name="username" class="admin-input" required value="<?= htmlspecialchars($editUser['username']??'') ?>" placeholder="e.g. samson">
+          <label class="admin-label" for="username">Username *</label>
+          <input id="username" name="username" class="admin-input" required value="<?= htmlspecialchars($editUser['username']??'') ?>" placeholder="e.g. samson">
         </div>
         <div class="admin-form-group">
-          <label class="admin-label">Full Name</label>
-          <input name="full_name" class="admin-input" value="<?= htmlspecialchars($editUser['full_name']??'') ?>" placeholder="e.g. Samson Gabba">
+          <label class="admin-label" for="full_name">Full Name</label>
+          <input id="full_name" name="full_name" class="admin-input" value="<?= htmlspecialchars($editUser['full_name']??'') ?>" placeholder="e.g. Samson Gabba">
         </div>
         <div class="admin-form-group">
-          <label class="admin-label">Email</label>
-          <input name="email" type="email" class="admin-input" value="<?= htmlspecialchars($editUser['email']??'') ?>">
+          <label class="admin-label" for="email">Email</label>
+          <input id="email" name="email" type="email" class="admin-input" value="<?= htmlspecialchars($editUser['email']??'') ?>">
         </div>
         <div class="admin-form-group">
-          <label class="admin-label">Role</label>
-          <select name="role" class="admin-input">
+          <label class="admin-label" for="role">Role</label>
+          <select id="role" name="role" class="admin-input">
             <?php foreach(['superadmin'=>'Super Admin','admin'=>'Admin','agent'=>'Agent','staff'=>'Staff'] as $v=>$l): ?>
             <option value="<?= $v ?>" <?= ($editUser['role']??'admin')===$v?'selected':'' ?>><?= $l ?></option>
             <?php endforeach; ?>
           </select>
         </div>
         <div class="admin-form-group">
-          <label class="admin-label">
+          <label class="admin-label" for="new_password">
             <?= $editUser ? 'New Password <span style="font-weight:600;opacity:.6">(leave blank to keep current)</span>' : 'Password *' ?>
           </label>
-          <input name="new_password" type="password" class="admin-input" <?= $editUser?'':'required' ?> minlength="8" placeholder="Min 8 characters">
+          <input id="new_password" name="new_password" type="password" class="admin-input" <?= $editUser?'':'required' ?> minlength="8" placeholder="Min 8 characters">
         </div>
         <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-bottom:.75rem">
           <input type="checkbox" name="is_active" value="1" <?= ($editUser['is_active']??1)?'checked':'' ?>>
@@ -227,9 +253,9 @@ ob_start();
         </label>
 
         <div style="border-top:1px solid var(--gray-100);margin:.5rem 0 .85rem;padding-top:.85rem">
-          <label class="admin-label" style="display:block;margin-bottom:.5rem">Access Permissions</label>
+          <label class="admin-label" style="display:block;margin-bottom:.5rem" for="can_change_status">Access Permissions</label>
           <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-bottom:.5rem">
-            <input type="checkbox" name="can_change_status" value="1" <?= ($editUser['can_change_status']??1)?'checked':'' ?>>
+            <input id="can_change_status" type="checkbox" name="can_change_status" value="1" <?= ($editUser['can_change_status']??1)?'checked':'' ?>>
             <span style="font-size:.78rem">Can change status <span style="color:var(--gray-500)">(bookings, leads, commissions)</span></span>
           </label>
           <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-bottom:0">

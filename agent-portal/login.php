@@ -195,6 +195,7 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
       background: #fafafa; transition: border-color .15s;
     }
     .form-input:focus { border-color: #0a0a0a; background: #fff; }
+    .form-input:focus-visible { outline: 2.5px solid #c8963e; outline-offset: 1px; } /* A11Y-3 */
     .form-input::placeholder { color: #d1d5db; }
 
     .password-wrap { position: relative; }
@@ -276,11 +277,11 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
 
   <?php if ($notice): ?>
-  <div class="login-notice"><?= htmlspecialchars($notice) ?></div>
+  <div class="login-notice" role="status"><?= htmlspecialchars($notice) ?></div>
   <?php endif; ?>
 
   <?php if ($error): ?>
-  <div class="login-error"><?= htmlspecialchars($error) ?></div>
+  <div class="login-error" role="alert"><?= htmlspecialchars($error) ?></div>
   <?php endif; ?>
 
   <form method="POST" autocomplete="on">

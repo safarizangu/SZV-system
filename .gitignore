@@ -6,9 +6,15 @@
 storage/cache/*
 storage/logs/*
 storage/uploads/*
+storage/backups/
 !storage/cache/.gitkeep
 !storage/logs/.gitkeep
 !storage/uploads/.gitkeep
+
+# Audit screenshots and pre-session leftover scan artifacts — kept on disk
+# (protected by storage/.htaccess) but not worth tracking in git history.
+storage/screenshots/
+storage/legacy_scan_artifacts/
 
 # ── Dev scripts (never on production) ────────────────────────
 n.py

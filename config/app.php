@@ -3,29 +3,24 @@
  * Safari Zangu Ventures — Application Configuration
  *
  * SECRETS: Never hardcode live credentials here.
- * Load from .env (via loadEnv() below) or server environment variables.
- * Every secret below must come from env() with NO literal fallback —
- * a hardcoded fallback here is a hardcoded credential, committed to git.
+ * Load from .env (via App\Helpers\Env, loaded below) or server
+ * environment variables. Every secret below must come from env() with
+ * NO literal fallback — a hardcoded fallback here is a hardcoded
+ * credential, committed to git.
  */
 
 // ── Environment loader ────────────────────────────────────────
-function loadEnv(string $path): void {
-    if (!file_exists($path)) return;
-    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        if (str_starts_with(trim($line), '#') || !str_contains($line, '=')) continue;
-        [$key, $val] = explode('=', $line, 2);
-        $key = trim($key); $val = trim($val, " \t\n\r\0\x0B\"'");
-        if ($key && !isset($_ENV[$key])) {
-            $_ENV[$key] = $val;
-            putenv("$key=$val");
-        }
-    }
-}
-loadEnv(__DIR__ . '/../.env');
+// DEVOPS-9: this used to be its own near-duplicate of
+// App\Helpers\Env::load()/get() — identical per-line parsing, identical
+// $_ENV/putenv guard — kept in sync by hand since this file predates
+// Env.php. bootstrap.php already calls Env::load() before requiring
+// this file, so this is a no-op (Env::load() tracks whether it already
+// ran) in the normal request path; it only does real work if this file
+// is ever required on its own.
+\App\Helpers\Env::load(__DIR__ . '/../.env');
 
 function env(string $key, mixed $default = null): mixed {
-    return $_ENV[$key] ?? getenv($key) ?: $default;
+    return \App\Helpers\Env::get($key, $default);
 }
 
 // ── Host detection ────────────────────────────────────────────

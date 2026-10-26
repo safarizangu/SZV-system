@@ -201,9 +201,16 @@ if (contactForm) {
 }
 
 // ── HELPER ───────────────────────────────────────────────
+// A11Y-5: this feeds every public form's success/error message (contact,
+// booking, custom safari) — none of it was ever announced to assistive
+// tech, since plain injected text with no ARIA role is silent to a
+// screen reader unless focus happens to already be on it. role="alert"
+// (errors) is an implicit assertive live region; role="status"
+// (success) is polite, so a successful submission doesn't interrupt.
 function showMsg(el, text, type) {
   if (!el) return;
-  el.innerHTML = `<div class="alert-sz ${type}">${text}</div>`;
+  const role = type === 'error' ? 'alert' : 'status';
+  el.innerHTML = `<div class="alert-sz ${type}" role="${role}">${text}</div>`;
   el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 

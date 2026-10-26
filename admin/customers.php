@@ -215,19 +215,19 @@ ob_start();
       <input type="hidden" name="update_customer" value="1">
       <input type="hidden" name="id" id="edit_id">
       <div class="admin-form-group" style="margin-bottom:1rem">
-        <label class="admin-label">Email (fixed — the dedup key)</label>
+        <label class="admin-label" for="edit_email">Email (fixed — the dedup key)</label>
         <input class="admin-input" id="edit_email" disabled style="background:var(--gray-100);color:var(--gray-500)">
       </div>
       <div class="admin-form-group" style="margin-bottom:1rem">
-        <label class="admin-label">Full Name</label>
+        <label class="admin-label" for="edit_name">Full Name</label>
         <input class="admin-input" name="full_name" id="edit_name" required>
       </div>
       <div class="admin-form-group" style="margin-bottom:1rem">
-        <label class="admin-label">Phone</label>
+        <label class="admin-label" for="edit_phone">Phone</label>
         <input class="admin-input" name="phone" id="edit_phone">
       </div>
       <div class="admin-form-group" style="margin-bottom:1.25rem">
-        <label class="admin-label">Country</label>
+        <label class="admin-label" for="edit_country">Country</label>
         <input class="admin-input" name="country" id="edit_country">
       </div>
       <div style="display:flex;gap:.75rem;justify-content:flex-end">

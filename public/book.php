@@ -7,13 +7,17 @@ $pageDescription = 'Reserve your Tanzania safari adventure with Safari Zangu Ven
 
 $pageCanonical = 'https://safarizanguven.com/book.php';
 
-// Pre-fill from quotation if quote_id passed
+// Pre-fill from quotation — SEC-2: previously looked up by the raw
+// sequential `quote_id`, letting anyone enumerate IDs and see another
+// client's name/email/phone/country/price pre-filled with zero proof of
+// ownership. Now uses the same unguessable public_token every other
+// public quotation link already uses (see api/quote_view.php) instead.
 $quoteData = null;
-if ($qId = (int)($_GET['quote_id'] ?? 0)) {
+if ($qToken = trim($_GET['quote'] ?? '')) {
     try {
         $qPdo  = App\Models\Database::getInstance();
-        $qStmt = $qPdo->prepare("SELECT * FROM quotations WHERE id=? AND status IN ('accepted','sent') LIMIT 1");
-        $qStmt->execute([$qId]);
+        $qStmt = $qPdo->prepare("SELECT * FROM quotations WHERE public_token=? AND status IN ('accepted','sent') LIMIT 1");
+        $qStmt->execute([$qToken]);
         $quoteData = $qStmt->fetch() ?: null;
     } catch(Exception $e) { error_log($e->getMessage()); }
 }

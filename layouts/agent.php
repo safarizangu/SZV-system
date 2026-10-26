@@ -14,6 +14,9 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
 </head>
 <body class="agent-body">
 
+<!-- A11Y-13: same skip link added to the admin panel, for consistency. -->
+<a href="#main-content" style="position:absolute;top:-100px;left:0;background:#7a5a10;color:#fff;padding:.5rem 1rem;font-size:.8rem;font-weight:700;z-index:9999;text-decoration:none;border-radius:0 0 4px 0;transition:top .2s" onfocus="this.style.top='0'" onblur="this.style.top='-100px'">Skip to main content</a>
+
 <header class="agent-navbar">
   <?php
     // Absolute, BASE_PATH-rooted hrefs — this layout is now also
@@ -58,7 +61,7 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
   </div>
 </header>
 
-<main>
+<main id="main-content">
   <div class="agent-content">
     <?php if (!empty($pageTitle)): ?><h1 class="agent-page-title"><?= htmlspecialchars($pageTitle) ?></h1><?php endif; ?>
     <?= $content ?? '' ?>

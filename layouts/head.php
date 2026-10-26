@@ -84,13 +84,19 @@ $_canonical = strtok($_canonical,'?'); // remove query string
   <link rel="stylesheet" href="<?= BASE_PATH ?>/assets/css/forms.css">
 
 <?php
-// Hero image — loaded from settings table, set via Admin → Gallery
+// Hero image — loaded from settings table, set via Admin → Gallery.
+// PERF-2: $_heroSettingRaw (the unmodified stored value, or '' if unset)
+// is also exposed so layouts/app.php's own preload-tag logic further
+// down can reuse this one query instead of running an identical second
+// one of its own — this used to be queried twice on every page load.
 $_heroImg = BASE_PATH . '/assets/images/downloaded/safari_1.jpg';
+$_heroSettingRaw = '';
 try {
     $_stmt = \App\Models\Database::getInstance()
         ->prepare("SELECT `value` FROM settings WHERE `key`=? LIMIT 1");
     $_stmt->execute(['hero_image']);
     $_row = $_stmt->fetch();
+    $_heroSettingRaw = $_row['value'] ?? '';
     if ($_row && !empty($_row['value'])) {
         // Stored value is root-relative (no BASE_PATH — see
         // api/set_hero.php); add it back for the current environment.

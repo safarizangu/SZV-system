@@ -9,15 +9,32 @@ class AuthMiddleware
             header('Location: ' . APP_URL . '/admin/login.php?reason=required');
             exit;
         }
-        // Session timeout — admin/settings.php's Security card (SESSION_TIMEOUT_MINUTES)
-        if (isset($_SESSION['admin_last_active'])
-            && (time() - $_SESSION['admin_last_active']) > SESSION_TIMEOUT_MINUTES * 60) {
-            session_destroy();
-            session_start();
+        if (self::isTimedOut()) {
             header('Location: ' . APP_URL . '/admin/login.php?reason=timeout');
             exit;
         }
         $_SESSION['admin_last_active'] = time();
+    }
+
+    /**
+     * SEC-9: checks the same inactivity-timeout rule requireAdmin() uses
+     * (and destroys the session as a side effect if it has expired), for
+     * a JSON API endpoint that needs that exact rule enforced but must
+     * reply with JSON instead of a redirect (e.g. api/itinerary.php,
+     * which deliberately doesn't redirect). Those endpoints previously
+     * checked only `$_SESSION['admin_authenticated']` by hand and never
+     * this, since the timeout logic lived only inside requireAdmin().
+     * Callers must still check isAuthenticated() themselves first.
+     */
+    public static function isTimedOut(): bool
+    {
+        if (isset($_SESSION['admin_last_active'])
+            && (time() - $_SESSION['admin_last_active']) > SESSION_TIMEOUT_MINUTES * 60) {
+            session_destroy();
+            session_start();
+            return true;
+        }
+        return false;
     }
 
     /** Agent-portal equivalent of requireAdmin() — also requires the
@@ -29,10 +46,7 @@ class AuthMiddleware
             header('Location: ' . APP_URL . '/agent-portal/login.php?reason=required');
             exit;
         }
-        if (isset($_SESSION['admin_last_active'])
-            && (time() - $_SESSION['admin_last_active']) > SESSION_TIMEOUT_MINUTES * 60) {
-            session_destroy();
-            session_start();
+        if (self::isTimedOut()) {
             header('Location: ' . APP_URL . '/agent-portal/login.php?reason=timeout');
             exit;
         }

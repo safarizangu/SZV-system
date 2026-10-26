@@ -27,8 +27,13 @@ function bookingModelTestData(): array
 
 function cleanupBookingModelTestRows(): void
 {
-    Database::getInstance()
-        ->prepare("DELETE FROM bookings WHERE email = ?")
+    $db = Database::getInstance();
+    $db->prepare("DELETE FROM bookings WHERE email = ?")
+        ->execute(['test-suite-booking@example.invalid']);
+    // ARCH-8: create() now also resolves/creates a customers row (via
+    // Customer::findOrCreateByEmail, matching api/book.php's real flow) —
+    // clean that up too so repeated test runs don't leave it behind.
+    $db->prepare("DELETE FROM customers WHERE email = ?")
         ->execute(['test-suite-booking@example.invalid']);
 }
 
@@ -53,6 +58,7 @@ test('Booking::findByRefAndDate() finds what create() just inserted', function (
     assertSame('Test Suite Booking', $found['full_name']);
     assertSame('A test special request', $found['special_request']);
     assertSame('pending', $found['payment_status']);
+    assertTrue($found['customer_id'] !== null, 'customer_id should be resolved via Customer::findOrCreateByEmail');
 
     cleanupBookingModelTestRows();
 });

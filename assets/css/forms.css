@@ -54,6 +54,19 @@
   border-radius: 0;
 }
 
+/* A11Y-4: main.css defines a global :focus-visible { outline: gold }
+   fix, but it loses the cascade tie here — same specificity, this file
+   loads after main.css, so this outline:none above was winning and
+   silently nullifying it for every form field on the public site
+   (confirmed live: no focus ring on #ct-name et al). Restating the fix
+   in the one file whose rules were actually overriding it, rather than
+   relying on load order between two separate files to not matter. */
+.form-control-sz:focus-visible,
+.sz-input:focus-visible {
+  outline: 2.5px solid var(--gold);
+  outline-offset: 2px;
+}
+
 .form-control-sz:focus,
 .sz-input:focus {
   border-color: var(--black);

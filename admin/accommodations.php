@@ -20,7 +20,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     $name = trim($_POST['name'] ?? '');
     $lev  = $_POST['level'] ?? 'midrange';
     $loc  = trim($_POST['location'] ?? '');
-    $park = trim($_POST['park_key'] ?? '');
+    // DB-12: NULL, not '' — a blank field must mean "no park", and ''
+    // doesn't match anything in park_fees.park_key (the column's new FK
+    // target), so saving '' here would throw on every save with no park.
+    $park = trim($_POST['park_key'] ?? '') ?: null;
     $supp = (int)($_POST['supplier_id'] ?? 0) ?: null;
     $rr   = (float)($_POST['rate_per_room'] ?? 0);
     $rp   = (float)($_POST['rate_per_person'] ?? 0);
@@ -158,21 +161,21 @@ function accUsageCount(array $blobs, string $name): int {
         <input type="hidden" name="save" value="1">
         <input type="hidden" name="id"   value="<?= $edit['id']??0 ?>">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
-          <div><label class="admin-label">Name *</label>
-            <input name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
-          <div><label class="admin-label">Level</label>
-            <select name="level" class="admin-input">
+          <div><label class="admin-label" for="name">Name *</label>
+            <input id="name" name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
+          <div><label class="admin-label" for="level">Level</label>
+            <select id="level" name="level" class="admin-input">
               <?php foreach(['budget'=>'Budget','midrange'=>'Mid-Range','highend'=>'High-End','luxury'=>'Luxury','ultra_luxury'=>'Ultra Luxury'] as $v=>$l): ?>
               <option value="<?= $v ?>" <?= ($edit['level']??'midrange')===$v?'selected':'' ?>><?= $l ?></option>
               <?php endforeach; ?>
             </select>
           </div>
-          <div><label class="admin-label">Location</label>
-            <input name="location" class="admin-input" list="location-list" value="<?= htmlspecialchars($edit['location']??'') ?>" placeholder="e.g. Serengeti National Park"></div>
-          <div><label class="admin-label">Park Key</label>
-            <input name="park_key" class="admin-input" value="<?= htmlspecialchars($edit['park_key']??'') ?>"></div>
-          <div><label class="admin-label">Supplier</label>
-            <select name="supplier_id" class="admin-input">
+          <div><label class="admin-label" for="location">Location</label>
+            <input id="location" name="location" class="admin-input" list="location-list" value="<?= htmlspecialchars($edit['location']??'') ?>" placeholder="e.g. Serengeti National Park"></div>
+          <div><label class="admin-label" for="park_key">Park Key</label>
+            <input id="park_key" name="park_key" class="admin-input" value="<?= htmlspecialchars($edit['park_key']??'') ?>"></div>
+          <div><label class="admin-label" for="supplier_id">Supplier</label>
+            <select id="supplier_id" name="supplier_id" class="admin-input">
               <option value="0">— None linked —</option>
               <?php
               try { $__suppliers = $db->query("SELECT id, name FROM suppliers WHERE is_active=1 ORDER BY name")->fetchAll(); }
@@ -183,26 +186,26 @@ function accUsageCount(array $blobs, string $name): int {
             </select>
             <p style="font-size:.65rem;color:var(--gray-500);margin-top:.25rem">Manage suppliers on the <a href="suppliers.php" target="_blank">Suppliers</a> page.</p>
           </div>
-          <div><label class="admin-label">Rate/Room (USD)</label>
-            <input name="rate_per_room" data-av="min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['rate_per_room']??0 ?>"></div>
-          <div><label class="admin-label">Rate/Person (USD)</label>
-            <input name="rate_per_person" data-av="min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['rate_per_person']??0 ?>"></div>
-          <div><label class="admin-label">Single Supplement</label>
-            <input name="single_supplement" type="number" step="0.01" class="admin-input" value="<?= $edit['single_supplement']??0 ?>"></div>
-          <div><label class="admin-label">Child Rate</label>
-            <input name="child_rate" type="number" step="0.01" class="admin-input" value="<?= $edit['child_rate']??0 ?>"></div>
-          <div><label class="admin-label">Available Rooms <span style="font-weight:600;color:var(--gray-500)">(allotment, optional)</span></label>
-            <input name="available_rooms" type="number" min="0" step="1" class="admin-input" placeholder="Leave blank if not tracked" value="<?= $edit['available_rooms'] ?? '' ?>"></div>
-          <div><label class="admin-label">Meal Plan</label>
-            <select name="meal_plan" class="admin-input">
+          <div><label class="admin-label" for="rate_per_room">Rate/Room (USD)</label>
+            <input id="rate_per_room" name="rate_per_room" data-av="min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['rate_per_room']??0 ?>"></div>
+          <div><label class="admin-label" for="rate_per_person">Rate/Person (USD)</label>
+            <input id="rate_per_person" name="rate_per_person" data-av="min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['rate_per_person']??0 ?>"></div>
+          <div><label class="admin-label" for="single_supplement">Single Supplement</label>
+            <input id="single_supplement" name="single_supplement" type="number" step="0.01" class="admin-input" value="<?= $edit['single_supplement']??0 ?>"></div>
+          <div><label class="admin-label" for="child_rate">Child Rate</label>
+            <input id="child_rate" name="child_rate" type="number" step="0.01" class="admin-input" value="<?= $edit['child_rate']??0 ?>"></div>
+          <div><label class="admin-label" for="available_rooms">Available Rooms <span style="font-weight:600;color:var(--gray-500)">(allotment, optional)</span></label>
+            <input id="available_rooms" name="available_rooms" type="number" min="0" step="1" class="admin-input" placeholder="Leave blank if not tracked" value="<?= $edit['available_rooms'] ?? '' ?>"></div>
+          <div><label class="admin-label" for="meal_plan">Meal Plan</label>
+            <select id="meal_plan" name="meal_plan" class="admin-input">
               <?php foreach(['fb'=>'Full Board','hb'=>'Half Board','bb'=>'B&B','ai'=>'All Inclusive'] as $v=>$l): ?>
               <option value="<?= $v ?>" <?= ($edit['meal_plan']??'fb')===$v?'selected':'' ?>><?= $l ?></option>
               <?php endforeach; ?>
             </select>
           </div>
         </div>
-        <div style="margin-top:1rem"><label class="admin-label">Notes</label>
-          <textarea name="notes" class="admin-input" rows="2"><?= htmlspecialchars($edit['notes']??'') ?></textarea></div>
+        <div style="margin-top:1rem"><label class="admin-label" for="notes">Notes</label>
+          <textarea id="notes" name="notes" class="admin-input" rows="2"><?= htmlspecialchars($edit['notes']??'') ?></textarea></div>
 
         <!-- Images -->
         <div style="margin-top:1rem">

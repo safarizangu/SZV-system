@@ -16,24 +16,55 @@ if ($reason === 'logout')   $notice = 'You have been signed out.';
 if ($reason === 'required') $notice = 'Please sign in to access the admin panel.';
 
 // ── Rate limiting (server-side — session bypass proof) ──────
-$ip          = filter_var($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0', FILTER_VALIDATE_IP) ?: '0.0.0.0';
-$lockFile    = '/tmp/szv_ratelimit/login_' . hash('sha256', $ip) . '.json';
-$maxAttempts = 5;
-$lockSeconds = 900; // 15 min
+// SEC-8: was IP-only — an attacker spreading guesses across many IPs
+// (botnet, proxy rotation) against ONE target account never tripped it,
+// since no single IP's own count ever reached the threshold. A second,
+// account-keyed lock now runs alongside it (not instead of it — the
+// IP-based one still blocks a single-source brute force exactly as
+// before); either one locks the login out independently.
+function _szvLoginLockStatus(string $key): array {
+    $maxAttempts = 5;
+    $lockSeconds = 900; // 15 min
+    $lockFile    = '/tmp/szv_ratelimit/login_' . hash('sha256', $key) . '.json';
+    $lockData    = ['attempts' => 0, 'last_attempt' => 0];
+    if (file_exists($lockFile)) {
+        $lockData = json_decode(file_get_contents($lockFile), true) ?? $lockData;
+    }
+    if ((time() - $lockData['last_attempt']) >= $lockSeconds) {
+        $lockData = ['attempts' => 0, 'last_attempt' => 0];
+    }
+    $attempts = (int)$lockData['attempts'];
+    return [
+        'file'      => $lockFile,
+        'attempts'  => $attempts,
+        'isLocked'  => $attempts >= $maxAttempts,
+        'remaining' => $lockSeconds - (time() - $lockData['last_attempt']),
+        'maxAttempts' => $maxAttempts,
+    ];
+}
+function _szvLoginLockRecordFailure(string $file, int $attempts): void {
+    if (!is_dir('/tmp/szv_ratelimit/')) mkdir('/tmp/szv_ratelimit/', 0700, true);
+    file_put_contents($file, json_encode(['attempts' => $attempts + 1, 'last_attempt' => time()]), LOCK_EX);
+}
 
-$lockData    = ['attempts'=>0,'last_attempt'=>0];
-if (file_exists($lockFile)) {
-    $lockData = json_decode(file_get_contents($lockFile), true) ?? $lockData;
+$ip      = filter_var($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0', FILTER_VALIDATE_IP) ?: '0.0.0.0';
+$ipLock  = _szvLoginLockStatus($ip);
+$lockFile = $ipLock['file'];
+$attempts = $ipLock['attempts'];
+$maxAttempts = $ipLock['maxAttempts'];
+
+// The account-keyed lock needs a username, which only exists once the
+// form is actually submitted — a GET request (just viewing the page)
+// has none to check yet, so it's only evaluated on POST, just below.
+$userLock = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $userLock = _szvLoginLockStatus('user:' . strtolower(trim($_POST['username'] ?? '')));
 }
-// Reset if window expired
-if ((time() - $lockData['last_attempt']) >= $lockSeconds) {
-    $lockData = ['attempts'=>0,'last_attempt'=>0];
-}
-$attempts  = (int)$lockData['attempts'];
-$isLocked  = $attempts >= $maxAttempts;
+
+$isLocked = $ipLock['isLocked'] || ($userLock && $userLock['isLocked']);
 
 if ($isLocked) {
-    $remaining = $lockSeconds - (time() - $lockData['last_attempt']);
+    $remaining = max($ipLock['isLocked'] ? $ipLock['remaining'] : 0, ($userLock && $userLock['isLocked']) ? $userLock['remaining'] : 0);
     $error = 'Too many failed attempts. Try again in ' . ceil($remaining / 60) . ' minutes.';
 }
 
@@ -92,8 +123,9 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($authenticated) {
-            // Clear server-side lockout file
+            // Clear server-side lockout files (both IP- and account-keyed)
             if (file_exists($lockFile)) unlink($lockFile);
+            if ($userLock && file_exists($userLock['file'])) unlink($userLock['file']);
 
             // Set auth session
             $_SESSION['admin_authenticated'] = true;
@@ -121,11 +153,9 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ' . $redirect); exit;
 
         } else {
-            // Failed — increment server-side lockout
-            $lockData['attempts']     = $attempts + 1;
-            $lockData['last_attempt'] = time();
-            if (!is_dir('/tmp/szv_ratelimit/')) mkdir('/tmp/szv_ratelimit/', 0700, true);
-            file_put_contents($lockFile, json_encode($lockData), LOCK_EX);
+            // Failed — increment both server-side lockouts
+            _szvLoginLockRecordFailure($lockFile, $attempts);
+            if ($userLock) _szvLoginLockRecordFailure($userLock['file'], $userLock['attempts']);
             $remaining = $maxAttempts - ($attempts + 1);
             $error = $remaining > 0
                 ? 'Incorrect credentials. ' . $remaining . ' attempt' . ($remaining!==1?'s':'') . ' remaining.'
@@ -274,6 +304,7 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
       transition: border-color .15s;
     }
     .form-input:focus { border-color: #0a0a0a; background: #fff; }
+    .form-input:focus-visible { outline: 2.5px solid #c8963e; outline-offset: 1px; } /* A11Y-3 */
     .form-input::placeholder { color: #d1d5db; }
 
     .password-wrap { position: relative; }
@@ -398,11 +429,11 @@ if (!$isLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
 
   <?php if ($notice): ?>
-  <div class="login-notice"><?= htmlspecialchars($notice) ?></div>
+  <div class="login-notice" role="status"><?= htmlspecialchars($notice) ?></div>
   <?php endif; ?>
 
   <?php if ($error): ?>
-  <div class="login-error"><?= htmlspecialchars($error) ?></div>
+  <div class="login-error" role="alert"><?= htmlspecialchars($error) ?></div>
   <?php endif; ?>
 
   <form method="POST" autocomplete="on">

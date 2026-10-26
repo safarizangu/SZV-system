@@ -16,6 +16,19 @@ $ranges = ['7'=>'Last 7 days','30'=>'Last 30 days','90'=>'Last 90 days','365'=>'
 if (!isset($ranges[$range])) $range = '30';
 $since = "DATE_SUB(NOW(), INTERVAL {$range} DAY)";
 
+// PERF-3: every page-load event this app actually fires is named either
+// exactly 'page_view' or '<page>_page_view' (confirmed against the live
+// distinct event_name values) — a known, small, fixed set, so this
+// replaces the leading-wildcard `event_name LIKE '%page_view%'` used
+// throughout this file below. A leading-wildcard LIKE can't use any
+// index (confirmed via EXPLAIN — full scan every time); an IN-list can,
+// same as any other exact-match filter. Add any new *_page_view tracking
+// event to this list alongside wiring it up wherever it's fired from.
+const PAGE_VIEW_EVENTS = ['page_view','home_page_view','packages_page_view','about_page_view','contact_page_view','book_page_view','track_page_view'];
+$pageViewIn    = "'" . implode("','", PAGE_VIEW_EVENTS) . "'";
+$pageViewSql   = "event_name IN ($pageViewIn)";
+$notPageViewSql = "event_name NOT IN ($pageViewIn)";
+
 // ── Helper: safe query ──────────────────────────────────────────
 function aq($db, $sql, $params = []) {
     try {
@@ -38,8 +51,8 @@ function aqv($db, $sql, $params = []) {
 // ── 1. Total events in range ────────────────────────────────────
 $totalEvents  = aqv($db, "SELECT COUNT(*) FROM analytics_events WHERE created_at >= $since");
 $uniqueIPs    = aqv($db, "SELECT COUNT(DISTINCT ip_address) FROM analytics_events WHERE created_at >= $since");
-$pageViews    = aqv($db, "SELECT COUNT(*) FROM analytics_events WHERE event_name LIKE '%page_view%' AND created_at >= $since");
-$interactions = aqv($db, "SELECT COUNT(*) FROM analytics_events WHERE event_name NOT LIKE '%page_view%' AND created_at >= $since");
+$pageViews    = aqv($db, "SELECT COUNT(*) FROM analytics_events WHERE $pageViewSql AND created_at >= $since");
+$interactions = aqv($db, "SELECT COUNT(*) FROM analytics_events WHERE $notPageViewSql AND created_at >= $since");
 
 // ── 2. Event breakdown ──────────────────────────────────────────
 $eventBreakdown = aq($db, "
@@ -57,7 +70,7 @@ $topPages = aq($db, "
     SELECT page_url, COUNT(*) as views,
            COUNT(DISTINCT ip_address) as unique_visitors
     FROM analytics_events
-    WHERE event_name LIKE '%page_view%' AND created_at >= $since
+    WHERE $pageViewSql AND created_at >= $since
     GROUP BY page_url
     ORDER BY views DESC
     LIMIT 10
@@ -119,7 +132,7 @@ $hourlyDist = aq($db, "
 
 // ── 8. Conversion funnel ────────────────────────────────────────
 $funnel = [
-    'page_views'          => aqv($db, "SELECT COUNT(DISTINCT ip_address) FROM analytics_events WHERE event_name LIKE '%page_view%' AND created_at >= $since"),
+    'page_views'          => aqv($db, "SELECT COUNT(DISTINCT ip_address) FROM analytics_events WHERE $pageViewSql AND created_at >= $since"),
     'package_views'       => aqv($db, "SELECT COUNT(DISTINCT ip_address) FROM analytics_events WHERE event_name='package_view' AND created_at >= $since"),
     'book_now_clicks'     => aqv($db, "SELECT COUNT(DISTINCT ip_address) FROM analytics_events WHERE event_name='book_now_click' AND created_at >= $since"),
     'whatsapp_clicks'     => aqv($db, "SELECT COUNT(DISTINCT ip_address) FROM analytics_events WHERE event_name='whatsapp_click' AND created_at >= $since"),
@@ -286,6 +299,12 @@ ob_start();
   <div class="admin-card">
     <div class="admin-card-header"><h2>Event Types</h2></div>
     <div class="admin-card-body" style="padding:0">
+      <!-- UIUX-3: wrapped for a horizontal-scroll safety net, consistent
+           with every other admin table — min-width:0 above still lets
+           this table shrink to fit its 1-of-3 grid column at normal
+           content widths; the wrap only ever does anything if content
+           (e.g. a long event name) actually needs more room than that. -->
+      <div class="admin-table-wrap">
       <table class="admin-table" style="min-width:0">
         <thead><tr><th>Event</th><th>Count</th><th>Unique</th></tr></thead>
         <tbody>
@@ -312,6 +331,7 @@ ob_start();
         <?php if(empty($eventBreakdown)): ?><tr><td colspan="3" class="admin-empty">No events.</td></tr><?php endif; ?>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 
@@ -319,6 +339,7 @@ ob_start();
   <div class="admin-card">
     <div class="admin-card-header"><h2>Top Pages</h2></div>
     <div class="admin-card-body" style="padding:0">
+      <div class="admin-table-wrap"> <!-- UIUX-3 -->
       <table class="admin-table" style="min-width:0">
         <thead><tr><th>Page</th><th>Views</th><th>Uniq</th></tr></thead>
         <tbody>
@@ -335,6 +356,7 @@ ob_start();
         <?php if(empty($topPages)): ?><tr><td colspan="3" class="admin-empty">No page views.</td></tr><?php endif; ?>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 
@@ -342,6 +364,7 @@ ob_start();
   <div class="admin-card">
     <div class="admin-card-header"><h2>Package Interest</h2></div>
     <div class="admin-card-body" style="padding:0">
+      <div class="admin-table-wrap"> <!-- UIUX-3 -->
       <table class="admin-table" style="min-width:0">
         <thead><tr><th>Package</th><th>Views</th><th>Books</th></tr></thead>
         <tbody>
@@ -355,6 +378,7 @@ ob_start();
         <?php if(empty($topPackages)): ?><tr><td colspan="3" class="admin-empty">No package data.</td></tr><?php endif; ?>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 

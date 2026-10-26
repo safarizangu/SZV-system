@@ -180,25 +180,25 @@ ob_start();
         <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="save" value="1">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-          <div><label class="admin-label">Booking Ref <span style="font-weight:600;color:var(--gray-500)">(optional)</span></label>
-            <input name="booking_ref" class="admin-input" value="<?= htmlspecialchars($prefillRef) ?>" placeholder="SZVXXXXXXXX"></div>
-          <div><label class="admin-label">Occurred At</label>
-            <input name="occurred_at" type="datetime-local" class="admin-input" value="<?= date('Y-m-d\TH:i') ?>" required></div>
-          <div><label class="admin-label">Type</label>
-            <select name="incident_type" class="admin-input">
+          <div><label class="admin-label" for="booking_ref">Booking Ref <span style="font-weight:600;color:var(--gray-500)">(optional)</span></label>
+            <input id="booking_ref" name="booking_ref" class="admin-input" value="<?= htmlspecialchars($prefillRef) ?>" placeholder="SZVXXXXXXXX"></div>
+          <div><label class="admin-label" for="occurred_at">Occurred At</label>
+            <input id="occurred_at" name="occurred_at" type="datetime-local" class="admin-input" value="<?= date('Y-m-d\TH:i') ?>" required></div>
+          <div><label class="admin-label" for="incident_type">Type</label>
+            <select id="incident_type" name="incident_type" class="admin-input">
               <?php foreach ($typeLabels as $v => $l): ?>
               <option value="<?= $v ?>"><?= $l ?></option>
               <?php endforeach; ?>
             </select></div>
-          <div><label class="admin-label">Severity</label>
-            <select name="severity" class="admin-input">
+          <div><label class="admin-label" for="severity">Severity</label>
+            <select id="severity" name="severity" class="admin-input">
               <?php foreach (array_keys($severityColors) as $sv): ?>
               <option value="<?= $sv ?>" <?= $sv==='medium'?'selected':'' ?>><?= ucfirst($sv) ?></option>
               <?php endforeach; ?>
             </select></div>
         </div>
-        <div style="margin-top:1rem"><label class="admin-label">Description</label>
-          <textarea name="description" class="admin-input" rows="3" required placeholder="What happened, and what's being done about it"></textarea></div>
+        <div style="margin-top:1rem"><label class="admin-label" for="description">Description</label>
+          <textarea id="description" name="description" class="admin-input" rows="3" required placeholder="What happened, and what's being done about it"></textarea></div>
         <div style="margin-top:1rem;display:flex;gap:.5rem">
           <button class="admin-btn admin-btn--primary">Log Incident</button>
           <button type="button" onclick="closeFormModal()" class="admin-btn admin-btn--outline">Cancel</button>
@@ -219,8 +219,8 @@ ob_start();
       <form method="POST">
         <?= \App\Middleware\CsrfMiddleware::field() ?>
         <input type="hidden" name="resolve_id" id="resolve_id" value="">
-        <label class="admin-label">Resolution Notes <span style="font-weight:600;color:var(--gray-500)">(optional)</span></label>
-        <textarea name="resolution_notes" class="admin-input" rows="3" placeholder="How was this resolved?"></textarea>
+        <label class="admin-label" for="resolution_notes">Resolution Notes <span style="font-weight:600;color:var(--gray-500)">(optional)</span></label>
+        <textarea id="resolution_notes" name="resolution_notes" class="admin-input" rows="3" placeholder="How was this resolved?"></textarea>
         <div style="margin-top:1rem;display:flex;gap:.5rem">
           <button class="admin-btn admin-btn--primary">Mark Resolved</button>
           <button type="button" onclick="closeResolveModal()" class="admin-btn admin-btn--outline">Cancel</button>

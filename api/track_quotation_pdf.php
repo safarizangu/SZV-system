@@ -1,9 +1,13 @@
 <?php
 /**
  * Public "Download Quotation / Invoice PDF" for the Track Booking page.
- * URL: api/track_quotation_pdf.php?ref=SZVXXX&password=XXXXXXXX
+ * URL: api/track_quotation_pdf.php?ref=SZVXXX&token=XXXXXXXX
  *
- * Same proof-of-ownership and shared rate-limit lock file as
+ * SEC-10: gated by a short-lived download token (BookingTracking::
+ * issueDownloadToken(), 15-minute expiry) rather than the real tracking
+ * password, which used to sit in this GET link indefinitely — in
+ * browser history, server access logs, and any Referer header along the
+ * way. Same proof-of-ownership and shared rate-limit lock file as
  * api/track_booking_pdf.php / api/track_lookup.php. Renders
  * api/quotation_pdf.php for the booking's linked quotation — that file
  * already relabels itself Quotation/partial Invoice/full Invoice from the
@@ -48,29 +52,31 @@ if ($lockData['attempts'] >= $maxAttempts) {
 
 // ── Validate input — identical rules to track_lookup.php ──────────────
 $ref      = strtoupper(trim($_GET['ref'] ?? ''));
-$password = trim($_GET['password'] ?? '');
+$token = trim($_GET['token'] ?? '');
 
-if (!$ref || !$password) {
-    track_qpdf_fail('Booking ID and Track Booking password are both required.');
+if (!$ref || !$token) {
+    track_qpdf_fail('Booking ID and download token are both required.');
 }
 if (!preg_match('/^SZV[A-Z0-9]{4,17}$/i', $ref)) {
     track_qpdf_fail('Invalid Booking ID format.');
 }
 
-// ── Confirm ownership (ref + password must match, same as lookup) ──
-try {
-    $db    = \App\Models\Database::getInstance();
-    $found = \App\Services\BookingTracking::verify($db, $ref, $password);
-} catch (\Exception $e) {
-    error_log('[Track Quotation PDF] ' . $e->getMessage());
-    track_qpdf_fail('An error occurred. Please try again or contact us on WhatsApp.', 500);
-}
-
-if (!$found) {
+// ── Confirm ownership (ref + download token must match) ──
+if (!\App\Services\BookingTracking::verifyDownloadToken($ref, $token)) {
     $lockData['attempts']++;
     $lockData['last_attempt'] = time();
     file_put_contents($lockFile, json_encode($lockData), LOCK_EX);
-    track_qpdf_fail('No booking found with those details.', 404);
+    track_qpdf_fail('This download link has expired. Please look up your booking again.', 404);
+}
+
+try {
+    $db    = \App\Models\Database::getInstance();
+    $stmt  = $db->prepare("SELECT quotation_id FROM bookings WHERE booking_ref = ? LIMIT 1");
+    $stmt->execute([$ref]);
+    $found = $stmt->fetch();
+} catch (\Exception $e) {
+    error_log('[Track Quotation PDF] ' . $e->getMessage());
+    track_qpdf_fail('An error occurred. Please try again or contact us on WhatsApp.', 500);
 }
 
 if (empty($found['quotation_id'])) {

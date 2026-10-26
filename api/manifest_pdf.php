@@ -10,6 +10,17 @@ require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
 if (!defined('SZV_PDF_INTERNAL_RENDER')) {
     AuthMiddleware::requireAdmin();
+    // This is a cross-agent operations tool (every departure that day,
+    // for vehicle/driver coordination) — not a per-booking document an
+    // agent would own a slice of, so it can't be fixed with an
+    // OwnershipScope row-level check the way booking_pdf.php/quotation_pdf.php
+    // are. Its own linking admin page (admin/operations_calendar.php)
+    // already denies the agent role entirely for exactly this reason;
+    // this endpoint was the one place that same rule hadn't been applied,
+    // leaving it reachable directly by URL (SEC-5/API-1).
+    if (AuthMiddleware::isAgentRole()) {
+        \App\Services\AccessGuard::denyPlain('page', 'manifest_pdf.php', 'agent_access');
+    }
 }
 
 $date = trim($_GET['date'] ?? '');

@@ -1,15 +1,20 @@
 <?php
 /**
  * Public "Download PDF Confirmation" for the Track Booking page.
- * URL: api/track_booking_pdf.php?ref=SZVXXX&password=XXXXXXXX
+ * URL: api/track_booking_pdf.php?ref=SZVXXX&token=XXXXXXXX
  *
- * No admin session — gated the same way api/track_lookup.php already is:
- * ref+password is the visitor's proof of ownership, and both endpoints share
- * the SAME per-IP rate-limit counter (identical lock file), so a guest
- * can't dodge the 3-attempt lockout by hitting this endpoint instead of
- * the JSON lookup. On success it renders the exact same browser-print
- * page api/booking_pdf.php already gives admins — same template, no
- * second copy of the PDF markup to maintain.
+ * No admin session — gated the same way api/track_lookup.php already is,
+ * except via a short-lived download token instead of the real tracking
+ * password (SEC-10: the real password reused in a GET link would sit in
+ * browser history, server access logs, and any Referer header along the
+ * way, indefinitely — issued once per successful lookup by
+ * BookingTracking::issueDownloadToken(), 15-minute expiry, useless for
+ * anything but re-downloading this one booking's documents). Both
+ * endpoints share the SAME per-IP rate-limit counter (identical lock
+ * file), so a guest can't dodge the 3-attempt lockout by hitting this
+ * endpoint instead of the JSON lookup. On success it renders the exact
+ * same browser-print page api/booking_pdf.php already gives admins —
+ * same template, no second copy of the PDF markup to maintain.
  */
 require_once __DIR__ . '/../app/bootstrap.php';
 
@@ -49,29 +54,23 @@ if ($lockData['attempts'] >= $maxAttempts) {
 
 // ── Validate input — identical rules to track_lookup.php ──────────────
 $ref      = strtoupper(trim($_GET['ref'] ?? ''));
-$password = trim($_GET['password'] ?? '');
+$token = trim($_GET['token'] ?? '');
 
-if (!$ref || !$password) {
-    track_pdf_fail('Booking ID and Track Booking password are both required.');
+if (!$ref || !$token) {
+    track_pdf_fail('Booking ID and download token are both required.');
 }
 if (!preg_match('/^SZV[A-Z0-9]{4,17}$/i', $ref)) {
     track_pdf_fail('Invalid Booking ID format.');
 }
 
-// ── Confirm ownership (ref + password must match, same as lookup) ──
-try {
-    $db    = \App\Models\Database::getInstance();
-    $found = \App\Services\BookingTracking::verify($db, $ref, $password);
-} catch (\Exception $e) {
-    error_log('[Track PDF] ' . $e->getMessage());
-    track_pdf_fail('An error occurred. Please try again or contact us on WhatsApp.', 500);
-}
+// ── Confirm ownership (ref + download token must match) ──
+$found = \App\Services\BookingTracking::verifyDownloadToken($ref, $token);
 
 if (!$found) {
     $lockData['attempts']++;
     $lockData['last_attempt'] = time();
     file_put_contents($lockFile, json_encode($lockData), LOCK_EX);
-    track_pdf_fail('No booking found with those details.', 404);
+    track_pdf_fail('This download link has expired. Please look up your booking again.', 404);
 }
 
 // Success — reset the shared attempt counter, same as track_lookup.php.

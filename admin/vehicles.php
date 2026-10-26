@@ -148,20 +148,20 @@ function vehUsageCount(array $blobs, string $name): int {
         <input type="hidden" name="save" value="1">
         <input type="hidden" name="id"   value="<?= $edit['id']??0 ?>">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
-          <div><label class="admin-label">Key</label>
-            <input name="vehicle_key" data-av="required slug" class="admin-input" required value="<?= htmlspecialchars($edit['vehicle_key']??'') ?>"></div>
-          <div><label class="admin-label">Name</label>
-            <input name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
-          <div><label class="admin-label">Capacity (pax)</label>
-            <input name="capacity" data-av="required integer min:1" type="number" class="admin-input" value="<?= $edit['capacity']??6 ?>"></div>
-          <div><label class="admin-label">Daily Rate (USD)</label>
-            <input name="daily_rate" data-av="required min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['daily_rate']??0 ?>"></div>
-          <div><label class="admin-label">Fuel/Day (USD)</label>
-            <input name="fuel_cost_day" type="number" step="0.01" class="admin-input" value="<?= $edit['fuel_cost_day']??0 ?>"></div>
-          <div><label class="admin-label">Driver/Day (USD)</label>
-            <input name="driver_cost_day" type="number" step="0.01" class="admin-input" value="<?= $edit['driver_cost_day']??0 ?>"></div>
-          <div><label class="admin-label">Level</label>
-            <select name="level" class="admin-input">
+          <div><label class="admin-label" for="vehicle_key">Key</label>
+            <input id="vehicle_key" name="vehicle_key" data-av="required slug" class="admin-input" required value="<?= htmlspecialchars($edit['vehicle_key']??'') ?>"></div>
+          <div><label class="admin-label" for="name">Name</label>
+            <input id="name" name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
+          <div><label class="admin-label" for="capacity">Capacity (pax)</label>
+            <input id="capacity" name="capacity" data-av="required integer min:1" type="number" class="admin-input" value="<?= $edit['capacity']??6 ?>"></div>
+          <div><label class="admin-label" for="daily_rate">Daily Rate (USD)</label>
+            <input id="daily_rate" name="daily_rate" data-av="required min:0" type="number" step="0.01" class="admin-input" value="<?= $edit['daily_rate']??0 ?>"></div>
+          <div><label class="admin-label" for="fuel_cost_day">Fuel/Day (USD)</label>
+            <input id="fuel_cost_day" name="fuel_cost_day" type="number" step="0.01" class="admin-input" value="<?= $edit['fuel_cost_day']??0 ?>"></div>
+          <div><label class="admin-label" for="driver_cost_day">Driver/Day (USD)</label>
+            <input id="driver_cost_day" name="driver_cost_day" type="number" step="0.01" class="admin-input" value="<?= $edit['driver_cost_day']??0 ?>"></div>
+          <div><label class="admin-label" for="level">Level</label>
+            <select id="level" name="level" class="admin-input">
               <?php foreach(['standard'=>'Standard','comfort'=>'Comfort','luxury'=>'Luxury'] as $v=>$l): ?>
               <option value="<?= $v ?>" <?= ($edit['level']??'standard')===$v?'selected':'' ?>><?= $l ?></option>
               <?php endforeach; ?>

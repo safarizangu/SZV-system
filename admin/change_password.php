@@ -69,16 +69,16 @@ ob_start();
         <?= \App\Middleware\CsrfMiddleware::field() ?>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:1rem">
           <div class="admin-form-group">
-            <label class="admin-label">Current Password</label>
-            <input type="password" name="current_password" class="admin-input" required autocomplete="current-password">
+            <label class="admin-label" for="current_password">Current Password</label>
+            <input id="current_password" type="password" name="current_password" class="admin-input" required autocomplete="current-password">
           </div>
           <div class="admin-form-group">
-            <label class="admin-label">New Password <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(min 10 characters)</span></label>
-            <input type="password" name="new_password" class="admin-input" required autocomplete="new-password" minlength="10">
+            <label class="admin-label" for="new_password">New Password <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(min 10 characters)</span></label>
+            <input id="new_password" type="password" name="new_password" class="admin-input" required autocomplete="new-password" minlength="10">
           </div>
           <div class="admin-form-group">
-            <label class="admin-label">Confirm New Password</label>
-            <input type="password" name="confirm_password" class="admin-input" required autocomplete="new-password" minlength="10">
+            <label class="admin-label" for="confirm_password">Confirm New Password</label>
+            <input id="confirm_password" type="password" name="confirm_password" class="admin-input" required autocomplete="new-password" minlength="10">
           </div>
         </div>
         <div style="display:flex;gap:.75rem;margin-top:1.25rem">

@@ -70,18 +70,27 @@ try {
     )->fetchColumn();
 } catch(\Exception $e){}
 
-// Read reminders log
+// Read reminders log (DEVOPS-2: moved from /var/log/szv_reminders.log — a
+// root-owned path nothing in this codebase could ever write to —
+// to storage/logs/reminders.log, which api/cron/process_reminders.php
+// now actually writes via App\Helpers\AppLog).
 $logLines=[];
-$logFile='/var/log/szv_reminders.log';
+$logFile=__DIR__.'/../storage/logs/reminders.log';
 if(file_exists($logFile)){
     $l=array_filter(explode("\n",shell_exec("tail -15 ".escapeshellarg($logFile))??""));
     $logLines=array_reverse(array_values($l));
 }
 
-// Cron status
-$cronActive = false;
-$cronOutput = shell_exec('crontab -u www-data -l 2>/dev/null') ?? '';
-$cronActive = str_contains($cronOutput, 'process_reminders.php');
+// Cron status — previously ran `crontab -u www-data -l` and searched its
+// output for this script's name. That only ever reflects a *Unix*
+// crontab; on Hostinger shared hosting, cron jobs are configured through
+// hPanel instead (see docs/DEPLOYMENT_GUIDE.md Step 6) and are not a
+// crontab entry the PHP process can see at all — so this always reported
+// "Not Set" in production regardless of whether the cron was actually
+// running. Checking the log's own recency instead works the same way in
+// both environments and is a direct observation, not an assumption about
+// how cron happens to be configured.
+$cronActive = file_exists($logFile) && (time() - filemtime($logFile)) < 90 * 60; // ran hourly — 90min buffer
 
 $typeLabels = [
     'deposit_due' => 'Deposit Due',
@@ -305,30 +314,30 @@ ob_start();
         <input type="hidden" name="add_reminder" value="1">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
           <div>
-            <label class="admin-label">Booking Ref *</label>
-            <input name="booking_ref" class="admin-input" placeholder="SZV2026…" required>
+            <label class="admin-label" for="booking_ref">Booking Ref *</label>
+            <input id="booking_ref" name="booking_ref" class="admin-input" placeholder="SZV2026…" required>
           </div>
           <div>
-            <label class="admin-label">Type</label>
-            <select name="type" class="admin-input">
+            <label class="admin-label" for="type">Type</label>
+            <select id="type" name="type" class="admin-input">
               <?php foreach($typeLabels as $v=>$l): ?>
               <option value="<?= $v ?>"><?= $l ?></option>
               <?php endforeach; ?>
             </select>
           </div>
           <div>
-            <label class="admin-label">Send At *</label>
-            <input name="send_at" type="datetime-local" class="admin-input" required
+            <label class="admin-label" for="send_at">Send At *</label>
+            <input id="send_at" name="send_at" type="datetime-local" class="admin-input" required
                    min="<?= date('Y-m-d\TH:i') ?>">
           </div>
           <div>
-            <label class="admin-label">Subject</label>
-            <input name="subject" class="admin-input" placeholder="Leave blank for default…">
+            <label class="admin-label" for="subject">Subject</label>
+            <input id="subject" name="subject" class="admin-input" placeholder="Leave blank for default…">
           </div>
         </div>
         <div style="margin-bottom:.85rem">
-          <label class="admin-label">Custom Body (optional — leave blank for template)</label>
-          <textarea name="body" class="admin-input" rows="3" placeholder="Custom email body…"></textarea>
+          <label class="admin-label" for="body">Custom Body (optional — leave blank for template)</label>
+          <textarea id="body" name="body" class="admin-input" rows="3" placeholder="Custom email body…"></textarea>
         </div>
         <div style="display:flex;gap:.5rem">
           <button type="submit" class="admin-btn admin-btn--primary">Schedule Reminder</button>

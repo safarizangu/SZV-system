@@ -54,6 +54,22 @@
   /* Merged in from the former "UI ENHANCEMENT LAYER" second :root block */
   --gold:       #c8963e;
   --gold-light: #f5edd9;
+  /* A11Y-6/A11Y-7: --gold on white computes to 2.66:1, failing WCAG AA
+     (needs 4.5:1) for every text use of it — required-field asterisks,
+     breadcrumb links, star ratings, .team-role, and the whole "GOLD
+     ACCENT" label system below (including the white-background footer)
+     are all gold-text-on-white. This darker value (already used,
+     independently, as the @media print override for the same base color
+     further down in this file — "ensure gold doesn't print as invisible
+     yellow") computes to 6.37:1 on white, comfortably passing AA, so it's
+     reused here rather than inventing a second, inconsistent dark gold.
+     It is NOT a replacement for --gold itself: gold-on-dark-background
+     text (e.g. inside the hero's photo overlay) already measures a
+     healthy 7.44:1 and stays on --gold unchanged; non-text decorative
+     uses (borders, button fills, gradient lines) aren't subject to text
+     contrast rules at all and are also unchanged — --gold-text exists
+     specifically for gold TEXT on a LIGHT/white background. */
+  --gold-text:  #7a5a10;
   --gold-muted: rgba(200,150,62,.15);
   --radius-sm:  2px;
   --shadow-card: 0 2px 12px rgba(0,0,0,.06), 0 1px 4px rgba(0,0,0,.04);
@@ -1272,6 +1288,14 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
   .cta-banner-actions { flex-direction: column; align-items: center; }
   .cta-banner-actions .btn-sz-dark,
   .cta-banner-actions .btn-sz-outline { width: 100%; max-width: 300px; }
+  /* UIUX-1: this specific button's text ("View All Packages & Full
+     Itineraries") is long enough that the base .btn-sz-dark's
+     white-space:nowrap causes real horizontal page overflow at this
+     width (confirmed via scrollWidth: 382px content vs a 320-375px
+     viewport) — every other .btn-sz-dark on the site has short enough
+     text that nowrap never became a problem, so this is scoped to just
+     this one rather than loosening the base button rule everywhere. */
+  .view-all-packages-btn { width: 100%; max-width: 100%; white-space: normal; line-height: 1.4; text-align: center; }
   .testimonial    { padding: 1.25rem; }
   .testimonial-quote-mark { font-size: 3.5rem; }
   .section        { padding: 3rem 1.1rem; }
@@ -1826,7 +1850,7 @@ body {
    SECTION LABEL — gold accent instead of plain black
    ═══════════════════════════════════════════════════════════ */
 .section-label {
-  color: var(--gold) !important;
+  color: var(--gold-text) !important;
   font-size: .62rem;
   letter-spacing: .32em;
 }
@@ -1865,7 +1889,7 @@ body {
 
 /* Number — gold italic */
 .pkg-number {
-  color: var(--gold) !important;
+  color: var(--gold-text) !important;
   font-size: 2.2rem !important;
   font-style: italic;
   margin-bottom: 1rem !important;
@@ -1880,7 +1904,7 @@ body {
 
 /* Duration — gold uppercase label */
 .pkg-duration {
-  color: var(--gold) !important;
+  color: var(--gold-text) !important;
   font-size: .6rem !important;
   letter-spacing: .22em !important;
   margin-bottom: 1rem !important;
@@ -1915,7 +1939,7 @@ body {
   border-color: rgba(200,150,62,.25) !important;
   padding: 1.1rem var(--pad) !important;
 }
-.trust-stars { color: var(--gold) !important; }
+.trust-stars { color: var(--gold-text) !important; }
 .trust-item  { font-size: .72rem !important; }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1998,7 +2022,7 @@ body {
 }
 
 /* Required asterisk — gold */
-.sz-required { color: var(--gold) !important; }
+.sz-required { color: var(--gold-text) !important; }
 
 /* Alert improvements */
 .alert-sz.success {
@@ -2034,7 +2058,7 @@ body {
 
 /* Breadcrumb — gold separator */
 .breadcrumb-sz { color: #7a7a72 !important; }
-.breadcrumb-sz a { color: var(--gold) !important; font-weight: 500 !important; }
+.breadcrumb-sz a { color: var(--gold-text) !important; font-weight: 500 !important; }
 .breadcrumb-sz span { color: #c0c0b8 !important; }
 
 /* ═══════════════════════════════════════════════════════════
@@ -2055,7 +2079,7 @@ body {
 
 /* Stars in testimonials */
 .testimonial-stars {
-  color: var(--gold);
+  color: var(--gold-text);
   font-size: .85rem;
   letter-spacing: .05em;
   margin-bottom: .75rem;
@@ -2082,7 +2106,7 @@ body {
 }
 
 .team-name { font-size: 1.12rem !important; margin-bottom: .25rem !important; }
-.team-role { color: var(--gold) !important; font-size: .6rem !important; letter-spacing: .18em !important; margin-bottom: .75rem !important; }
+.team-role { color: var(--gold-text) !important; font-size: .6rem !important; letter-spacing: .18em !important; margin-bottom: .75rem !important; }
 .team-bio  { font-size: .84rem !important; color: #3d3d35 !important; font-weight: 400 !important; line-height: 1.72 !important; }
 
 .team-social a {
@@ -2098,7 +2122,7 @@ body {
 /* ═══════════════════════════════════════════════════════════
    ITINERARY DAY NUMBERS — gold accent
    ═══════════════════════════════════════════════════════════ */
-.itinerary-day-num   { color: var(--gold) !important; }
+.itinerary-day-num   { color: var(--gold-text) !important; }
 .itinerary-day-title { color: #0f0f0d !important; }
 .itinerary-day { border-bottom-color: var(--gray-2) !important; }
 
@@ -2224,15 +2248,15 @@ body {
 .footer-wa-btn { background: var(--green-trust) !important; }
 .footer-wa-btn:hover { background: #166534 !important; }
 
-.footer-book-btn { border-color: var(--gold) !important; color: var(--gold) !important; }
+.footer-book-btn { border-color: var(--gold) !important; color: var(--gold-text) !important; }
 .footer-book-btn:hover { border-color: var(--gold) !important; background: var(--gold) !important; color: #fff !important; }
 
 .footer-links a:hover,
 .footer-contact-item a:hover,
-.footer-bottom-links a:hover { color: var(--gold) !important; }
+.footer-bottom-links a:hover { color: var(--gold-text) !important; }
 
 .footer-licence { color: rgba(0,0,0,.65) !important; }
-.footer-col-title { color: var(--gold) !important; }
+.footer-col-title { color: var(--gold-text) !important; }
 
 /* Gold accent at top of footer */
 .sz-footer {
@@ -2703,7 +2727,7 @@ iframe[title*="Safari Zangu"] {
   font-weight: 600 !important;
   color: #3d3000 !important;
 }
-.trust-stars { color: var(--gold) !important; }
+.trust-stars { color: var(--gold-text) !important; }
 
 /* ── [D2] CARD CTAs — tap state on mobile ───────────────────── */
 @media (hover: none) {
@@ -2751,18 +2775,18 @@ iframe[title*="Safari Zangu"] {
 /* ══════════════════════════════════════════════════════════════
    GOLD ACCENT — consistent system
    ══════════════════════════════════════════════════════════════ */
-.section-label       { color: var(--gold) !important; }
+.section-label       { color: var(--gold-text) !important; }
 .divider-line        { background: var(--gold) !important; height: 2px !important; }
-.pkg-number          { color: var(--gold) !important; }
-.pkg-duration        { color: var(--gold) !important; }
-.itinerary-day-num   { color: var(--gold) !important; }
-.team-role           { color: var(--gold) !important; }
-.breadcrumb-sz a     { color: var(--gold) !important; }
+.pkg-number          { color: var(--gold-text) !important; }
+.pkg-duration        { color: var(--gold-text) !important; }
+.itinerary-day-num   { color: var(--gold-text) !important; }
+.team-role           { color: var(--gold-text) !important; }
+.breadcrumb-sz a     { color: var(--gold-text) !important; }
 .hero-tag            { color: rgba(252, 255, 255, 255.255) !important; }
 .sz-nav-cta          { background: var(--gold) !important; border-color: var(--gold) !important; }
 .sz-nav-cta:hover    { background: #b8842e !important; border-color: #b8842e !important; }
 .scroll-line         { background: linear-gradient(to bottom, transparent, var(--gold)) !important; }
-.footer-col-title    { color: var(--gold) !important; }
+.footer-col-title    { color: var(--gold-text) !important; }
 .sz-footer::before   { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg, transparent, var(--gold) 40%, var(--gold) 60%, transparent); opacity:.6; }
 .sz-footer           { position:relative; }
 
@@ -2867,6 +2891,18 @@ iframe[title*="Safari Zangu"] {
     grid-template-columns: 1fr !important;
     gap: 1.5rem !important;
   }
+  /* UIUX-6: ~5px horizontal overflow measured at 320px (scrollWidth 325
+     vs a 320px viewport), traced to the exact same cause as the admin
+     panel's own UIUX-2 fix — a CSS Grid item defaults to min-width:auto,
+     so it sizes to its content's intrinsic width instead of shrinking to
+     its track when content (here, the package name/overview text) is
+     wide enough to want more. views/packages.php's first .pkg-detail-grid
+     column is a plain, unclassed <div> (holds .pkg-section-header,
+     .pkg-price-teaser, .pkg-gallery, .include-exclude), which is why
+     every one of those measured the identical few-px overflow — they're
+     all just 100%-of-their-parent, and that parent was the one actually
+     too wide. */
+  .pkg-detail-grid > div { min-width: 0; }
   .pkg-section { padding: 2.5rem 0 !important; }
   .pkg-section-num { font-size: 3rem !important; }
   .pricing-row { padding: .75rem 1rem !important; }

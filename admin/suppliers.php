@@ -229,25 +229,25 @@ ob_start();
         <input type="hidden" name="save" value="1">
         <input type="hidden" name="id" value="<?= $edit['id'] ?? 0 ?>">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-          <div><label class="admin-label">Name</label>
-            <input name="name" class="admin-input" required value="<?= htmlspecialchars($edit['name'] ?? '') ?>"></div>
-          <div><label class="admin-label">Category</label>
-            <select name="category" class="admin-input">
+          <div><label class="admin-label" for="name">Name</label>
+            <input id="name" name="name" class="admin-input" required value="<?= htmlspecialchars($edit['name'] ?? '') ?>"></div>
+          <div><label class="admin-label" for="category">Category</label>
+            <select id="category" name="category" class="admin-input">
               <?php foreach ($categoryLabels as $v => $l): ?>
               <option value="<?= $v ?>" <?= ($edit['category'] ?? 'accommodation') === $v ? 'selected' : '' ?>><?= $l ?></option>
               <?php endforeach; ?>
             </select></div>
-          <div><label class="admin-label">Contact Person</label>
-            <input name="contact_person" class="admin-input" value="<?= htmlspecialchars($edit['contact_person'] ?? '') ?>"></div>
-          <div><label class="admin-label">Phone</label>
-            <input name="phone" class="admin-input" value="<?= htmlspecialchars($edit['phone'] ?? '') ?>"></div>
-          <div><label class="admin-label">Email</label>
-            <input name="email" type="email" class="admin-input" value="<?= htmlspecialchars($edit['email'] ?? '') ?>"></div>
-          <div><label class="admin-label">Payment Terms</label>
-            <input name="payment_terms" class="admin-input" placeholder="e.g. Net 30, 50% deposit" value="<?= htmlspecialchars($edit['payment_terms'] ?? '') ?>"></div>
+          <div><label class="admin-label" for="contact_person">Contact Person</label>
+            <input id="contact_person" name="contact_person" class="admin-input" value="<?= htmlspecialchars($edit['contact_person'] ?? '') ?>"></div>
+          <div><label class="admin-label" for="phone">Phone</label>
+            <input id="phone" name="phone" class="admin-input" value="<?= htmlspecialchars($edit['phone'] ?? '') ?>"></div>
+          <div><label class="admin-label" for="email">Email</label>
+            <input id="email" name="email" type="email" class="admin-input" value="<?= htmlspecialchars($edit['email'] ?? '') ?>"></div>
+          <div><label class="admin-label" for="payment_terms">Payment Terms</label>
+            <input id="payment_terms" name="payment_terms" class="admin-input" placeholder="e.g. Net 30, 50% deposit" value="<?= htmlspecialchars($edit['payment_terms'] ?? '') ?>"></div>
           <div>
-            <label class="admin-label">Contract <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(PDF, max <?= SUPPLIER_CONTRACT_MAX_MB ?>MB)</span></label>
-            <input type="file" name="contract" accept="application/pdf" class="admin-input">
+            <label class="admin-label" for="contract">Contract <span style="color:var(--gray-500);font-weight:600;text-transform:none;letter-spacing:0">(PDF, max <?= SUPPLIER_CONTRACT_MAX_MB ?>MB)</span></label>
+            <input id="contract" type="file" name="contract" accept="application/pdf" class="admin-input">
             <?php if (!empty($edit['contract_filename'])): ?>
             <div style="display:flex;align-items:center;gap:.6rem;margin-top:.5rem;font-size:.75rem">
               <a href="../api/supplier_contract.php?id=<?= $edit['id'] ?>" target="_blank" style="color:var(--gold)">
@@ -266,8 +266,8 @@ ob_start();
             </label>
           </div>
         </div>
-        <div style="margin-top:1rem"><label class="admin-label">Notes</label>
-          <textarea name="notes" class="admin-input" rows="2"><?= htmlspecialchars($edit['notes'] ?? '') ?></textarea></div>
+        <div style="margin-top:1rem"><label class="admin-label" for="notes">Notes</label>
+          <textarea id="notes" name="notes" class="admin-input" rows="2"><?= htmlspecialchars($edit['notes'] ?? '') ?></textarea></div>
         <div style="margin-top:1rem;display:flex;gap:.5rem">
           <button class="admin-btn admin-btn--primary">Save</button>
           <button type="button" onclick="closeFormModal()" class="admin-btn admin-btn--outline">Cancel</button>

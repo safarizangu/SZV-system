@@ -280,34 +280,34 @@ ob_start();
     <div class="admin-modal-body">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:.85rem">
         <div>
-          <label class="admin-label">Full Name *</label>
+          <label class="admin-label" for="lf-name">Full Name *</label>
           <input id="lf-name" class="admin-input" placeholder="Jane Smith" required>
         </div>
         <div>
-          <label class="admin-label">Email *</label>
+          <label class="admin-label" for="lf-email">Email *</label>
           <input id="lf-email" type="email" class="admin-input" placeholder="jane@email.com" required>
         </div>
         <div>
-          <label class="admin-label">Phone (WhatsApp)</label>
+          <label class="admin-label" for="lf-phone">Phone (WhatsApp)</label>
           <input id="lf-phone" class="admin-input" placeholder="+44 7700 900000">
         </div>
         <div>
-          <label class="admin-label">Country</label>
+          <label class="admin-label" for="lf-country">Country</label>
           <input id="lf-country" class="admin-input" placeholder="United Kingdom">
         </div>
         <div>
-          <label class="admin-label">Travel Date</label>
+          <label class="admin-label" for="lf-travel-date">Travel Date</label>
           <input id="lf-travel-date" type="date" class="admin-input"
                  min="<?= date('Y-m-d') ?>"
                  style="font-family:monospace">
           <small style="font-size:.65rem;color:var(--gray-500)">dd/mm/yyyy — shown as date to client</small>
         </div>
         <div>
-          <label class="admin-label">Party Size (Adults)</label>
+          <label class="admin-label" for="lf-adults">Party Size (Adults)</label>
           <input id="lf-adults" type="number" min="1" max="20" value="2" class="admin-input">
         </div>
         <div>
-          <label class="admin-label">Package Interest</label>
+          <label class="admin-label" for="lf-package">Package Interest</label>
           <select id="lf-package" class="admin-input">
             <option value="">— Select package —</option>
             <?php foreach ($packages as $pkg): ?>
@@ -317,7 +317,7 @@ ob_start();
           </select>
         </div>
         <div>
-          <label class="admin-label">Budget Range (USD)</label>
+          <label class="admin-label" for="lf-budget">Budget Range (USD)</label>
           <select id="lf-budget" class="admin-input">
             <option value="">— Select range —</option>
             <option value="Under $1,000">Under $1,000</option>
@@ -330,7 +330,7 @@ ob_start();
           </select>
         </div>
         <div>
-          <label class="admin-label">Lead Source</label>
+          <label class="admin-label" for="lf-source">Lead Source</label>
           <select id="lf-source" class="admin-input">
             <option value="website">Website</option>
             <option value="whatsapp">WhatsApp</option>
@@ -345,7 +345,7 @@ ob_start();
           </select>
         </div>
         <div>
-          <label class="admin-label">Assign To</label>
+          <label class="admin-label" for="lf-assigned">Assign To</label>
           <select id="lf-assigned" class="admin-input">
             <option value="">— Unassigned —</option>
             <?php foreach ($admins as $adm): ?>
@@ -355,7 +355,7 @@ ob_start();
         </div>
       </div>
       <div style="margin-bottom:1.25rem">
-        <label class="admin-label">Notes</label>
+        <label class="admin-label" for="lf-notes">Notes</label>
         <textarea id="lf-notes" class="admin-input" rows="3"
                   placeholder="Any additional details about this lead..."></textarea>
       </div>
