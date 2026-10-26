@@ -1288,6 +1288,14 @@ textarea.form-control-sz { resize: vertical; min-height: 130px; line-height: 1.6
   .cta-banner-actions { flex-direction: column; align-items: center; }
   .cta-banner-actions .btn-sz-dark,
   .cta-banner-actions .btn-sz-outline { width: 100%; max-width: 300px; }
+  /* UIUX-1: this specific button's text ("View All Packages & Full
+     Itineraries") is long enough that the base .btn-sz-dark's
+     white-space:nowrap causes real horizontal page overflow at this
+     width (confirmed via scrollWidth: 382px content vs a 320-375px
+     viewport) — every other .btn-sz-dark on the site has short enough
+     text that nowrap never became a problem, so this is scoped to just
+     this one rather than loosening the base button rule everywhere. */
+  .view-all-packages-btn { width: 100%; max-width: 100%; white-space: normal; line-height: 1.4; text-align: center; }
   .testimonial    { padding: 1.25rem; }
   .testimonial-quote-mark { font-size: 3.5rem; }
   .section        { padding: 3rem 1.1rem; }
@@ -2883,6 +2891,18 @@ iframe[title*="Safari Zangu"] {
     grid-template-columns: 1fr !important;
     gap: 1.5rem !important;
   }
+  /* UIUX-6: ~5px horizontal overflow measured at 320px (scrollWidth 325
+     vs a 320px viewport), traced to the exact same cause as the admin
+     panel's own UIUX-2 fix — a CSS Grid item defaults to min-width:auto,
+     so it sizes to its content's intrinsic width instead of shrinking to
+     its track when content (here, the package name/overview text) is
+     wide enough to want more. views/packages.php's first .pkg-detail-grid
+     column is a plain, unclassed <div> (holds .pkg-section-header,
+     .pkg-price-teaser, .pkg-gallery, .include-exclude), which is why
+     every one of those measured the identical few-px overflow — they're
+     all just 100%-of-their-parent, and that parent was the one actually
+     too wide. */
+  .pkg-detail-grid > div { min-width: 0; }
   .pkg-section { padding: 2.5rem 0 !important; }
   .pkg-section-num { font-size: 3rem !important; }
   .pricing-row { padding: .75rem 1rem !important; }

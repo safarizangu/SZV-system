@@ -820,7 +820,7 @@ ob_start();
 
       <!-- Read-only summary — itemized, matching what ItineraryQuoteBuilder
            actually computes (see calcTotals() below) -->
-      <div>
+      <div class="admin-table-wrap"> <!-- UIUX-3 -->
         <table style="width:100%;font-size:.85rem;border-collapse:collapse">
           <thead>
             <tr style="border-bottom:2px solid var(--gray-200)">

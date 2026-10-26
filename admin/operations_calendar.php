@@ -235,7 +235,7 @@ ob_start();
     <?php if (!$dayBookings): ?>
     <p style="color:var(--gray-500);font-size:.85rem;margin-bottom:1.25rem">No departures scheduled.</p>
     <?php else: ?>
-    <div style="overflow-x:auto;margin-bottom:1.25rem">
+    <div class="admin-table-wrap" style="margin-bottom:1.25rem"> <!-- UIUX-3: was an equivalent inline overflow-x:auto, now the standard class -->
     <table style="width:100%;min-width:640px;font-size:.85rem;border-collapse:collapse">
       <thead><tr style="border-bottom:2px solid var(--gray-200)">
         <th style="text-align:left;padding:.4rem 0;font-size:.62rem;text-transform:uppercase;color:var(--gray-500)">Ref</th>

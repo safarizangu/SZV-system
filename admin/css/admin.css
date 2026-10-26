@@ -733,6 +733,23 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
    RESPONSIVE BREAKPOINTS
    ═══════════════════════════════════════════════════════════════ */
 
+/* UIUX-2: a fixed-px-track inline grid (e.g. "260px 1fr", a form
+   sidebar + main-content split, or admin/index.php's "1.3fr 1fr"
+   dashboard split) keeps its 2-column layout at any width wider than
+   ~768px — but grid items default to min-width:auto, so a column's own
+   content doesn't shrink to fit its track and can push the whole page
+   wider instead. Originally scoped to @media (max-width:1024px) only
+   (found live on admin/itineraries.php's 260px+1fr form split,
+   overflowing ~60px at that width) — but the identical failure mode
+   also showed up on admin/index.php's dashboard grid at 1440px desktop,
+   because this fix was never applied above 1024px. Moved out of the
+   media query entirely: per the original rule's own reasoning, there's
+   no visual change at wider sizes where there's room to spare either
+   way, so there's no reason this needs a width ceiling at all. */
+div[style*="display:grid"] > * {
+  min-width: 0;
+}
+
 /* ── LARGE DESKTOP (>1280px) ────────────────────────────────── */
 @media (min-width: 1280px) {
   .metrics-grid { grid-template-columns: repeat(4, 1fr); }
@@ -747,22 +764,6 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
   .admin-content  { padding: 1.25rem 1.5rem; }
   .admin-nav-link { font-size: .68rem; padding: .55rem 1rem; }
   .admin-logo-mark{ font-size: 1.2rem; }
-
-  /* A fixed-px-track inline grid (e.g. "260px 1fr", a form sidebar +
-     main-content split) still keeps its 2-column desktop layout at this
-     breakpoint — unlike ≤768px below, which collapses these fully — but
-     the fixed 240px sidebar nav plus its own padding already eats a
-     chunk of the 1024px viewport, and grid items default to
-     min-width:auto, so the 1fr column's own content doesn't shrink to
-     fit what's actually left and pushes the page wider instead (found
-     live on admin/itineraries.php: a 260px+1fr form split overflowing
-     by ~60px at exactly this width). min-width:0 is the real fix: it
-     lets the column honor its track instead of its content's intrinsic
-     width, with no visual change at wider desktop sizes where there's
-     room to spare either way. */
-  div[style*="display:grid"] > * {
-    min-width: 0;
-  }
 
   /* The Day-by-Day Itinerary's Accommodation/Vehicle/Park row (quotation_new.php,
      package_edit.php, itinerary_edit.php) is the densest layout in the
@@ -905,8 +906,10 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
   .metric-value { font-size: 1.6rem; }
 
   /* Full-width buttons — keep tappable, don't shrink below touch size
-     (this used to shrink font/padding here; min-height added instead) */
-  .admin-btn { min-height: 40px; padding: .5rem .85rem; }
+     (this used to shrink font/padding here; min-height added instead).
+     UIUX-5: bumped from 40px to the full 44px WCAG 2.5.5/Apple HIG
+     touch-target minimum. */
+  .admin-btn { min-height: 44px; padding: .5rem .85rem; }
 
   /* Search bar stacks */
   .search-bar { flex-direction: column; }

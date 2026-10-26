@@ -299,6 +299,12 @@ ob_start();
   <div class="admin-card">
     <div class="admin-card-header"><h2>Event Types</h2></div>
     <div class="admin-card-body" style="padding:0">
+      <!-- UIUX-3: wrapped for a horizontal-scroll safety net, consistent
+           with every other admin table — min-width:0 above still lets
+           this table shrink to fit its 1-of-3 grid column at normal
+           content widths; the wrap only ever does anything if content
+           (e.g. a long event name) actually needs more room than that. -->
+      <div class="admin-table-wrap">
       <table class="admin-table" style="min-width:0">
         <thead><tr><th>Event</th><th>Count</th><th>Unique</th></tr></thead>
         <tbody>
@@ -325,6 +331,7 @@ ob_start();
         <?php if(empty($eventBreakdown)): ?><tr><td colspan="3" class="admin-empty">No events.</td></tr><?php endif; ?>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 
@@ -332,6 +339,7 @@ ob_start();
   <div class="admin-card">
     <div class="admin-card-header"><h2>Top Pages</h2></div>
     <div class="admin-card-body" style="padding:0">
+      <div class="admin-table-wrap"> <!-- UIUX-3 -->
       <table class="admin-table" style="min-width:0">
         <thead><tr><th>Page</th><th>Views</th><th>Uniq</th></tr></thead>
         <tbody>
@@ -348,6 +356,7 @@ ob_start();
         <?php if(empty($topPages)): ?><tr><td colspan="3" class="admin-empty">No page views.</td></tr><?php endif; ?>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 
@@ -355,6 +364,7 @@ ob_start();
   <div class="admin-card">
     <div class="admin-card-header"><h2>Package Interest</h2></div>
     <div class="admin-card-body" style="padding:0">
+      <div class="admin-table-wrap"> <!-- UIUX-3 -->
       <table class="admin-table" style="min-width:0">
         <thead><tr><th>Package</th><th>Views</th><th>Books</th></tr></thead>
         <tbody>
@@ -368,6 +378,7 @@ ob_start();
         <?php if(empty($topPackages)): ?><tr><td colspan="3" class="admin-empty">No package data.</td></tr><?php endif; ?>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 

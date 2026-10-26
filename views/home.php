@@ -296,7 +296,7 @@ try {
     </div>
 
     <div class="text-center mt-5 fade-in">
-      <a href="<?= BASE_PATH ?>/packages.php" class="btn-sz-dark">View All Packages & Full Itineraries</a>
+      <a href="<?= BASE_PATH ?>/packages.php" class="btn-sz-dark view-all-packages-btn">View All Packages & Full Itineraries</a>
     </div>
   </div>
 </section>
