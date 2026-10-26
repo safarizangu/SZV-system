@@ -89,24 +89,18 @@ if (in_array($booking['payment_status'], ['pending','deposit_paid'])) {
         . "Reference: {$ref}";
 }
 
-// ── Cost breakdown with VAT ───────────────────────────────
-$rawTotal   = (float)$booking['total_amount'];
-$rawDeposit = (float)$booking['deposit_amount'];
-
-// Reverse-calculate: total includes VAT (18%)
-// subtotal = total / (1 + VAT_RATE)
-$vatRate    = defined('VAT_RATE') ? (float)VAT_RATE : 0.18;
-$subtotal   = round($rawTotal / (1 + $vatRate), 2);
-$vatAmount  = round($rawTotal - $subtotal, 2);
-
-// Service charge (5%) is part of subtotal
-$svcRate    = defined('SERVICE_CHARGE_RATE') ? (float)SERVICE_CHARGE_RATE : 0.05;
-$baseAmount = round($subtotal / (1 + $svcRate), 2);
-$svcAmount  = round($subtotal - $baseAmount, 2);
-
-$balanceDue = round($rawTotal - $rawDeposit, 2);
-$travelers  = (int)$booking['travelers'];
-$perPerson  = $travelers > 0 ? round($rawTotal / $travelers, 2) : $rawTotal;
+// ── Cost breakdown with VAT (ARCH-3: shared with views/confirmation.php) ──
+$breakdown  = \App\Services\BookingCostBreakdown::compute($booking);
+$rawTotal   = $breakdown['raw_total'];
+$rawDeposit = $breakdown['raw_deposit'];
+$vatRate    = $breakdown['vat_rate'];
+$subtotal   = $breakdown['subtotal'];
+$vatAmount  = $breakdown['vat_amount'];
+$baseAmount = $breakdown['base_amount'];
+$svcAmount  = $breakdown['service_charge'];
+$balanceDue = $breakdown['balance_due'];
+$travelers  = $breakdown['travelers'];
+$perPerson  = $breakdown['per_person'] ?: $rawTotal;
 
 ob_end_clean();
 echo json_encode([

@@ -882,7 +882,17 @@ ob_start();
   </div>
 </div>
 
+<script src="js/pricing_shared.js"></script>
 <script>
+// ARCH-1: this page's DOM-id convention, read by the shared functions in
+// js/pricing_shared.js (fillDayAcc, fillDayVeh, fillDayPark,
+// filterDayOptions, addDayActivity, renumberDays).
+window.PE_IDS = {
+  adults: 'pe_adults', children: 'pe_children', duration: 'duration_days',
+  accList: 'pe-acc-list-', vehList: 'pe-veh-list-', parkList: 'pe-park-list-', actList: 'pe-act-list-'
+};
+window.PE_CLOSE_ICON_HTML = <?= json_encode(\App\Helpers\AdminIcon::render('close', 14)) ?>;
+
 var fmt = function(n){ return '$'+Math.round(n).toLocaleString('en-US'); };
 // Single source of truth is config/app.php's VAT_RATE constant — mirrored
 // here instead of hardcoding 0.18 so this preview can't drift from it.
@@ -1127,25 +1137,6 @@ function calcMargin() {
   el.style.color = margin < 20 ? '#dc2626' : (margin < 40 ? '#b45309' : '#16a34a');
 }
 
-function escapeHtml(s) {
-  var d = document.createElement('div');
-  d.textContent = s == null ? '' : String(s);
-  return d.innerHTML;
-}
-
-// Park child fee, looked up from PE_PARKS (same reference data used for
-// the datalists) — mirrors ItineraryQuoteBuilder::lookupParkChildFee()
-// server-side so this live preview matches the real saved calculation.
-function parkChildFee(parkName) {
-  for (var i=0; i<PE_PARKS.length; i++) {
-    if (PE_PARKS[i].name === parkName) return PE_PARKS[i].childFee||0;
-  }
-  return 0;
-}
-function peParkLookup(parkName) {
-  for (var i=0; i<PE_PARKS.length; i++) if (PE_PARKS[i].name === parkName) return PE_PARKS[i];
-  return null;
-}
 
 // ── Includes/Excludes sync ────────────────────────────────────
 // Responsive sync: every itinerary-affecting change (accommodation,
@@ -1160,10 +1151,6 @@ function peParkLookup(parkName) {
 var includesDirty = <?= json_encode($includes !== '') ?>, excludesDirty = <?= json_encode($excludes !== '') ?>;
 var autoSyncTimer = null, autoSyncInProgress = false;
 
-function scheduleAutoSync() {
-  if (autoSyncTimer) clearTimeout(autoSyncTimer);
-  autoSyncTimer = setTimeout(function(){ syncIncludesExcludesCore(false); }, 600);
-}
 
 (function(){
   var incEl = document.getElementById('includes_ta'), excEl = document.getElementById('excludes_ta');
@@ -1171,7 +1158,6 @@ function scheduleAutoSync() {
   if (excEl) excEl.addEventListener('input', function(){ if (!autoSyncInProgress) excludesDirty = true; });
 })();
 
-function syncIncludesExcludes() { return syncIncludesExcludesCore(true); }
 
 function syncIncludesExcludesCore(force) {
   autoSyncInProgress = true;
@@ -1248,22 +1234,9 @@ function syncIncludesExcludesCore(force) {
 // already use, output once here so a freshly-added day (when Duration is
 // increased) gets the exact same autocomplete options.
 var PE_ACCS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'rate'=>max((float)$a['rate_per_room'],(float)$a['rate_per_person']),'ratePerPerson'=>(float)$a['rate_per_person'],'singleSupp'=>(float)$a['single_supplement'],'childRate'=>(float)$a['child_rate'],'level'=>$a['level'],'location'=>$a['location']??''], $accommodations)) ?>;
-function peAccLookup(accName) {
-  for (var i=0; i<PE_ACCS.length; i++) if (PE_ACCS[i].name === accName) return PE_ACCS[i];
-  return null;
-}
 var PE_VEHS  = <?= json_encode(array_map(fn($v) => ['name'=>$v['name'],'id'=>(int)$v['id'],'rate'=>(float)$v['daily_rate']+(float)$v['fuel_cost_day']+(float)$v['driver_cost_day']], $vehicles)) ?>;
 var PE_PARKS = <?= json_encode(array_map(fn($p) => ['name'=>$p['name'],'id'=>(int)$p['id'],'fee'=>(float)$p['adult_fee'],'childFee'=>(float)$p['child_fee'],'vehicleFee'=>(float)$p['vehicle_fee'],'location'=>$p['location']??''], $parkFees)) ?>;
 var PE_ACTS  = <?= json_encode(array_map(fn($a) => ['name'=>$a['name'],'id'=>(int)$a['id'],'price'=>(float)$a['price'],'location'=>$a['location']??''], $activities_db)) ?>;
-
-// Whether the first day-block's "arrival day" checkbox is checked — index
-// 0 always already exists in the DOM (a package itinerary can never have
-// 0 days), so newly-added days just need to read it, not track it.
-function isArrivalDayFlagged() {
-  var first = document.querySelector('#itinerary-rows .day-block');
-  var cb = first ? first.querySelector('.day-arrival-toggle input[type=checkbox]') : null;
-  return !!(cb && cb.checked);
-}
 
 function peDayBlockHtml(i) {
   var accOpts  = PE_ACCS.map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-rate="'+a.rate+'">'; }).join('');
@@ -1396,119 +1369,6 @@ async function deleteDay(btn) {
   calcItinTotal();
 }
 
-function renumberDays() {
-  var blocks = document.querySelectorAll('.day-block');
-  var arrival = isArrivalDayFlagged();
-  blocks.forEach(function (block, idx) {
-    var toggle = block.querySelector('.day-arrival-toggle');
-    if (toggle) toggle.style.display = (idx === 0) ? 'inline-flex' : 'none';
-
-    var n2 = (idx === 0 && arrival) ? 0 : (arrival ? idx : idx + 1);
-    var dayLabel = block.querySelector('.day-num-label');
-    if (dayLabel) dayLabel.textContent = 'Day ' + n2;
-    var actsLabel = block.querySelector('.day-acts-label');
-    if (actsLabel) actsLabel.textContent = 'Activities (Day ' + n2 + ')';
-    var otherLabel = block.querySelector('.day-other-label');
-    if (otherLabel) otherLabel.textContent = 'Other Costs (Day ' + n2 + ')';
-    block.dataset.day = idx;
-  });
-  var count = blocks.length;
-  var durInput = document.getElementById('duration_days');
-  if (durInput) durInput.value = count;
-  document.getElementById('itinerary-count').textContent = count + ' day' + (count!==1?'s':'') + ' · matches duration above';
-}
-
-// ── Per-day auto-fill from datalists ───────────────────────
-function fillDayAcc(input, dayIdx) {
-  var opts=document.querySelectorAll('#pe-acc-list-'+dayIdx+' option');
-  for(var i=0;i<opts.length;i++){
-    if(opts[i].value===input.value){
-      var block=input.closest('.day-block');
-      if(opts[i].dataset.rate) block.querySelector('.day-acc-rate').value=opts[i].dataset.rate;
-      if(opts[i].dataset.id)   block.querySelector('.day-acc-id').value=opts[i].dataset.id;
-      calcItinTotal(); break;
-    }
-  }
-}
-function fillDayVeh(input, dayIdx) {
-  var opts=document.querySelectorAll('#pe-veh-list-'+dayIdx+' option');
-  for(var i=0;i<opts.length;i++){
-    if(opts[i].value===input.value){
-      var block=input.closest('.day-block');
-      if(opts[i].dataset.rate) block.querySelector('.day-veh-rate').value=opts[i].dataset.rate;
-      if(opts[i].dataset.id)   block.querySelector('.day-veh-id').value=opts[i].dataset.id;
-      calcItinTotal(); break;
-    }
-  }
-}
-function fillDayPark(input, dayIdx) {
-  var opts=document.querySelectorAll('#pe-park-list-'+dayIdx+' option');
-  for(var i=0;i<opts.length;i++){
-    if(opts[i].value===input.value){
-      var block=input.closest('.day-block');
-      if(opts[i].dataset.fee) block.querySelector('.day-park-fee').value=opts[i].dataset.fee;
-      calcItinTotal(); break;
-    }
-  }
-}
-
-// ── Smart location/level filter for Accommodation + Park options ────
-// Narrows each day's Accommodation and Park/Area datalist down to the
-// entries whose own `location` shares a significant word with what's
-// typed in that day's own Location field — not a plain substring check,
-// because this app's location strings are sub-area names ("Central
-// Serengeti", "Northern Serengeti", "Western Serengeti Corridor") that
-// don't contain one another as substrings even though they're all
-// "Serengeti"; a pure indexOf() match would silently show nothing for
-// most real combinations. Tokenizing both sides and matching on any
-// shared 4+ letter word (park/region names) catches all of these.
-// Further narrows Accommodation by the package's overall Accommodation
-// Level. Only trims the *suggestions* — the field stays free text via
-// <datalist>. Looked up by the day's stable build index (data-idx / the
-// N in pe-acc-list-N, pe-park-list-N), not DOM position — those ids
-// never change even after a day is deleted and the rest renumber.
-function locMatch(a, b) {
-  if (!a || !b) return true;
-  var ta = a.toLowerCase().match(/[a-z]{4,}/g) || [];
-  var tb = b.toLowerCase().match(/[a-z]{4,}/g) || [];
-  for (var i = 0; i < ta.length; i++) { if (tb.indexOf(ta[i]) !== -1) return true; }
-  return false;
-}
-
-function filterDayOptions(dayIdx) {
-  var locInput = document.querySelector('.day-location[data-idx="'+dayIdx+'"]');
-  var loc      = locInput ? locInput.value : '';
-  var level    = (document.querySelector('[name="accommodation_level"]')||{}).value || '';
-
-  var accList = document.getElementById('pe-acc-list-'+dayIdx);
-  if (accList) {
-    accList.innerHTML = PE_ACCS
-      .filter(function(a){ return (!level || a.level===level) && locMatch(loc, a.location); })
-      .map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-rate="'+a.rate+'">'; })
-      .join('');
-  }
-  var parkList = document.getElementById('pe-park-list-'+dayIdx);
-  if (parkList) {
-    parkList.innerHTML = PE_PARKS
-      .filter(function(p){ return locMatch(loc, p.location); })
-      .map(function(p){ return '<option value="'+p.name+'" data-id="'+p.id+'" data-fee="'+p.fee+'">'; })
-      .join('');
-  }
-  var actList = document.getElementById('pe-act-list-'+dayIdx);
-  if (actList) {
-    actList.innerHTML = PE_ACTS
-      .filter(function(a){ return locMatch(loc, a.location); })
-      .map(function(a){ return '<option value="'+a.name+'" data-id="'+a.id+'" data-price="'+a.price+'">'; })
-      .join('');
-  }
-}
-
-function filterAllDayOptions() {
-  document.querySelectorAll('.day-location').forEach(function(input){
-    filterDayOptions(input.dataset.idx);
-  });
-}
-
 // ── Calculate itinerary total across all days (mirrors
 //    admin/itineraries.php's calcItinTotal — same field roles, same
 //    once-per-property accommodation/vehicle counting) ────────────
@@ -1558,73 +1418,6 @@ function calcItinTotal() {
   // Children.
   calcTotals();
   scheduleAutoSync();
-}
-
-// ── Activities per day ────────────────────────────────────
-function addDayActivity(dayIdx) {
-  var container = document.getElementById('day-acts-'+dayIdx);
-  var defaultQty = (parseInt((document.getElementById('pe_adults')||{}).value)||1) + (parseInt((document.getElementById('pe_children')||{}).value)||0);
-  var div = document.createElement('div');
-  div.className='act-item';
-  div.style.cssText='display:grid;grid-template-columns:2fr 80px 60px 90px auto;gap:.35rem;align-items:end;margin-bottom:.4rem';
-  div.innerHTML='<input class="admin-input day-act-name" list="pe-act-list-'+dayIdx+'" placeholder="Activity name" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
-    +'<input type="number" step="0.01" class="admin-input day-act-price" value="0" placeholder="$/pp" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
-    +'<input type="number" min="1" class="admin-input day-act-qty" title="How many travelers this activity covers" value="'+defaultQty+'" placeholder="Qty" style="font-size:.78rem" oninput="saveDayActs('+dayIdx+')">'
-    +'<select class="admin-input day-act-type" style="font-size:.72rem" onchange="saveDayActs('+dayIdx+')"><option value="included">Included</option><option value="optional">Optional</option></select>'
-    +'<button type="button" onclick="this.closest(\'.act-item\').remove();saveDayActs('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render("close", 14) ?></button>';
-  container.appendChild(div);
-  div.querySelector('.day-act-name').addEventListener('change', function(){
-    var opts=document.querySelectorAll('#pe-act-list-'+dayIdx+' option');
-    for(var i=0;i<opts.length;i++){
-      if(opts[i].value===this.value && opts[i].dataset.price){
-        div.querySelector('.day-act-price').value=opts[i].dataset.price;
-        saveDayActs(dayIdx); break;
-      }
-    }
-  });
-}
-
-function saveDayActs(dayIdx) {
-  var container = document.getElementById('day-acts-'+dayIdx);
-  var acts=[];
-  container.querySelectorAll('.act-item').forEach(function(row){
-    var name=row.querySelector('.day-act-name').value.trim();
-    if(!name) return;
-    acts.push({name:name, price_pp:parseFloat(row.querySelector('.day-act-price').value)||0, qty:parseInt(row.querySelector('.day-act-qty').value)||1, type:row.querySelector('.day-act-type').value});
-  });
-  document.getElementById('acts-json-'+dayIdx).value=JSON.stringify(acts);
-  calcItinTotal();
-}
-
-// ── Other items per day ───────────────────────────────────
-function addDayOther(dayIdx) {
-  var container=document.getElementById('day-other-'+dayIdx);
-  var div=document.createElement('div');
-  div.className='other-item';
-  div.style.cssText='border:1px solid var(--gray-200);border-radius:2px;padding:.5rem;margin-bottom:.5rem';
-  div.innerHTML='<div style="display:flex;gap:.35rem;margin-bottom:.35rem">'
-      +'<input class="admin-input day-other-name" placeholder="Item name" style="font-size:.78rem;flex:1" oninput="saveDayOther('+dayIdx+')">'
-      +'<button type="button" onclick="this.closest(\'.other-item\').remove();saveDayOther('+dayIdx+')" class="admin-icon-btn admin-icon-btn--danger"><?= \App\Helpers\AdminIcon::render("close", 14) ?></button>'
-    +'</div>'
-    +'<div style="display:grid;grid-template-columns:70px 55px 1fr 150px;gap:.35rem;align-items:center">'
-      +'<input type="number" step="0.01" class="admin-input day-other-amount" value="0" placeholder="$/unit" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
-      +'<input type="number" min="1" class="admin-input day-other-qty" title="Number of units" value="1" placeholder="Qty" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
-      +'<input class="admin-input day-other-unit" title="What a unit is called (e.g. Box, Trip, Vehicle) — type your own, independent of traveler count" placeholder="Unit name (optional)" style="font-size:.78rem" oninput="saveDayOther('+dayIdx+')">'
-      +'<select class="admin-input day-other-perpax" style="font-size:.72rem" title="Whether this cost multiplies by the number of travelers" onchange="saveDayOther('+dayIdx+')"><option value="0">Flat (not per guest)</option><option value="1">× Number of guests</option></select>'
-    +'</div>';
-  container.appendChild(div);
-}
-
-function saveDayOther(dayIdx) {
-  var container=document.getElementById('day-other-'+dayIdx);
-  var items=[];
-  container.querySelectorAll('.other-item').forEach(function(row){
-    var name=row.querySelector('.day-other-name').value.trim();
-    if(!name) return;
-    items.push({name:name, amount:parseFloat(row.querySelector('.day-other-amount').value)||0, qty:parseInt(row.querySelector('.day-other-qty').value)||1, unit:(row.querySelector('.day-other-unit')||{}).value||'', per_pax:row.querySelector('.day-other-perpax').value==='1'});
-  });
-  document.getElementById('other-json-'+dayIdx).value=JSON.stringify(items);
-  calcItinTotal();
 }
 
 // ── Add Vehicle to DB ──────────────────────────────────────

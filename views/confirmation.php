@@ -26,59 +26,20 @@ if ($ref && $date) {
     }
 }
 
-// ── Cost breakdown ────────────────────────────────────────
-$rawTotal   = $booking ? (float)$booking['total_amount']   : 0;
-$rawDeposit = $booking ? (float)$booking['deposit_amount'] : 0;
-$vatRate    = defined('VAT_RATE') ? (float)VAT_RATE : 0.18;
-$subtotal   = round($rawTotal / (1 + $vatRate), 2);
-$vatAmount  = round($rawTotal - $subtotal, 2);
-$balanceDue = round($rawTotal - $rawDeposit, 2);
-$travelers  = $booking ? (int)$booking['travelers'] : 0;
-$bkAdults   = $booking ? (int)($booking['adults']   ?? $travelers) : 0;
-$bkChildren = $booking ? (int)($booking['children'] ?? 0) : 0;
-$perPerson  = ($travelers > 0 && $rawTotal > 0) ? round($rawTotal / $travelers, 2) : 0;
-
-// Service Charge — a real dollar amount everywhere else in the app
-// (admin/package_edit.php's Adults/Children rates, carried through to
-// the actual quotation line items), never a percentage. This used to
-// reverse-derive a synthetic "5% of subtotal" figure here instead, which
-// had nothing to do with what was actually charged. Preferred source is
-// the booking's own linked quotation's real line items (exactly what
-// was priced); falls back to recomputing from the package's own rates
-// when there's no linked quotation; only reaches for the old percentage
-// guess if neither is available (very old data with no package link).
-$svcAdultAmount = 0.0; $svcChildAmount = 0.0;
-if ($booking && !empty($booking['quotation_id'])) {
-    try {
-        $qs = Database::getInstance()->prepare("SELECT line_items FROM quotations WHERE id=? LIMIT 1");
-        $qs->execute([(int)$booking['quotation_id']]);
-        $qLineItems = json_decode($qs->fetchColumn() ?: '[]', true) ?: [];
-        foreach ($qLineItems as $li) {
-            if (($li['category'] ?? '') !== 'service_fee') continue;
-            $desc = $li['description'] ?? '';
-            $amt  = (float)($li['amount'] ?? 0);
-            if (stripos($desc, 'child') !== false) $svcChildAmount += $amt;
-            else $svcAdultAmount += $amt; // covers "Adults" and any legacy combined line
-        }
-    } catch (\Exception $e) {}
-}
-if ($svcAdultAmount <= 0 && $svcChildAmount <= 0 && $booking && !empty($booking['package_id'])) {
-    try {
-        $ps = Database::getInstance()->prepare("SELECT cost_breakdown FROM packages WHERE id=? LIMIT 1");
-        $ps->execute([(int)$booking['package_id']]);
-        $pbd = json_decode($ps->fetchColumn() ?: '{}', true) ?: [];
-        $svcAdultAmount = (float)($pbd['service_charge_adult'] ?? $pbd['service_charge_pax'] ?? 0) * $bkAdults;
-        $svcChildAmount = (float)($pbd['service_charge_child'] ?? $pbd['service_charge_pax'] ?? 0) * $bkChildren;
-    } catch (\Exception $e) {}
-}
-if ($svcAdultAmount <= 0 && $svcChildAmount <= 0) {
-    // Last-resort fallback for a booking with neither link — the only
-    // place a percentage estimate is still used.
-    $svcRate   = defined('SERVICE_CHARGE_RATE') ? (float)SERVICE_CHARGE_RATE : 0.05;
-    $svcAdultAmount = round($subtotal - round($subtotal / (1 + $svcRate), 2), 2);
-}
-$svcAmount  = round($svcAdultAmount + $svcChildAmount, 2);
-$baseAmount = round($subtotal - $svcAmount, 2);
+// ── Cost breakdown (ARCH-3: shared with api/check_booking.php) ────
+$breakdown  = \App\Services\BookingCostBreakdown::compute($booking ?: []);
+$rawTotal   = $breakdown['raw_total'];
+$rawDeposit = $breakdown['raw_deposit'];
+$vatRate    = $breakdown['vat_rate'];
+$subtotal   = $breakdown['subtotal'];
+$vatAmount  = $breakdown['vat_amount'];
+$balanceDue = $breakdown['balance_due'];
+$travelers  = $breakdown['travelers'];
+$bkAdults   = $breakdown['adults'];
+$bkChildren = $breakdown['children'];
+$perPerson  = $breakdown['per_person'];
+$svcAmount  = $breakdown['service_charge'];
+$baseAmount = $breakdown['base_amount'];
 
 function fmt($n) { return 'USD ' . number_format($n, 0, '.', ','); }
 ?>
