@@ -34,7 +34,10 @@ if ($action === 'add_vehicle') {
         $id = $db->lastInsertId();
         vrespond(['success'=>true, 'id'=>$id, 'name'=>$name, 'daily_rate'=>$rate, 'fuel_cost_day'=>$fuel, 'driver_cost_day'=>$driver]);
     } catch(\Exception $e) {
-        vrespond(['success'=>false,'message'=>$e->getMessage()]);
+        // API-7: was the raw exception message, verbatim — logged instead,
+        // same generic message every other endpoint already uses.
+        error_log('[SZV VehicleManage] ' . $e->getMessage());
+        vrespond(['success'=>false,'message'=>'An error occurred while saving the vehicle. Please try again.']);
     }
 }
 

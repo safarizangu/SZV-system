@@ -140,6 +140,8 @@ try {
     caption_respond(['success' => true, 'caption' => $caption]);
 
 } catch (\Exception $e) {
+    // API-7: was logged AND echoed raw to the client — now logged only,
+    // same generic message every other endpoint already uses.
     error_log('[SZV AI Caption] ' . $e->getMessage());
-    caption_respond(['success' => false, 'message' => 'Could not generate caption: ' . $e->getMessage()]);
+    caption_respond(['success' => false, 'message' => 'Could not generate caption. Please try again.']);
 }

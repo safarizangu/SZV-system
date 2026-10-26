@@ -154,6 +154,17 @@ if (php_sapi_name() !== 'cli') {
 }
 
 // ── Session ───────────────────────────────────────────────────
+// PERF-5: PHP's default session cache limiter ('nocache') sends
+// Cache-Control: no-store on literally every response once session_start()
+// runs, including the fully static marketing pages below that have
+// nothing session-specific to protect and would otherwise be cacheable.
+// Disabling the limiter and sending that header ourselves, only for
+// paths that actually carry session-specific or personal data (the
+// admin panel, agent portal, api/, and every other public/*.php page —
+// book.php/confirmation.php/track.php/review.php/contact.php each show
+// or submit something tied to one specific visitor or booking), keeps
+// the original protection exactly where it matters.
+session_cache_limiter('');
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
         'lifetime' => 0,
@@ -163,6 +174,18 @@ if (session_status() === PHP_SESSION_NONE) {
         'samesite' => 'Strict',  // Strict prevents CSRF via cross-site requests
     ]);
     session_start();
+}
+if (php_sapi_name() !== 'cli' && !headers_sent()) {
+    $__szvScript = $_SERVER['SCRIPT_NAME'] ?? '';
+    $__szvCacheablePages = ['/index.php', '/about.php', '/packages.php', '/privacy-policy.php', '/sustainability.php', '/terms.php'];
+    $__szvIsCacheable = false;
+    foreach ($__szvCacheablePages as $__szvPage) {
+        if (str_ends_with($__szvScript, '/public' . $__szvPage)) { $__szvIsCacheable = true; break; }
+    }
+    if (!$__szvIsCacheable) {
+        header('Cache-Control: no-store, no-cache, must-revalidate');
+        header('Pragma: no-cache');
+    }
 }
 
 // ── Timezone ──────────────────────────────────────────────────
@@ -262,14 +285,4 @@ if (!function_exists('getPackageBySlug')) {
     }
 }
 
-if (!function_exists('sanitize')) {
-    function sanitize(mixed $val): string {
-        return htmlspecialchars(trim((string)$val), ENT_QUOTES, 'UTF-8');
-    }
-}
 
-if (!function_exists('e')) {
-    function e(mixed $val): string {
-        return htmlspecialchars((string)$val, ENT_QUOTES, 'UTF-8');
-    }
-}

@@ -20,7 +20,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     $name = trim($_POST['name'] ?? '');
     $lev  = $_POST['level'] ?? 'midrange';
     $loc  = trim($_POST['location'] ?? '');
-    $park = trim($_POST['park_key'] ?? '');
+    // DB-12: NULL, not '' — a blank field must mean "no park", and ''
+    // doesn't match anything in park_fees.park_key (the column's new FK
+    // target), so saving '' here would throw on every save with no park.
+    $park = trim($_POST['park_key'] ?? '') ?: null;
     $supp = (int)($_POST['supplier_id'] ?? 0) ?: null;
     $rr   = (float)($_POST['rate_per_room'] ?? 0);
     $rp   = (float)($_POST['rate_per_person'] ?? 0);

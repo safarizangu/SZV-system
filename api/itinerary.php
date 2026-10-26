@@ -2,13 +2,19 @@
 ob_start();
 require_once __DIR__ . '/../app/bootstrap.php';
 
-// JSON auth check — no redirect for API endpoints
-if (empty($_SESSION['admin_authenticated']) || $_SESSION['admin_authenticated'] !== true) {
+// JSON auth check — no redirect for API endpoints. SEC-9: previously
+// checked only $_SESSION['admin_authenticated'] by hand, which never
+// enforced the inactivity timeout AuthMiddleware::requireAdmin() applies
+// everywhere else — now uses the same underlying rule, just responding
+// with JSON instead of a redirect.
+use App\Middleware\AuthMiddleware;
+if (!AuthMiddleware::isAuthenticated() || AuthMiddleware::isTimedOut()) {
     ob_end_clean();
     header('Content-Type: application/json');
     echo json_encode(['success'=>false,'message'=>'Unauthorized']);
     exit;
 }
+$_SESSION['admin_last_active'] = time();
 
 function irespond(array $d): void {
     ob_end_clean();

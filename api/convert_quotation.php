@@ -195,6 +195,8 @@ try {
     ]);
 
 } catch(\Exception $e) {
+    // API-7: was logged AND echoed raw to the client — now logged only,
+    // same generic message every other endpoint already uses.
     error_log('[SZV Convert] '.$e->getMessage());
-    qrespond(['success'=>false,'message'=>'Error: '.$e->getMessage()]);
+    qrespond(['success'=>false,'message'=>'An error occurred while converting this quotation. Please try again.']);
 }

@@ -40,13 +40,13 @@ $pageTitle = $pageTitle ?? 'Safari Zangu Ventures';
 </script>
 
 <?php
-// Preload the hero image for LCP performance
-$_heroImg = '';
+// Preload the hero image for LCP performance.
+// PERF-2: this used to run its own, separate SELECT ... WHERE key='hero_image'
+// query — identical to the one layouts/head.php (included just above)
+// already ran — on every single public page load. Reuses head.php's
+// $_heroSettingRaw instead.
+$_heroImg = $_heroSettingRaw ?? '';
 try {
-    $_db = \App\Models\Database::getInstance();
-    $_hs = $_db->prepare("SELECT value FROM settings WHERE `key`='hero_image' LIMIT 1");
-    $_hs->execute();
-    $_heroImg = $_hs->fetchColumn() ?: '';
     // Stored value is root-relative (no BASE_PATH) — normalize away any
     // stray prefix from before that fix, then add BASE_PATH back for
     // the current environment. Done only when a value was actually

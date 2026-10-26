@@ -1,0 +1,73 @@
+name: Tests
+
+# DEVOPS-6: the 79-assertion suite in tests/run.php previously only ran
+# when someone remembered to run it by hand before an FTP/SSH deploy —
+# nothing enforced it. This runs it on every push and pull request
+# instead, against a throwaway MySQL database loaded from
+# sql/ci_schema_snapshot.sql (see that file's own header for why it's a
+# schema snapshot rather than a replay of sql/migrate.php's real history).
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci_root_password
+          MYSQL_DATABASE: safari_zangu_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, json
+          tools: composer
+
+      - name: Install composer dependencies
+        run: composer install --no-progress --prefer-dist
+
+      - name: Load schema
+        run: |
+          mysql --host=127.0.0.1 --port=3306 -uroot -pci_root_password safari_zangu_ci < sql/ci_schema_snapshot.sql
+
+      - name: Write CI .env
+        run: |
+          cat > .env << 'EOF'
+          APP_ENV=local
+          APP_DEBUG=true
+          APP_URL=http://localhost
+          DB_HOST=127.0.0.1
+          DB_NAME=safari_zangu_ci
+          DB_USER=root
+          DB_PASS=ci_root_password
+          DB_CHARSET=utf8mb4
+          SMTP_HOST=localhost
+          SMTP_PORT=2525
+          SMTP_SECURE=tls
+          SMTP_USERNAME=ci@example.test
+          SMTP_PASSWORD=ci
+          MAIL_FROM_EMAIL=ci@example.test
+          MAIL_FROM_NAME=CI
+          ADMIN_EMAIL=ci@example.test
+          SITE_EMAIL=ci@example.test
+          EOF
+
+      - name: Run test suite
+        run: php tests/run.php

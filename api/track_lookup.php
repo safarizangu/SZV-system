@@ -152,6 +152,9 @@ try {
     jout([
         'success'         => true,
         'booking_ref'     => $booking['booking_ref'],
+        // SEC-10: a short-lived, download-only credential for the PDF
+        // links below — see BookingTracking::issueDownloadToken().
+        'download_token'  => BookingTracking::issueDownloadToken($booking['booking_ref']),
         'client_name'     => $booking['full_name'],
         'email'           => $booking['email'],
         'phone'           => $booking['phone'],

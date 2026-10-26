@@ -7,13 +7,11 @@ require_once __DIR__ . '/../app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
 use App\Helpers\Formatter;
 
-// Only callable from admin session
-if (!isset($_SESSION['admin_authenticated']) || $_SESSION['admin_authenticated'] !== true) {
-    ob_end_clean();
-    http_response_code(403);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit;
-}
+// SEC-9: was a direct $_SESSION check, bypassing AuthMiddleware::requireAdmin()
+// entirely — the 30-min inactivity timeout never applied here. requireAdmin()
+// redirects rather than returning JSON on failure, same as every other
+// admin-only api/*.php endpoint in this codebase.
+AuthMiddleware::requireAdmin();
 
 $db = \App\Models\Database::getInstance();
 

@@ -153,13 +153,13 @@ document.addEventListener('DOMContentLoaded', function () {
                   '<div id="paypal-button-container"></div>' +
                 '</div>'
               : '') +
-            '<a href="' + 'api/track_booking_pdf.php?ref=' + encodeURIComponent(d.booking_ref) + '&password=' + encodeURIComponent(pwd) + '" target="_blank" rel="noopener" class="btn-sz-outline w-100 justify-content-center" style="font-size:.68rem;padding:.75rem;margin-bottom:.75rem">&#8681; Download PDF Confirmation</a>' +
+            '<a href="' + 'api/track_booking_pdf.php?ref=' + encodeURIComponent(d.booking_ref) + '&token=' + encodeURIComponent(d.download_token) + '" target="_blank" rel="noopener" class="btn-sz-outline w-100 justify-content-center" style="font-size:.68rem;padding:.75rem;margin-bottom:.75rem">&#8681; Download PDF Confirmation</a>' +
             (d.has_quotation
               ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">' +
-                  '<a href="' + 'api/track_quotation_pdf.php?ref=' + encodeURIComponent(d.booking_ref) + '&password=' + encodeURIComponent(pwd) + '" target="_blank" rel="noopener" class="btn-sz-outline justify-content-center" style="font-size:.68rem;padding:.75rem;text-align:center">' +
+                  '<a href="' + 'api/track_quotation_pdf.php?ref=' + encodeURIComponent(d.booking_ref) + '&token=' + encodeURIComponent(d.download_token) + '" target="_blank" rel="noopener" class="btn-sz-outline justify-content-center" style="font-size:.68rem;padding:.75rem;text-align:center">' +
                     '&#8681; ' + (d.payment_status === 'pending' ? 'Quotation PDF' : d.payment_status === 'fully_paid' ? 'Invoice PDF (Paid in Full)' : 'Invoice PDF (Deposit Paid)') +
                   '</a>' +
-                  '<a href="' + 'api/track_itinerary_pdf.php?ref=' + encodeURIComponent(d.booking_ref) + '&password=' + encodeURIComponent(pwd) + '" target="_blank" rel="noopener" class="btn-sz-outline justify-content-center" style="font-size:.68rem;padding:.75rem;text-align:center">&#8681; Itinerary PDF</a>' +
+                  '<a href="' + 'api/track_itinerary_pdf.php?ref=' + encodeURIComponent(d.booking_ref) + '&token=' + encodeURIComponent(d.download_token) + '" target="_blank" rel="noopener" class="btn-sz-outline justify-content-center" style="font-size:.68rem;padding:.75rem;text-align:center">&#8681; Itinerary PDF</a>' +
                 '</div>'
               : '') +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">' +

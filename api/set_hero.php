@@ -1,17 +1,22 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
+use App\Middleware\AuthMiddleware;
 
-if (\App\Middleware\AuthMiddleware::isAgentRole()) {
+if (AuthMiddleware::isAgentRole()) {
     \App\Services\AccessGuard::denyJson('api', 'set_hero.php', 'agent_access');
 }
 
-
-// Admin only
-if (empty($_SESSION['admin_authenticated']) || $_SESSION['admin_authenticated'] !== true) {
+// SEC-9: was a direct $_SESSION check — enforced authentication but never
+// the inactivity timeout AuthMiddleware::requireAdmin() applies everywhere
+// else. Kept as a JSON response rather than switching to requireAdmin()'s
+// redirect: this is called via fetch()+r.json() from admin/gallery.php,
+// which has no handling for a non-JSON (redirect) response.
+if (!AuthMiddleware::isAuthenticated() || AuthMiddleware::isTimedOut()) {
     http_response_code(401);
     echo json_encode(['success'=>false,'message'=>'Unauthorized']);
     exit;
 }
+$_SESSION['admin_last_active'] = time();
 
 header('Content-Type: application/json');
 
