@@ -368,8 +368,13 @@ ob_start();
 
         <div class="img-thumb"
              onclick="previewImage('<?= htmlspecialchars($imgUrl) ?>')">
+          <!-- A11Y-9: alt="" deliberately, not missing — the filename
+               directly below is the same text a screen reader would
+               otherwise have announced twice (previously this used the
+               raw filename as alt text, the exact anti-pattern WCAG
+               flags; it never described the image's actual content). -->
           <img src="<?= htmlspecialchars(BASE_PATH . $imgUrl) ?>"
-               alt="<?= htmlspecialchars($img) ?>"
+               alt=""
                loading="lazy">
         </div>
 
@@ -609,7 +614,7 @@ function addImageCard(url, filename) {
   div.innerHTML =
     (isHero ? '<div class="hero-badge">⌂ HERO</div>' : '') +
     '<div class="img-thumb" onclick="previewImage(\''+url+'\')">'+
-      '<img src="'+BASE+url+'" alt="'+filename+'" loading="lazy">'+
+      '<img src="'+BASE+url+'" alt="" loading="lazy">'+ /* A11Y-9: deliberate — filename is the visible caption right below */
     '</div>'+
     '<div style="padding:5px 6px;font-size:.55rem;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid var(--gray-100)">'+filename+'</div>'+
     '<div class="img-actions">'+

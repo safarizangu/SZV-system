@@ -13,6 +13,13 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
 </head>
 <body class="admin-body">
 
+<!-- A11Y-13: no skip link existed anywhere in the admin panel — a
+     keyboard user had to tab through the full sidebar (~45 links across
+     7 nav groups) on every single page load before reaching page
+     content. #7a5a10 matches the same accessible dark-gold used for the
+     public site's skip link (A11Y-6/A11Y-7/the other A11Y-13 fix). -->
+<a href="#main-content" style="position:absolute;top:-100px;left:0;background:#7a5a10;color:#fff;padding:.5rem 1rem;font-size:.8rem;font-weight:700;z-index:9999;text-decoration:none;border-radius:0 0 4px 0;transition:top .2s" onfocus="this.style.top='0'" onblur="this.style.top='-100px'">Skip to main content</a>
+
 <!-- Overlay for mobile sidebar -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -206,7 +213,7 @@ window.CSRF_TOKEN = "<?= \App\Middleware\CsrfMiddleware::token() ?>";
   </div>
 </aside>
 
-<main class="admin-main">
+<main class="admin-main" id="main-content">
   <header class="admin-topbar">
     <div class="admin-topbar-left">
       <button class="admin-hamburger" id="adminHamburger" aria-label="Open menu" aria-expanded="false">

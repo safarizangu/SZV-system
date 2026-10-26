@@ -453,6 +453,10 @@ button.admin-nav-group {
   appearance: none;
 }
 .admin-input:focus { border-color: var(--black); }
+/* A11Y-3: outline:none above left zero visible focus indicator on any
+   admin text field — confirmed live. The :focus border-color change
+   above is too subtle on its own to count as a visible indicator. */
+.admin-input:focus-visible { outline: 2.5px solid var(--gold); outline-offset: 1px; }
 textarea.admin-input { resize: vertical; min-height: 80px; }
 
 /* ── BUTTONS ────────────────────────────────────────────────── */
@@ -713,6 +717,7 @@ textarea.admin-input { resize: vertical; min-height: 80px; }
 .search-bar          { display: flex; gap: .25rem; flex-wrap: wrap; }
 .search-bar input    { border: 1.5px solid var(--gray-200); padding: .45rem .75rem; font-size: .8rem; outline: none; flex: 1; min-width: 160px; }
 .search-bar input:focus { border-color: var(--black); }
+.search-bar input:focus-visible { outline: 2.5px solid var(--gold); outline-offset: 1px; } /* A11Y-3 */
 .search-bar button   { background: var(--black); color: var(--white); border: none; padding: .45rem 1rem; font-size: .75rem; font-weight: 600; cursor: pointer; }
 .status-select       { border: 1.5px solid var(--gray-200); padding: .35rem .5rem; font-size: .75rem; cursor: pointer; background: var(--white); }
 .action-btn          { background: none; border: 1.5px solid var(--gray-200); padding: .3rem .6rem; font-size: .7rem; font-weight: 600; cursor: pointer; margin-right: .25rem; }

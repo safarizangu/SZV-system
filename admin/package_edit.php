@@ -350,7 +350,7 @@ ob_start();
       <?php else: ?>
       <?php foreach($galleryImgs as $imgUrl): ?>
       <div class="selected-img-item" data-url="<?= htmlspecialchars($imgUrl) ?>" style="position:relative;border:1.5px solid #e5e7eb;background:#fff">
-        <img src="<?= htmlspecialchars(BASE_PATH . $imgUrl) ?>" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" loading="lazy">
+        <img src="<?= htmlspecialchars(BASE_PATH . $imgUrl) ?>" alt="" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" loading="lazy">
         <button type="button" onclick="removeSelectedImg(this)"
                 style="position:absolute;top:3px;right:3px;background:rgba(220,38,38,.9);border:none;color:#fff;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:.6rem;display:flex;align-items:center;justify-content:center">✕</button>
       </div>
@@ -1758,7 +1758,7 @@ function renderPickerGrid() {
     var div = document.createElement('div');
     div.style.cssText='position:relative;cursor:pointer;border:2.5px solid '+(isSelected?'#0a0a0a':'#e5e7eb')+';overflow:hidden;transition:border-color .15s';
     div.dataset.url = img.url;
-    div.innerHTML = '<img src="'+(window.BASE_PATH||'')+img.url+'" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" loading="lazy">'
+    div.innerHTML = '<img src="'+(window.BASE_PATH||'')+img.url+'" alt="" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" loading="lazy">'
       +'<div style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:'+(isSelected?'#0a0a0a':'rgba(255,255,255,.8)')+';border:2px solid '+(isSelected?'#0a0a0a':'#e5e7eb')+';display:flex;align-items:center;justify-content:center;font-size:.65rem;color:white;transition:all .15s" class="chk">'
       +(isSelected?'✓':'')+'</div>'
       +'<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.55);color:#fff;font-size:.58rem;padding:.2rem .4rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+img.filename+'</div>';
@@ -1802,7 +1802,7 @@ function applyGallerySelection() {
     div.className='selected-img-item';
     div.dataset.url=url;
     div.style.cssText='position:relative;border:1.5px solid #e5e7eb;background:#fff';
-    div.innerHTML='<img src="'+(window.BASE_PATH||'')+url+'" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" loading="lazy">'
+    div.innerHTML='<img src="'+(window.BASE_PATH||'')+url+'" alt="" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" loading="lazy">'
       +'<button type="button" onclick="removeSelectedImg(this)" style="position:absolute;top:3px;right:3px;background:rgba(220,38,38,.9);border:none;color:#fff;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:.6rem;display:flex;align-items:center;justify-content:center">✕</button>';
     container.appendChild(div);
   });

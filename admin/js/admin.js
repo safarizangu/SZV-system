@@ -388,17 +388,29 @@
     }
     document.querySelectorAll('.admin-row-actions-menu').forEach(ensureMenuRoles);
 
-    function closeMenu() {
+    // A11Y-8: previously ensureMenuRoles() set correct menu/menuitem
+    // roles but nothing moved focus into the menu on open, restored it
+    // to the toggle on close, or let arrow keys move between items — a
+    // half-implemented ARIA menu pattern (a screen reader would announce
+    // "menu", then nothing worked the way that announcement promises).
+    function closeMenu(restoreFocus) {
       if (!openWrap) return;
       var menu = openWrap.querySelector('.admin-row-actions-menu');
       var toggle = openWrap.querySelector('.admin-row-actions-toggle');
       if (menu) menu.style.display = 'none';
-      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', 'false');
+        if (restoreFocus) toggle.focus();
+      }
       openWrap = null;
     }
 
+    function menuItems(wrap) {
+      return Array.prototype.slice.call(wrap.querySelectorAll('.admin-row-actions-item'));
+    }
+
     function openMenu(wrap) {
-      closeMenu();
+      closeMenu(false);
       var toggle = wrap.querySelector('.admin-row-actions-toggle');
       var menu   = wrap.querySelector('.admin-row-actions-menu');
       if (!toggle || !menu) return;
@@ -417,6 +429,9 @@
 
       toggle.setAttribute('aria-expanded', 'true');
       openWrap = wrap;
+
+      var items = menuItems(wrap);
+      if (items.length) items[0].focus();
     }
 
     document.addEventListener('click', function (e) {
@@ -424,12 +439,36 @@
       if (toggle) {
         e.stopPropagation();
         var wrap = toggle.closest('.admin-row-actions');
-        if (openWrap === wrap) closeMenu(); else openMenu(wrap);
+        if (openWrap === wrap) closeMenu(false); else openMenu(wrap);
         return;
       }
-      if (openWrap && !openWrap.contains(e.target)) closeMenu();
+      if (openWrap && !openWrap.contains(e.target)) closeMenu(false);
     });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenu(); });
+    document.addEventListener('keydown', function (e) {
+      if (!openWrap) return;
+      if (e.key === 'Escape') { closeMenu(true); return; }
+      var items = menuItems(openWrap);
+      if (!items.length) return;
+      var idx = items.indexOf(document.activeElement);
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        items[idx < 0 || idx === items.length - 1 ? 0 : idx + 1].focus();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        items[idx <= 0 ? items.length - 1 : idx - 1].focus();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        items[0].focus();
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        items[items.length - 1].focus();
+      } else if (e.key === 'Tab') {
+        // Tabbing out of the menu is a close, same as a backdrop click —
+        // don't trap focus inside a transient dropdown the way a modal
+        // traps it; the menu just shouldn't still claim to be open.
+        closeMenu(false);
+      }
+    });
     // Capture phase so this also fires for a scroll inside a nested
     // scrollable ancestor (e.g. .admin-table-wrap), which doesn't bubble.
     window.addEventListener('scroll', closeMenu, true);

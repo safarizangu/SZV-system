@@ -70,7 +70,17 @@ if ($_heroImg): ?>
 </head>
 
 <body<?= !empty($bodyClass) ? ' class="' . htmlspecialchars($bodyClass) . '"' : '' ?>>
-<a href="#main-content" class="skip-nav" style="position:absolute;top:-100px;left:0;background:#c8963e;color:#fff;padding:.5rem 1rem;font-size:.8rem;font-weight:700;z-index:9999;text-decoration:none;border-radius:0 0 4px 0;transition:top .2s" onfocus="this.style.top=\'0\'" onblur="this.style.top=\'-100px\'">Skip to main content</a>
+<!-- A11Y-13: #c8963e (--gold) background with white text computes to
+     2.66:1, failing WCAG AA (needs 4.5:1) — same underlying color as
+     A11Y-6/A11Y-7, same fix (the darker, already-vetted #7a5a10, which
+     computes to 6.37:1 either direction). Also fixed in passing: the
+     onfocus/onblur handlers had stray literal backslashes (this.style.top=\'0\')
+     left over from somewhere this was once embedded in a PHP-quoted
+     string context it no longer is — plain HTML, so the backslash was
+     sent to the browser as a literal character, making `\'0\'` invalid
+     JS and silently breaking the show-on-focus behavior entirely. The
+     skip link has likely never actually worked until this fix. -->
+<a href="#main-content" class="skip-nav" style="position:absolute;top:-100px;left:0;background:#7a5a10;color:#fff;padding:.5rem 1rem;font-size:.8rem;font-weight:700;z-index:9999;text-decoration:none;border-radius:0 0 4px 0;transition:top .2s" onfocus="this.style.top='0'" onblur="this.style.top='-100px'">Skip to main content</a>
 
 <?php include __DIR__ . '/navbar.php'; ?>
 
