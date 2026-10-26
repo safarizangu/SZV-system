@@ -1,0 +1,263 @@
+{
+    "critical": [],
+    "high": [
+        {
+            "file": "./agent-portal/login.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./agent-portal/leads.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./config/app.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./app/Mail/EmailTemplate.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./app/Mail/Mailer.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./app/Mail/Mailer.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./app/Services/PayPalClient.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./app/Services/BookingTracking.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./views/track.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./php/PHPMailer/src/PHPMailer.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./php/PHPMailer/src/PHPMailer.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./sql/migrate.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./tests/suites/JsPricingConsistencyTest.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./tests/suites/JsPricingConsistencyTest.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/phpmailer/phpmailer/src/DSNConfigurator.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./vendor/phpmailer/phpmailer/src/POP3.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./vendor/phpmailer/phpmailer/src/PHPMailer.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/phpmailer/phpmailer/src/PHPMailer.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./vendor/dompdf/php-svg-lib/src/Svg/Surface/CPdf.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./vendor/dompdf/dompdf/src/Helpers.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/dompdf/dompdf/lib/Cpdf.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.5/zlib.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.5/uodbc.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.5/uodbc.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.1/ssh2.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.1/ldap.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.1/mysql.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.1/zlib.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.1/curl.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.1/uodbc.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.1/ibase.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.1/exec.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.1/exec.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.1/exec.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.6/ldap.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.6/zlib.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.4/ldap.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.4/zlib.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.4/curl.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.4/uodbc.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.2/ssh2.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.2/ldap.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.2/curl.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.2/exec.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.2/exec.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/generated/8.2/exec.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./vendor/thecodingmachine/safe/lib/special_cases.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./admin/reminders.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./admin/reminders.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./admin/email_queue.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./admin/email_queue.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./admin/login.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./admin/contact_messages.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./api/generate_caption.php",
+            "issue": "Command Injection"
+        },
+        {
+            "file": "./api/generate_caption.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./api/track_quotation_pdf.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./api/book.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./api/track_itinerary_pdf.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./api/convert_quotation.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./api/paypal_create_order.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./api/track_lookup.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./api/track_booking_pdf.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./api/record_payment.php",
+            "issue": "Hardcoded Secrets"
+        },
+        {
+            "file": "./api/cron/send_single_email.php",
+            "issue": "Command Injection"
+        }
+    ],
+    "medium": [],
+    "low": []
+}

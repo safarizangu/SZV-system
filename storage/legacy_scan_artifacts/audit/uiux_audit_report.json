@@ -1,0 +1,582 @@
+[
+    {
+        "url": "http://localhost/",
+        "viewport": "mobile320",
+        "title": "Apache2 Ubuntu Default Page: It works",
+        "load_time": 0.56,
+        "screenshot": "audit/screenshots/home_mobile320.png",
+        "console_errors": [],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": []
+    },
+    {
+        "url": "http://localhost/",
+        "viewport": "mobile375",
+        "title": "Apache2 Ubuntu Default Page: It works",
+        "load_time": 0.54,
+        "screenshot": "audit/screenshots/home_mobile375.png",
+        "console_errors": [],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": []
+    },
+    {
+        "url": "http://localhost/",
+        "viewport": "mobile390",
+        "title": "Apache2 Ubuntu Default Page: It works",
+        "load_time": 0.55,
+        "screenshot": "audit/screenshots/home_mobile390.png",
+        "console_errors": [],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": []
+    },
+    {
+        "url": "http://localhost/",
+        "viewport": "tablet",
+        "title": "Apache2 Ubuntu Default Page: It works",
+        "load_time": 0.53,
+        "screenshot": "audit/screenshots/home_tablet.png",
+        "console_errors": [],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": []
+    },
+    {
+        "url": "http://localhost/",
+        "viewport": "desktop",
+        "title": "Apache2 Ubuntu Default Page: It works",
+        "load_time": 0.53,
+        "screenshot": "audit/screenshots/home_desktop.png",
+        "console_errors": [],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": []
+    },
+    {
+        "url": "http://localhost/contact.php",
+        "viewport": "mobile320",
+        "title": "404 Not Found",
+        "load_time": 0.53,
+        "screenshot": "audit/screenshots/_contact_mobile320.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/contact.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/contact.php",
+        "viewport": "mobile375",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_contact_mobile375.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/contact.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/contact.php",
+        "viewport": "mobile390",
+        "title": "404 Not Found",
+        "load_time": 0.53,
+        "screenshot": "audit/screenshots/_contact_mobile390.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/contact.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/contact.php",
+        "viewport": "tablet",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_contact_tablet.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/contact.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/contact.php",
+        "viewport": "desktop",
+        "title": "404 Not Found",
+        "load_time": 0.53,
+        "screenshot": "audit/screenshots/_contact_desktop.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/contact.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/booking.php",
+        "viewport": "mobile320",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_booking_mobile320.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/booking.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/booking.php",
+        "viewport": "mobile375",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_booking_mobile375.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/booking.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/booking.php",
+        "viewport": "mobile390",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_booking_mobile390.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/booking.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/booking.php",
+        "viewport": "tablet",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_booking_tablet.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/booking.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/booking.php",
+        "viewport": "desktop",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_booking_desktop.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/booking.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/packages.php",
+        "viewport": "mobile320",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_packages_mobile320.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/packages.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/packages.php",
+        "viewport": "mobile375",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_packages_mobile375.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/packages.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/packages.php",
+        "viewport": "mobile390",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_packages_mobile390.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/packages.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/packages.php",
+        "viewport": "tablet",
+        "title": "404 Not Found",
+        "load_time": 0.53,
+        "screenshot": "audit/screenshots/_packages_tablet.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/packages.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/packages.php",
+        "viewport": "desktop",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_packages_desktop.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/packages.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/custom-safari.php",
+        "viewport": "mobile320",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_custom-safari_mobile320.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/custom-safari.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/custom-safari.php",
+        "viewport": "mobile375",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_custom-safari_mobile375.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/custom-safari.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/custom-safari.php",
+        "viewport": "mobile390",
+        "title": "404 Not Found",
+        "load_time": 0.54,
+        "screenshot": "audit/screenshots/_custom-safari_mobile390.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/custom-safari.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/custom-safari.php",
+        "viewport": "tablet",
+        "title": "404 Not Found",
+        "load_time": 0.53,
+        "screenshot": "audit/screenshots/_custom-safari_tablet.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/custom-safari.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/custom-safari.php",
+        "viewport": "desktop",
+        "title": "404 Not Found",
+        "load_time": 0.53,
+        "screenshot": "audit/screenshots/_custom-safari_desktop.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/custom-safari.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/quote.php",
+        "viewport": "mobile320",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_quote_mobile320.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/quote.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/quote.php",
+        "viewport": "mobile375",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_quote_mobile375.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/quote.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/quote.php",
+        "viewport": "mobile390",
+        "title": "404 Not Found",
+        "load_time": 0.53,
+        "screenshot": "audit/screenshots/_quote_mobile390.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/quote.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/quote.php",
+        "viewport": "tablet",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_quote_tablet.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/quote.php"
+            }
+        ]
+    },
+    {
+        "url": "http://localhost/quote.php",
+        "viewport": "desktop",
+        "title": "404 Not Found",
+        "load_time": 0.52,
+        "screenshot": "audit/screenshots/_quote_desktop.png",
+        "console_errors": [
+            {
+                "type": "error",
+                "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+            }
+        ],
+        "page_errors": [],
+        "failed_requests": [],
+        "http_errors": [
+            {
+                "status": 404,
+                "url": "http://localhost/quote.php"
+            }
+        ]
+    }
+]

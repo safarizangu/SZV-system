@@ -1,0 +1,36 @@
+{
+    "security": [
+        "",
+        ""
+    ],
+    "ui_ux": [
+        {
+            "mobile_navigation": "Check hamburger menu for 320px",
+            "touch_target": "Minimum 44x44 pixels",
+            "font_size": "16px minimum",
+            "spacing": "8px grid system",
+            "contrast": "WCAG AA compliant",
+            "viewport": "No horizontal scrolling"
+        }
+    ],
+    "performance": [
+        ""
+    ],
+    "code_quality": [
+        "",
+        ""
+    ],
+    "architecture": [
+        "Use Clean Architecture",
+        "Implement Repository Pattern",
+        "Separate business logic from UI",
+        "Avoid duplicate code",
+        "Introduce caching",
+        "Apply SOLID principles",
+        "Introduce centralized logging",
+        "Use feature modules",
+        "Introduce monitoring"
+    ],
+    "database": [],
+    "recommendations": []
+}
