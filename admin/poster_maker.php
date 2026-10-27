@@ -268,6 +268,7 @@ ob_start();
 .pm-btn:hover { background: rgba(255,255,255,.12); border-color: var(--pm-text); }
 .pm-btn--primary { background: var(--pm-accent); color: #000; border-color: var(--pm-accent); }
 .pm-btn--primary:hover { background: #c9a265; }
+.pm-btn.active { background: var(--pm-accent); color: #000; border-color: var(--pm-accent); }
 .pm-btn--ai { background: #7c3aed; color: #fff; border-color: #7c3aed; }
 .pm-btn--ai:hover { background: #6d28d9; }
 .pm-btn--sm { padding: .3rem .6rem; font-size: .6rem; }
@@ -573,7 +574,6 @@ ob_start();
     <button class="pm-btn" onclick="copyToClipboard()">⧉ Copy</button>
     <button class="pm-btn pm-btn--ai" onclick="generateCaption()" id="aibtn">✦ AI Caption</button>
     <button class="pm-btn" onclick="cycleImg()">⟳ Next Image</button>
-    <button class="pm-btn" onclick="randomise()">⚂ Randomise</button>
   </div>
 
   <!-- Image strip -->
@@ -602,8 +602,12 @@ ob_start();
   <!-- SELECTED ELEMENT / DRAG EDITING -->
   <div class="pm-section">
     <div class="pm-section-title">Edit on Canvas</div>
+    <div class="pm-tool-row" style="margin-bottom:.65rem">
+      <button class="pm-btn pm-btn--sm" onclick="addCustomText()">+ Add Text</button>
+      <button class="pm-btn pm-btn--sm" onclick="addCustomBox()">+ Add Box</button>
+    </div>
     <div id="selectedPanel" class="pm-selected-box">
-      <span class="pm-hint">Click any element directly on the poster to select it, then drag to move it anywhere — like Figma.</span>
+      <span class="pm-hint">Click any element directly on the poster to select it, then drag to move it, or edit its font, size and colour below.</span>
     </div>
     <button class="pm-btn pm-btn--sm" onclick="resetElement()">Reset All Positions</button>
   </div>
@@ -703,7 +707,19 @@ var S = { // State
   captionTone: 'premium',
   offsets:  {},   // per-element drag offsets for the ACTIVE template/size — {key: {dx,dy}}
   selected: null, // key of the element currently selected on the canvas
+  styles:   {},   // per-element style overrides for BUILT-IN elements — {key: {fontFamily,fontSize,fontWeight,fontStyle,color,align}}, any field absent = inherit the template's own default
+  lastStyle:{},   // the fully-resolved (default+override merged) style each element actually drew with on the last render pass — what the Edit panel reads to show true current state
+  customEls:   [], // user-added elements, drawn on top of the template — [{id,type:'text'|'box',x,y,w,h,text,fontFamily,fontSize,fontWeight,fontStyle,color,align}]
+  nextCustomId: 1,
 };
+
+// Built-in element keys that are pure shapes with no text of their own —
+// the Edit panel shows just a colour swatch for these, no font controls.
+var SHAPE_ONLY_KEYS = { divider:1, card:1, accentMark:1, cardBar:1, edgeBar:1 };
+// Built-in keys with no editable style at all (position only) — 'photo' is
+// just an image crop frame, nothing to recolour or re-font.
+var POSITION_ONLY_KEYS = { photo:1 };
+var FONT_FAMILIES = ['Georgia','Arial','Helvetica','Times New Roman','Courier New','Verdana','Trebuchet MS','Palatino Linotype','Garamond','Impact'];
 
 // Human-readable names for the "Selected: …" panel — anything drawn
 // through pos()/hit() below uses one of these keys.
@@ -712,7 +728,8 @@ var ELEMENT_LABELS = {
   tagline: 'Tagline', price: 'Price', badge: 'Duration Badge', cta: 'CTA / Website',
   note: 'Bottom Note', highlights: 'Highlights', divider: 'Divider', stats: 'Stats Row',
   days: 'Itinerary Days', watermark: 'Watermark', card: 'Price Card',
-  ghostNum: 'Ghost Number', photo: 'Photo',
+  ghostNum: 'Ghost Number', photo: 'Photo', accentMark: 'Accent Mark',
+  cardBar: 'Card Top Bar', edgeBar: 'Edge Bar',
 };
 
 var SIZES = {
@@ -791,22 +808,40 @@ function hitTestAt(pt) {
   return null;
 }
 
+function isCustomKey(key) { return !!key && key.indexOf('custom:') === 0; }
+function findCustomEl(key) {
+  if (!isCustomKey(key)) return null;
+  var id = key.slice(7);
+  for (var i = 0; i < S.customEls.length; i++) if (S.customEls[i].id === id) return S.customEls[i];
+  return null;
+}
+
 canvas.addEventListener('mousedown', function(e) {
   var pt = canvasPoint(e);
   var key = hitTestAt(pt);
   selectElement(key);
   if (!key) return;
-  var o = S.offsets[key] || (S.offsets[key] = {dx:0, dy:0});
-  DRAG = { key:key, startX:pt.x, startY:pt.y, startDx:o.dx, startDy:o.dy };
+  if (isCustomKey(key)) {
+    var el = findCustomEl(key);
+    DRAG = { key:key, startX:pt.x, startY:pt.y, startDx:el.x, startDy:el.y, custom:true };
+  } else {
+    var o = S.offsets[key] || (S.offsets[key] = {dx:0, dy:0});
+    DRAG = { key:key, startX:pt.x, startY:pt.y, startDx:o.dx, startDy:o.dy };
+  }
   canvas.style.cursor = 'grabbing';
   e.preventDefault();
 });
 window.addEventListener('mousemove', function(e) {
   if (!DRAG) return;
   var pt = canvasPoint(e);
-  var o = S.offsets[DRAG.key];
-  o.dx = DRAG.startDx + (pt.x - DRAG.startX);
-  o.dy = DRAG.startDy + (pt.y - DRAG.startY);
+  if (DRAG.custom) {
+    var el = findCustomEl(DRAG.key);
+    if (el) { el.x = DRAG.startDx + (pt.x - DRAG.startX); el.y = DRAG.startDy + (pt.y - DRAG.startY); }
+  } else {
+    var o = S.offsets[DRAG.key];
+    o.dx = DRAG.startDx + (pt.x - DRAG.startX);
+    o.dy = DRAG.startDy + (pt.y - DRAG.startY);
+  }
   render();
 });
 window.addEventListener('mouseup', function() {
@@ -824,23 +859,146 @@ canvas.addEventListener('mouseleave', function() {
 
 function selectElement(key) {
   S.selected = key;
-  var panel = document.getElementById('selectedPanel');
-  if (panel) {
-    if (!key) {
-      panel.innerHTML = '<span class="pm-hint">Click any element directly on the poster to select it, then drag to move it anywhere — like Figma.</span>';
-    } else {
-      panel.innerHTML = '<div style="font-size:.78rem;color:var(--pm-text);font-weight:700;margin-bottom:.5rem">'
-        + (ELEMENT_LABELS[key] || key) + '</div>'
-        + '<button class="pm-btn pm-btn--sm" onclick="resetElement(S.selected)">Reset This Position</button>';
-    }
-  }
-  render();
+  render();          // populates S.lastStyle for this key from the actual draw pass
+  renderEditPanel();  // ...so the panel below can show the real resolved style, not a guess
 }
 
 function resetElement(key) {
   if (key) delete S.offsets[key];
   else S.offsets = {};
   render();
+}
+
+function resetElStyle() {
+  if (S.selected && !isCustomKey(S.selected)) delete S.styles[S.selected];
+  render();
+  renderEditPanel();
+}
+
+function setElStyle(field, value) {
+  var key = S.selected;
+  if (!key) return;
+  if (isCustomKey(key)) {
+    var el = findCustomEl(key);
+    if (el) el[field] = value;
+  } else {
+    if (!S.styles[key]) S.styles[key] = {};
+    S.styles[key][field] = value;
+  }
+  render();
+  renderEditPanel();
+}
+
+function toggleElStyle(field, onVal, offVal) {
+  var key = S.selected;
+  if (!key) return;
+  var cur = isCustomKey(key) ? findCustomEl(key)[field] : (S.lastStyle[key] || {})[field];
+  setElStyle(field, cur === onVal ? offVal : onVal);
+}
+
+function updateCustomText(value) {
+  var el = findCustomEl(S.selected);
+  if (el) { el.text = value; render(); }
+}
+
+function escAttr(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function addCustomText() {
+  var id = 'c' + (S.nextCustomId++);
+  S.customEls.push({
+    id: id, type: 'text', text: 'New text', x: canvas.width/2, y: canvas.height/2,
+    fontFamily: S.font, fontSize: Math.round(canvas.width*0.04), fontWeight: 'bold',
+    fontStyle: 'normal', color: S.accent, align: 'center',
+  });
+  selectElement('custom:' + id);
+}
+
+function addCustomBox() {
+  var id = 'c' + (S.nextCustomId++);
+  var w0 = Math.round(canvas.width*0.2), h0 = Math.round(canvas.width*0.12);
+  S.customEls.push({
+    id: id, type: 'box', x: (canvas.width-w0)/2, y: (canvas.height-h0)/2,
+    w: w0, h: h0, color: S.accent,
+  });
+  selectElement('custom:' + id);
+}
+
+function deleteCustomEl(key) {
+  var el = findCustomEl(key);
+  if (!el) return;
+  S.customEls = S.customEls.filter(function(e){ return e.id !== el.id; });
+  selectElement(null);
+}
+
+/* ── Edit Selected panel — shows the resolved (default+override) style
+   for whatever is currently selected and lets every field be overridden.
+   Reads from S.lastStyle (populated by T()/TW() during the render() call
+   that selectElement() just ran) so the controls always reflect what's
+   really on the canvas, not a guess at the template's hardcoded default. */
+function renderEditPanel() {
+  var panel = document.getElementById('selectedPanel');
+  if (!panel) return;
+  var key = S.selected;
+  if (!key) {
+    panel.innerHTML = '<span class="pm-hint">Click any element directly on the poster to select it, then drag to move it, or edit its font, size and colour below.</span>';
+    return;
+  }
+
+  var isCustom  = isCustomKey(key);
+  var custEl    = isCustom ? findCustomEl(key) : null;
+  if (isCustom && !custEl) { S.selected = null; panel.innerHTML = ''; return; }
+  var label     = isCustom ? (custEl.type === 'text' ? 'Custom Text' : 'Custom Box') : (ELEMENT_LABELS[key] || key);
+  var posOnly   = !isCustom && POSITION_ONLY_KEYS[key];
+  var shapeOnly = (isCustom && custEl.type === 'box') || (!isCustom && SHAPE_ONLY_KEYS[key]);
+  var live      = isCustom ? custEl : (S.lastStyle[key] || {});
+
+  var html = '<div style="font-size:.78rem;color:var(--pm-text);font-weight:700;margin-bottom:.65rem">' + label + '</div>';
+
+  if (isCustom && custEl.type === 'text') {
+    html += '<span class="pm-label">Text</span>'
+      + '<input class="pm-input" style="margin-bottom:.6rem" value="' + escAttr(custEl.text) + '" oninput="updateCustomText(this.value)">';
+  }
+
+  if (!posOnly && !shapeOnly) {
+    var curFam = live.fontFamily || S.font;
+    html += '<span class="pm-label">Font</span><select class="pm-input" style="margin-bottom:.6rem" onchange="setElStyle(\'fontFamily\', this.value)">';
+    FONT_FAMILIES.forEach(function(f) {
+      html += '<option value="' + f + '"' + (curFam === f ? ' selected' : '') + '>' + f + '</option>';
+    });
+    html += '</select>';
+
+    var curSize = live.fontSize || 32;
+    html += '<span class="pm-label">Size — <span id="fsizeVal">' + curSize + 'px</span></span>'
+      + '<input type="range" class="pm-range" min="10" max="240" value="' + curSize + '" style="margin-bottom:.6rem" '
+      + 'oninput="document.getElementById(\'fsizeVal\').textContent=this.value+\'px\'; setElStyle(\'fontSize\', parseInt(this.value,10))">';
+
+    var curWeight = live.fontWeight || 'normal', curStyle = live.fontStyle || 'normal', curAlign = live.align || 'left';
+    function btn(active, onclick, label2) {
+      return '<button class="pm-btn pm-btn--sm' + (active ? ' active' : '') + '" onclick="' + onclick + '">' + label2 + '</button>';
+    }
+    html += '<div class="pm-tool-row" style="margin-bottom:.75rem">'
+      + btn(curWeight === 'bold', "toggleElStyle('fontWeight','bold','normal')", '<b>Bold</b>')
+      + btn(curStyle === 'italic', "toggleElStyle('fontStyle','italic','normal')", '<i>Italic</i>')
+      + btn(curAlign === 'left', "setElStyle('align','left')", 'Left')
+      + btn(curAlign === 'center', "setElStyle('align','center')", 'Centre')
+      + btn(curAlign === 'right', "setElStyle('align','right')", 'Right')
+      + '</div>';
+  }
+
+  if (!posOnly) {
+    var curColor = live.color || S.accent;
+    html += '<span class="pm-label">' + (shapeOnly || key === 'badge' ? 'Fill Colour' : 'Colour') + '</span>'
+      + '<input type="color" value="' + curColor + '" style="width:100%;height:32px;border:1px solid var(--pm-border);border-radius:2px;cursor:pointer;margin-bottom:.75rem;background:none;padding:2px" '
+      + 'onchange="setElStyle(\'color\', this.value)">';
+  }
+
+  html += '<div class="pm-btn-row" style="margin-top:0">'
+    + '<button class="pm-btn pm-btn--sm" onclick="resetElement(S.selected)">Reset Position</button>';
+  if (!posOnly && !isCustom) html += '<button class="pm-btn pm-btn--sm" onclick="resetElStyle()">Reset Style</button>';
+  if (isCustom) html += '<button class="pm-btn pm-btn--sm" style="border-color:#e87a7a;color:#e87a7a" onclick="deleteCustomEl(S.selected)">Delete</button>';
+  html += '</div>';
+
+  panel.innerHTML = html;
 }
 
 function drawSelectionOutline() {
@@ -1000,15 +1158,6 @@ function cycleImg() {
   render();
 }
 
-function randomise() {
-  var tpls = ['hero','split','mosaic','minimal','itinerary','price','story','feature','dark'];
-  var thms = Object.keys(THEMES);
-  S.tpl   = tpls[Math.floor(Math.random()*tpls.length)];
-  S.theme = thms[Math.floor(Math.random()*thms.length)];
-  S.imgIdx= Math.floor(Math.random()*Math.max(1,(PKGS[S.pkg].gallery||[]).length));
-  render();
-}
-
 function resetHighlights() {
   var pkg = PKGS[S.pkg];
   var incl = pkg.itin_inc_arr.length ? pkg.itin_inc_arr : pkg.includes_arr || [];
@@ -1044,7 +1193,86 @@ function render() {
   };
   (fns[S.tpl] || renderHero)(pkg, theme, img, w, h);
 
+  drawCustomElements();
   drawSelectionOutline();
+}
+
+function drawCustomElements() {
+  S.customEls.forEach(function(el) {
+    var key = 'custom:' + el.id;
+    if (el.type === 'box') {
+      ctx.fillStyle = el.color;
+      ctx.fillRect(el.x, el.y, el.w, el.h);
+      hit(key, el.x, el.y, el.w, el.h);
+    } else {
+      applyStyle(el);
+      ctx.fillText(el.text, el.x, el.y);
+      textHit(key, el.x, el.y, el.text, el.fontSize);
+      ctx.textAlign = 'left';
+    }
+  });
+}
+
+/* ── PER-ELEMENT STYLE SYSTEM ────────────────────────────────
+   Every built-in element draws through T() (single line) or TW() (word-
+   wrapped, multi-line), which both resolve S.styles[key] (a user override,
+   set via the Edit Selected panel) over the template's own hardcoded
+   default for that draw call. Nothing changes visually until a user
+   actually overrides an element — defaults ARE the override object's
+   fallback values, so this is purely additive over the original templates.
+   ──────────────────────────────────────────────────────────── */
+function styleOf(key, d) {
+  var o = S.styles[key] || {};
+  return {
+    fontFamily: o.fontFamily || d.fontFamily || S.font,
+    fontSize:   o.fontSize   != null ? o.fontSize : d.fontSize,
+    fontWeight: o.fontWeight || d.fontWeight || 'normal',
+    fontStyle:  o.fontStyle  || d.fontStyle  || 'normal',
+    color:      o.color      || d.color,
+    align:      o.align      || d.align || 'left',
+  };
+}
+
+function applyStyle(st) {
+  var tokens = [];
+  if (st.fontStyle === 'italic') tokens.push('italic');
+  if (st.fontWeight === 'bold') tokens.push('bold');
+  tokens.push(st.fontSize + 'px');
+  tokens.push(st.fontFamily);
+  ctx.font = tokens.join(' ');
+  ctx.fillStyle = st.color;
+  ctx.textAlign = st.align || 'left';
+}
+
+/** Draws one line of styled, selectable, draggable text. d = {fontFamily,fontSize,fontWeight,fontStyle,color,align} defaults. Returns the resolved font size (for layout chaining). */
+function T(key, text, x, y, d) {
+  var st = styleOf(key, d);
+  S.lastStyle[key] = st;
+  var p = pos(key, x, y);
+  applyStyle(st);
+  ctx.fillText(text, p.x, p.y);
+  textHit(key, p.x, p.y, text, st.fontSize);
+  ctx.textAlign = 'left';
+  return st.fontSize;
+}
+
+/** Word-wrapped, styled, selectable, draggable text block. Returns total block height (for layout chaining) — replaces the old wrapText()+textH()+textHit() trio in one call. */
+function TW(key, text, x, y, maxW, d, lhMult, maxLines) {
+  var st = styleOf(key, d);
+  S.lastStyle[key] = st;
+  var p = pos(key, x, y);
+  var hgt = wrapText(text, p.x, p.y, maxW, st.fontSize, st.color, st.fontWeight, lhMult, maxLines, st.fontFamily, st.fontStyle);
+  textHit(key, p.x, p.y, text, st.fontSize, hgt);
+  return hgt;
+}
+
+/** Resolved fill colour for a shape/object element (dividers, card panels, badge pill, etc) — same override store as text, just its .color field. */
+function fillOf(key, defaultColor) {
+  var o = S.styles[key];
+  var c = (o && o.color) || defaultColor;
+  if (!S.lastStyle[key]) S.lastStyle[key] = {};
+  S.lastStyle[key].color = c;
+  return c;
 }
 
 /* ── TEXT HELPERS ────────────────────────────────────────── */
@@ -1054,8 +1282,13 @@ function applyCase(str) {
   return str.replace(/\b\w/g, function(c){ return c.toUpperCase(); });
 }
 
-function wrapText(text, x, y, maxW, size, color, weight, lhMult, maxLines) {
-  ctx.font = (weight||'normal') + ' ' + size + 'px ' + S.font;
+function wrapText(text, x, y, maxW, size, color, weight, lhMult, maxLines, family, fstyle) {
+  var tokens = [];
+  if (fstyle === 'italic') tokens.push('italic');
+  if (weight === 'bold') tokens.push('bold');
+  tokens.push(size + 'px');
+  tokens.push(family || S.font);
+  ctx.font = tokens.join(' ');
   ctx.fillStyle = color;
   var lh = size * (lhMult||1.25);
   var words = String(text).split(' ');
@@ -1073,16 +1306,6 @@ function wrapText(text, x, y, maxW, size, color, weight, lhMult, maxLines) {
     ctx.fillText(l, x, y - (lines.length - 1 - i) * lh);
   });
   return lines.length * lh;
-}
-
-function textH(text, size, maxW) {
-  ctx.font = 'bold ' + size + 'px ' + S.font;
-  var words = String(text).split(' '), line = '', n = 1;
-  words.forEach(function(w) {
-    var t = line+(line?' ':'')+w;
-    if (ctx.measureText(t).width > maxW && line) { n++; line = w; } else line = t;
-  });
-  return n * size * 1.25;
 }
 
 function hexRgba(hex, a) {
@@ -1135,20 +1358,17 @@ function drawVignette(w, h, strength) {
 
 function drawLogo(theme, w, y, x) {
   var pad = x !== undefined ? x : parseInt(document.getElementById('rPad').value)||64;
-  var fs = Math.round(w*0.02);
-  ctx.font = 'bold ' + fs + 'px Arial';
-  var p = pos('brand', pad, y);
-  textHit('brand', p.x, p.y, 'SZV', fs);
-  ctx.fillStyle = S.accent;
-  ctx.fillText('SZV', p.x, p.y);
+  T('brand', 'SZV', pad, y, {fontSize:Math.round(w*0.02), fontWeight:'bold', fontFamily:'Arial', color:S.accent});
 }
 
 function drawBadge(text, w, h) {
   var bp = S.badgePos;
-  var fs = Math.round(w*0.02);
-  ctx.font = 'bold ' + fs + 'px Arial';
+  var st = styleOf('badge', {fontSize:Math.round(w*0.02), fontWeight:'bold', fontFamily:'Arial', color:THEMES[S.theme].bg});
+  S.lastStyle.badge = st;
+  var fillColor = fillOf('badge', S.accent);
+  applyStyle(st);
   var tw = ctx.measureText(text).width;
-  var bw = tw + 28, bh = fs + 22;
+  var bw = tw + 28, bh = st.fontSize + 22;
   var bx, by;
   if (bp === 'tl') { bx = 50; by = 50; }
   else if (bp === 'br') { bx = w - 50 - bw; by = h - 50 - bh; }
@@ -1156,17 +1376,19 @@ function drawBadge(text, w, h) {
 
   var p = pos('badge', bx, by);
   hit('badge', p.x, p.y, bw, bh);
-  ctx.fillStyle = S.accent;
+  ctx.fillStyle = fillColor;
   ctx.fillRect(p.x, p.y, bw, bh);
-  ctx.fillStyle = THEMES[S.theme].bg;
+  ctx.fillStyle = st.color;
   ctx.textAlign = 'center';
-  ctx.fillText(text, p.x + bw/2, p.y + bh/2 + fs/3);
+  ctx.fillText(text, p.x + bw/2, p.y + bh/2 + st.fontSize/3);
   ctx.textAlign = 'left';
 }
 
-function drawAccentBar(x, y, w, h) {
-  ctx.fillStyle = S.accent;
+/** key is optional — pass it to make this bar individually selectable and recolourable; omit for a purely decorative accent mark tied to the global accent colour. */
+function drawAccentBar(x, y, w, h, key) {
+  ctx.fillStyle = key ? fillOf(key, S.accent) : S.accent;
   ctx.fillRect(x, y, w, h);
+  if (key) hit(key, x, y, w, h);
 }
 
 function drawHighlightsStrip(pkg, theme, w, h, pad) {
@@ -1179,6 +1401,8 @@ function drawHighlightsStrip(pkg, theme, w, h, pad) {
   hit('highlights', p.x, sy, w, sh);
   ctx.fillStyle = theme.strip;
   ctx.fillRect(p.x, sy, w, sh);
+  var st = styleOf('highlights', {fontSize:Math.round(w*0.022), fontFamily:'Arial', color:theme.text});
+  S.lastStyle.highlights = st;
   var cw = (w - pad*2) / shown.length;
   ctx.textAlign = 'center';
   shown.forEach(function(inc, i) {
@@ -1186,8 +1410,7 @@ function drawHighlightsStrip(pkg, theme, w, h, pad) {
     ctx.fillStyle = S.accent;
     ctx.font = 'bold ' + Math.round(w*0.022) + 'px Arial';
     ctx.fillText('✓', cx - Math.round(w*0.04), sy + sh/2 + 8);
-    ctx.fillStyle = theme.text;
-    ctx.font = Math.round(w*0.022) + 'px Arial';
+    applyStyle(st); ctx.textAlign = 'center';
     var short = inc.length > 28 ? inc.substr(0,26)+'…' : inc;
     ctx.fillText(short, cx + Math.round(w*0.015), sy + sh/2 + 8);
   });
@@ -1227,55 +1450,39 @@ function renderHero(pkg, theme, img, w, h) {
   var y = h - 56;
   if (document.getElementById('elCTA').checked) {
     var cta = document.getElementById('txCTA').value || 'safarizanguven.com';
-    var fs1 = Math.round(w*0.022);
-    ctx.font = 'bold ' + fs1 + 'px Arial'; ctx.fillStyle = S.accent;
-    var pc = pos('cta', pad, y); textHit('cta', pc.x, pc.y, cta.toUpperCase(), fs1);
-    ctx.fillText(cta.toUpperCase(), pc.x, pc.y); y -= 48;
+    T('cta', cta.toUpperCase(), pad, y, {fontSize:Math.round(w*0.022), fontWeight:'bold', fontFamily:'Arial', color:S.accent});
+    y -= 48;
   }
   var note = document.getElementById('txNote').value;
   if (note) {
-    var fs2 = Math.round(w*0.02);
-    ctx.font = fs2+'px Arial'; ctx.fillStyle = theme.sub;
-    var pn = pos('note', pad, y); textHit('note', pn.x, pn.y, note, fs2);
-    ctx.fillText(note, pn.x, pn.y); y -= 42;
+    T('note', note, pad, y, {fontSize:Math.round(w*0.02), fontFamily:'Arial', color:theme.sub});
+    y -= 42;
   }
   if (document.getElementById('elPrice').checked) {
     var priceTxt = 'From $'+Number(pkg.price_1pax).toLocaleString()+' per person';
-    var fs3 = Math.round(w*0.03);
-    ctx.font = 'bold '+fs3+'px Arial'; ctx.fillStyle = theme.text;
-    var pp = pos('price', pad, y); textHit('price', pp.x, pp.y, priceTxt, fs3);
-    ctx.fillText(priceTxt, pp.x, pp.y); y -= 56;
+    T('price', priceTxt, pad, y, {fontSize:Math.round(w*0.03), fontWeight:'bold', fontFamily:'Arial', color:theme.text});
+    y -= 56;
   }
   if (document.getElementById('elDivider').checked) {
-    var pdv = pos('divider', pad, y-2); hit('divider', pdv.x, pdv.y, 60, 3);
-    drawAccentBar(pdv.x, pdv.y, 60, 3); y -= 24;
+    var pdv = pos('divider', pad, y-2);
+    drawAccentBar(pdv.x, pdv.y, 60, 3, 'divider'); y -= 24;
   }
   var headline = applyCase(document.getElementById('txHeadline').value || pkg.name);
   if (document.getElementById('elHeadline').checked) {
     var hsize = Math.round(w * hfs/1000 * 0.8);
-    var ph = pos('headline', pad, y);
-    wrapText(headline, ph.x, ph.y, w-pad*2, hsize, theme.text, 'bold', 1.1, 3);
-    textHit('headline', ph.x, ph.y, headline, hsize, textH(headline, hsize, w-pad*2));
-    y -= textH(headline, hsize, w-pad*2) + 16;
+    var hH = TW('headline', headline, pad, y, w-pad*2, {fontSize:hsize, fontWeight:'bold', color:theme.text}, 1.1, 3);
+    y -= hH + 16;
   }
   var tagline = document.getElementById('txTagline').value || pkg.short_description || '';
   if (tagline && document.getElementById('elTagline').checked) {
-    var pt = pos('tagline', pad, y-8);
-    var tsize = Math.round(w*0.027);
-    wrapText(tagline, pt.x, pt.y, w-pad*2, tsize, theme.sub, 'normal', 1.6, 2);
-    textHit('tagline', pt.x, pt.y, tagline, tsize, textH(tagline, tsize, w-pad*2));
+    TW('tagline', tagline, pad, y-8, w-pad*2, {fontSize:Math.round(w*0.027), color:theme.sub}, 1.6, 2);
   }
   if (document.getElementById('elHighlights').checked) drawHighlightsStrip(pkg, theme, w, h, pad);
   if (document.getElementById('elVigBar').checked) { ctx.fillStyle = S.accent; ctx.fillRect(0,h-5,w,5); }
   if (document.getElementById('elWatermark').checked) {
     ctx.save(); ctx.globalAlpha=0.08;
-    var wfs = Math.round(w*0.12);
-    ctx.font='bold '+wfs+'px '+S.font;
-    ctx.fillStyle=theme.text; ctx.textAlign='center';
-    var pw = pos('watermark', w/2, h*0.55);
-    ctx.fillText('SZV', pw.x, pw.y);
-    textHit('watermark', pw.x, pw.y, 'SZV', wfs);
-    ctx.textAlign='left'; ctx.restore();
+    T('watermark', 'SZV', w/2, h*0.55, {fontSize:Math.round(w*0.12), fontWeight:'bold', color:theme.text, align:'center'});
+    ctx.restore();
   }
 }
 
@@ -1298,23 +1505,17 @@ function renderSplit(pkg, theme, img, w, h) {
 
   var headline = applyCase(document.getElementById('txHeadline').value || pkg.name);
   if (document.getElementById('elHeadline').checked) {
-    var hfs2 = Math.round(w*0.044);
-    var ph2 = pos('headline', rx, ry);
-    wrapText(headline, ph2.x, ph2.y, rw, hfs2, theme.text, 'bold', 1.15, 3);
-    textHit('headline', ph2.x, ph2.y, headline, hfs2, textH(headline, hfs2, rw));
-    ry += textH(headline, hfs2, rw) + 28;
+    var hH = TW('headline', headline, rx, ry, rw, {fontSize:Math.round(w*0.044), fontWeight:'bold', color:theme.text}, 1.15, 3);
+    ry += hH + 28;
   }
   var tagline = document.getElementById('txTagline').value || pkg.short_description || '';
   if (tagline && document.getElementById('elTagline').checked) {
-    var tfs2 = Math.round(w*0.025);
-    var pt2 = pos('tagline', rx, ry);
-    wrapText(tagline, pt2.x, pt2.y, rw, tfs2, theme.sub, 'normal', 1.65, 3);
-    textHit('tagline', pt2.x, pt2.y, tagline, tfs2, textH(tagline, tfs2, rw));
-    ry += textH(tagline, tfs2, rw) + 44;
+    var tH = TW('tagline', tagline, rx, ry, rw, {fontSize:Math.round(w*0.025), color:theme.sub}, 1.65, 3);
+    ry += tH + 44;
   }
   if (document.getElementById('elDivider').checked) {
-    var pdv2 = pos('divider', rx, ry); hit('divider', pdv2.x, pdv2.y, rw*0.6, 1);
-    drawAccentBar(pdv2.x, pdv2.y, rw*0.6, 1); ry += 28;
+    var pdv2 = pos('divider', rx, ry);
+    drawAccentBar(pdv2.x, pdv2.y, rw*0.6, 1, 'divider'); ry += 28;
   }
 
   var stats = [
@@ -1323,11 +1524,13 @@ function renderSplit(pkg, theme, img, w, h) {
     {l:'STYLE',    v: ucw(pkg.accommodation_level)},
   ];
   var pst = pos('stats', rx, ry);
+  var sst = styleOf('stats', {fontSize:Math.round(w*0.032), fontWeight:'bold', color:theme.text});
+  S.lastStyle.stats = sst;
   var sy = pst.y, statsTop = sy, statsMaxW = 0;
   stats.forEach(function(s) {
     ctx.font='bold '+Math.round(w*0.016)+'px Arial'; ctx.fillStyle=S.accent; ctx.fillText(s.l, pst.x, sy);
     statsMaxW = Math.max(statsMaxW, ctx.measureText(s.l).width); sy+=Math.round(w*0.024);
-    ctx.font='bold '+Math.round(w*0.032)+'px '+S.font; ctx.fillStyle=theme.text; ctx.fillText(s.v, pst.x, sy);
+    applyStyle(sst); ctx.fillText(s.v, pst.x, sy);
     statsMaxW = Math.max(statsMaxW, ctx.measureText(s.v).width); sy+=Math.round(w*0.052);
   });
   hit('stats', pst.x, statsTop - Math.round(w*0.016), statsMaxW, sy - statsTop + 10);
@@ -1336,22 +1539,20 @@ function renderSplit(pkg, theme, img, w, h) {
   if (document.getElementById('elHighlights').checked) {
     ry += 10;
     var phl = pos('highlights', rx, ry);
+    var hst = styleOf('highlights', {fontSize:Math.round(w*0.022), fontFamily:'Arial', color:theme.sub});
+    S.lastStyle.highlights = hst;
     var hy = phl.y, hlTop = hy;
     ctx.font='bold '+Math.round(w*0.016)+'px Arial'; ctx.fillStyle=S.accent; ctx.fillText('INCLUDES', phl.x, hy); hy+=32;
     var lines = document.getElementById('txHighlights').value.split('\n').map(function(l){return l.trim();}).filter(Boolean);
     lines.slice(0,5).forEach(function(inc){
-      ctx.font=Math.round(w*0.022)+'px Arial'; ctx.fillStyle=theme.sub;
+      applyStyle(hst);
       ctx.fillText('✓  '+inc, phl.x, hy); hy+=Math.round(w*0.033);
     });
     hit('highlights', phl.x, hlTop-Math.round(w*0.016), rw, hy-hlTop+10);
   }
   if (document.getElementById('elCTA').checked) {
     var ctaTxt2 = (document.getElementById('txCTA').value||'safarizanguven.com').toUpperCase();
-    var cfs2 = Math.round(w*0.02);
-    ctx.font='bold '+cfs2+'px Arial'; ctx.fillStyle=S.accent;
-    var pcta2 = pos('cta', rx, h-56);
-    textHit('cta', pcta2.x, pcta2.y, ctaTxt2, cfs2);
-    ctx.fillText(ctaTxt2, pcta2.x, pcta2.y);
+    T('cta', ctaTxt2, rx, h-56, {fontSize:Math.round(w*0.02), fontWeight:'bold', fontFamily:'Arial', color:S.accent});
   }
   if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||(pkg.duration_days-1)+'N', w, h);
 }
@@ -1382,25 +1583,18 @@ function renderMosaic(pkg, theme, img, w, h) {
   var y = h-56;
   if (document.getElementById('elCTA').checked) {
     var ctaTxt3 = (document.getElementById('txCTA').value||'safarizanguven.com').toUpperCase();
-    var cfs3 = Math.round(w*0.022);
-    ctx.font='bold '+cfs3+'px Arial'; ctx.fillStyle=S.accent;
-    var pc3 = pos('cta', pad, y); textHit('cta', pc3.x, pc3.y, ctaTxt3, cfs3);
-    ctx.fillText(ctaTxt3, pc3.x, pc3.y); y-=50;
+    T('cta', ctaTxt3, pad, y, {fontSize:Math.round(w*0.022), fontWeight:'bold', fontFamily:'Arial', color:S.accent});
+    y-=50;
   }
   if (document.getElementById('elPrice').checked) {
     var priceTxt3 = 'From $'+Number(pkg.price_1pax).toLocaleString()+'/pp';
-    var pfs3 = Math.round(w*0.03);
-    ctx.font='bold '+pfs3+'px Arial'; ctx.fillStyle=theme.text;
-    var pp3 = pos('price', pad, y); textHit('price', pp3.x, pp3.y, priceTxt3, pfs3);
-    ctx.fillText(priceTxt3, pp3.x, pp3.y); y-=58;
+    T('price', priceTxt3, pad, y, {fontSize:Math.round(w*0.03), fontWeight:'bold', fontFamily:'Arial', color:theme.text});
+    y-=58;
   }
   var headline = applyCase(document.getElementById('txHeadline').value||pkg.name);
   if (document.getElementById('elHeadline').checked) {
-    var hfs3 = Math.round(w*0.062);
-    var ph3 = pos('headline', pad, y);
-    wrapText(headline, ph3.x, ph3.y, w-pad*2, hfs3, theme.text, 'bold', 1.1, 2);
-    textHit('headline', ph3.x, ph3.y, headline, hfs3, textH(headline, hfs3, w-pad*2));
-    y -= textH(headline, hfs3, w-pad*2)+16;
+    var hH = TW('headline', headline, pad, y, w-pad*2, {fontSize:Math.round(w*0.062), fontWeight:'bold', color:theme.text}, 1.1, 2);
+    y -= hH+16;
   }
   if (document.getElementById('elHighlights').checked) drawHighlightsStrip(pkg, theme, w, h, pad);
 }
@@ -1411,13 +1605,8 @@ function renderMinimal(pkg, theme, img, w, h) {
 
   // Big ghost number
   ctx.save(); ctx.globalAlpha=0.07;
-  var gfs = Math.round(h*0.3);
-  ctx.font='bold '+gfs+'px '+S.font;
-  ctx.fillStyle=S.accent; ctx.textAlign='right';
-  var pg = pos('ghostNum', w-pad+20, Math.round(h*0.5));
-  ctx.fillText(pkg.duration_days, pg.x, pg.y);
-  textHit('ghostNum', pg.x, pg.y, String(pkg.duration_days), gfs);
-  ctx.textAlign='left'; ctx.restore();
+  T('ghostNum', pkg.duration_days, w-pad+20, Math.round(h*0.5), {fontSize:Math.round(h*0.3), fontWeight:'bold', color:S.accent, align:'right'});
+  ctx.restore();
 
   if (img) {
     var pph = pos('photo', w-pad-280, pad);
@@ -1431,39 +1620,34 @@ function renderMinimal(pkg, theme, img, w, h) {
   }
 
   var y = Math.round(h*0.14);
-  drawAccentBar(pad, y, 80, 4); y+=32;
-  var bfs = Math.round(w*0.016);
-  ctx.font='bold '+bfs+'px Arial'; ctx.fillStyle=S.accent;
-  var pb4 = pos('brand', pad, y); textHit('brand', pb4.x, pb4.y, 'SZV', bfs);
-  ctx.fillText('SZV', pb4.x, pb4.y); y+=60;
+  drawAccentBar(pad, y, 80, 4, 'accentMark'); y+=32;
+  T('brand', 'SZV', pad, y, {fontSize:Math.round(w*0.016), fontWeight:'bold', fontFamily:'Arial', color:S.accent});
+  y+=60;
 
   var headline = applyCase(document.getElementById('txHeadline').value||pkg.name);
   if (document.getElementById('elHeadline').checked) {
-    var hfs4 = Math.round(w*0.07);
-    var ph4 = pos('headline', pad, y);
-    wrapText(headline, ph4.x, ph4.y, w-pad*2-300, hfs4, theme.text, 'bold', 1.1, 2);
-    textHit('headline', ph4.x, ph4.y, headline, hfs4, textH(headline, hfs4, w-pad*2-300));
-    y += textH(headline, hfs4, w-pad*2-300)+36;
+    var hH = TW('headline', headline, pad, y, w-pad*2-300, {fontSize:Math.round(w*0.07), fontWeight:'bold', color:theme.text}, 1.1, 2);
+    y += hH+36;
   }
   var tagline = document.getElementById('txTagline').value||pkg.short_description||'';
   if (tagline && document.getElementById('elTagline').checked) {
-    var tfs4 = Math.round(w*0.028);
-    var pt4 = pos('tagline', pad, y);
-    wrapText(tagline, pt4.x, pt4.y, w-pad*2-100, tfs4, theme.sub, 'normal', 1.65, 2);
-    textHit('tagline', pt4.x, pt4.y, tagline, tfs4, textH(tagline, tfs4, w-pad*2-100));
-    y+=textH(tagline, tfs4, w-pad*2-100)+50;
+    var tH4 = TW('tagline', tagline, pad, y, w-pad*2-100, {fontSize:Math.round(w*0.028), color:theme.sub}, 1.65, 2);
+    y+=tH4+50;
   }
   if (document.getElementById('elDivider').checked) {
     var pdv4 = pos('divider', pad, y);
-    ctx.fillStyle=hexRgba(theme.text,0.12); ctx.fillRect(pdv4.x,pdv4.y,w-pad*2,1);
+    ctx.fillStyle = fillOf('divider', hexRgba(theme.text,0.12));
+    ctx.fillRect(pdv4.x,pdv4.y,w-pad*2,1);
     hit('divider', pdv4.x, pdv4.y, w-pad*2, 1); y+=36;
   }
   var facts = [{l:'Duration',v:(pkg.duration_days-1)+' Nights'},{l:'From',v:'$'+Number(pkg.price_1pax).toLocaleString()+'/pp'},{l:'Accommodation',v:ucw(pkg.accommodation_level)}];
   var cw2=(w-pad*2)/facts.length;
   var pfa = pos('stats', pad, y);
+  var sst4 = styleOf('stats', {fontSize:Math.round(w*0.034), fontWeight:'bold', color:theme.text});
+  S.lastStyle.stats = sst4;
   facts.forEach(function(f,i){
     var cx2=pfa.x+i*cw2;
-    ctx.font='bold '+Math.round(w*0.034)+'px '+S.font; ctx.fillStyle=theme.text; ctx.fillText(f.v,cx2,pfa.y);
+    applyStyle(sst4); ctx.fillText(f.v,cx2,pfa.y);
     ctx.font=Math.round(w*0.018)+'px Arial'; ctx.fillStyle=theme.sub; ctx.fillText(f.l,cx2,pfa.y+38);
   });
   hit('stats', pfa.x, pfa.y-Math.round(w*0.034), w-pad*2, 70);
@@ -1471,28 +1655,21 @@ function renderMinimal(pkg, theme, img, w, h) {
 
   if (document.getElementById('elHighlights').checked) {
     var phl2 = pos('highlights', pad, y);
+    var hst2 = styleOf('highlights', {fontSize:Math.round(w*0.022), fontFamily:'Arial', color:theme.sub});
+    S.lastStyle.highlights = hst2;
     var hy2 = phl2.y, hlTop2 = hy2;
     var lines2 = document.getElementById('txHighlights').value.split('\n').map(function(l){return l.trim();}).filter(Boolean);
     lines2.slice(0,5).forEach(function(inc){
-      ctx.font=Math.round(w*0.022)+'px Arial'; ctx.fillStyle=theme.sub;
+      applyStyle(hst2);
       ctx.fillText('— '+inc, phl2.x, hy2); hy2+=Math.round(w*0.036);
     });
     hit('highlights', phl2.x, hlTop2-Math.round(w*0.022), w-pad*2, hy2-hlTop2+10);
   }
   if (document.getElementById('elCTA').checked) {
     var ctaTxt4 = (document.getElementById('txCTA').value||'safarizanguven.com').toUpperCase();
-    var cfs4 = Math.round(w*0.022);
-    ctx.font='bold '+cfs4+'px Arial'; ctx.fillStyle=S.accent;
-    var pc4 = pos('cta', pad, h-60); textHit('cta', pc4.x, pc4.y, ctaTxt4, cfs4);
-    ctx.fillText(ctaTxt4, pc4.x, pc4.y);
+    T('cta', ctaTxt4, pad, h-60, {fontSize:Math.round(w*0.022), fontWeight:'bold', fontFamily:'Arial', color:S.accent});
   }
-  var ffs = Math.round(w*0.016);
-  ctx.font='bold '+ffs+'px Arial'; ctx.fillStyle=hexRgba(theme.text,0.25);
-  ctx.textAlign='right';
-  var pbf = pos('brandFooter', w-pad, h-60);
-  ctx.fillText('SZV', pbf.x, pbf.y);
-  textHit('brandFooter', pbf.x, pbf.y, 'SZV', ffs);
-  ctx.textAlign='left';
+  T('brandFooter', 'SZV', w-pad, h-60, {fontSize:Math.round(w*0.016), fontWeight:'bold', fontFamily:'Arial', color:hexRgba(theme.text,0.25), align:'right'});
 }
 
 function renderItinerary(pkg, theme, img, w, h) {
@@ -1502,22 +1679,20 @@ function renderItinerary(pkg, theme, img, w, h) {
   var y=72;
   if (document.getElementById('elLogo').checked) { drawLogo(theme,w,y,pad); y+=76; }
   var headline = applyCase(document.getElementById('txHeadline').value||pkg.name);
-  var hfs5 = Math.round(w*0.052);
-  ctx.font='bold '+hfs5+'px '+S.font; ctx.fillStyle=theme.text;
-  var ph5 = pos('headline', pad, y); textHit('headline', ph5.x, ph5.y, headline, hfs5);
-  ctx.fillText(headline,ph5.x,ph5.y); y+=58;
-  drawAccentBar(pad,y,100,3); y+=32;
+  T('headline', headline, pad, y, {fontSize:Math.round(w*0.052), fontWeight:'bold', color:theme.text});
+  y+=58;
+  drawAccentBar(pad,y,100,3,'accentMark'); y+=32;
   if (document.getElementById('elPrice').checked) {
     var priceTxt5 = (pkg.duration_days-1)+' NIGHTS  ·  FROM $'+Number(pkg.price_1pax).toLocaleString()+'/PP';
-    var pfs5 = Math.round(w*0.026);
-    ctx.font='bold '+pfs5+'px Arial'; ctx.fillStyle=S.accent;
-    var pp5 = pos('price', pad, y); textHit('price', pp5.x, pp5.y, priceTxt5, pfs5);
-    ctx.fillText(priceTxt5, pp5.x, pp5.y); y+=64;
+    T('price', priceTxt5, pad, y, {fontSize:Math.round(w*0.026), fontWeight:'bold', fontFamily:'Arial', color:S.accent});
+    y+=64;
   }
   var days = pkg.itin_days_arr.length ? pkg.itin_days_arr : pkg.itin_arr||[];
   var maxD = Math.min(days.length, S.size==='story'?7:5);
   var lh2 = Math.round((h-y-80) / Math.max(maxD,1));
   var pdy = pos('days', pad, y);
+  var dst = styleOf('days', {fontSize:Math.round(w*0.027), fontWeight:'bold', fontFamily:'Arial', color:theme.text});
+  S.lastStyle.days = dst;
   var daysDx = pdy.x - pad, daysTop = pdy.y;
   days.slice(0,maxD).forEach(function(day,i){
     var dy = daysTop + i*lh2 + lh2*0.5;
@@ -1527,8 +1702,7 @@ function renderItinerary(pkg, theme, img, w, h) {
     ctx.font='bold '+Math.round(w*0.022)+'px Arial'; ctx.fillStyle=theme.bg; ctx.textAlign='center';
     ctx.fillText(String(day.day||i+1), dx+20, dy+8); ctx.textAlign='left';
     if (i<maxD-1) { ctx.fillStyle=hexRgba(S.accent,0.2); ctx.fillRect(dx+18,dy+24,4,lh2-40); }
-    ctx.font='bold '+Math.round(w*0.027)+'px Arial'; ctx.fillStyle=theme.text;
-    ctx.fillText(String(day.title||'Day '+(i+1)).substr(0,40), dx+58, dy);
+    applyStyle(dst); ctx.fillText(String(day.title||'Day '+(i+1)).substr(0,40), dx+58, dy);
     if (day.location||day.description) {
       var sub=(day.location||day.description||'').substr(0,48);
       ctx.font=Math.round(w*0.02)+'px Arial'; ctx.fillStyle=theme.sub; ctx.fillText(sub, dx+58, dy+26);
@@ -1537,10 +1711,7 @@ function renderItinerary(pkg, theme, img, w, h) {
   hit('days', pad+daysDx, daysTop, w-pad*2, lh2*maxD);
   if (document.getElementById('elCTA').checked) {
     var ctaTxt5 = (document.getElementById('txCTA').value||'safarizanguven.com').toUpperCase();
-    var cfs5 = Math.round(w*0.022);
-    ctx.font='bold '+cfs5+'px Arial'; ctx.fillStyle=S.accent;
-    var pc5 = pos('cta', pad, h-52); textHit('cta', pc5.x, pc5.y, ctaTxt5, cfs5);
-    ctx.fillText(ctaTxt5, pc5.x, pc5.y);
+    T('cta', ctaTxt5, pad, h-52, {fontSize:Math.round(w*0.022), fontWeight:'bold', fontFamily:'Arial', color:S.accent});
   }
   if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||(pkg.duration_days-1)+' NIGHTS',w,h);
 }
@@ -1560,32 +1731,33 @@ function renderPrice(pkg, theme, img, w, h) {
   var cx3=pcard.x, cy3=pcard.y;
   var cardCx = cx3 + cw3/2; // card's own horizontal centre — centred text inside it must track the card, not the canvas, once dragged
   hit('card', cx3, cy3, cw3, ch);
-  ctx.fillStyle=hexRgba(theme.bg,0.9); ctx.fillRect(cx3,cy3,cw3,ch);
-  drawAccentBar(cx3,cy3,cw3,4);
-  var iy=cy3+52; ctx.textAlign='center';
+  ctx.fillStyle = fillOf('card', hexRgba(theme.bg,0.9)); ctx.fillRect(cx3,cy3,cw3,ch);
+  drawAccentBar(cx3,cy3,cw3,4,'cardBar');
+  var iy=cy3+52;
   var headline=applyCase(document.getElementById('txHeadline').value||pkg.name);
-  ctx.font='bold '+Math.round(w*0.04)+'px '+S.font; ctx.fillStyle=theme.text; ctx.fillText(headline,cardCx,iy); iy+=48;
+  T('headline', headline, cardCx, iy, {fontSize:Math.round(w*0.04), fontWeight:'bold', color:theme.text, align:'center'});
+  iy+=48;
   var tag=document.getElementById('txTagline').value||pkg.short_description||'';
-  if (tag) { ctx.font=Math.round(w*0.022)+'px Arial'; ctx.fillStyle=theme.sub; ctx.fillText(tag.substr(0,55),cardCx,iy); iy+=44; }
+  if (tag) { T('tagline', tag.substr(0,55), cardCx, iy, {fontSize:Math.round(w*0.022), fontFamily:'Arial', color:theme.sub, align:'center'}); iy+=44; }
   ctx.fillStyle=hexRgba(S.accent,0.25); ctx.fillRect(cx3+50,iy,cw3-100,1); iy+=40;
   var tiers=[{l:'DURATION',v:(pkg.duration_days-1)+' Nights'},{l:'FROM',v:'$'+Number(pkg.price_1pax).toLocaleString()},{l:'STYLE',v:ucw(pkg.accommodation_level)}];
   var tw2=(cw3-60)/3;
+  ctx.textAlign='center';
+  var tst = styleOf('stats', {fontSize:Math.round(w*0.042), fontWeight:'bold', color:theme.text});
+  S.lastStyle.stats = tst;
   tiers.forEach(function(t,i){
     var tx2=cx3+30+i*tw2+tw2/2;
     ctx.font='bold '+Math.round(w*0.016)+'px Arial'; ctx.fillStyle=S.accent; ctx.fillText(t.l,tx2,iy);
-    ctx.font='bold '+Math.round(w*0.042)+'px '+S.font; ctx.fillStyle=theme.text; ctx.fillText(t.v,tx2,iy+50);
+    applyStyle(tst); ctx.textAlign='center'; ctx.fillText(t.v,tx2,iy+50);
     ctx.font=Math.round(w*0.016)+'px Arial'; ctx.fillStyle=theme.sub; ctx.fillText(i===1?'per person':'',tx2,iy+76);
   }); iy+=118;
   if (document.getElementById('elHighlights').checked) {
     var lines3=document.getElementById('txHighlights').value.split('\n').map(function(l){return l.trim();}).filter(Boolean);
-    ctx.font=Math.round(w*0.018)+'px Arial'; ctx.fillStyle=theme.sub;
-    ctx.fillText(lines3.slice(0,3).join('  ·  '), cardCx, iy);
+    T('highlights', lines3.slice(0,3).join('  ·  '), cardCx, iy, {fontSize:Math.round(w*0.018), fontFamily:'Arial', color:theme.sub, align:'center'});
   }
   ctx.textAlign='left';
   if (document.getElementById('elCTA').checked) {
-    ctx.font='bold '+Math.round(w*0.024)+'px Arial'; ctx.fillStyle=S.accent; ctx.textAlign='center';
-    ctx.fillText((document.getElementById('txCTA').value||'safarizanguven.com').toUpperCase(), cardCx, cy3+ch+52);
-    ctx.textAlign='left';
+    T('cta', (document.getElementById('txCTA').value||'safarizanguven.com').toUpperCase(), cardCx, cy3+ch+52, {fontSize:Math.round(w*0.024), fontWeight:'bold', fontFamily:'Arial', color:S.accent, align:'center'});
   }
 }
 
@@ -1602,48 +1774,41 @@ function renderStoryTpl(pkg, theme, img, w, h) {
 
   // Big centred headline
   var headline=applyCase(document.getElementById('txHeadline').value||pkg.name);
-  ctx.textAlign='center';
-  var hfs6 = Math.round(w*0.09);
-  var ph6 = pos('headline', w/2, h*0.35);
-  wrapText(headline, ph6.x, ph6.y, w-pad*2, hfs6, theme.text, 'bold', 1.1, 3);
-  textHit('headline', ph6.x, ph6.y, headline, hfs6, textH(headline, hfs6, w-pad*2));
+  TW('headline', headline, w/2, h*0.35, w-pad*2, {fontSize:Math.round(w*0.09), fontWeight:'bold', color:theme.text, align:'center'}, 1.1, 3);
 
   // Accent bar centre
-  drawAccentBar(w/2-50,Math.round(h*0.42),100,3);
+  drawAccentBar(w/2-50,Math.round(h*0.42),100,3,'accentMark');
 
   // Tagline
   var tag=document.getElementById('txTagline').value||pkg.short_description||'';
   if (tag) {
-    var tfs6 = Math.round(w*0.032);
-    ctx.font=tfs6+'px Arial'; ctx.fillStyle=theme.sub;
-    var pt6 = pos('tagline', w/2, Math.round(h*0.47));
-    textHit('tagline', pt6.x, pt6.y, tag.substr(0,40), tfs6);
-    ctx.fillText(tag.substr(0,40),pt6.x,pt6.y);
+    T('tagline', tag.substr(0,40), w/2, Math.round(h*0.47), {fontSize:Math.round(w*0.032), fontFamily:'Arial', color:theme.sub, align:'center'});
   }
 
   // Price big
   if (document.getElementById('elPrice').checked) {
     var priceTxt6 = '$'+Number(pkg.price_1pax).toLocaleString();
     var sub6 = 'per person · '+(pkg.duration_days-1)+' nights';
-    var pfs6 = Math.round(w*0.052);
-    var pp6 = pos('price', w/2, Math.round(h*0.56));
-    ctx.font='bold '+pfs6+'px '+S.font; ctx.fillStyle=S.accent;
-    ctx.fillText(priceTxt6,pp6.x,pp6.y);
-    ctx.font=Math.round(w*0.024)+'px Arial'; ctx.fillStyle=theme.sub;
-    ctx.fillText(sub6,pp6.x,pp6.y+Math.round(h*0.04));
-    textHit('price', pp6.x, pp6.y, priceTxt6, pfs6, pfs6+Math.round(h*0.04)+20);
+    var pfs6 = T('price', priceTxt6, w/2, Math.round(h*0.56), {fontSize:Math.round(w*0.052), fontWeight:'bold', color:S.accent, align:'center'});
+    var pp6sub = pos('price', w/2, Math.round(h*0.56));
+    ctx.font=Math.round(w*0.024)+'px Arial'; ctx.fillStyle=theme.sub; ctx.textAlign='center';
+    ctx.fillText(sub6, pp6sub.x, pp6sub.y+Math.round(h*0.04));
+    ctx.textAlign='left';
   }
 
   // Highlights as pills in centre
   if (document.getElementById('elHighlights').checked) {
     var lines4=document.getElementById('txHighlights').value.split('\n').map(function(l){return l.trim();}).filter(Boolean).slice(0,4);
     var phl3 = pos('highlights', w/2, Math.round(h*0.68));
+    var hst3 = styleOf('highlights', {fontSize:Math.round(w*0.025), fontWeight:'bold', fontFamily:'Arial', color:theme.text});
+    S.lastStyle.highlights = hst3;
     var py=phl3.y, pyTop=py;
     lines4.forEach(function(inc){
+      ctx.font = (hst3.fontWeight==='bold'?'bold ':'') + hst3.fontSize + 'px ' + hst3.fontFamily;
       var tw3=ctx.measureText('✓ '+inc).width + 48;
       ctx.fillStyle=hexRgba(S.accent,0.15); ctx.fillRect(phl3.x-tw3/2, py-22, tw3, 34);
       ctx.fillStyle=hexRgba(S.accent,0.5); ctx.fillRect(phl3.x-tw3/2, py-22, 3, 34);
-      ctx.font='bold '+Math.round(w*0.025)+'px Arial'; ctx.fillStyle=theme.text;
+      applyStyle(hst3);
       ctx.fillText('✓ '+inc, phl3.x-tw3/2+14, py); py+=48;
     });
     hit('highlights', phl3.x-Math.round(w*0.4), pyTop-30, Math.round(w*0.8), py-pyTop+20);
@@ -1652,10 +1817,7 @@ function renderStoryTpl(pkg, theme, img, w, h) {
   // Bottom CTA
   if (document.getElementById('elCTA').checked) {
     var cta2=(document.getElementById('txCTA').value||'safarizanguven.com').toUpperCase();
-    var cfs6 = Math.round(w*0.026);
-    ctx.font='bold '+cfs6+'px Arial'; ctx.fillStyle=S.accent;
-    var pc6 = pos('cta', w/2, h-70); textHit('cta', pc6.x, pc6.y, cta2, cfs6);
-    ctx.fillText(cta2, pc6.x, pc6.y);
+    T('cta', cta2, w/2, h-70, {fontSize:Math.round(w*0.026), fontWeight:'bold', fontFamily:'Arial', color:S.accent, align:'center'});
   }
   ctx.textAlign='left';
   if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||(pkg.duration_days-1)+'N',w,h);
@@ -1672,7 +1834,7 @@ function renderFeature(pkg, theme, img, w, h) {
   ctx.fillStyle=fg; ctx.fillRect(0,0,w,imgH);
 
   ctx.fillStyle=theme.bg; ctx.fillRect(0,imgH,w,h-imgH);
-  drawAccentBar(0,imgH,w,4);
+  drawAccentBar(0,imgH,w,4,'accentMark');
 
   if (document.getElementById('elLogo').checked) drawLogo(theme,w,48,pad);
   if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||(pkg.duration_days-1)+' NIGHTS',w,h);
@@ -1680,40 +1842,34 @@ function renderFeature(pkg, theme, img, w, h) {
   var y2=imgH+60;
   var headline=applyCase(document.getElementById('txHeadline').value||pkg.name);
   if (document.getElementById('elHeadline').checked) {
-    var hfs7 = Math.round(w*0.062);
-    var ph7 = pos('headline', pad, y2);
-    wrapText(headline, ph7.x, ph7.y, w-pad*2, hfs7, theme.text, 'bold', 1.1, 2);
-    textHit('headline', ph7.x, ph7.y, headline, hfs7, textH(headline, hfs7, w-pad*2));
-    y2+=textH(headline, hfs7, w-pad*2)+28;
+    var hH7 = TW('headline', headline, pad, y2, w-pad*2, {fontSize:Math.round(w*0.062), fontWeight:'bold', color:theme.text}, 1.1, 2);
+    y2+=hH7+28;
   }
   var tag=document.getElementById('txTagline').value||pkg.short_description||'';
   if (tag) {
-    var tfs7 = Math.round(w*0.026);
-    var pt7 = pos('tagline', pad, y2);
-    wrapText(tag, pt7.x, pt7.y, w-pad*2, tfs7, theme.sub, 'normal', 1.6, 2);
-    textHit('tagline', pt7.x, pt7.y, tag, tfs7, textH(tag,tfs7,w-pad*2));
-    y2+=textH(tag,tfs7,w-pad*2)+32;
+    var tH7 = TW('tagline', tag, pad, y2, w-pad*2, {fontSize:Math.round(w*0.026), color:theme.sub}, 1.6, 2);
+    y2+=tH7+32;
   }
   if (document.getElementById('elDivider').checked) {
     var pdv7 = pos('divider', pad, y2);
-    ctx.fillStyle=hexRgba(S.accent,0.3); ctx.fillRect(pdv7.x,pdv7.y,w-pad*2,1);
+    ctx.fillStyle = fillOf('divider', hexRgba(S.accent,0.3));
+    ctx.fillRect(pdv7.x,pdv7.y,w-pad*2,1);
     hit('divider', pdv7.x, pdv7.y, w-pad*2, 1); y2+=28;
   }
   var facts2=[(pkg.duration_days-1)+' Nights', '$'+Number(pkg.price_1pax).toLocaleString()+'/pp', ucw(pkg.accommodation_level)];
   var fw=(w-pad*2)/facts2.length;
   var pfa2 = pos('stats', pad, y2);
+  var sst7 = styleOf('stats', {fontSize:Math.round(w*0.03), fontWeight:'bold', color:theme.text});
+  S.lastStyle.stats = sst7;
   facts2.forEach(function(f,i){
-    ctx.font='bold '+Math.round(w*0.03)+'px '+S.font; ctx.fillStyle=theme.text; ctx.fillText(f, pfa2.x+i*fw, pfa2.y+28);
+    applyStyle(sst7); ctx.fillText(f, pfa2.x+i*fw, pfa2.y+28);
     ctx.font=Math.round(w*0.016)+'px Arial'; ctx.fillStyle=theme.sub; ctx.fillText(['Duration','From','Accommodation'][i], pfa2.x+i*fw, pfa2.y+52);
   });
   hit('stats', pfa2.x, pfa2.y, w-pad*2, 60);
   y2+=80;
   if (document.getElementById('elCTA').checked) {
     var ctaTxt7 = (document.getElementById('txCTA').value||'safarizanguven.com').toUpperCase();
-    var cfs7 = Math.round(w*0.02);
-    ctx.font='bold '+cfs7+'px Arial'; ctx.fillStyle=S.accent;
-    var pc7 = pos('cta', pad, h-52); textHit('cta', pc7.x, pc7.y, ctaTxt7, cfs7);
-    ctx.fillText(ctaTxt7, pc7.x, pc7.y);
+    T('cta', ctaTxt7, pad, h-52, {fontSize:Math.round(w*0.02), fontWeight:'bold', fontFamily:'Arial', color:S.accent});
   }
 }
 
@@ -1721,64 +1877,52 @@ function renderDarkFull(pkg, theme, img, w, h) {
   // Pure dark, no image. Typography only.
   var pad = parseInt(document.getElementById('rPad').value)||64;
   ctx.fillStyle=theme.bg; ctx.fillRect(0,0,w,h);
-  drawAccentBar(pad,60,4,h-120);
+  drawAccentBar(pad,60,4,h-120,'edgeBar');
   var y3=80;
-  var bfs8 = Math.round(w*0.016);
-  ctx.font='bold '+bfs8+'px Arial'; ctx.fillStyle=S.accent;
-  var pb8 = pos('brand', pad+24, y3); textHit('brand', pb8.x, pb8.y, 'SZV', bfs8);
-  ctx.fillText('SZV', pb8.x, pb8.y); y3+=60;
+  T('brand', 'SZV', pad+24, y3, {fontSize:Math.round(w*0.016), fontWeight:'bold', fontFamily:'Arial', color:S.accent});
+  y3+=60;
   var headline=applyCase(document.getElementById('txHeadline').value||pkg.name);
-  var hfs8 = Math.round(w*0.075);
-  ctx.font='bold '+hfs8+'px '+S.font; ctx.fillStyle=theme.text;
+  var hst8 = styleOf('headline', {fontSize:Math.round(w*0.075), fontWeight:'bold', color:theme.text});
+  S.lastStyle.headline = hst8;
+  applyStyle(hst8);
   var ph8 = pos('headline', pad+24, y3);
   var hx8 = ph8.x, hyStart8 = ph8.y, hLineCount = 0;
   var words5=headline.split(' '); var line5='';
   words5.forEach(function(word){ var t=line5+(line5?' ':'')+word; if(ctx.measureText(t).width>w-pad-24-40 && line5){ctx.fillText(line5,hx8,ph8.y);ph8.y+=Math.round(w*0.085);hLineCount++;line5=word;}else line5=t; });
   if(line5){ctx.fillText(line5,hx8,ph8.y);ph8.y+=Math.round(w*0.085);hLineCount++;}
-  hit('headline', hx8, hyStart8-hfs8, Math.max(w-pad-24-40,200), hLineCount*Math.round(w*0.085));
+  hit('headline', hx8, hyStart8-hst8.fontSize, Math.max(w-pad-24-40,200), hLineCount*Math.round(w*0.085));
   y3 += hLineCount*Math.round(w*0.085);
-  y3+=20; drawAccentBar(pad+24,y3,100,3); y3+=40;
+  y3+=20; drawAccentBar(pad+24,y3,100,3,'accentMark'); y3+=40;
   var tag2=document.getElementById('txTagline').value||pkg.short_description||'';
   if (tag2) {
-    var tfs8 = Math.round(w*0.03);
-    var pt8 = pos('tagline', pad+24, y3);
-    ctx.font=tfs8+'px Arial'; ctx.fillStyle=theme.sub;
-    wrapText(tag2,pt8.x,pt8.y,w-pad-48,tfs8,'','normal',1.65,2);
-    textHit('tagline', pt8.x, pt8.y, tag2, tfs8, textH(tag2,tfs8,w-pad-48));
+    var tH8 = TW('tagline', tag2, pad+24, y3, w-pad-48, {fontSize:Math.round(w*0.03), fontFamily:'Arial', color:theme.sub}, 1.65, 2);
     y3+=100;
   }
   // Animated feel — staggered includes
   var lines5=document.getElementById('txHighlights').value.split('\n').map(function(l){return l.trim();}).filter(Boolean);
   var phl4 = pos('highlights', pad+24, y3);
+  var hst4b = styleOf('highlights', {fontSize:Math.round(w*0.025), fontFamily:'Arial', color:theme.sub});
+  S.lastStyle.highlights = hst4b;
   var y3b = phl4.y, hlTop4 = y3b;
   lines5.slice(0,5).forEach(function(inc,i){
     var x5=phl4.x+(i%2===0?0:30);
     ctx.fillStyle=hexRgba(S.accent,0.5+i*0.08);
     ctx.fillRect(x5,y3b-20,2,28);
-    ctx.font=Math.round(w*0.025)+'px Arial'; ctx.fillStyle=theme.sub;
+    applyStyle(hst4b);
     ctx.fillText(inc, x5+16, y3b); y3b+=Math.round(w*0.04);
   });
   hit('highlights', phl4.x, hlTop4-24, w-pad-24-40, y3b-hlTop4+20);
   y3 += (y3b - phl4.y) + 20;
   if (document.getElementById('elPrice').checked) {
     var priceTxt8 = 'From $'+Number(pkg.price_1pax).toLocaleString();
-    var pfs8 = Math.round(w*0.05);
-    var pp8 = pos('price', pad+24, h-100);
-    ctx.font='bold '+pfs8+'px '+S.font; ctx.fillStyle=S.accent;
-    ctx.fillText(priceTxt8, pp8.x, pp8.y);
+    var pfs8 = T('price', priceTxt8, pad+24, h-100, {fontSize:Math.round(w*0.05), fontWeight:'bold', color:S.accent});
+    var pp8sub = pos('price', pad+24, h-100);
     ctx.font=Math.round(w*0.02)+'px Arial'; ctx.fillStyle=theme.sub;
-    ctx.fillText('USD per person', pp8.x, pp8.y+30);
-    textHit('price', pp8.x, pp8.y, priceTxt8, pfs8, pfs8+50);
+    ctx.fillText('USD per person', pp8sub.x, pp8sub.y+30);
   }
   if (document.getElementById('elCTA').checked) {
     var ctaTxt8 = (document.getElementById('txCTA').value||'safarizanguven.com').toUpperCase();
-    var cfs8 = Math.round(w*0.018);
-    ctx.font='bold '+cfs8+'px Arial'; ctx.fillStyle=hexRgba(theme.text,0.35);
-    ctx.textAlign='right';
-    var pc8 = pos('cta', w-pad, h-70);
-    textHit('cta', pc8.x, pc8.y, ctaTxt8, cfs8);
-    ctx.fillText(ctaTxt8, pc8.x, pc8.y);
-    ctx.textAlign='left';
+    T('cta', ctaTxt8, w-pad, h-70, {fontSize:Math.round(w*0.018), fontWeight:'bold', fontFamily:'Arial', color:hexRgba(theme.text,0.35), align:'right'});
   }
   if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||(pkg.duration_days-1)+' NIGHTS',w,h);
 }
@@ -1793,24 +1937,40 @@ function roundR(ctx, x, y, w, h, r) {
 }
 function ucw(s){ return String(s||'').replace(/[_-]/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}); }
 
-/* ── Download & Export ────────────────────────────────────── */
+/* ── Download & Export ────────────────────────────────────────
+   The selection outline (blue dashed box) is only ever meant for the
+   editor, never the exported file — so every export re-renders with
+   S.selected temporarily cleared, then restores it and re-renders again
+   for the on-screen view once the export has read the clean frame. */
+function withoutSelection(fn) {
+  var had = S.selected;
+  if (had) { S.selected = null; render(); }
+  fn();
+  if (had) { S.selected = had; render(); }
+}
 function downloadPNG() {
   var pkg=PKGS[S.pkg];
-  var a=document.createElement('a');
-  a.download='szv-'+pkg.slug+'-'+S.tpl+'-'+S.size+'.png';
-  a.href=canvas.toDataURL('image/png'); a.click(); toast('Downloaded PNG');
+  withoutSelection(function(){
+    var a=document.createElement('a');
+    a.download='szv-'+pkg.slug+'-'+S.tpl+'-'+S.size+'.png';
+    a.href=canvas.toDataURL('image/png'); a.click(); toast('Downloaded PNG');
+  });
 }
 function downloadJPG() {
   var pkg=PKGS[S.pkg];
-  var a=document.createElement('a');
-  a.download='szv-'+pkg.slug+'-'+S.tpl+'-'+S.size+'.jpg';
-  a.href=canvas.toDataURL('image/jpeg',0.92); a.click(); toast('Downloaded JPG');
+  withoutSelection(function(){
+    var a=document.createElement('a');
+    a.download='szv-'+pkg.slug+'-'+S.tpl+'-'+S.size+'.jpg';
+    a.href=canvas.toDataURL('image/jpeg',0.92); a.click(); toast('Downloaded JPG');
+  });
 }
 function copyToClipboard() {
-  canvas.toBlob(function(blob){
-    try {
-      navigator.clipboard.write([new ClipboardItem({'image/png':blob})]).then(function(){ toast('Copied to clipboard'); }).catch(function(){ toast('Copy not supported — use Download'); });
-    } catch(e){ toast('Copy not supported — use Download'); }
+  withoutSelection(function(){
+    canvas.toBlob(function(blob){
+      try {
+        navigator.clipboard.write([new ClipboardItem({'image/png':blob})]).then(function(){ toast('Copied to clipboard'); }).catch(function(){ toast('Copy not supported — use Download'); });
+      } catch(e){ toast('Copy not supported — use Download'); }
+    });
   });
 }
 
