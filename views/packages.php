@@ -45,6 +45,27 @@ try {
 
 ?>
 <style><?= \App\Helpers\ItineraryDayCards::css() ?></style>
+<style>
+/* Itinerary day-cards refined to the site's own white/black/gold palette.
+   ItineraryDayCards::css() is shared with the admin itinerary editor and
+   PDF/email exports, which intentionally keep their own blue/green/amber
+   category colour-coding (see that class's docblock) — this override only
+   touches the public packages page, where those off-brand colours stood
+   out against the rest of the site. */
+.day-hdr { background: var(--black); color: var(--white); }
+.day-num { color: var(--gold); }
+.day-box.box-acc,
+.day-box.box-veh,
+.day-box.box-park {
+  background: var(--off-white);
+  border: 1px solid var(--gray-2);
+  border-left: 3px solid var(--gold);
+}
+.box-acc .box-lbl,
+.box-veh .box-lbl,
+.box-park .box-lbl { color: var(--gold-text); }
+.box-val { color: var(--black); }
+</style>
 
 <div class="page-hero">
   <div class="page-hero-inner container-sz">
