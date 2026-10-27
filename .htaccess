@@ -47,7 +47,19 @@ ServerSignature Off
   # other non-.json/.txt/.log file inside it was directly web-fetchable
   # (confirmed via curl); only files ending .json/.txt/.log happened to be
   # caught incidentally by the extension rule above.
-  RewriteRule ^(app|config|database|storage|sql|tests|cron|vendor)/  - [F,L]
+  # SEC-11: docs/ was never in this list either — docs/*.md was caught
+  # incidentally by the .md extension rule below, but every PDF under
+  # docs/reports/ (Security_Audit_Report.pdf, Admin_Role_Access_Report.pdf,
+  # Database_Architecture.pdf, Booking_Workflow_Map.pdf, etc.) was directly
+  # web-fetchable with no auth — confirmed via curl (200, not 403/302).
+  # SEC-11: views/ and layouts/ are template partials, never routes —
+  # requesting them directly (e.g. /views/book.php, /layouts/admin.php)
+  # isn't caught by any controller's own auth check and instead hits a PHP
+  # fatal on an undefined variable the real includer would have set. That's
+  # not a real access control (it only "works" because display_errors is
+  # off) and layouts/admin.php was confirmed to leak a fragment of its
+  # rendered HTML before erroring, so block the directories outright.
+  RewriteRule ^(app|config|database|storage|sql|tests|cron|vendor|docs|views|layouts)/  - [F,L]
 
   # Block sensitive directories from web access
   RewriteRule ^sql/      - [F,L]
@@ -58,6 +70,9 @@ ServerSignature Off
   RewriteRule ^tests/    - [F,L]
   RewriteRule ^vendor/   - [F,L]
   RewriteRule ^cron/     - [F,L]
+  RewriteRule ^docs/     - [F,L]
+  RewriteRule ^views/    - [F,L]
+  RewriteRule ^layouts/  - [F,L]
 
   # Block api/cron from browser access (cron only, not AJAX)
   RewriteRule ^api/cron/  - [F,L]

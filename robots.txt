@@ -1,6 +1,11 @@
 User-agent: *
 Allow: /
 Disallow: /admin/
+Disallow: /agent-portal/
+Disallow: /api/
+Disallow: /docs/
+Disallow: /views/
+Disallow: /layouts/
 Disallow: /php/
 
 Sitemap: https://safarizanguven.com/sitemap.xml
