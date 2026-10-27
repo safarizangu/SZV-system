@@ -453,6 +453,8 @@ ob_start();
       <button class="pm-tpl-btn"        onclick="setTpl('story')"     id="tpl-story">Story</button>
       <button class="pm-tpl-btn"        onclick="setTpl('feature')"   id="tpl-feature">Feature</button>
       <button class="pm-tpl-btn"        onclick="setTpl('dark')"      id="tpl-dark">Dark Full</button>
+      <button class="pm-tpl-btn"        onclick="setTpl('inclusions')" id="tpl-inclusions">Inclusions</button>
+      <button class="pm-tpl-btn"        onclick="setTpl('gallery')"   id="tpl-gallery">Gallery</button>
     </div>
   </div>
 
@@ -730,6 +732,7 @@ var ELEMENT_LABELS = {
   days: 'Itinerary Days', watermark: 'Watermark', card: 'Price Card',
   ghostNum: 'Ghost Number', photo: 'Photo', accentMark: 'Accent Mark',
   cardBar: 'Card Top Bar', edgeBar: 'Edge Bar',
+  includesList: 'Included Items', excludesList: 'Excluded Items',
 };
 
 var SIZES = {
@@ -816,17 +819,43 @@ function findCustomEl(key) {
   return null;
 }
 
+function inHandle(pt) {
+  if (!RESIZE_HANDLE) return false;
+  var pad4 = 4; // a little slop around the small handle so it's easy to grab
+  return pt.x >= RESIZE_HANDLE.x - pad4 && pt.x <= RESIZE_HANDLE.x + RESIZE_HANDLE.w + pad4
+      && pt.y >= RESIZE_HANDLE.y - pad4 && pt.y <= RESIZE_HANDLE.y + RESIZE_HANDLE.h + pad4;
+}
+
+/** Starts a resize drag on whatever is currently selected. Custom boxes resize width+height from the drag delta directly; text (built-in or custom) resizes its font size from the average of dx/dy, so dragging diagonally — the natural "grow the corner" motion — scales it predictably either direction. */
+function startResize(pt) {
+  var key = S.selected;
+  var isCustom = isCustomKey(key);
+  var el = isCustom ? findCustomEl(key) : null;
+  var isBox = !!(el && el.type === 'box');
+  DRAG = {
+    key: key, mode: 'resize', startX: pt.x, startY: pt.y, isCustom: isCustom, isBox: isBox,
+    baseFontSize: isBox ? null : (isCustom ? el.fontSize : (S.lastStyle[key] ? S.lastStyle[key].fontSize : 32)),
+    baseW: isBox ? el.w : null, baseH: isBox ? el.h : null,
+  };
+  canvas.style.cursor = 'nwse-resize';
+}
+
 canvas.addEventListener('mousedown', function(e) {
   var pt = canvasPoint(e);
+  if (S.selected && inHandle(pt)) {
+    startResize(pt);
+    e.preventDefault();
+    return;
+  }
   var key = hitTestAt(pt);
   selectElement(key);
   if (!key) return;
   if (isCustomKey(key)) {
     var el = findCustomEl(key);
-    DRAG = { key:key, startX:pt.x, startY:pt.y, startDx:el.x, startDy:el.y, custom:true };
+    DRAG = { key:key, mode:'move', startX:pt.x, startY:pt.y, startDx:el.x, startDy:el.y, custom:true };
   } else {
     var o = S.offsets[key] || (S.offsets[key] = {dx:0, dy:0});
-    DRAG = { key:key, startX:pt.x, startY:pt.y, startDx:o.dx, startDy:o.dy };
+    DRAG = { key:key, mode:'move', startX:pt.x, startY:pt.y, startDx:o.dx, startDy:o.dy };
   }
   canvas.style.cursor = 'grabbing';
   e.preventDefault();
@@ -834,6 +863,24 @@ canvas.addEventListener('mousedown', function(e) {
 window.addEventListener('mousemove', function(e) {
   if (!DRAG) return;
   var pt = canvasPoint(e);
+  if (DRAG.mode === 'resize') {
+    var ddx = pt.x - DRAG.startX, ddy = pt.y - DRAG.startY;
+    if (DRAG.isBox) {
+      var elB = findCustomEl(DRAG.key);
+      if (elB) { elB.w = Math.max(20, Math.round(DRAG.baseW + ddx)); elB.h = Math.max(20, Math.round(DRAG.baseH + ddy)); }
+    } else {
+      var newSize = Math.max(10, Math.min(240, Math.round(DRAG.baseFontSize + (ddx + ddy) / 2)));
+      if (DRAG.isCustom) {
+        var elT = findCustomEl(DRAG.key);
+        if (elT) elT.fontSize = newSize;
+      } else {
+        if (!S.styles[DRAG.key]) S.styles[DRAG.key] = {};
+        S.styles[DRAG.key].fontSize = newSize;
+      }
+    }
+    render();
+    return;
+  }
   if (DRAG.custom) {
     var el = findCustomEl(DRAG.key);
     if (el) { el.x = DRAG.startDx + (pt.x - DRAG.startX); el.y = DRAG.startDy + (pt.y - DRAG.startY); }
@@ -846,12 +893,15 @@ window.addEventListener('mousemove', function(e) {
 });
 window.addEventListener('mouseup', function() {
   if (!DRAG) return;
+  var wasResize = DRAG.mode === 'resize';
   DRAG = null;
-  canvas.style.cursor = HIT.length ? 'default' : 'default';
+  canvas.style.cursor = 'default';
+  if (wasResize) renderEditPanel(); // sync the size slider/value to where the drag landed
 });
 canvas.addEventListener('mousemove', function(e) {
   if (DRAG) return;
-  canvas.style.cursor = hitTestAt(canvasPoint(e)) ? 'grab' : 'default';
+  var pt = canvasPoint(e);
+  canvas.style.cursor = (S.selected && inHandle(pt)) ? 'nwse-resize' : (hitTestAt(pt) ? 'grab' : 'default');
 });
 canvas.addEventListener('mouseleave', function() {
   if (!DRAG) canvas.style.cursor = 'default';
@@ -1001,7 +1051,16 @@ function renderEditPanel() {
   panel.innerHTML = html;
 }
 
+/** Elements whose size can be dragged via the resize handle — everything with text (font size) plus every custom element (custom text font size, custom box width/height). Pure decoration (dividers, the price card panel, the photo crop frame) is excluded — their "size" isn't a single meaningful number. */
+function isResizable(key) {
+  if (isCustomKey(key)) return true;
+  return !POSITION_ONLY_KEYS[key] && !SHAPE_ONLY_KEYS[key];
+}
+
+var RESIZE_HANDLE = null; // {x,y,w,h} in canvas px for the currently selected element's resize grip, or null
+
 function drawSelectionOutline() {
+  RESIZE_HANDLE = null;
   if (!S.selected) return;
   for (var i = 0; i < HIT.length; i++) {
     if (HIT[i].key !== S.selected) continue;
@@ -1010,6 +1069,15 @@ function drawSelectionOutline() {
     ctx.strokeStyle = '#4f9cff'; ctx.lineWidth = 2; ctx.setLineDash([7,5]);
     ctx.strokeRect(r.x - 8, r.y - 8, r.w + 16, r.h + 16);
     ctx.restore();
+    if (isResizable(S.selected)) {
+      var hs = 16;
+      var hx = r.x + r.w + 8 - hs/2, hy = r.y + r.h + 8 - hs/2;
+      ctx.save();
+      ctx.fillStyle = '#4f9cff'; ctx.fillRect(hx, hy, hs, hs);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(hx, hy, hs, hs);
+      ctx.restore();
+      RESIZE_HANDLE = { x:hx, y:hy, w:hs, h:hs };
+    }
     return;
   }
 }
@@ -1190,6 +1258,8 @@ function render() {
     story:     renderStoryTpl,
     feature:   renderFeature,
     dark:      renderDarkFull,
+    inclusions: renderInclusions,
+    gallery:    renderGallery,
   };
   (fns[S.tpl] || renderHero)(pkg, theme, img, w, h);
 
@@ -1925,6 +1995,130 @@ function renderDarkFull(pkg, theme, img, w, h) {
     T('cta', ctaTxt8, w-pad, h-70, {fontSize:Math.round(w*0.018), fontWeight:'bold', fontFamily:'Arial', color:hexRgba(theme.text,0.35), align:'right'});
   }
   if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||(pkg.duration_days-1)+' NIGHTS',w,h);
+}
+
+function renderInclusions(pkg, theme, img, w, h) {
+  // What's in / what's not — the one question every guest asks before
+  // booking, answered in one glance: two columns, no image competing
+  // for attention.
+  var pad = parseInt(document.getElementById('rPad').value)||64;
+  ctx.fillStyle = theme.bg; ctx.fillRect(0,0,w,h);
+
+  if (document.getElementById('elLogo').checked) drawLogo(theme,w,56,pad);
+  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||(pkg.duration_days-1)+' NIGHTS', w, h);
+
+  var y = 150;
+  var headline = applyCase(document.getElementById('txHeadline').value||pkg.name);
+  if (document.getElementById('elHeadline').checked) {
+    var hH = TW('headline', headline, pad, y, w-pad*2, {fontSize:Math.round(w*0.052), fontWeight:'bold', color:theme.text}, 1.1, 2);
+    y += hH + 16;
+  }
+  var tagline = document.getElementById('txTagline').value || pkg.short_description || '';
+  if (tagline && document.getElementById('elTagline').checked) {
+    var tH = TW('tagline', tagline, pad, y, w-pad*2, {fontSize:Math.round(w*0.024), color:theme.sub}, 1.5, 2);
+    y += tH + 20;
+  }
+  if (document.getElementById('elDivider').checked) {
+    var pdvI = pos('divider', pad, y);
+    drawAccentBar(pdvI.x, pdvI.y, 80, 3, 'divider'); y += 20;
+  }
+  y += 28;
+
+  var colGap = Math.round(w*0.045);
+  var colW = (w - pad*2 - colGap) / 2;
+  var leftX = pad, rightX = pad + colW + colGap;
+  var incSrc = (pkg.itin_inc_arr && pkg.itin_inc_arr.length) ? pkg.itin_inc_arr : (pkg.includes_arr || []);
+  var incItems = incSrc.slice(0, 8);
+  var excItems = (pkg.excludes_arr || []).slice(0, 8);
+  var rowH = Math.round(w*0.036);
+  var itemFs = Math.round(w*0.021);
+
+  var pInc = pos('includesList', leftX, y);
+  var incSt = styleOf('includesList', {fontSize:itemFs, fontFamily:'Arial', color:theme.text});
+  S.lastStyle.includesList = incSt;
+  ctx.font = 'bold ' + Math.round(w*0.019) + 'px Arial'; ctx.fillStyle = '#7ecba1';
+  ctx.fillText('✓  INCLUDED', pInc.x, pInc.y);
+  var iy = pInc.y + rowH;
+  incItems.forEach(function(item){
+    var short = item.length > 42 ? item.substr(0,40)+'…' : item;
+    ctx.font = itemFs+'px Arial'; ctx.fillStyle = '#7ecba1'; ctx.fillText('✓', pInc.x, iy);
+    applyStyle(incSt); ctx.fillText(short, pInc.x+30, iy);
+    iy += rowH;
+  });
+  hit('includesList', pInc.x, pInc.y - Math.round(w*0.019), colW, iy - pInc.y + 16);
+
+  var pExc = pos('excludesList', rightX, y);
+  var excSt = styleOf('excludesList', {fontSize:itemFs, fontFamily:'Arial', color:theme.sub});
+  S.lastStyle.excludesList = excSt;
+  ctx.font = 'bold ' + Math.round(w*0.019) + 'px Arial'; ctx.fillStyle = '#e87a7a';
+  ctx.fillText('✕  NOT INCLUDED', pExc.x, pExc.y);
+  var ey = pExc.y + rowH;
+  excItems.forEach(function(item){
+    var short2 = item.length > 42 ? item.substr(0,40)+'…' : item;
+    ctx.font = itemFs+'px Arial'; ctx.fillStyle = '#e87a7a'; ctx.fillText('✕', pExc.x, ey);
+    applyStyle(excSt); ctx.fillText(short2, pExc.x+30, ey);
+    ey += rowH;
+  });
+  hit('excludesList', pExc.x, pExc.y - Math.round(w*0.019), colW, ey - pExc.y + 16);
+
+  if (document.getElementById('elPrice').checked) {
+    var priceTxt = 'From $'+Number(pkg.price_1pax).toLocaleString()+' per person';
+    T('price', priceTxt, pad, h-110, {fontSize:Math.round(w*0.028), fontWeight:'bold', fontFamily:'Arial', color:S.accent});
+  }
+  if (document.getElementById('elCTA').checked) {
+    var ctaTxt = (document.getElementById('txCTA').value||'safarizanguven.com').toUpperCase();
+    T('cta', ctaTxt, pad, h-56, {fontSize:Math.round(w*0.02), fontWeight:'bold', fontFamily:'Arial', color:S.accent});
+  }
+}
+
+function renderGallery(pkg, theme, img, w, h) {
+  // A clean photo-grid summary with a caption strip — the carousel-cover
+  // shot, distinct from Mosaic's single hero-with-inset arrangement.
+  var pad = parseInt(document.getElementById('rPad').value)||64;
+  var imgs = (pkg.gallery||[]).map(function(s){return S.loadedImgs[s];}).filter(Boolean);
+  var gap = 6;
+  var capH = Math.round(h*0.22);
+  var gridH = h - capH;
+
+  if (imgs.length >= 4) {
+    var gw = Math.round((w-gap)/2), gh2 = Math.round((gridH-gap)/2);
+    clipDraw(imgs[0],0,0,gw,gh2);
+    clipDraw(imgs[1],gw+gap,0,w-gw-gap,gh2);
+    clipDraw(imgs[2],0,gh2+gap,gw,gridH-gh2-gap);
+    clipDraw(imgs[3],gw+gap,gh2+gap,w-gw-gap,gridH-gh2-gap);
+  } else if (imgs.length === 3) {
+    var lw2 = Math.round(w*0.5);
+    clipDraw(imgs[0],0,0,lw2-gap/2,gridH);
+    clipDraw(imgs[1],lw2+gap/2,0,w-lw2-gap/2,Math.round(gridH/2)-gap/2);
+    clipDraw(imgs[2],lw2+gap/2,Math.round(gridH/2)+gap/2,w-lw2-gap/2,Math.round(gridH/2)-gap/2);
+  } else if (imgs.length === 2) {
+    clipDraw(imgs[0],0,0,Math.round(w/2)-gap/2,gridH);
+    clipDraw(imgs[1],Math.round(w/2)+gap/2,0,Math.round(w/2)-gap/2,gridH);
+  } else if (img) {
+    clipDraw(img,0,0,w,gridH);
+  } else {
+    ctx.fillStyle = theme.bg2; ctx.fillRect(0,0,w,gridH);
+  }
+
+  ctx.fillStyle = theme.bg; ctx.fillRect(0, gridH, w, capH);
+  if (document.getElementById('elDivider').checked) drawAccentBar(0, gridH, w, 3, 'divider');
+
+  var capPad = Math.round(w*0.045);
+  var cy = gridH + Math.round(capH*0.4);
+  var headline = applyCase(document.getElementById('txHeadline').value||pkg.name);
+  if (document.getElementById('elHeadline').checked) {
+    T('headline', headline, capPad, cy, {fontSize:Math.round(w*0.042), fontWeight:'bold', color:theme.text});
+  }
+  if (document.getElementById('elPrice').checked) {
+    var priceTxt2 = 'From $'+Number(pkg.price_1pax).toLocaleString();
+    T('price', priceTxt2, capPad, cy+Math.round(capH*0.36), {fontSize:Math.round(w*0.026), fontWeight:'bold', fontFamily:'Arial', color:S.accent});
+  }
+  if (document.getElementById('elCTA').checked) {
+    var ctaTxt2 = (document.getElementById('txCTA').value||'safarizanguven.com').toUpperCase();
+    T('cta', ctaTxt2, w-capPad, gridH+Math.round(capH*0.68), {fontSize:Math.round(w*0.02), fontWeight:'bold', fontFamily:'Arial', color:S.accent, align:'right'});
+  }
+  if (document.getElementById('elLogo').checked) drawLogo(theme, w, 48, pad);
+  if (document.getElementById('elBadge').checked) drawBadge(document.getElementById('txBadge').value||(pkg.duration_days-1)+' NIGHTS', w, h);
 }
 
 /* ── Utils ────────────────────────────────────────────────── */
