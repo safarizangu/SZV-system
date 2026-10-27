@@ -539,5 +539,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.addEventListener('DOMContentLoaded', function () {
     initCountryAutocomplete('cs-country', 'cs-country-suggestions');
+    initCountryAutocomplete('bk-nationality', 'bk-nationality-suggestions');
   });
 }());
