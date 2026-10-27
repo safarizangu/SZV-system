@@ -270,7 +270,7 @@ ob_start();
   <div class="container-sz">
     <div class="section-header fade-in">
       <span class="section-label">Worldwide</span>
-      <h2 class="display-2">Our Partners</h2>
+      <h2 class="display-2">Business Representatives</h2>
       <div class="divider-line"></div>
       <p style="color:var(--black);font-size:.9rem;font-weight:400;line-height:1.8;max-width:580px">
         Trusted agents who represent Safari Zangu Ventures in their own markets, so you can book through a familiar face wherever you are.
