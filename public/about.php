@@ -87,6 +87,11 @@ $guides = [
 $team   = !empty($teamMembers) ? $teamMembers : $fallback;
 $delays = ['', ' fade-in-delay-1', ' fade-in-delay-2', ' fade-in-delay-3'];
 
+// Partners/agents are stored in the same team_members table (member_type='agent')
+// but shown in their own "Our Partners" section, separate from the office team.
+$officeTeam = array_values(array_filter($team, fn($m) => ($m['member_type'] ?? 'team') !== 'agent'));
+$partners   = array_values(array_filter($team, fn($m) => ($m['member_type'] ?? 'team') === 'agent'));
+
 $pageTitle       = 'About Us — Safari Zangu Ventures';
 $pageDescription = 'Meet the team behind Safari Zangu Ventures — Arusha-based private safari specialists. Proudly Tanzanian, TALA licensed, founded 2024.';
 $pageCanonical   = 'https://safarizanguven.com/about.php';
@@ -200,7 +205,7 @@ ob_start();
     </div>
 
     <div class="team-grid">
-      <?php foreach ($team as $i => $member):
+      <?php foreach ($officeTeam as $i => $member):
         $initial  = mb_strtoupper(mb_substr($member['name'], 0, 1));
         $delay    = $delays[$i % 4] ?? '';
         $photoRaw = $member['photo_url'] ?? $member['photo'] ?? '';
@@ -258,6 +263,70 @@ ob_start();
     </div>
   </div>
 </section>
+
+<?php if (!empty($partners)): ?>
+<!-- OUR PARTNERS (sales agents / referral partners, split out from the office team) -->
+<section class="section-lg" id="partners" style="background:var(--off-white);border-top:1px solid var(--gray-2)">
+  <div class="container-sz">
+    <div class="section-header fade-in">
+      <span class="section-label">Worldwide</span>
+      <h2 class="display-2">Our Partners</h2>
+      <div class="divider-line"></div>
+      <p style="color:var(--black);font-size:.9rem;font-weight:400;line-height:1.8;max-width:580px">
+        Trusted agents who represent Safari Zangu Ventures in their own markets, so you can book through a familiar face wherever you are.
+      </p>
+    </div>
+
+    <div class="team-grid">
+      <?php foreach ($partners as $i => $member):
+        $initial  = mb_strtoupper(mb_substr($member['name'], 0, 1));
+        $delay    = $delays[$i % 4] ?? '';
+        $photoRaw = $member['photo_url'] ?? $member['photo'] ?? '';
+        $photoPath = $photoRaw;
+        if ($photoPath && BASE_PATH !== '' && str_starts_with($photoPath, BASE_PATH)) {
+            $photoPath = substr($photoPath, strlen(BASE_PATH));
+        }
+        if (str_starts_with($photoPath, '/safari-zangu')) {
+            $photoPath = substr($photoPath, strlen('/safari-zangu'));
+        }
+        $hasPhoto = $photoPath && file_exists(dirname(__DIR__) . '/' . ltrim($photoPath, '/'));
+        $photoSrc = BASE_PATH . $photoPath;
+      ?>
+      <div class="team-card fade-in<?= $delay ?>">
+
+        <?php if ($hasPhoto): ?>
+        <img src="<?= htmlspecialchars($photoSrc) ?>"
+             alt="<?= htmlspecialchars($member['name']) ?>"
+             class="team-avatar"
+             style="width:100%;aspect-ratio:1;object-fit:cover;display:block"
+             loading="lazy">
+        <?php else: ?>
+        <div class="team-avatar" style="background:var(--black);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:1.8rem;font-style:italic;color:var(--white);font-weight:500;aspect-ratio:1">
+          <?= $initial ?>
+        </div>
+        <?php endif; ?>
+
+        <h4 class="team-name"><?= htmlspecialchars($member['name']) ?></h4>
+        <p class="team-role"><?= $member['role'] ?></p>
+
+        <div class="team-social">
+          <?php if (!empty($member['linkedin_url']) && $member['linkedin_url'] !== '#'): ?>
+          <a href="<?= htmlspecialchars($member['linkedin_url']) ?>" target="_blank" rel="noopener" aria-label="<?= htmlspecialchars($member['name']) ?> on LinkedIn">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+          </a>
+          <?php endif; ?>
+          <?php if (!empty($member['email'])): ?>
+          <a href="mailto:<?= htmlspecialchars($member['email']) ?>" aria-label="Email <?= htmlspecialchars($member['name']) ?>">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+          </a>
+          <?php endif; ?>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</section>
+<?php endif; ?>
 
 <!-- GUIDES — the section UK buyers read most carefully -->
 

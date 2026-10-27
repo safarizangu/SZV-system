@@ -27,13 +27,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     $photo  = trim($_POST['photo_url'] ?? '');
     $sort   = (int)($_POST['sort_order'] ?? 0);
     $active = isset($_POST['is_active']) ? 1 : 0;
+    $type   = ($_POST['member_type'] ?? 'team') === 'agent' ? 'agent' : 'team';
     try {
         if ($id > 0) {
-            $db->prepare("UPDATE team_members SET name=?,role=?,bio=?,email=?,phone=?,linkedin_url=?,photo_url=?,sort_order=?,is_active=? WHERE id=?")
-               ->execute([$name,$role,$bio,$email,$phone,$li,$photo,$sort,$active,$id]);
+            $db->prepare("UPDATE team_members SET name=?,role=?,bio=?,email=?,phone=?,linkedin_url=?,photo_url=?,sort_order=?,is_active=?,member_type=? WHERE id=?")
+               ->execute([$name,$role,$bio,$email,$phone,$li,$photo,$sort,$active,$type,$id]);
         } else {
-            $db->prepare("INSERT INTO team_members(name,role,bio,email,phone,linkedin_url,photo_url,sort_order,is_active) VALUES(?,?,?,?,?,?,?,?,?)")
-               ->execute([$name,$role,$bio,$email,$phone,$li,$photo,$sort,$active]);
+            $db->prepare("INSERT INTO team_members(name,role,bio,email,phone,linkedin_url,photo_url,sort_order,is_active,member_type) VALUES(?,?,?,?,?,?,?,?,?,?)")
+               ->execute([$name,$role,$bio,$email,$phone,$li,$photo,$sort,$active,$type]);
         }
         $msg = 'Saved successfully.';
     } catch(Exception $e){ $msg = 'Error: '.$e->getMessage(); }
@@ -74,13 +75,14 @@ catch(Exception $e){ error_log($e->getMessage()); }
 <!-- List -->
 <div class="admin-table-wrap">
 <table class="admin-table">
-<thead><tr><th>Order</th><th>Name</th><th>Role</th><th>Email</th><th>Active</th><th>Actions</th></tr></thead>
+<thead><tr><th>Order</th><th>Name</th><th>Role</th><th>Type</th><th>Email</th><th>Active</th><th>Actions</th></tr></thead>
 <tbody>
 <?php foreach ($members as $m): ?>
 <tr>
   <td><?= $m['sort_order'] ?></td>
   <td><strong><?= htmlspecialchars($m['name']) ?></strong></td>
   <td><?= htmlspecialchars($m['role'] ?? '—') ?></td>
+  <td><?= ($m['member_type'] ?? 'team') === 'agent' ? '<span class="badge-status badge-status--gray">Partner / Agent</span>' : '<span class="badge-status badge-status--gray">Team</span>' ?></td>
   <td><?= htmlspecialchars($m['email'] ?? '—') ?></td>
   <td><?= $m['is_active'] ? '<span class="badge-status badge-status--green">Yes</span>' : '<span class="badge-status badge-status--gray">No</span>' ?></td>
   <td>
@@ -98,7 +100,7 @@ catch(Exception $e){ error_log($e->getMessage()); }
   </td>
 </tr>
 <?php endforeach; ?>
-<?php if(empty($members)): ?><tr><td colspan="6" class="admin-empty">No team members yet.</td></tr><?php endif; ?>
+<?php if(empty($members)): ?><tr><td colspan="7" class="admin-empty">No team members yet.</td></tr><?php endif; ?>
 </tbody>
 </table>
 </div>
@@ -131,6 +133,11 @@ catch(Exception $e){ error_log($e->getMessage()); }
             <input id="name" name="name" data-av="required minlen:2" class="admin-input" required value="<?= htmlspecialchars($edit['name']??'') ?>"></div>
           <div><label class="admin-label" for="role">Role / Title</label>
             <input id="role" name="role" class="admin-input" value="<?= htmlspecialchars($edit['role']??'') ?>"></div>
+          <div><label class="admin-label" for="member_type">Member Type</label>
+            <select id="member_type" name="member_type" class="admin-input">
+              <option value="team" <?= ($edit['member_type']??'team')==='team' ? 'selected' : '' ?>>Team (Our Team section)</option>
+              <option value="agent" <?= ($edit['member_type']??'team')==='agent' ? 'selected' : '' ?>>Partner / Agent (Our Partners section)</option>
+            </select></div>
           <div><label class="admin-label" for="email">Email</label>
             <input id="email" name="email" data-av="email" type="email" class="admin-input" value="<?= htmlspecialchars($edit['email']??'') ?>"></div>
           <div><label class="admin-label" for="phone">Phone</label>
