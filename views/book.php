@@ -23,6 +23,7 @@ try {
     $packages = []; $pkgMap = [];
     error_log("[view] " . $e->getMessage());
 }
+$allCountries = \App\Services\LocationRegistry::allCountries($db);
 ?>
 
 <?php if (!empty($quoteData)): ?>
@@ -121,13 +122,19 @@ try {
                   Nationality / Country
                 </label>
                 <input type="text" id="bk-nationality" name="nationality"
-                       class="form-control-sz"
+                       class="form-control-sz" list="country-list"
                        placeholder="e.g. United Kingdom"
                        value="<?= htmlspecialchars($quoteData['client_country'] ?? '') ?>"
                        autocomplete="country-name">
               </div>
             </div>
           </div>
+
+          <datalist id="country-list">
+            <?php foreach ($allCountries as $__c): ?>
+            <option value="<?= htmlspecialchars($__c) ?>">
+            <?php endforeach; ?>
+          </datalist>
 
           <!-- Step 2: Safari Details -->
           <div class="sz-form-section">
