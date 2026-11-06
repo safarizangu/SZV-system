@@ -76,7 +76,8 @@ ob_start();
 <?php else: ?>
 <div class="itin-grid">
 <?php foreach($itineraries as $it): ?>
-<a href="itinerary_edit.php?id=<?= $it['id'] ?>" class="itin-card" style="text-decoration:none;color:inherit">
+<div class="itin-card">
+  <a href="itinerary_edit.php?id=<?= $it['id'] ?>" style="text-decoration:none;color:inherit;display:flex;flex-direction:column;flex:1">
   <div class="itin-card-top">
     <div style="display:flex;align-items:start;justify-content:space-between;gap:.5rem;margin-bottom:.5rem">
       <div class="itin-card-name"><?= htmlspecialchars($it['name']) ?></div>
@@ -107,11 +108,13 @@ ob_start();
       <span><strong><?= $it['includes_count'] ?></strong> includes</span>
     </div>
   </div>
+  </a>
 
   <div class="itin-card-footer">
-    <span class="admin-btn admin-btn--primary" style="font-size:.68rem">Edit</span>
+    <a href="itinerary_edit.php?id=<?= $it['id'] ?>" class="admin-btn admin-btn--primary" style="font-size:.68rem">Edit</a>
+    <a href="../api/itinerary_pdf.php?id=<?= $it['id'] ?>" target="_blank" rel="noopener" class="admin-btn admin-btn--outline" style="font-size:.68rem"><?= \App\Helpers\AdminIcon::render('print', 13) ?> Print</a>
   </div>
-</a>
+</div>
 <?php endforeach; ?>
 </div>
 <?php endif; ?>

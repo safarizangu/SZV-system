@@ -163,6 +163,9 @@ ob_start();
 <?php endif; ?>
 
 <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-bottom:1.25rem">
+  <?php if($editId): ?>
+  <a href="../api/itinerary_pdf.php?id=<?= $editId ?>" target="_blank" rel="noopener" class="admin-btn admin-btn--outline"><?= \App\Helpers\AdminIcon::render('print', 14) ?> Print</a>
+  <?php endif; ?>
   <a href="itineraries.php" class="admin-btn admin-btn--muted">← All Itineraries</a>
 </div>
 
